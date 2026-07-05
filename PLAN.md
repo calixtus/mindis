@@ -30,11 +30,11 @@ The application is **multilingual from the start** (German + English; parish con
 | Concern              | Choice                                   | Version (as of 2026-07) | Notes |
 |----------------------|------------------------------------------|-------------------------|-------|
 | Language / JDK       | Java (LTS)                               | 25                      | Toolchain-managed via Gradle; GraalVM toolchain only in M7 |
-| UI toolkit           | JavaFX                                   | 25                      | Module-path dependencies |
+| UI toolkit           | JavaFX                                   | 26.0.1                  | Module path; platform jars via `org.openjfx.javafxplugin` (no Gradle metadata upstream) |
 | Window/shell UI      | **`mindis-workbench` — in-repo fork of [WorkbenchFX](https://github.com/dlsc-software-consulting-gmbh/WorkbenchFX)** | forked from 11.3.1 | Apache-2.0, attribution kept (see §4.1). No external workbench dependency. |
 | Theme                | [AtlantaFX](https://mkpaz.github.io/atlantafx/) `io.github.mkpaz:atlantafx-base` | 2.x | Proper JPMS module `atlantafx.base` |
 | View layer           | **[FxmlKit](https://github.com/dlsc-software-consulting-gmbh/FxmlKit)** `com.dlsc.fxmlkit:fxmlkit` | 1.5.1 | Standard FXML at runtime, convention wiring, hot reload. **Sole view mechanism** — see §2.1. |
-| Dependency injection | [Avaje Inject](https://avaje.io/inject/) `io.avaje:avaje-inject` (+ `avaje-inject-generator` APT) | 11.x (verify) | Compile-time DI: generated wiring, **zero runtime reflection** (§2.2-safe). Plugged into FxmlKit's DI hook — see §2.4. |
+| Dependency injection | [Avaje Inject](https://avaje.io/inject/) `io.avaje:avaje-inject` (+ `avaje-inject-generator` APT) | 12.6 | Compile-time DI: generated wiring, **zero runtime reflection** (§2.2-safe). Plugged into FxmlKit's DI hook — see §2.4. |
 | Planning engine      | [Timefold Solver](https://timefold.ai/solver) `ai.timefold.solver:timefold-solver-core` | 2.x | JPMS-supported since 2.0 |
 | Build system         | Gradle (Kotlin DSL) + [GradleX](https://gradlex.org/) plugins | Gradle 9.x | JabRef-style setup (see §5) |
 | Native compilation   | GraalVM Native Image via GluonFX Gradle plugin (or `org.graalvm.buildtools.native` + Gluon static JavaFX libs) | latest | **Final milestone (M7) only.** Until then: just don't block it (§2.2) |
@@ -173,6 +173,34 @@ M0–M7 — but the module cut is chosen now so a web module can be added later 
 5. Persistence note: JSON-file store is single-user desktop scope. ADR-003 must revisit storage
    (server DB, multi-user, auth) — another reason repositories stay behind core interfaces.
 
+### 2.6 Preferences: own JSON store in core (no framework)
+
+User-editable settings (locale, theme, data directory, solver time budget, constraint weights,
+window geometry) are handled by a small core-owned mechanism — **no preferences framework**:
+
+- `org.mindis.core.preferences`: immutable record `MinDisPreferences` (all settings, sensible
+  defaults) + `PreferencesService` (Avaje `@Singleton`): load on first access, `update(...)`
+  with atomic write (temp file + move), change listeners via plain core listener interface
+  (§2.5 — no `ObservableValue` in core).
+- Storage: `preferences.json` via Jackson in the user data dir (`%APPDATA%/MinDis` / XDG) —
+  same serializer, same directory as the M2 repositories. Corrupt/missing file ⇒ defaults +
+  warning, never a crash.
+- GUI: thin adapter wraps `PreferencesService` into JavaFX properties for bindings; Settings
+  workbench module edits them. Locale + theme are applied at startup before the first scene.
+- Versioning: record carries a `version` field; migrations are explicit code, no magic.
+
+Rejected: `java.util.prefs` (Windows Registry backend — invisible, no backup, stringly-typed),
+PreferencesFX (JavaFX-coupled + FormsFX baggage + stores via java.util.prefs anyway),
+avaje-config (read-oriented app config, no user save-back),
+[JShepherd](https://github.com/bsommerfeld/jshepherd) (closest contender: maintained, JPMS
+module-infos, smart config merging, comment support — but annotation/reflection driven, which
+would add a fourth reflection consumer against §2.2, uses ServiceLoader for format modules,
+leaks a `ConfigurablePojo` base type into core, has no change-listener API so the GUI adapter
+must be hand-written anyway, and is single-maintainer; its merge feature mainly solves a
+problem our small versioned record does not have). Revisit JShepherd if preferences grow into
+large user-edited config files where comments and smart merging pay off. Recorded in
+`docs/adr/004-preferences.md` (written in M1).
+
 ---
 
 ## 3. Domain Model (Timefold)
@@ -248,8 +276,9 @@ mindis/
 │       ├── org.mindis.gradle.feature.native.gradle.kts     # native-image wiring (created in M7)
 │       └── org.mindis.gradle.module.gradle.kts             # gradlex module plugins wiring
 ├── gradle/
-│   ├── libs.versions.toml            # single version catalog
+│   ├── modules.properties            # JPMS module name -> Maven GA mappings
 │   └── wrapper/
+├── versions/                         # java-platform project: ALL dependency versions (§5)
 ├── config/
 │   └── checkstyle/checkstyle.xml     # JabRef-derived rules (§8)
 ├── docs/adr/                         # architecture decision records
@@ -259,7 +288,7 @@ mindis/
 │   └── src/main/java/module-info.java
 ├── mindis-core/                      # module: org.mindis.core — UI-AGNOSTIC (§2.5)
 │   └── src/main/java/module-info.java
-│       # exports model, planning, persistence API, localization
+│       # exports model, planning, persistence API, localization, preferences
 │       # requires ai.timefold.solver.core, com.fasterxml.jackson.databind, io.avaje.inject
 │       # NO javafx.* requires — enforced (§2.5)
 │       # opens org.mindis.core.model, .planning to timefold + jackson
@@ -304,12 +333,20 @@ Deliberate changes vs. upstream:
 
 Key elements copied from the JabRef approach:
 
-1. **Version catalog** — all dependency versions in `gradle/libs.versions.toml`.
+1. **Versions platform** (JabRef pattern, no version catalog): all dependency versions live in
+   `versions/build.gradle.kts` (`java-platform` project — GAV constraints + BOM imports),
+   consumed everywhere via `jvmDependencyConflicts { consistentResolution { platform(":versions") } }`.
+   JavaFX version is the `javafxVersion` Gradle property (gradle.properties), read by both the
+   platform and `feature.javafx`.
 2. **`build-logic` included build** with convention plugins (`org.mindis.gradle.*`) applied by
    subprojects; root `build.gradle.kts` stays nearly empty.
 3. **GradleX plugins** (applied in convention plugins):
    - `org.gradlex.java-module-dependencies` — derive Gradle dependencies from `module-info.java`
-     (`requires` ⇒ dependency); maintains name→coordinates mapping for non-obvious modules.
+     (`requires` ⇒ dependency); custom module-name→GA mappings in `gradle/modules.properties`.
+     **As built (M0): project-plugin mode** — project names are `core`/`gui`/`workbench`
+     (dirs `mindis-*`) so `group + name = module name` holds.
+   - `org.gradlex.jvm-dependency-conflict-resolution` — wires the `:versions` platform into all
+     resolution (`consistentResolution`), applied in the module convention plugin.
    - `org.gradlex.extra-java-module-info` — patch remaining non-modular jars (fewer now that
      WorkbenchFX is forked; still likely needed for transitive bits).
    - `org.gradlex.java-module-testing` — whitebox module testing with JUnit 5.
@@ -379,9 +416,13 @@ Key elements copied from the JabRef approach:
    light/dark toggle.
 3. `MinDisApp`: build `Workbench` with placeholder modules: *Dashboard*, *Servers*, *Services*,
    *Planning*, *Settings*. All strings via `Localization.lang(...)`; language switch in Settings.
-4. TestFX smoke tests for shell (open/close modules, drawer, dialog).
-5. **Done when:** app starts, five modules open/close, theme switch works, language switch
-   (en↔de) works, `mindis-workbench` has no dependency on `com.dlsc.workbenchfx` artifacts.
+4. Preferences (§2.6): `MinDisPreferences` record + `PreferencesService` in core (Jackson,
+   atomic write); gui adapter; locale, theme and window geometry persisted and applied at
+   startup. Write `docs/adr/004-preferences.md`.
+5. TestFX smoke tests for shell (open/close modules, drawer, dialog).
+6. **Done when:** app starts, five modules open/close, theme + language switch (en↔de) work
+   **and survive restart**, `mindis-workbench` has no dependency on `com.dlsc.workbenchfx`
+   artifacts.
 
 ### M2 — Domain model + persistence + first real views
 1. Implement `mindis-core` model (§3, without Timefold annotations yet) + Jackson JSON
@@ -407,7 +448,8 @@ Key elements copied from the JabRef approach:
 
 ### M4 — Planning UI
 1. *Planning* module: pick horizon → generate assignments → live solving view (score, progress,
-   assignment grid: services × role slots).
+   assignment grid: services × role slots). Solver time budget + constraint weights come from
+   `PreferencesService` (§2.6), editable in Settings.
 2. Manual edit: swap server via combo, pin assignments (`pinned` → `@PlanningPin`), re-solve.
 3. Violation display: per-assignment indictment list (Timefold `ScoreAnalysis`), messages
    localized.
@@ -492,13 +534,16 @@ Checkstyle config in `config/checkstyle/checkstyle.xml` (derived from JabRef's):
 
 - One ADR per significant decision in `docs/adr/NNN-title.md`. Seeded: `001-view-layer`
   (FxmlKit vs FXML/2), `002-packaging` (native vs jpackage, written in M7), `003-web-ui-path`
-  (web module deferred, §2.5).
+  (web module deferred, §2.5), `004-preferences` (own JSON store, §2.6, written in M1).
+- **New user-facing setting = new field in `MinDisPreferences`** with default value; bump the
+  record's `version` and add explicit migration when shape changes. No ad-hoc config files,
+  no `java.util.prefs`.
 - **DI via Avaje Inject (§2.4):** constructor injection only (no field injection); services in
   core, controllers/view models in gui; one `BeanScope` per app. No other DI mechanism.
 - **Web-readiness (§2.5):** no `javafx.*` in `mindis-core` (build-enforced); core service APIs
   UI-agnostic (plain types, futures/listeners — no `ObservableValue` in signatures).
-- All versions only in `libs.versions.toml`; module ↔ coordinate mappings in the
-  `java-module-dependencies` block of `build-logic`.
+- All versions only in `versions/build.gradle.kts` (plus `javafxVersion` in gradle.properties);
+  module-name ↔ coordinate mappings in `gradle/modules.properties`. No version catalog.
 - Don't-block-native rules (§2.2) apply to every PR: new reflection outside
   FXMLLoader/Jackson/Timefold needs justification. No native tooling before M7.
 - Derived WorkbenchFX code keeps upstream copyright headers; NOTICE file maintained.

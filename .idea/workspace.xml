@@ -4,9 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="187c8025-a697-4d3a-bf3f-63eda027dff2" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/PLAN.md" afterDir="false" />
-    </list>
+    <list default="true" id="187c8025-a697-4d3a-bf3f-63eda027dff2" name="Changes" comment="Build scaffolding" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -16,12 +14,122 @@
     <option name="cachedIndexableFilesCount" value="2" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
+  <component name="ExternalProjectsData">
+    <projectState path="$PROJECT_DIR$">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="ExternalProjectsManager">
+    <system id="GRADLE">
+      <state>
+        <task path="$PROJECT_DIR$">
+          <activation />
+        </task>
+        <projects_view>
+          <tree_state>
+            <expand>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="mindis" type="f1a62948:ProjectNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="mindis" type="f1a62948:ProjectNode" />
+                <item name="mindis" type="2d1252cf:ModuleNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="mindis" type="f1a62948:ProjectNode" />
+                <item name="mindis" type="2d1252cf:ModuleNode" />
+                <item name="gui" type="2d1252cf:ModuleNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="mindis" type="f1a62948:ProjectNode" />
+                <item name="mindis" type="2d1252cf:ModuleNode" />
+                <item name="gui" type="2d1252cf:ModuleNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="mindis" type="f1a62948:ProjectNode" />
+                <item name="mindis" type="2d1252cf:ModuleNode" />
+                <item name="gui" type="2d1252cf:ModuleNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+                <item name="application" type="c8890929:TasksNode$1" />
+              </path>
+            </expand>
+            <select />
+          </tree_state>
+        </projects_view>
+      </state>
+    </system>
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="McpProjectServerCommands">
     <commands />
     <urls />
+  </component>
+  <component name="NextEditCompletionFeaturesState">
+    <decayedCancelled>
+      <entry key="MS100" value="1.0006671074635212" />
+      <entry key="MS500" value="1.3850669767683397" />
+      <entry key="S2" value="2.803049540689363" />
+      <entry key="S5" value="3.826163564811901" />
+      <entry key="S10" value="4.345186880323163" />
+      <entry key="S30" value="4.764280255864543" />
+      <entry key="S60" value="4.879791402975311" />
+      <entry key="M2" value="4.939295143506206" />
+      <entry key="M5" value="4.978341302719109" />
+      <entry key="M10" value="5.105429503047657" />
+      <entry key="M15" value="5.402444644784431" />
+      <entry key="M30" value="6.42875991179886" />
+      <entry key="H1" value="7.674563561205796" />
+      <entry key="H2" value="8.65726107757834" />
+      <entry key="H4" value="9.27633535255459" />
+      <entry key="D1" value="9.871410016250527" />
+      <entry key="W1" value="9.981424518744586" />
+    </decayedCancelled>
+    <decayedSelected>
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="0.0" />
+      <entry key="S2" value="0.0" />
+      <entry key="S5" value="0.0" />
+      <entry key="S10" value="0.0" />
+      <entry key="S30" value="0.0" />
+      <entry key="S60" value="0.0" />
+      <entry key="M2" value="0.0" />
+      <entry key="M5" value="0.0" />
+      <entry key="M10" value="0.0" />
+      <entry key="M15" value="0.0" />
+      <entry key="M30" value="0.0" />
+      <entry key="H1" value="0.0" />
+      <entry key="H2" value="0.0" />
+      <entry key="H4" value="0.0" />
+      <entry key="D1" value="0.0" />
+      <entry key="W1" value="0.0" />
+    </decayedSelected>
+    <decayedShown>
+      <entry key="MS100" value="0.9598289150182095" />
+      <entry key="MS500" value="1.2469567656385039" />
+      <entry key="S2" value="2.5646713849299023" />
+      <entry key="S5" value="3.681679869285648" />
+      <entry key="S10" value="4.262041769927205" />
+      <entry key="S30" value="4.733824944422938" />
+      <entry key="S60" value="4.864199420459457" />
+      <entry key="M2" value="4.931406356670833" />
+      <entry key="M5" value="4.975162925645868" />
+      <entry key="M10" value="5.103828900828973" />
+      <entry key="M15" value="5.401363742336232" />
+      <entry key="M30" value="6.428196366748151" />
+      <entry key="H1" value="7.6742678899549635" />
+      <entry key="H2" value="8.65710777217166" />
+      <entry key="H4" value="9.276256978283039" />
+      <entry key="D1" value="9.87139667817745" />
+      <entry key="W1" value="9.981422606025662" />
+    </decayedShown>
   </component>
   <component name="ProjectColorInfo"><![CDATA[{
   "associatedIndex": 1,
@@ -34,6 +142,8 @@
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
+    "Gradle.C:/Users/Carl Christian/dev/mindis.executor": "Run",
+    "Gradle.mindis [:gui:run].executor": "Run",
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.MCP Project settings loaded": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
@@ -53,6 +163,65 @@
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
+  <component name="RunManager" selected="Gradle.mindis [:gui:run]">
+    <configuration name="C:/Users/Carl Christian/dev/mindis" type="GradleRunConfiguration" factoryName="Gradle" nameIsGenerated="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" value="" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list />
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>false</RunAsTest>
+      <GradleProfilingDisabled>false</GradleProfilingDisabled>
+      <GradleCoverageDisabled>false</GradleCoverageDisabled>
+      <method v="2" />
+    </configuration>
+    <configuration name="mindis [:gui:run]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
+      <ExternalSystemSettings>
+        <option name="executionName" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="externalSystemIdString" value="GRADLE" />
+        <option name="scriptParameters" />
+        <option name="taskDescriptions">
+          <list />
+        </option>
+        <option name="taskNames">
+          <list>
+            <option value=":gui:run" />
+          </list>
+        </option>
+        <option name="vmOptions" />
+      </ExternalSystemSettings>
+      <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+      <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
+      <DebugAllEnabled>false</DebugAllEnabled>
+      <RunAsTest>false</RunAsTest>
+      <GradleProfilingDisabled>false</GradleProfilingDisabled>
+      <GradleCoverageDisabled>false</GradleCoverageDisabled>
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="Gradle.C:/Users/Carl Christian/dev/mindis" />
+      <item itemvalue="Gradle.mindis [:gui:run]" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Gradle.mindis [:gui:run]" />
+      </list>
+    </recent_temporary>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -68,11 +237,57 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1783281530801</updated>
-      <workItem from="1783281531950" duration="4862000" />
+      <workItem from="1783281531950" duration="8639000" />
     </task>
+    <task id="LOCAL-00001" summary="Initial">
+      <option name="closed" value="true" />
+      <created>1783286594276</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1783286594276</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Initial">
+      <option name="closed" value="true" />
+      <created>1783286827032</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1783286827032</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Build scaffolding">
+      <option name="closed" value="true" />
+      <created>1783289721204</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1783289721204</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Build scaffolding">
+      <option name="closed" value="true" />
+      <created>1783290548252</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1783290548252</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Build scaffolding">
+      <option name="closed" value="true" />
+      <created>1783291187395</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1783291187395</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Initial" />
+    <MESSAGE value="Build scaffolding" />
+    <option name="LAST_COMMIT_MESSAGE" value="Build scaffolding" />
   </component>
 </project>
