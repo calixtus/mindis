@@ -34,6 +34,7 @@ import javafx.util.StringConverter;
 
 import java.io.File;
 
+import org.mindis.core.export.PlanExportFormat;
 import org.mindis.core.export.PlanExportService;
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
@@ -210,21 +211,41 @@ public class PlanningController {
             return;
         }
         FileChooser chooser = new FileChooser();
-        chooser.setTitle(Localization.lang("Export PDF"));
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF", "*.pdf"));
+        chooser.setTitle(Localization.lang("Export plan"));
+        chooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("PDF", "*.pdf"),
+                new FileChooser.ExtensionFilter("CSV", "*.csv"),
+                new FileChooser.ExtensionFilter("TXT", "*.txt"),
+                new FileChooser.ExtensionFilter("RTF", "*.rtf"),
+                new FileChooser.ExtensionFilter("Markdown", "*.md"));
         chooser.setInitialFileName("MinDis-" + fromPicker.getValue() + ".pdf");
         File target = chooser.showSaveDialog(assignmentsTable.getScene().getWindow());
         if (target == null) {
             return;
         }
+        PlanExportFormat format = formatOf(target, chooser.getSelectedExtensionFilter());
         try {
-            planExportService.exportPdf(
+            planExportService.export(
                     PlanMapper.toAcceptedPlan(currentPlan, fromPicker.getValue(), toPicker.getValue()),
-                    target.toPath());
-            statusLabel.setText(Localization.lang("PDF saved to %0", target.getName()));
+                    target.toPath(),
+                    format);
+            statusLabel.setText(Localization.lang("%0 saved to %1", format.name(), target.getName()));
         } catch (RuntimeException e) {
-            statusLabel.setText(Localization.lang("PDF export failed: %0", e.getMessage()));
+            statusLabel.setText(Localization.lang("%0 export failed: %1", format.name(), e.getMessage()));
         }
+    }
+
+    private static PlanExportFormat formatOf(File target, FileChooser.ExtensionFilter selectedFilter) {
+        String fileName = target.getName();
+        int dot = fileName.lastIndexOf('.');
+        if (dot >= 0 && dot < fileName.length() - 1) {
+            try {
+                return PlanExportFormat.fromExtension(fileName.substring(dot + 1));
+            } catch (IllegalArgumentException ignored) {
+                // Fall through to the filter the user picked in the chooser.
+            }
+        }
+        return PlanExportFormat.fromExtension(selectedFilter.getExtensions().get(0).substring(2));
     }
 
     private void applySolution(ServicePlan solution, boolean withViolations) {

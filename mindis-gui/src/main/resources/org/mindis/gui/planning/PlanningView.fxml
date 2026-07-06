@@ -30,7 +30,7 @@
         <Button fx:id="stopButton" text="%Stop" onAction="#onStop" disable="true"/>
         <Separator orientation="VERTICAL"/>
         <Button fx:id="saveButton" text="%Save plan" onAction="#onSave" disable="true"/>
-        <Button fx:id="exportButton" text="%Export PDF" onAction="#onExport" disable="true"/>
+        <Button fx:id="exportButton" text="%Export plan" onAction="#onExport" disable="true"/>
     </ToolBar>
 
     <HBox spacing="16">

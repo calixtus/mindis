@@ -30,7 +30,7 @@ class PlanExportServiceTest {
                 List.of(new AcceptedPlan.PlannedAssignment("a1", "svc1", Role.ACOLYTE, null, false)));
         Path target = tempDir.resolve("plan.pdf");
 
-        exportService.exportPdf(plan, target);
+        exportService.export(plan, target, PlanExportFormat.PDF);
 
         assertTrue(Files.exists(target));
         assertTrue(Files.size(target) > 500, "PDF suspiciously small");
@@ -39,6 +39,23 @@ class PlanExportServiceTest {
             assertTrue(in.read(head) == 4);
         }
         assertTrue(new String(head).startsWith("%PDF"), "Not a PDF file");
+    }
+
+    @Test
+    void exportsCsvTxtAndRtfFiles() throws IOException {
+        PlanExportService exportService = new PlanExportService(
+                new ServerRepositoryStub(tempDir), new ServiceRepositoryStub(tempDir));
+        AcceptedPlan plan = new AcceptedPlan(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
+                List.of(new AcceptedPlan.PlannedAssignment("a1", "svc1", Role.ACOLYTE, null, false)));
+
+        for (PlanExportFormat format : List.of(
+                PlanExportFormat.CSV, PlanExportFormat.TXT, PlanExportFormat.RTF, PlanExportFormat.MARKDOWN)) {
+            Path target = tempDir.resolve("plan." + format.extension());
+            exportService.export(plan, target, format);
+            assertTrue(Files.exists(target), format + " file was not written");
+            assertTrue(Files.size(target) > 0, format + " file is empty");
+        }
     }
 
     private static final class ServerRepositoryStub extends ServerRepository {
