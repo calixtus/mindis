@@ -526,6 +526,42 @@ multi-user storage, auth, deployment.
 Adopt JabRef's code style (see JabRef `CONTRIBUTING.md` / devdocs), enforced by the
 Checkstyle config in `config/checkstyle/checkstyle.xml` (derived from JabRef's):
 
+**Design principles — SOLID:**
+
+- *Single responsibility*: one reason to change per class — repositories persist, services
+  decide, controllers bind UI; never mixed (the existing core/gui cut enforces the biggest
+  instance of this).
+- *Open/closed*: extend via new `WorkbenchModule`s, new constraints, new preferences fields —
+  not by modifying shell/solver/persistence internals.
+- *Liskov substitution*: subtypes honor the contract of their base (e.g. every
+  `WorkbenchModule` must tolerate repeated `activate()`/`deactivate()` cycles).
+- *Interface segregation*: keep injected dependencies narrow; if a controller needs one query,
+  don't hand it a fat service. Introduce interfaces when a second implementation or test
+  double exists or is imminent — not speculatively.
+- *Dependency inversion*: high-level code depends on abstractions wired via Avaje constructor
+  injection (§2.4); no `new` of collaborators inside business logic, no service locators.
+
+**Effective Java (Bloch, 3rd ed.) — the items this codebase leans on most:**
+
+- Minimize mutability (Item 17): domain = records, defensive copies in compact constructors
+  (as in `Server`, `LiturgicalService`).
+- Static factories over constructors where they clarify (Item 1); builders for many optional
+  params (Item 2, e.g. `Workbench.builder`).
+- Enforce noninstantiability of utility classes with private constructors (Item 4).
+- Prefer dependency injection to hardwiring resources (Item 5) — Avaje everywhere.
+- `Optional` for absent return values, never for fields/params (Item 55); empty collections,
+  never `null` returns (Item 54).
+- Design and document for inheritance or prohibit it (Item 19): classes `final` by default,
+  lifecycle hooks documented (`WorkbenchModule`).
+- Prefer enums + `switch` expressions with exhaustiveness over string/int codes (Items 34-38,
+  e.g. `EnumDisplay`).
+- Fail fast with precondition checks in constructors/compact constructors (Item 49).
+- Don't swallow exceptions silently (Item 77) — log with context (as in `JsonStore`,
+  `PreferencesService`) or propagate.
+- Return streams/collections judiciously; keep public API types plain (List/Set/Map).
+
+Reviewers/agents: cite the violated principle or item when rejecting code.
+
 - 4-space indent; braces always, even for single-statement `if`.
 - No wildcard imports; import order per config.
 - No abbreviations in identifiers; descriptive names over comments.
