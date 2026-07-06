@@ -8,11 +8,13 @@ import javafx.scene.paint.Color;
 import org.mindis.core.preferences.MinDisPreferences;
 
 /**
- * Builds the per-user customization stylesheet layered on top of the base
- * AtlantaFX theme: accent color and application font. Emitted as a
- * {@code data:} URI so it can be dropped straight into a Scene's stylesheet
- * list (Scene stylesheets override the user-agent theme). Same layering trick
- * the AtlantaFX sampler uses.
+ * Builds the application's user-agent stylesheet: the base AtlantaFX theme
+ * {@code @import}ed, followed by the user's accent/font {@code .root}
+ * overrides. Emitted as a single {@code data:} URI for {@link
+ * javafx.application.Application#setUserAgentStylesheet}. Applying everything
+ * through one user-agent stylesheet (rather than a Scene override layer) keeps
+ * design tokens available to popup windows (ComboBox popups etc.), which only
+ * consult the user-agent stylesheet.
  *
  * <p>Accent tokens are derived from a single base hex per theme mode, mirroring
  * how AtlantaFX relates {@code -color-accent-fg/emphasis/muted/subtle}: on dark
@@ -25,20 +27,20 @@ public final class ThemeStyler {
     }
 
     /**
-     * @param accentHex base accent hex (e.g. {@code #3b82f6}), or {@code null}
-     *                  to leave the theme's own accent untouched
-     * @return a {@code data:text/css;base64,...} URI for {@link
-     *         javafx.scene.Scene#getStylesheets()}, or an empty string when
-     *         nothing overrides the base theme.
+     * @param baseThemeUrl the base theme's stylesheet URL (from
+     *                     {@code Theme.getUserAgentStylesheet()})
+     * @param accentHex    base accent hex (e.g. {@code #3b82f6}), or
+     *                     {@code null} to keep the theme's own accent
+     * @return a {@code data:text/css;base64,...} URI that imports the base
+     *         theme and appends the accent/font overrides
      */
-    public static String buildStylesheetUri(MinDisPreferences.Theme theme,
-                                            String accentHex,
-                                            String fontFamily,
-                                            int fontSize) {
-        String css = buildCss(theme, accentHex, fontFamily, fontSize);
-        if (css.isEmpty()) {
-            return "";
-        }
+    public static String userAgentStylesheet(String baseThemeUrl,
+                                             MinDisPreferences.Theme theme,
+                                             String accentHex,
+                                             String fontFamily,
+                                             int fontSize) {
+        String css = "@import \"" + baseThemeUrl + "\";\n"
+                + buildCss(theme, accentHex, fontFamily, fontSize);
         return "data:text/css;base64,"
                 + Base64.getEncoder().encodeToString(css.getBytes(StandardCharsets.UTF_8));
     }

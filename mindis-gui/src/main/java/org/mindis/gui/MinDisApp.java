@@ -65,34 +65,32 @@ public class MinDisApp extends Application {
         MinDisPreferences preferences = preferencesService.get();
         Localization.setLocale(preferences.locale());
 
-        // Theme (base stylesheet) + accent/font (layered customization) are
-        // reapplied whenever any input to the resolved theme changes. Two-arg
-        // subscribe does not fire initially; the explicit apply below the scene
-        // build seeds the first render.
-        uiPreferences.themeProperty().subscribe((_, _) -> applyResolvedTheme());
-        uiPreferences.followSystemThemeProperty().subscribe((_, _) -> applyResolvedTheme());
+        // Theme, accent and font are all baked into one user-agent stylesheet
+        // (base theme @import + .root overrides), reapplied whenever any input
+        // changes. Two-arg subscribe does not fire initially; the explicit
+        // apply below seeds the first render.
+        uiPreferences.themeProperty().subscribe((_, _) -> applyAppearance());
+        uiPreferences.followSystemThemeProperty().subscribe((_, _) -> applyAppearance());
+        uiPreferences.accentColorProperty().subscribe((_, _) -> applyAppearance());
+        uiPreferences.fontFamilyProperty().subscribe((_, _) -> applyAppearance());
+        uiPreferences.fontSizeProperty().subscribe((_, _) -> applyAppearance());
         // Follow the OS light/dark scheme live while that option is on.
         Platform.getPreferences().colorSchemeProperty().subscribe((_, _) -> {
             if (uiPreferences.followSystemThemeProperty().get()) {
-                applyResolvedTheme();
+                applyAppearance();
             }
         });
         // The DEFAULT accent tracks the OS accent color live.
         Platform.getPreferences().accentColorProperty().subscribe((_, _) -> {
             if (uiPreferences.accentColorProperty().get() == AccentColor.DEFAULT) {
-                applyCustomization();
+                applyAppearance();
             }
         });
         // Language changes need a full UI rebuild; the two-arg subscribe does
         // not fire initially (the scene does not exist yet).
         uiPreferences.languageProperty().subscribe((_, _) -> rebuildUi());
-        // Accent color and font re-layer the customization stylesheet only.
-        uiPreferences.accentColorProperty().subscribe((_, _) -> applyCustomization());
-        uiPreferences.fontFamilyProperty().subscribe((_, _) -> applyCustomization());
-        uiPreferences.fontSizeProperty().subscribe((_, _) -> applyCustomization());
 
-        // Base theme before the first scene (accent/font layer after it exists).
-        applyTheme(resolveTheme());
+        applyAppearance();
 
         // Deliberate DIP exception (documented in ADR-001): FxmlKit's Tier-2
         // integration is a global DiAdapter - effectively a service locator
@@ -103,9 +101,6 @@ public class MinDisApp extends Application {
 
         stage.getIcons().addAll(loadAppIcons());
         stage.setScene(new Scene(buildWorkbench(), 960, 640));
-        // Scene now exists: layer accent/font over the base theme (the earlier
-        // theme subscription could not, running before the scene was built).
-        applyCustomization();
         stage.setTitle(Localization.lang("MinDis - Minister Dispatcher"));
         restoreWindowBounds(preferences.windowBounds());
         stage.show();
@@ -161,37 +156,26 @@ public class MinDisApp extends Application {
         return uiPreferences.themeProperty().get();
     }
 
-    private void applyResolvedTheme() {
-        applyTheme(resolveTheme());
-        applyCustomization();
-    }
-
-    private void applyTheme(MinDisPreferences.Theme theme) {
-        setUserAgentStylesheet(switch (theme) {
+    /**
+     * Applies theme, accent and font as a single user-agent stylesheet: the
+     * base AtlantaFX theme {@code @import}ed, with the accent/font
+     * {@code .root} overrides appended. One UA stylesheet (rather than a UA
+     * theme plus a Scene override layer) keeps design tokens consistent in
+     * ComboBox popups and other popup windows, which only see the UA stylesheet
+     * - avoiding stale-token CSS warnings when the theme is switched at runtime.
+     */
+    private void applyAppearance() {
+        MinDisPreferences.Theme theme = resolveTheme();
+        String baseUrl = switch (theme) {
             case LIGHT -> new NordLight().getUserAgentStylesheet();
             case DARK -> new NordDark().getUserAgentStylesheet();
-        });
-    }
-
-    /**
-     * Layers the user's accent color and font over the base theme as a single
-     * Scene stylesheet (Scene stylesheets override the user-agent theme).
-     * No-op until the scene exists.
-     */
-    private void applyCustomization() {
-        if (stage == null || stage.getScene() == null) {
-            return;
-        }
-        String uri = ThemeStyler.buildStylesheetUri(
-                resolveTheme(),
+        };
+        setUserAgentStylesheet(ThemeStyler.userAgentStylesheet(
+                baseUrl,
+                theme,
                 resolveAccentHex(),
                 uiPreferences.fontFamilyProperty().get(),
-                uiPreferences.fontSizeProperty().get());
-        if (uri.isEmpty()) {
-            stage.getScene().getStylesheets().clear();
-        } else {
-            stage.getScene().getStylesheets().setAll(uri);
-        }
+                uiPreferences.fontSizeProperty().get()));
     }
 
     /**
