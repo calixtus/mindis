@@ -2,7 +2,6 @@ package org.mindis.gui;
 
 import atlantafx.base.theme.NordDark;
 import atlantafx.base.theme.NordLight;
-
 import com.dlsc.fxmlkit.fxml.FxmlKit;
 
 import io.avaje.inject.BeanScope;
