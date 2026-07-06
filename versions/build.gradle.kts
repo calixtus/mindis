@@ -35,6 +35,11 @@ dependencies.constraints {
     api("ai.timefold.solver:timefold-solver-core:2.2.0")
     api("com.github.librepdf:openpdf:3.0.5")
 
+    // Bridges the slf4j-api pulled in transitively (avaje-inject et al) into
+    // java.util.logging, so library log calls land in the same console/file
+    // handlers as the app's own JUL loggers (org.mindis.core.logging).
+    api("org.slf4j:slf4j-jdk14:2.0.18")
+
     api("org.kordamp.ikonli:ikonli-core:12.4.0")
     api("org.kordamp.ikonli:ikonli-javafx:12.4.0")
     api("org.kordamp.ikonli:ikonli-materialdesign2-pack:12.4.0")

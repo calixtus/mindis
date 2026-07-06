@@ -50,4 +50,6 @@ javaModulePackaging {
 dependencies {
     annotationProcessor(platform(project(":versions")))
     annotationProcessor("io.avaje:avaje-inject-generator")
+
+    implementation("org.slf4j:slf4j-jdk14")
 }

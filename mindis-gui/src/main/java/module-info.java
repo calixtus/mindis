@@ -15,6 +15,11 @@ open module org.mindis.gui {
     requires io.avaje.inject;
     requires jakarta.inject;
     requires ai.timefold.solver.core;
+    requires java.logging;
+
+    // Binds the slf4j-api pulled in transitively (avaje-inject et al) to
+    // java.util.logging; never referenced directly from mindis code.
+    requires org.slf4j.jul;
 
     provides io.avaje.inject.spi.InjectExtension with org.mindis.gui.GuiModule;
 }

@@ -6,14 +6,18 @@ import com.dlsc.fxmlkit.fxml.FxmlKit;
 
 import io.avaje.inject.BeanScope;
 
+import java.util.logging.Logger;
+
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 import org.mindis.core.l10n.Localization;
+import org.mindis.core.logging.LoggingBootstrap;
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.preferences.PreferencesService;
 import org.mindis.gui.di.AvajeDiAdapter;
+import org.mindis.gui.logging.AlertOnErrorHandler;
 import org.mindis.gui.modules.DashboardModule;
 import org.mindis.gui.modules.PlanningModule;
 import org.mindis.gui.modules.ServersModule;
@@ -41,6 +45,9 @@ public class MinDisApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        LoggingBootstrap.configure();
+        Logger.getLogger("").addHandler(new AlertOnErrorHandler());
+
         this.stage = primaryStage;
         beanScope = BeanScope.builder().build();
         preferencesService = beanScope.get(PreferencesService.class);

@@ -28,6 +28,7 @@ extraJavaModuleInfo {
     }
     module("io.micrometer:micrometer-commons", "micrometer.commons") {
         exportAllPackages()
+        requires("java.logging")
     }
     module("io.micrometer:micrometer-observation", "micrometer.observation") {
         exportAllPackages()
