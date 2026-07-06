@@ -445,6 +445,9 @@ Key elements copied from the JabRef approach:
    recurring-service templates (e.g. every Sunday 10:00).
 4. **Done when:** roster + services survive app restart (JSON round-trip), UI CRUD complete,
    both views fully localized.
+   **As built (2026-07-06):** done — verified manually (create/save/restart/reload on a real
+   run) plus unit tests for repositories and template generator. TestFX still deferred
+   (see M1 note); template CRUD exercised via unit tests, not yet via UI click-through.
 
 ### M3 — Timefold integration
 1. Add Timefold annotations to planning types, `ServicePlan` solution, `ConstraintProvider`

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<SplitPane xmlns="http://javafx.com/javafx"
+           xmlns:fx="http://javafx.com/fxml"
+           fx:controller="org.mindis.gui.servers.ServersController"
+           dividerPositions="0.45">
+    <VBox spacing="8">
+        <padding>
+            <Insets top="12" right="12" bottom="12" left="12"/>
+        </padding>
+        <TableView fx:id="serversTable" VBox.vgrow="ALWAYS">
+            <columns>
+                <TableColumn fx:id="nameColumn" text="%Name" prefWidth="180"/>
+                <TableColumn fx:id="qualificationsColumn" text="%Qualifications" prefWidth="160"/>
+                <TableColumn fx:id="activeColumn" text="%Active" prefWidth="60"/>
+            </columns>
+        </TableView>
+        <HBox spacing="8">
+            <Button fx:id="newButton" text="%New" onAction="#onNew"/>
+            <Button fx:id="deleteButton" text="%Delete" onAction="#onDelete"/>
+        </HBox>
+    </VBox>
+
+    <VBox spacing="12">
+        <padding>
+            <Insets top="12" right="12" bottom="12" left="12"/>
+        </padding>
+        <GridPane hgap="8" vgap="8">
+            <columnConstraints>
+                <ColumnConstraints minWidth="110"/>
+                <ColumnConstraints hgrow="ALWAYS"/>
+            </columnConstraints>
+            <Label text="%First name" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+            <TextField fx:id="firstNameField" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+            <Label text="%Last name" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+            <TextField fx:id="lastNameField" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+            <Label text="%Contact" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+            <TextField fx:id="contactField" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+            <Label text="%Birth date" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+            <DatePicker fx:id="birthDatePicker" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+            <Label text="%Family" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+            <TextField fx:id="familyIdField" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+            <Label text="%Active" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
+            <CheckBox fx:id="activeCheck" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
+        </GridPane>
+
+        <TitledPane text="%Qualifications" collapsible="false">
+            <VBox fx:id="qualificationsBox" spacing="6">
+                <padding>
+                    <Insets top="8" right="8" bottom="8" left="8"/>
+                </padding>
+            </VBox>
+        </TitledPane>
+
+        <TitledPane text="%Unavailable periods" collapsible="false" VBox.vgrow="ALWAYS">
+            <VBox spacing="8">
+                <padding>
+                    <Insets top="8" right="8" bottom="8" left="8"/>
+                </padding>
+                <ListView fx:id="unavailabilityList" prefHeight="120"/>
+                <HBox spacing="8">
+                    <DatePicker fx:id="periodFromPicker" promptText="%From"/>
+                    <DatePicker fx:id="periodToPicker" promptText="%To"/>
+                    <Button text="%Add" onAction="#onAddPeriod"/>
+                    <Button text="%Remove" onAction="#onRemovePeriod"/>
+                </HBox>
+            </VBox>
+        </TitledPane>
+
+        <HBox spacing="8">
+            <Button fx:id="saveButton" text="%Save" onAction="#onSave" defaultButton="true"/>
+        </HBox>
+    </VBox>
+</SplitPane>

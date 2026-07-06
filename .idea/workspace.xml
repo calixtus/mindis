@@ -4,28 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="187c8025-a697-4d3a-bf3f-63eda027dff2" name="Changes" comment="Build scaffolding">
-      <change afterPath="$PROJECT_DIR$/mindis-core/src/main/java/org/mindis/core/preferences/AppDirectories.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mindis-core/src/main/java/org/mindis/core/preferences/MinDisPreferences.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mindis-core/src/main/java/org/mindis/core/preferences/PreferencesService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mindis-core/src/test/java/org/mindis/core/preferences/PreferencesServiceTest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mindis-gui/src/main/java/org/mindis/gui/modules/DashboardModule.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mindis-gui/src/main/java/org/mindis/gui/modules/PlaceholderModule.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mindis-gui/src/main/java/org/mindis/gui/modules/SettingsModule.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mindis-workbench/src/main/java/org/mindis/workbench/Workbench.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mindis-workbench/src/main/java/org/mindis/workbench/WorkbenchModule.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/mindis-workbench/src/main/resources/org/mindis/workbench/workbench.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PLAN.md" beforeDir="false" afterPath="$PROJECT_DIR$/PLAN.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gradle/modules.properties" beforeDir="false" afterPath="$PROJECT_DIR$/gradle/modules.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mindis-core/src/main/java/module-info.java" beforeDir="false" afterPath="$PROJECT_DIR$/mindis-core/src/main/java/module-info.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mindis-core/src/main/resources/org/mindis/core/l10n/MinDis.properties" beforeDir="false" afterPath="$PROJECT_DIR$/mindis-core/src/main/resources/org/mindis/core/l10n/MinDis.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mindis-core/src/main/resources/org/mindis/core/l10n/MinDis_de.properties" beforeDir="false" afterPath="$PROJECT_DIR$/mindis-core/src/main/resources/org/mindis/core/l10n/MinDis_de.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mindis-core/src/main/resources/org/mindis/core/l10n/MinDis_en.properties" beforeDir="false" afterPath="$PROJECT_DIR$/mindis-core/src/main/resources/org/mindis/core/l10n/MinDis_en.properties" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mindis-gui/src/main/java/org/mindis/gui/MinDisApp.java" beforeDir="false" afterPath="$PROJECT_DIR$/mindis-gui/src/main/java/org/mindis/gui/MinDisApp.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mindis-workbench/src/main/java/module-info.java" beforeDir="false" afterPath="$PROJECT_DIR$/mindis-workbench/src/main/java/module-info.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/versions/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/versions/build.gradle.kts" afterDir="false" />
-    </list>
+    <list default="true" id="187c8025-a697-4d3a-bf3f-63eda027dff2" name="Changes" comment="Implement model, persistence and views" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -95,23 +74,23 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.0006671074635212" />
-      <entry key="MS500" value="1.3850669767683397" />
-      <entry key="S2" value="2.803049540689363" />
-      <entry key="S5" value="3.826163564811901" />
-      <entry key="S10" value="4.345186880323163" />
-      <entry key="S30" value="4.764280255864543" />
-      <entry key="S60" value="4.879791402975311" />
-      <entry key="M2" value="4.939295143506206" />
-      <entry key="M5" value="4.978341302719109" />
-      <entry key="M10" value="5.105429503047657" />
-      <entry key="M15" value="5.402444644784431" />
-      <entry key="M30" value="6.42875991179886" />
-      <entry key="H1" value="7.674563561205796" />
-      <entry key="H2" value="8.65726107757834" />
-      <entry key="H4" value="9.27633535255459" />
-      <entry key="D1" value="9.871410016250527" />
-      <entry key="W1" value="9.981424518744586" />
+      <entry key="MS100" value="1.0145017197914994" />
+      <entry key="MS500" value="1.618608980869439" />
+      <entry key="S2" value="3.2461345610998054" />
+      <entry key="S5" value="5.453449209107221" />
+      <entry key="S10" value="7.909234679409742" />
+      <entry key="S30" value="12.01615203299476" />
+      <entry key="S60" value="13.766678810156813" />
+      <entry key="M2" value="14.815538723448414" />
+      <entry key="M5" value="15.666250234385913" />
+      <entry key="M10" value="16.546773683847256" />
+      <entry key="M15" value="17.19653391541975" />
+      <entry key="M30" value="18.25163884600128" />
+      <entry key="H1" value="19.051805905709593" />
+      <entry key="H2" value="20.08039680872343" />
+      <entry key="H4" value="22.18139295972011" />
+      <entry key="D1" value="27.86178335448317" />
+      <entry key="W1" value="29.66352972629745" />
     </decayedCancelled>
     <decayedSelected>
       <entry key="MS100" value="0.0" />
@@ -133,23 +112,23 @@
       <entry key="W1" value="0.0" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.9598289150182095" />
-      <entry key="MS500" value="1.2469567656385039" />
-      <entry key="S2" value="2.5646713849299023" />
-      <entry key="S5" value="3.681679869285648" />
-      <entry key="S10" value="4.262041769927205" />
-      <entry key="S30" value="4.733824944422938" />
-      <entry key="S60" value="4.864199420459457" />
-      <entry key="M2" value="4.931406356670833" />
-      <entry key="M5" value="4.975162925645868" />
-      <entry key="M10" value="5.103828900828973" />
-      <entry key="M15" value="5.401363742336232" />
-      <entry key="M30" value="6.428196366748151" />
-      <entry key="H1" value="7.6742678899549635" />
-      <entry key="H2" value="8.65710777217166" />
-      <entry key="H4" value="9.276256978283039" />
-      <entry key="D1" value="9.87139667817745" />
-      <entry key="W1" value="9.981422606025662" />
+      <entry key="MS100" value="0.9733692888264528" />
+      <entry key="MS500" value="1.6068970865342083" />
+      <entry key="S2" value="3.2403159993511212" />
+      <entry key="S5" value="5.449280038418881" />
+      <entry key="S10" value="7.906168712335487" />
+      <entry key="S30" value="12.014601876564074" />
+      <entry key="S60" value="13.765792356716013" />
+      <entry key="M2" value="14.815062187838357" />
+      <entry key="M5" value="15.666048189921826" />
+      <entry key="M10" value="16.546665782109724" />
+      <entry key="M15" value="17.196458464767243" />
+      <entry key="M30" value="18.251598218230555" />
+      <entry key="H1" value="19.051783104023905" />
+      <entry key="H2" value="20.080375098814457" />
+      <entry key="H4" value="22.18136665563688" />
+      <entry key="D1" value="27.861771725166648" />
+      <entry key="W1" value="29.663527738039022" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo"><![CDATA[{
@@ -258,7 +237,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1783281530801</updated>
-      <workItem from="1783281531950" duration="9694000" />
+      <workItem from="1783281531950" duration="11122000" />
     </task>
     <task id="LOCAL-00001" summary="Initial">
       <option name="closed" value="true" />
@@ -308,7 +287,23 @@
       <option name="project" value="LOCAL" />
       <updated>1783291376863</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="Implement shell">
+      <option name="closed" value="true" />
+      <created>1783315989826</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1783315989826</updated>
+    </task>
+    <task id="LOCAL-00008" summary="Implement model, persistence and views">
+      <option name="closed" value="true" />
+      <created>1783317361457</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1783317361457</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -317,6 +312,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Initial" />
     <MESSAGE value="Build scaffolding" />
-    <option name="LAST_COMMIT_MESSAGE" value="Build scaffolding" />
+    <MESSAGE value="Implement shell" />
+    <MESSAGE value="Implement model, persistence and views" />
+    <option name="LAST_COMMIT_MESSAGE" value="Implement model, persistence and views" />
   </component>
 </project>

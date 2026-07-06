@@ -15,5 +15,5 @@ open module org.mindis.gui {
     requires io.avaje.inject;
     requires jakarta.inject;
 
-    provides io.avaje.inject.spi.InjectExtension with org.mindis.gui.hello.HelloModule;
+    provides io.avaje.inject.spi.InjectExtension with org.mindis.gui.GuiModule;
 }

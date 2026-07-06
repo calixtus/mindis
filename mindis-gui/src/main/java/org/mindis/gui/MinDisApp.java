@@ -17,6 +17,8 @@ import org.mindis.core.preferences.PreferencesService;
 import org.mindis.gui.di.AvajeDiAdapter;
 import org.mindis.gui.modules.DashboardModule;
 import org.mindis.gui.modules.PlaceholderModule;
+import org.mindis.gui.modules.ServersModule;
+import org.mindis.gui.modules.ServicesModule;
 import org.mindis.gui.modules.SettingsModule;
 import org.mindis.workbench.Workbench;
 
@@ -67,8 +69,8 @@ public class MinDisApp extends Application {
     private Workbench buildWorkbench() {
         return Workbench.builder(
                         new DashboardModule(Localization.lang("Dashboard")),
-                        new PlaceholderModule(Localization.lang("Servers")),
-                        new PlaceholderModule(Localization.lang("Services")),
+                        new ServersModule(Localization.lang("Servers")),
+                        new ServicesModule(Localization.lang("Services")),
                         new PlaceholderModule(Localization.lang("Planning")),
                         new SettingsModule(Localization.lang("Settings"), preferencesService, this::rebuildUi))
                 .homeTabTitle(Localization.lang("Home"))
