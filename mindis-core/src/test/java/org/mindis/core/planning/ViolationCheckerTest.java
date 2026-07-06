@@ -16,6 +16,8 @@ import org.mindis.core.model.ServiceType;
 
 class ViolationCheckerTest {
 
+    private static final Role ROLE_ACOLYTE = new Role(Role.ACOLYTE, "Acolyte", null, null, 0);
+    private static final Role ROLE_THURIFER = new Role(Role.THURIFER, "Thurifer", null, null, 2);
     private static final Server ACOLYTE_ONLY =
             new Server("s1", "Anna", "Muster", "", null, null, Set.of(Role.ACOLYTE), List.of(), Set.of(), false, true);
     private static final LiturgicalService MASS = new LiturgicalService(
@@ -24,10 +26,10 @@ class ViolationCheckerTest {
 
     @Test
     void unassignedAndUnqualifiedAndDoubleBookedDetected() {
-        Assignment unassigned = new Assignment("a1", MASS, Role.ACOLYTE);
-        Assignment unqualified = new Assignment("a2", MASS, Role.THURIFER);
+        Assignment unassigned = new Assignment("a1", MASS, ROLE_ACOLYTE);
+        Assignment unqualified = new Assignment("a2", MASS, ROLE_THURIFER);
         unqualified.setServer(ACOLYTE_ONLY);
-        Assignment doubleBooked = new Assignment("a3", MASS, Role.ACOLYTE);
+        Assignment doubleBooked = new Assignment("a3", MASS, ROLE_ACOLYTE);
         doubleBooked.setServer(ACOLYTE_ONLY);
         ServicePlan plan = new ServicePlan(List.of(ACOLYTE_ONLY),
                 List.of(unassigned, unqualified, doubleBooked));
@@ -42,7 +44,7 @@ class ViolationCheckerTest {
 
     @Test
     void cleanAssignmentHasNoEntry() {
-        Assignment clean = new Assignment("a1", MASS, Role.ACOLYTE);
+        Assignment clean = new Assignment("a1", MASS, ROLE_ACOLYTE);
         clean.setServer(ACOLYTE_ONLY);
         ServicePlan plan = new ServicePlan(List.of(ACOLYTE_ONLY), List.of(clean));
 

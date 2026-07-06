@@ -20,8 +20,10 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 import org.mindis.core.model.LiturgicalService;
+import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.Server;
+import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.preferences.MinDisPreferences;
@@ -40,15 +42,18 @@ public class PlanningService implements AutoCloseable {
 
     private final ServerRepository serverRepository;
     private final ServiceRepository serviceRepository;
+    private final RoleRepository roleRepository;
     private final PreferencesService preferencesService;
     private final SolverManager<ServicePlan> solverManager;
     private final SolutionManager<ServicePlan, HardMediumSoftScore> solutionManager;
 
     public PlanningService(ServerRepository serverRepository,
                            ServiceRepository serviceRepository,
+                           RoleRepository roleRepository,
                            PreferencesService preferencesService) {
         this.serverRepository = serverRepository;
         this.serviceRepository = serviceRepository;
+        this.roleRepository = roleRepository;
         this.preferencesService = preferencesService;
         this.solverManager = SolverManager.create(solverConfig());
         this.solutionManager = SolutionManager.create(solverManager);
@@ -73,6 +78,8 @@ public class PlanningService implements AutoCloseable {
         List<Server> activeServers = serverRepository.findAll().stream()
                 .filter(Server::active)
                 .toList();
+        Map<String, Role> rolesById = new HashMap<>();
+        roleRepository.findAll().forEach(role -> rolesById.put(role.id(), role));
         List<Assignment> assignments = new ArrayList<>();
         for (LiturgicalService service : serviceRepository.findAll()) {
             LocalDate date = service.dateTime().toLocalDate();
@@ -80,9 +87,14 @@ public class PlanningService implements AutoCloseable {
                 continue;
             }
             for (RoleSlot slot : service.slots()) {
+                Role role = rolesById.get(slot.role());
+                if (role == null) {
+                    // Slot references a deleted role; nothing to assign.
+                    continue;
+                }
                 for (int i = 0; i < slot.count(); i++) {
                     assignments.add(new Assignment(
-                            service.id() + ":" + slot.role() + ":" + i, service, slot.role()));
+                            service.id() + ":" + slot.role() + ":" + i, service, role));
                 }
             }
         }

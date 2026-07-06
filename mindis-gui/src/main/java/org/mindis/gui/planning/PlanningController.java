@@ -121,7 +121,7 @@ public class PlanningController {
                 EnumDisplay.of(data.getValue().assignment().getService().type())
                         + " " + data.getValue().assignment().getService().location()));
         roleColumn.setCellValueFactory(data -> new SimpleStringProperty(
-                EnumDisplay.of(data.getValue().assignment().getRole())));
+                data.getValue().assignment().getRole().name()));
         violationsColumn.setCellValueFactory(data -> data.getValue().violationsProperty());
 
         serverColumn.setCellValueFactory(data -> data.getValue().serverProperty());

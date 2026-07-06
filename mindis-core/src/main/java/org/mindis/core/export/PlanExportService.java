@@ -14,7 +14,9 @@ import java.util.Map;
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.LiturgicalService;
+import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
+import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.planning.AcceptedPlan;
@@ -29,11 +31,14 @@ public class PlanExportService {
 
     private final ServerRepository serverRepository;
     private final ServiceRepository serviceRepository;
+    private final RoleRepository roleRepository;
     private final Map<PlanExportFormat, PlanExporter> exporters = new EnumMap<>(PlanExportFormat.class);
 
-    public PlanExportService(ServerRepository serverRepository, ServiceRepository serviceRepository) {
+    public PlanExportService(ServerRepository serverRepository, ServiceRepository serviceRepository,
+                             RoleRepository roleRepository) {
         this.serverRepository = serverRepository;
         this.serviceRepository = serviceRepository;
+        this.roleRepository = roleRepository;
         register(new PdfPlanExporter());
         register(new CsvPlanExporter());
         register(new TxtPlanExporter());
@@ -58,6 +63,8 @@ public class PlanExportService {
         serverRepository.findAll().forEach(server -> serversById.put(server.id(), server));
         Map<String, LiturgicalService> servicesById = new LinkedHashMap<>();
         serviceRepository.findAll().forEach(service -> servicesById.put(service.id(), service));
+        Map<String, Role> rolesById = new LinkedHashMap<>();
+        roleRepository.findAll().forEach(role -> rolesById.put(role.id(), role));
 
         DateTimeFormatter dateFormat = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM);
         DateTimeFormatter dateTimeFormat = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT);
@@ -90,8 +97,9 @@ public class PlanExportService {
             List<PlanExportDocument.AssignmentRow> rows = new ArrayList<>();
             for (AcceptedPlan.PlannedAssignment assignment : entry.getValue()) {
                 Server server = assignment.serverId() == null ? null : serversById.get(assignment.serverId());
+                Role role = rolesById.get(assignment.role());
                 rows.add(new PlanExportDocument.AssignmentRow(
-                        EnumDisplay.of(assignment.role()),
+                        role == null ? assignment.role() : role.name(),
                         server == null ? "-" : server.displayName()));
             }
             sections.add(new PlanExportDocument.ServiceSection(heading, rows));

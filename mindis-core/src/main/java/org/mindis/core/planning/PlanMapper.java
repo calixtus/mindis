@@ -22,7 +22,7 @@ public final class PlanMapper {
                 .map(assignment -> new AcceptedPlan.PlannedAssignment(
                         assignment.getId(),
                         assignment.getService().id(),
-                        assignment.getRole(),
+                        assignment.getRole().id(),
                         assignment.getServer() == null ? null : assignment.getServer().id(),
                         assignment.isPinned()))
                 .toList();

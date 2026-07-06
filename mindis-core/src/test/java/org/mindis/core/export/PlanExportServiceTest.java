@@ -11,6 +11,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mindis.core.model.Role;
+import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.planning.AcceptedPlan;
@@ -24,7 +25,8 @@ class PlanExportServiceTest {
     void exportsPdfFile() throws IOException {
         // Repositories on empty temp files: export must handle unknown ids.
         PlanExportService exportService = new PlanExportService(
-                new ServerRepositoryStub(tempDir), new ServiceRepositoryStub(tempDir));
+                new ServerRepositoryStub(tempDir), new ServiceRepositoryStub(tempDir),
+                new RoleRepositoryStub(tempDir));
         AcceptedPlan plan = new AcceptedPlan(
                 LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
                 List.of(new AcceptedPlan.PlannedAssignment("a1", "svc1", Role.ACOLYTE, null, false)));
@@ -44,7 +46,8 @@ class PlanExportServiceTest {
     @Test
     void exportsCsvTxtAndRtfFiles() throws IOException {
         PlanExportService exportService = new PlanExportService(
-                new ServerRepositoryStub(tempDir), new ServiceRepositoryStub(tempDir));
+                new ServerRepositoryStub(tempDir), new ServiceRepositoryStub(tempDir),
+                new RoleRepositoryStub(tempDir));
         AcceptedPlan plan = new AcceptedPlan(
                 LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
                 List.of(new AcceptedPlan.PlannedAssignment("a1", "svc1", Role.ACOLYTE, null, false)));
@@ -67,6 +70,12 @@ class PlanExportServiceTest {
     private static final class ServiceRepositoryStub extends ServiceRepository {
         ServiceRepositoryStub(Path dir) {
             super(dir.resolve("services.json"));
+        }
+    }
+
+    private static final class RoleRepositoryStub extends RoleRepository {
+        RoleRepositoryStub(Path dir) {
+            super(dir.resolve("roles.json"));
         }
     }
 }

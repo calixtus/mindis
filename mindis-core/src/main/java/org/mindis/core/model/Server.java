@@ -3,6 +3,7 @@ package org.mindis.core.model;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Period;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -15,6 +16,7 @@ import java.util.UUID;
  * @param birthDate {@code null} if unknown
  * @param preferredTimes service start times this server prefers (soft reward)
  * @param experienced experienced servers are spread across services (soft reward)
+ * @param qualifications ids of the {@link Role}s this server may fill
  */
 public record Server(
         String id,
@@ -23,7 +25,7 @@ public record Server(
         String contact,
         LocalDate birthDate,
         String familyId,
-        Set<Role> qualifications,
+        Set<String> qualifications,
         List<UnavailabilityPeriod> unavailabilities,
         Set<LocalTime> preferredTimes,
         boolean experienced,
@@ -51,5 +53,14 @@ public record Server(
 
     public boolean prefers(LocalDateTime dateTime) {
         return preferredTimes.contains(dateTime.toLocalTime());
+    }
+
+    /**
+     * @return the server's age in whole years on {@code date}, or {@code null}
+     *         if the birth date is unknown (age requirements are then not
+     *         enforced).
+     */
+    public Integer ageAt(LocalDate date) {
+        return birthDate == null ? null : Period.between(birthDate, date).getYears();
     }
 }

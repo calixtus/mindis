@@ -27,6 +27,7 @@ class AcceptedPlanRoundTripTest {
     @TempDir
     java.nio.file.Path tempDir;
 
+    private static final Role ROLE_ACOLYTE = new Role(Role.ACOLYTE, "Acolyte", null, null, 0);
     private static final Server ANNA =
             new Server("srv-1", "Anna", "Muster", "", null, null, Set.of(Role.ACOLYTE), List.of(), Set.of(), false, true);
     private static final LiturgicalService MASS = new LiturgicalService(
@@ -35,10 +36,10 @@ class AcceptedPlanRoundTripTest {
 
     @Test
     void planSurvivesRoundTripAndReapplies() {
-        Assignment assigned = new Assignment("svc-1:ACOLYTE:0", MASS, Role.ACOLYTE);
+        Assignment assigned = new Assignment("svc-1:ACOLYTE:0", MASS, ROLE_ACOLYTE);
         assigned.setServer(ANNA);
         assigned.setPinned(true);
-        Assignment empty = new Assignment("svc-1:ACOLYTE:1", MASS, Role.ACOLYTE);
+        Assignment empty = new Assignment("svc-1:ACOLYTE:1", MASS, ROLE_ACOLYTE);
         ServicePlan plan = new ServicePlan(List.of(ANNA), List.of(assigned, empty));
 
         AcceptedPlan accepted = PlanMapper.toAcceptedPlan(
@@ -51,8 +52,8 @@ class AcceptedPlanRoundTripTest {
         assertEquals(accepted, reloaded);
 
         // Re-apply onto a fresh problem: server and pin restored by id.
-        Assignment freshAssigned = new Assignment("svc-1:ACOLYTE:0", MASS, Role.ACOLYTE);
-        Assignment freshEmpty = new Assignment("svc-1:ACOLYTE:1", MASS, Role.ACOLYTE);
+        Assignment freshAssigned = new Assignment("svc-1:ACOLYTE:0", MASS, ROLE_ACOLYTE);
+        Assignment freshEmpty = new Assignment("svc-1:ACOLYTE:1", MASS, ROLE_ACOLYTE);
         ServicePlan freshProblem = new ServicePlan(List.of(ANNA), List.of(freshAssigned, freshEmpty));
         PlanMapper.applyAcceptedPlan(freshProblem, reloaded);
 

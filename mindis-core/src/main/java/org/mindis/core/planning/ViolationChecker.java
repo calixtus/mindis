@@ -33,7 +33,7 @@ public final class ViolationChecker {
                 add(violations, assignment, MinDisConstraintProvider.UNASSIGNED);
                 continue;
             }
-            if (!server.qualifications().contains(assignment.getRole())) {
+            if (!server.qualifications().contains(assignment.getRole().id())) {
                 add(violations, assignment, MinDisConstraintProvider.NOT_QUALIFIED);
             }
             if (!server.isAvailableAt(assignment.serviceStart())) {

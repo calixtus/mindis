@@ -14,6 +14,8 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Objects;
 
+import org.mindis.core.model.Role;
+
 /**
  * Scoring rules for altar server planning (PLAN.md section 3).
  *
@@ -33,6 +35,7 @@ public class MinDisConstraintProvider implements ConstraintProvider {
 
     static final int PREFERRED_TIME_REWARD = 2;
     static final int EXPERIENCE_REWARD = 4;
+    static final int AGE_REQUIREMENT_PENALTY = 4;
 
     // Constraint names double as full-text localization keys (PLAN.md 2.3)
     // and are reused by ViolationChecker for the per-assignment display.
@@ -46,6 +49,7 @@ public class MinDisConstraintProvider implements ConstraintProvider {
     public static final String TOO_CLOSE = "Assignments too close together";
     public static final String PREFERRED_TIME = "Preferred service time";
     public static final String EXPERIENCED_PRESENT = "Experienced server present";
+    public static final String AGE_REQUIREMENT = "Server age outside role range";
 
     /**
      * The tunable soft constraints in display order - single source for the
@@ -57,7 +61,8 @@ public class MinDisConstraintProvider implements ConstraintProvider {
                 SIBLINGS_TOGETHER,
                 TOO_CLOSE,
                 PREFERRED_TIME,
-                EXPERIENCED_PRESENT);
+                EXPERIENCED_PRESENT,
+                AGE_REQUIREMENT);
     }
 
     /**
@@ -70,7 +75,8 @@ public class MinDisConstraintProvider implements ConstraintProvider {
                 SIBLINGS_TOGETHER, SIBLINGS_REWARD,
                 TOO_CLOSE, SPACING_PENALTY,
                 PREFERRED_TIME, PREFERRED_TIME_REWARD,
-                EXPERIENCED_PRESENT, EXPERIENCE_REWARD);
+                EXPERIENCED_PRESENT, EXPERIENCE_REWARD,
+                AGE_REQUIREMENT, AGE_REQUIREMENT_PENALTY);
     }
 
     @Override
@@ -85,13 +91,14 @@ public class MinDisConstraintProvider implements ConstraintProvider {
                 siblingsServeTogether(factory),
                 spacingBetweenAssignments(factory),
                 preferredServiceTime(factory),
-                experiencedServerPresent(factory)
+                experiencedServerPresent(factory),
+                ageWithinRoleRequirement(factory)
         };
     }
 
     Constraint serverMustBeQualified(ConstraintFactory factory) {
         return factory.forEach(Assignment.class)
-                .filter(assignment -> !assignment.getServer().qualifications().contains(assignment.getRole()))
+                .filter(assignment -> !assignment.getServer().qualifications().contains(assignment.getRole().id()))
                 .penalize(HardMediumSoftScore.ONE_HARD)
                 .asConstraint(NOT_QUALIFIED);
     }
@@ -168,5 +175,27 @@ public class MinDisConstraintProvider implements ConstraintProvider {
                 .groupBy(assignment -> assignment.getService().id())
                 .reward(HardMediumSoftScore.ofSoft(EXPERIENCE_REWARD))
                 .asConstraint(EXPERIENCED_PRESENT);
+    }
+
+    Constraint ageWithinRoleRequirement(ConstraintFactory factory) {
+        // Soft: a server outside the role's age range is discouraged, not
+        // forbidden. Unknown birth date -> not enforced (see outsideAgeRange).
+        return factory.forEach(Assignment.class)
+                .filter(MinDisConstraintProvider::outsideAgeRange)
+                .penalize(HardMediumSoftScore.ofSoft(AGE_REQUIREMENT_PENALTY))
+                .asConstraint(AGE_REQUIREMENT);
+    }
+
+    private static boolean outsideAgeRange(Assignment assignment) {
+        Role role = assignment.getRole();
+        if (role.minAge() == null && role.maxAge() == null) {
+            return false;
+        }
+        Integer age = assignment.getServer().ageAt(assignment.serviceStart().toLocalDate());
+        if (age == null) {
+            return false;
+        }
+        return (role.minAge() != null && age < role.minAge())
+                || (role.maxAge() != null && age > role.maxAge());
     }
 }

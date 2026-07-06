@@ -79,7 +79,7 @@ public class Assignment {
 
     @Override
     public String toString() {
-        return "Assignment[" + service.dateTime() + " " + role + " -> "
+        return "Assignment[" + service.dateTime() + " " + role.name() + " -> "
                 + (server == null ? "unassigned" : server.displayName()) + "]";
     }
 }

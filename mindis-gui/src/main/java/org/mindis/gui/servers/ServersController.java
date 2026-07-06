@@ -7,14 +7,18 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -22,17 +26,19 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.VBox;
+import javafx.scene.control.cell.CheckBoxListCell;
+import javafx.util.StringConverter;
 
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.UnavailabilityPeriod;
+import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
-import org.mindis.core.l10n.EnumDisplay;
 
 /**
  * CRUD for the altar server roster. Prototype bean: a fresh controller per
@@ -42,9 +48,16 @@ import org.mindis.core.l10n.EnumDisplay;
 public class ServersController {
 
     private final ServerRepository serverRepository;
-    private final Map<Role, CheckBox> qualificationChecks = new EnumMap<>(Role.class);
+    private final RoleRepository roleRepository;
+    // Role id -> whether its qualification checkbox is ticked, shared with the
+    // CheckBoxListCell so ticks survive list rebuilds.
+    private final Map<String, BooleanProperty> qualificationSelected = new HashMap<>();
+    private final Map<String, String> roleNames = new LinkedHashMap<>();
+    private final ObservableList<Role> qualificationRoles = FXCollections.observableArrayList();
     private final ObservableList<Server> tableItems = FXCollections.observableArrayList();
 
+    @FXML
+    private SplitPane root;
     @FXML
     private TableView<Server> serversTable;
     @FXML
@@ -70,7 +83,7 @@ public class ServersController {
     @FXML
     private CheckBox activeCheck;
     @FXML
-    private VBox qualificationsBox;
+    private ListView<Role> qualificationsList;
     @FXML
     private ListView<UnavailabilityPeriod> unavailabilityList;
     @FXML
@@ -80,8 +93,9 @@ public class ServersController {
 
     private Server selected;
 
-    public ServersController(ServerRepository serverRepository) {
+    public ServersController(ServerRepository serverRepository, RoleRepository roleRepository) {
         this.serverRepository = serverRepository;
+        this.roleRepository = roleRepository;
     }
 
     @FXML
@@ -89,17 +103,35 @@ public class ServersController {
         nameColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().displayName()));
         qualificationsColumn.setCellValueFactory(data -> new SimpleStringProperty(
                 data.getValue().qualifications().stream()
-                        .map(EnumDisplay::of)
+                        .map(id -> roleNames.getOrDefault(id, id))
                         .sorted()
                         .collect(Collectors.joining(", "))));
         activeColumn.setCellValueFactory(data -> new SimpleStringProperty(
                 data.getValue().active() ? Localization.lang("Yes") : Localization.lang("No")));
 
-        for (Role role : Role.values()) {
-            CheckBox check = new CheckBox(EnumDisplay.of(role));
-            qualificationChecks.put(role, check);
-            qualificationsBox.getChildren().add(check);
-        }
+        qualificationsList.setItems(qualificationRoles);
+        qualificationsList.setCellFactory(CheckBoxListCell.forListView(
+                role -> qualificationSelected.computeIfAbsent(role.id(), id -> new SimpleBooleanProperty()),
+                new StringConverter<>() {
+                    @Override
+                    public String toString(Role role) {
+                        return role == null ? "" : role.name();
+                    }
+
+                    @Override
+                    public Role fromString(String string) {
+                        return null;
+                    }
+                }));
+        // Re-read the roles every time the tab is shown so roles added or
+        // deleted in the Roles tab are reflected here (the module caches its
+        // view, so initialize() alone would go stale).
+        root.sceneProperty().subscribe(scene -> {
+            if (scene != null) {
+                refreshRoles();
+            }
+        });
+        refreshRoles();
 
         unavailabilityList.setItems(FXCollections.observableArrayList());
         unavailabilityList.setCellFactory(list -> new ListCell<>() {
@@ -129,12 +161,13 @@ public class ServersController {
         if (firstName.isEmpty() && lastName.isEmpty()) {
             return;
         }
-        Set<Role> qualifications = new HashSet<>();
-        qualificationChecks.forEach((role, check) -> {
-            if (check.isSelected()) {
-                qualifications.add(role);
+        Set<String> qualifications = new HashSet<>();
+        for (Role role : qualificationRoles) {
+            BooleanProperty ticked = qualificationSelected.get(role.id());
+            if (ticked != null && ticked.get()) {
+                qualifications.add(role.id());
             }
-        });
+        }
         String familyId = familyIdField.getText().strip();
         Server server = new Server(
                 selected == null ? Server.newId() : selected.id(),
@@ -202,11 +235,31 @@ public class ServersController {
         preferredTimesField.setText(server == null ? "" : formatPreferredTimes(server.preferredTimes()));
         experiencedCheck.setSelected(server != null && server.experienced());
         activeCheck.setSelected(server == null || server.active());
-        qualificationChecks.forEach((role, check) ->
-                check.setSelected(server != null && server.qualifications().contains(role)));
+        showQualifications(server);
         unavailabilityList.getItems().setAll(server == null ? List.of() : server.unavailabilities());
         periodFromPicker.setValue(null);
         periodToPicker.setValue(null);
+    }
+
+    /**
+     * Reloads the qualification checkbox list from the current roles (picking up
+     * roles added or deleted meanwhile) and re-applies the shown server's ticks.
+     */
+    private void refreshRoles() {
+        List<Role> roles = roleRepository.findAll();
+        roleNames.clear();
+        roles.forEach(role -> roleNames.put(role.id(), role.name()));
+        roles.forEach(role -> qualificationSelected.computeIfAbsent(role.id(), id -> new SimpleBooleanProperty()));
+        qualificationRoles.setAll(roles);
+        showQualifications(selected);
+        serversTable.refresh();
+    }
+
+    private void showQualifications(Server server) {
+        for (Role role : qualificationRoles) {
+            qualificationSelected.get(role.id())
+                    .set(server != null && server.qualifications().contains(role.id()));
+        }
     }
 
     /**

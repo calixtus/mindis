@@ -26,6 +26,7 @@ import org.mindis.gui.logging.AlertOnErrorHandler;
 import org.mindis.gui.modules.AboutModule;
 import org.mindis.gui.modules.DashboardModule;
 import org.mindis.gui.modules.PlanningModule;
+import org.mindis.gui.modules.RolesModule;
 import org.mindis.gui.modules.ServersModule;
 import org.mindis.gui.modules.ServicesModule;
 import org.mindis.gui.modules.SettingsModule;
@@ -124,6 +125,7 @@ public class MinDisApp extends Application {
     private Workbench buildWorkbench() {
         return Workbench.builder(
                         new DashboardModule(Localization.lang("Dashboard")),
+                        new RolesModule(Localization.lang("Roles")),
                         new ServersModule(Localization.lang("Servers")),
                         new ServicesModule(Localization.lang("Services")),
                         new PlanningModule(Localization.lang("Planning")))

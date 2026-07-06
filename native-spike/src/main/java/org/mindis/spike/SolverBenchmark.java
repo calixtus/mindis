@@ -8,6 +8,7 @@ import ai.timefold.solver.core.config.solver.termination.TerminationConfig;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.mindis.core.model.LiturgicalService;
@@ -26,6 +27,15 @@ import org.mindis.core.planning.ServicePlan;
  * "score calculation speed" log line is the comparison metric.
  */
 public final class SolverBenchmark {
+
+    // Role entities keyed by id (roles are configurable; the solver needs the
+    // entity for name/age, slots/qualifications reference them by id).
+    private static final Map<String, Role> ROLES = Map.of(
+            Role.ACOLYTE, new Role(Role.ACOLYTE, "Acolyte", null, null, 0),
+            Role.CROSS_BEARER, new Role(Role.CROSS_BEARER, "Cross bearer", null, null, 1),
+            Role.THURIFER, new Role(Role.THURIFER, "Thurifer", null, null, 2),
+            Role.BOAT_BEARER, new Role(Role.BOAT_BEARER, "Boat bearer", null, null, 3),
+            Role.MASTER_OF_CEREMONIES, new Role(Role.MASTER_OF_CEREMONIES, "Master of ceremonies", null, null, 4));
 
     private SolverBenchmark() {
     }
@@ -62,7 +72,7 @@ public final class SolverBenchmark {
     private static ServicePlan buildFixture() {
         List<Server> servers = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
-            Set<Role> qualifications = switch (i % 4) {
+            Set<String> qualifications = switch (i % 4) {
                 case 0 -> Set.of(Role.ACOLYTE, Role.THURIFER, Role.BOAT_BEARER);
                 case 1 -> Set.of(Role.ACOLYTE, Role.CROSS_BEARER);
                 case 2 -> Set.of(Role.ACOLYTE, Role.MASTER_OF_CEREMONIES);
@@ -89,7 +99,7 @@ public final class SolverBenchmark {
             for (RoleSlot slot : service.slots()) {
                 for (int i = 0; i < slot.count(); i++) {
                     assignments.add(new Assignment(service.id() + ":" + slot.role() + ":" + i,
-                            service, slot.role()));
+                            service, ROLES.get(slot.role())));
                 }
             }
         }

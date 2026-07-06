@@ -9,7 +9,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
-import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -33,6 +33,7 @@ import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.ServiceTemplate;
 import org.mindis.core.model.ServiceType;
+import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServiceGenerator;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.persistence.TemplateRepository;
@@ -50,7 +51,9 @@ public class ServicesController {
 
     private final ServiceRepository serviceRepository;
     private final TemplateRepository templateRepository;
-    private final Map<Role, Spinner<Integer>> slotSpinners = new EnumMap<>(Role.class);
+    private final RoleRepository roleRepository;
+    // Role id -> its count spinner, in role display order.
+    private final Map<String, Spinner<Integer>> slotSpinners = new LinkedHashMap<>();
     private final ObservableList<LiturgicalService> serviceItems = FXCollections.observableArrayList();
     private final ObservableList<ServiceTemplate> templateItems = FXCollections.observableArrayList();
 
@@ -101,9 +104,11 @@ public class ServicesController {
 
     private LiturgicalService selected;
 
-    public ServicesController(ServiceRepository serviceRepository, TemplateRepository templateRepository) {
+    public ServicesController(ServiceRepository serviceRepository, TemplateRepository templateRepository,
+                              RoleRepository roleRepository) {
         this.serviceRepository = serviceRepository;
         this.templateRepository = templateRepository;
+        this.roleRepository = roleRepository;
     }
 
     @FXML
@@ -131,12 +136,12 @@ public class ServicesController {
             }
         });
 
-        for (Role role : Role.values()) {
+        for (Role role : roleRepository.findAll()) {
             Spinner<Integer> spinner = new Spinner<>(0, 10, 0);
             spinner.setPrefWidth(70);
-            slotSpinners.put(role, spinner);
+            slotSpinners.put(role.id(), spinner);
             int row = slotsGrid.getRowCount();
-            slotsGrid.add(new Label(EnumDisplay.of(role)), 0, row);
+            slotsGrid.add(new Label(role.name()), 0, row);
             slotsGrid.add(spinner, 1, row);
         }
 
@@ -248,10 +253,10 @@ public class ServicesController {
 
     private List<RoleSlot> collectSlots() {
         List<RoleSlot> slots = new ArrayList<>();
-        slotSpinners.forEach((role, spinner) -> {
+        slotSpinners.forEach((roleId, spinner) -> {
             int count = spinner.getValue();
             if (count > 0) {
-                slots.add(new RoleSlot(role, count));
+                slots.add(new RoleSlot(roleId, count));
             }
         });
         return slots;
@@ -279,11 +284,11 @@ public class ServicesController {
         serviceTypeBox.getSelectionModel().select(service == null ? ServiceType.SUNDAY_MASS : service.type());
         serviceLocationField.setText(service == null ? "" : service.location());
         serviceNoteField.setText(service == null ? "" : service.note());
-        slotSpinners.forEach((role, spinner) -> spinner.getValueFactory().setValue(
+        slotSpinners.forEach((roleId, spinner) -> spinner.getValueFactory().setValue(
                 service == null
                         ? 0
                         : service.slots().stream()
-                                .filter(slot -> slot.role() == role)
+                                .filter(slot -> slot.role().equals(roleId))
                                 .mapToInt(RoleSlot::count)
                                 .findFirst()
                                 .orElse(0)));

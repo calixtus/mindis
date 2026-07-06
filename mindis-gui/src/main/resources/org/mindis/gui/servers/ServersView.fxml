@@ -17,7 +17,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<SplitPane xmlns="http://javafx.com/javafx"
+<SplitPane fx:id="root" xmlns="http://javafx.com/javafx"
            xmlns:fx="http://javafx.com/fxml"
            fx:controller="org.mindis.gui.servers.ServersController"
            dividerPositions="0.45">
@@ -68,11 +68,7 @@
         </GridPane>
 
         <TitledPane text="%Qualifications" collapsible="false">
-            <VBox fx:id="qualificationsBox" spacing="6">
-                <padding>
-                    <Insets top="8" right="8" bottom="8" left="8"/>
-                </padding>
-            </VBox>
+            <ListView fx:id="qualificationsList" prefHeight="150"/>
         </TitledPane>
 
         <TitledPane text="%Unavailable periods" collapsible="false">
