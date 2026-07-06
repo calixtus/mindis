@@ -16,6 +16,7 @@ val avajeInject = "12.6"
 
 dependencies {
     api(platform("org.junit:junit-bom:6.1.1"))
+    api(platform("com.fasterxml.jackson:jackson-bom:2.22.0"))
 }
 
 dependencies.constraints {

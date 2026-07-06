@@ -302,6 +302,9 @@ mindis/
 ```
 
 ### 4.1 `mindis-workbench` — in-repo WorkbenchFX fork
+> **As built (M1):** bespoke shell instead of source fork — see ADR-005. The section below is
+> kept as the original intent; its constraints (own module, AtlantaFX tokens, no
+> FontAwesomeFX, minimal surface) all hold for the bespoke implementation too.
 
 WorkbenchFX is unmaintained (last release Jan 2022, Java 11 era, no `module-info`). Instead of
 depending on the jar and patching it, its useful core is **forked into this repo** as a proper
@@ -412,6 +415,10 @@ Key elements copied from the JabRef approach:
 1. Fork WorkbenchFX core into `mindis-workbench` (§4.1): import sources, add license headers +
    NOTICE, strip to needed feature set, replace FontAwesomeFX with Ikonli, add `module-info.java`,
    compile against JavaFX 25. **Timebox — bespoke-shell fallback per §6.**
+   **As built: fallback executed** — bespoke shell with WorkbenchFX-inspired API
+   (`WorkbenchModule` lifecycle, builder, home tiles + tabs), AtlantaFX-token CSS, no
+   WorkbenchFX code imported. Rationale + consequences: `docs/adr/005-workbench-shell.md`.
+   Drawer/dialogs deferred to demand (M2+); Ikonli deferred until real icons needed.
 2. Rewrite workbench CSS against AtlantaFX tokens; apply `PrimerLight` user-agent stylesheet;
    light/dark toggle.
 3. `MinDisApp`: build `Workbench` with placeholder modules: *Dashboard*, *Servers*, *Services*,
@@ -420,6 +427,9 @@ Key elements copied from the JabRef approach:
    atomic write); gui adapter; locale, theme and window geometry persisted and applied at
    startup. Write `docs/adr/004-preferences.md`.
 5. TestFX smoke tests for shell (open/close modules, drawer, dialog).
+   **As built: deferred** — TestFX needs a headless-toolkit harness (Monocle) that fights
+   JPMS; preferences covered by unit tests instead. TestFX harness revisited in M2 when the
+   first real views land.
 6. **Done when:** app starts, five modules open/close, theme + language switch (en↔de) work
    **and survive restart**, `mindis-workbench` has no dependency on `com.dlsc.workbenchfx`
    artifacts.

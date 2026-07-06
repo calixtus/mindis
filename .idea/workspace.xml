@@ -4,14 +4,35 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="187c8025-a697-4d3a-bf3f-63eda027dff2" name="Changes" comment="Build scaffolding" />
+    <list default="true" id="187c8025-a697-4d3a-bf3f-63eda027dff2" name="Changes" comment="Build scaffolding">
+      <change afterPath="$PROJECT_DIR$/mindis-core/src/main/java/org/mindis/core/preferences/AppDirectories.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/mindis-core/src/main/java/org/mindis/core/preferences/MinDisPreferences.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/mindis-core/src/main/java/org/mindis/core/preferences/PreferencesService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/mindis-core/src/test/java/org/mindis/core/preferences/PreferencesServiceTest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/mindis-gui/src/main/java/org/mindis/gui/modules/DashboardModule.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/mindis-gui/src/main/java/org/mindis/gui/modules/PlaceholderModule.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/mindis-gui/src/main/java/org/mindis/gui/modules/SettingsModule.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/mindis-workbench/src/main/java/org/mindis/workbench/Workbench.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/mindis-workbench/src/main/java/org/mindis/workbench/WorkbenchModule.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/mindis-workbench/src/main/resources/org/mindis/workbench/workbench.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PLAN.md" beforeDir="false" afterPath="$PROJECT_DIR$/PLAN.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gradle/modules.properties" beforeDir="false" afterPath="$PROJECT_DIR$/gradle/modules.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mindis-core/src/main/java/module-info.java" beforeDir="false" afterPath="$PROJECT_DIR$/mindis-core/src/main/java/module-info.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mindis-core/src/main/resources/org/mindis/core/l10n/MinDis.properties" beforeDir="false" afterPath="$PROJECT_DIR$/mindis-core/src/main/resources/org/mindis/core/l10n/MinDis.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mindis-core/src/main/resources/org/mindis/core/l10n/MinDis_de.properties" beforeDir="false" afterPath="$PROJECT_DIR$/mindis-core/src/main/resources/org/mindis/core/l10n/MinDis_de.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mindis-core/src/main/resources/org/mindis/core/l10n/MinDis_en.properties" beforeDir="false" afterPath="$PROJECT_DIR$/mindis-core/src/main/resources/org/mindis/core/l10n/MinDis_en.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mindis-gui/src/main/java/org/mindis/gui/MinDisApp.java" beforeDir="false" afterPath="$PROJECT_DIR$/mindis-gui/src/main/java/org/mindis/gui/MinDisApp.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mindis-workbench/src/main/java/module-info.java" beforeDir="false" afterPath="$PROJECT_DIR$/mindis-workbench/src/main/java/module-info.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/versions/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/versions/build.gradle.kts" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="2" />
+    <option name="cachedIndexableFilesCount" value="341" />
     <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
   </component>
   <component name="ExternalProjectsData">
@@ -237,7 +258,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1783281530801</updated>
-      <workItem from="1783281531950" duration="8639000" />
+      <workItem from="1783281531950" duration="9694000" />
     </task>
     <task id="LOCAL-00001" summary="Initial">
       <option name="closed" value="true" />
@@ -279,7 +300,15 @@
       <option name="project" value="LOCAL" />
       <updated>1783291187395</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="Build scaffolding">
+      <option name="closed" value="true" />
+      <created>1783291376863</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1783291376863</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">

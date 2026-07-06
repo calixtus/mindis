@@ -5,11 +5,15 @@
  */
 module org.mindis.core {
     exports org.mindis.core.l10n;
+    exports org.mindis.core.preferences;
     exports org.mindis.core.service;
 
     requires java.logging;
     requires io.avaje.inject;
     requires jakarta.inject;
+    requires com.fasterxml.jackson.databind;
 
-    provides io.avaje.inject.spi.InjectExtension with org.mindis.core.service.ServiceModule;
+    opens org.mindis.core.preferences to com.fasterxml.jackson.databind;
+
+    provides io.avaje.inject.spi.InjectExtension with org.mindis.core.CoreModule;
 }
