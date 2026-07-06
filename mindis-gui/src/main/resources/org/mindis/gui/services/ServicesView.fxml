@@ -5,6 +5,7 @@
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
@@ -47,6 +48,7 @@
         </TitledPane>
     </VBox>
 
+    <ScrollPane fitToWidth="true" styleClass="edge-to-edge">
     <VBox spacing="12">
         <padding>
             <Insets top="12" right="12" bottom="12" left="12"/>
@@ -80,7 +82,7 @@
             <Button text="%Save" onAction="#onSaveService" defaultButton="true"/>
         </HBox>
 
-        <TitledPane text="%Weekly templates" collapsible="false" VBox.vgrow="ALWAYS">
+        <TitledPane text="%Weekly templates" collapsible="false">
             <VBox spacing="8">
                 <padding>
                     <Insets top="8" right="8" bottom="8" left="8"/>
@@ -97,7 +99,7 @@
                     <ComboBox fx:id="templateDayBox"/>
                     <TextField fx:id="templateTimeField" promptText="10:00" prefWidth="70"/>
                     <ComboBox fx:id="templateTypeBox"/>
-                    <TextField fx:id="templateLocationField" promptText="%Location"/>
+                    <TextField fx:id="templateLocationField" promptText="%Location" HBox.hgrow="ALWAYS"/>
                 </HBox>
                 <HBox spacing="8">
                     <Button text="%Add" onAction="#onAddTemplate"/>
@@ -106,4 +108,5 @@
             </VBox>
         </TitledPane>
     </VBox>
+    </ScrollPane>
 </SplitPane>

@@ -6,6 +6,7 @@
 <?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
@@ -37,6 +38,7 @@
         </HBox>
     </VBox>
 
+    <ScrollPane fitToWidth="true" styleClass="edge-to-edge">
     <VBox spacing="12">
         <padding>
             <Insets top="12" right="12" bottom="12" left="12"/>
@@ -68,7 +70,7 @@
             </VBox>
         </TitledPane>
 
-        <TitledPane text="%Unavailable periods" collapsible="false" VBox.vgrow="ALWAYS">
+        <TitledPane text="%Unavailable periods" collapsible="false">
             <VBox spacing="8">
                 <padding>
                     <Insets top="8" right="8" bottom="8" left="8"/>
@@ -87,4 +89,5 @@
             <Button fx:id="saveButton" text="%Save" onAction="#onSave" defaultButton="true"/>
         </HBox>
     </VBox>
+    </ScrollPane>
 </SplitPane>

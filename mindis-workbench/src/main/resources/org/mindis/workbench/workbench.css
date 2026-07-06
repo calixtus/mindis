@@ -1,21 +1,30 @@
 /* Workbench styling on top of AtlantaFX design tokens (-color-*). */
 
-.workbench-home {
-    -fx-padding: 32;
-    -fx-background-color: -color-bg-default;
-}
-
-.workbench-tile {
-    -fx-pref-width: 160;
-    -fx-pref-height: 100;
-    -fx-font-size: 1.1em;
+.workbench-sidebar {
     -fx-background-color: -color-bg-subtle;
-    -fx-border-color: -color-border-default;
-    -fx-border-radius: 8;
-    -fx-background-radius: 8;
+    -fx-padding: 12 8 12 8;
+    -fx-spacing: 4;
+    -fx-pref-width: 180;
+    -fx-border-color: transparent -color-border-default transparent transparent;
+    -fx-border-width: 0 1 0 0;
 }
 
-.workbench-tile:hover {
+.workbench-nav-button {
+    -fx-background-color: transparent;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 8 12 8 12;
+    -fx-background-radius: 6;
+    -fx-font-size: 1.05em;
+    -fx-text-fill: -color-fg-default;
+    -fx-cursor: hand;
+}
+
+.workbench-nav-button:hover {
     -fx-background-color: -color-bg-inset;
-    -fx-border-color: -color-accent-emphasis;
+}
+
+.workbench-nav-button:selected {
+    -fx-background-color: -color-accent-subtle;
+    -fx-text-fill: -color-accent-fg;
+    -fx-font-weight: bold;
 }

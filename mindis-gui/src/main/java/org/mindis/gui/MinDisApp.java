@@ -82,9 +82,8 @@ public class MinDisApp extends Application {
                         new DashboardModule(Localization.lang("Dashboard")),
                         new ServersModule(Localization.lang("Servers")),
                         new ServicesModule(Localization.lang("Services")),
-                        new PlanningModule(Localization.lang("Planning")),
-                        new SettingsModule(Localization.lang("Settings"), uiPreferences))
-                .homeTabTitle(Localization.lang("Home"))
+                        new PlanningModule(Localization.lang("Planning")))
+                .bottomModule(new SettingsModule(Localization.lang("Settings"), uiPreferences))
                 .build();
     }
 

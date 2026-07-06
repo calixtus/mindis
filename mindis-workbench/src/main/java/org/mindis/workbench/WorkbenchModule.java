@@ -3,17 +3,18 @@ package org.mindis.workbench;
 import javafx.scene.Node;
 
 /**
- * One functional area of the application (Dashboard, Servers, ...), presented
- * as a closable tab in the {@link Workbench}.
+ * One functional area of the application (Dashboard, Servers, ...), reachable
+ * through a permanent sidebar entry in the {@link Workbench}.
  *
  * <p>Lifecycle (modeled on WorkbenchFX's WorkbenchModule):
  * <ol>
- *   <li>{@link #activate()} - called every time the module is opened or its
- *       tab is selected; returns the content node (fresh or cached, the
- *       module decides).
- *   <li>{@link #deactivate()} - called when another module's tab is selected.
- *   <li>{@link #destroy()} - called when the tab is closed; return
- *       {@code false} to veto (e.g. unsaved changes).
+ *   <li>{@link #activate()} - called every time the module is selected in the
+ *       sidebar; returns the content node (fresh or cached, the module
+ *       decides).
+ *   <li>{@link #deactivate()} - called when another module is selected.
+ *   <li>{@link #destroy()} - reserved for a closing hook (return {@code false}
+ *       to veto); not called by the sidebar shell, which keeps all modules
+ *       available.
  * </ol>
  */
 public abstract class WorkbenchModule {
