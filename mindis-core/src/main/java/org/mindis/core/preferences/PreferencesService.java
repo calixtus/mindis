@@ -37,8 +37,8 @@ public class PreferencesService {
 
     private MinDisPreferences current;
 
-    public PreferencesService() {
-        this(AppDirectories.userDataDir().resolve("preferences.json"));
+    public PreferencesService(DataDirectory dataDirectory) {
+        this(dataDirectory.resolve("preferences.json"));
     }
 
     PreferencesService(Path preferencesFile) {

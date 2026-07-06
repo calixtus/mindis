@@ -56,6 +56,10 @@ public class MinDisApp extends Application {
         // not fire initially (the scene does not exist yet).
         uiPreferences.languageTagProperty().subscribe((oldTag, newTag) -> rebuildUi());
 
+        // Deliberate DIP exception (documented in ADR-001): FxmlKit's Tier-2
+        // integration is a global DiAdapter - effectively a service locator
+        // for FXML controllers. Confined to this composition root; everything
+        // else uses constructor injection.
         FxmlKit.setDiAdapter(new AvajeDiAdapter(beanScope));
         FxmlKit.setResourceBundle(Localization.getBundle());
 

@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.mindis.core.model.LiturgicalService;
-import org.mindis.core.preferences.AppDirectories;
+import org.mindis.core.preferences.DataDirectory;
 
 /**
  * Service storage: services.json in the user data directory. Upsert by id.
@@ -22,8 +22,8 @@ public class ServiceRepository {
     private final JsonStore<LiturgicalService> store;
     private List<LiturgicalService> services;
 
-    public ServiceRepository() {
-        this(AppDirectories.userDataDir().resolve("services.json"));
+    public ServiceRepository(DataDirectory dataDirectory) {
+        this(dataDirectory.resolve("services.json"));
     }
 
     protected ServiceRepository(Path file) {

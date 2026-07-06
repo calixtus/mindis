@@ -18,7 +18,7 @@ import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.planning.AcceptedPlan;
 import org.mindis.core.planning.Assignment;
-import org.mindis.core.planning.PlanningService;
+import org.mindis.core.planning.PlanMapper;
 import org.mindis.core.planning.ServicePlan;
 
 
@@ -41,8 +41,7 @@ class AcceptedPlanRoundTripTest {
         Assignment empty = new Assignment("svc-1:ACOLYTE:1", MASS, Role.ACOLYTE);
         ServicePlan plan = new ServicePlan(List.of(ANNA), List.of(assigned, empty));
 
-        PlanningService planningService = new PlanningService(null, null);
-        AcceptedPlan accepted = planningService.toAcceptedPlan(
+        AcceptedPlan accepted = PlanMapper.toAcceptedPlan(
                 plan, LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31));
 
         PlanRepository repository = new PlanRepository(tempDir.resolve("plan.json"));
@@ -55,7 +54,7 @@ class AcceptedPlanRoundTripTest {
         Assignment freshAssigned = new Assignment("svc-1:ACOLYTE:0", MASS, Role.ACOLYTE);
         Assignment freshEmpty = new Assignment("svc-1:ACOLYTE:1", MASS, Role.ACOLYTE);
         ServicePlan freshProblem = new ServicePlan(List.of(ANNA), List.of(freshAssigned, freshEmpty));
-        planningService.applyAcceptedPlan(freshProblem, reloaded);
+        PlanMapper.applyAcceptedPlan(freshProblem, reloaded);
 
         assertEquals(ANNA, freshAssigned.getServer());
         assertTrue(freshAssigned.isPinned());

@@ -21,14 +21,16 @@ import org.mindis.core.preferences.PreferencesService;
 @Singleton
 public final class UiPreferences {
 
-    private final PreferencesService preferencesService;
     private final StringProperty languageTag = new SimpleStringProperty();
     private final ObjectProperty<MinDisPreferences.Theme> theme = new SimpleObjectProperty<>();
     private final ObjectProperty<Integer> solverSecondsLimit = new SimpleObjectProperty<>();
 
     public UiPreferences(PreferencesService preferencesService) {
-        this.preferencesService = preferencesService;
-
+        // Order matters: values first, write-through subscriptions second,
+        // the external listener last. Registering listeners in a constructor
+        // technically lets 'this' escape; acceptable here because Avaje wires
+        // beans single-threaded and the lambdas only touch the (already
+        // initialized) property fields.
         MinDisPreferences current = preferencesService.get();
         languageTag.set(current.languageTag());
         theme.set(current.theme());
@@ -56,9 +58,5 @@ public final class UiPreferences {
 
     public ObjectProperty<Integer> solverSecondsLimitProperty() {
         return solverSecondsLimit;
-    }
-
-    public PreferencesService service() {
-        return preferencesService;
     }
 }

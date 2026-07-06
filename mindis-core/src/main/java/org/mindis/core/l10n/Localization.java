@@ -12,6 +12,11 @@ import java.util.logging.Logger;
  *
  * <p>Positional parameters use {@code %0}, {@code %1}, ... placeholders:
  * <pre>{@code Localization.lang("%0 of %1 slots assigned", assigned, total)}</pre>
+ *
+ * <p>Deliberate DIP exception (PLAN.md section 8): a global mutable static,
+ * like JabRef's Localization. Fine for a single-user desktop process with one
+ * locale; a future web module needs per-request locale resolution instead -
+ * tracked as an open decision in ADR-003.
  */
 public final class Localization {
 

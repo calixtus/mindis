@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.mindis.core.planning.AcceptedPlan;
-import org.mindis.core.preferences.AppDirectories;
+import org.mindis.core.preferences.DataDirectory;
 
 /**
  * Stores the one accepted plan as plan.json in the user data directory.
@@ -19,8 +19,8 @@ public class PlanRepository {
 
     private final JsonStore<AcceptedPlan> store;
 
-    public PlanRepository() {
-        this(AppDirectories.userDataDir().resolve("plan.json"));
+    public PlanRepository(DataDirectory dataDirectory) {
+        this(dataDirectory.resolve("plan.json"));
     }
 
     PlanRepository(Path file) {

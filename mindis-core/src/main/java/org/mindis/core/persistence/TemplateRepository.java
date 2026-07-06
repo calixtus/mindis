@@ -10,7 +10,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import org.mindis.core.model.ServiceTemplate;
-import org.mindis.core.preferences.AppDirectories;
+import org.mindis.core.preferences.DataDirectory;
 
 /**
  * Recurring-service template storage: templates.json in the user data
@@ -22,8 +22,8 @@ public class TemplateRepository {
     private final JsonStore<ServiceTemplate> store;
     private List<ServiceTemplate> templates;
 
-    public TemplateRepository() {
-        this(AppDirectories.userDataDir().resolve("templates.json"));
+    public TemplateRepository(DataDirectory dataDirectory) {
+        this(dataDirectory.resolve("templates.json"));
     }
 
     TemplateRepository(Path file) {

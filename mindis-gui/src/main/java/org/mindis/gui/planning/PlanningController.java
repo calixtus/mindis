@@ -39,6 +39,7 @@ import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Server;
 import org.mindis.core.persistence.PlanRepository;
+import org.mindis.core.planning.PlanMapper;
 import org.mindis.core.planning.PlanningService;
 import org.mindis.core.planning.ServicePlan;
 import org.mindis.core.preferences.PreferencesService;
@@ -150,7 +151,7 @@ public class PlanningController {
         currentPlan = planningService.buildProblem(from, to);
         planRepository.load()
                 .filter(saved -> saved.from().equals(from) && saved.toInclusive().equals(to))
-                .ifPresent(saved -> planningService.applyAcceptedPlan(currentPlan, saved));
+                .ifPresent(saved -> PlanMapper.applyAcceptedPlan(currentPlan, saved));
         setupServerColumn();
         rebuildRows();
         refreshScoreAndViolations();
@@ -198,7 +199,7 @@ public class PlanningController {
         if (currentPlan == null) {
             return;
         }
-        planRepository.save(planningService.toAcceptedPlan(
+        planRepository.save(PlanMapper.toAcceptedPlan(
                 currentPlan, fromPicker.getValue(), toPicker.getValue()));
         statusLabel.setText(Localization.lang("Plan saved"));
     }
@@ -218,7 +219,7 @@ public class PlanningController {
         }
         try {
             planExportService.exportPdf(
-                    planningService.toAcceptedPlan(currentPlan, fromPicker.getValue(), toPicker.getValue()),
+                    PlanMapper.toAcceptedPlan(currentPlan, fromPicker.getValue(), toPicker.getValue()),
                     target.toPath());
             statusLabel.setText(Localization.lang("PDF saved to %0", target.getName()));
         } catch (RuntimeException e) {
@@ -303,10 +304,10 @@ public class PlanningController {
             onGenerate();
             return;
         }
-        var snapshot = planningService.toAcceptedPlan(
+        var snapshot = PlanMapper.toAcceptedPlan(
                 currentPlan, fromPicker.getValue(), toPicker.getValue());
         currentPlan = planningService.buildProblem(fromPicker.getValue(), toPicker.getValue());
-        planningService.applyAcceptedPlan(currentPlan, snapshot);
+        PlanMapper.applyAcceptedPlan(currentPlan, snapshot);
         setupServerColumn();
         rebuildRows();
         refreshScoreAndViolations();

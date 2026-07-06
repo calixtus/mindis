@@ -29,3 +29,6 @@ Prepare only; build nothing web-related yet:
   (JavaFX-in-browser bridge reusing mindis-gui).
 - Storage: JSON file store is single-user desktop scope; multi-user needs a server DB.
 - Auth, deployment, hosting.
+- Localization: `Localization` is a global static with one process-wide locale (fine for
+  desktop); a web module needs per-request locale resolution (e.g. an interface with a
+  request-scoped implementation).

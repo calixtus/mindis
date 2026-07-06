@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.mindis.core.model.Server;
-import org.mindis.core.preferences.AppDirectories;
+import org.mindis.core.preferences.DataDirectory;
 
 /**
  * Roster storage: servers.json in the user data directory. Upsert by id.
@@ -22,8 +22,8 @@ public class ServerRepository {
     private final JsonStore<Server> store;
     private List<Server> servers;
 
-    public ServerRepository() {
-        this(AppDirectories.userDataDir().resolve("servers.json"));
+    public ServerRepository(DataDirectory dataDirectory) {
+        this(dataDirectory.resolve("servers.json"));
     }
 
     protected ServerRepository(Path file) {
