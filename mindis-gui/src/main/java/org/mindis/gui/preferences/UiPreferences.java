@@ -35,7 +35,6 @@ public final class UiPreferences {
     private final PreferenceValue<AppLanguage> language;
     private final PreferenceValue<MinDisPreferences.Theme> theme;
     private final PreferenceValue<Integer> solverSecondsLimit;
-    private final PreferenceValue<Boolean> largeSidebarIcons;
     private final Map<String, PreferenceValue<Integer>> softWeights = new LinkedHashMap<>();
 
     public UiPreferences(PreferencesService preferencesService) {
@@ -50,9 +49,6 @@ public final class UiPreferences {
         solverSecondsLimit = register(
                 MinDisPreferences::solverSecondsLimit,
                 MinDisPreferences::withSolverSecondsLimit);
-        largeSidebarIcons = register(
-                MinDisPreferences::largeSidebarIcons,
-                MinDisPreferences::withLargeSidebarIcons);
         for (String constraintName : MinDisConstraintProvider.tunableSoftConstraints()) {
             softWeights.put(constraintName, register(
                     p -> p.softConstraintWeights().get(constraintName),
@@ -82,10 +78,6 @@ public final class UiPreferences {
 
     public ObjectProperty<Integer> solverSecondsLimitProperty() {
         return solverSecondsLimit.property();
-    }
-
-    public ObjectProperty<Boolean> largeSidebarIconsProperty() {
-        return largeSidebarIcons.property();
     }
 
     /**

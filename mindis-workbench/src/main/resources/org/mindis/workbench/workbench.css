@@ -4,7 +4,6 @@
     -fx-background-color: -color-bg-subtle;
     -fx-padding: 12 8 12 8;
     -fx-spacing: 4;
-    -fx-pref-width: 180;
     -fx-border-color: transparent -color-border-default transparent transparent;
     -fx-border-width: 0 1 0 0;
 }
@@ -34,21 +33,39 @@
     -fx-icon-color: -color-fg-muted;
 }
 
-.workbench-nav-button.workbench-nav-button-large {
+/* Icon-only rail: center the icon once labels are hidden. */
+.workbench-nav-button.workbench-nav-button-collapsed {
     -fx-alignment: CENTER;
-    -fx-padding: 12 8 12 8;
-}
-
-/* Compound selector so specificity beats the base ".workbench-nav-button
-   .workbench-nav-icon" rule above - otherwise the CSS engine reapplies the
-   18px default over this on every style pass. Fixed px, not em: FontIcon's
-   own iconSize listener resizes its font to match, so an em value (relative
-   to the icon's own font) would feed back into itself and grow without
-   bound on every subsequent style pass. ~3x the ~12px sidebar base font. */
-.workbench-nav-button.workbench-nav-button-large .workbench-nav-icon {
-    -fx-icon-size: 36;
+    -fx-padding: 8;
 }
 
 .workbench-nav-button:selected .workbench-nav-icon {
     -fx-icon-color: -color-accent-fg;
+}
+
+/* Chevron toggle that collapses/expands the sidebar. */
+.workbench-toggle-button {
+    -fx-background-color: transparent;
+    -fx-alignment: CENTER_RIGHT;
+    -fx-padding: 4 8 4 8;
+    -fx-background-radius: 6;
+    -fx-cursor: hand;
+}
+
+.workbench-toggle-button:hover {
+    -fx-background-color: -color-bg-inset;
+}
+
+.workbench-toggle-button .workbench-nav-icon {
+    -fx-icon-size: 18;
+    -fx-icon-color: -color-fg-muted;
+}
+
+/* Draggable divider between sidebar and content. */
+.workbench-resize-handle {
+    -fx-background-color: transparent;
+}
+
+.workbench-resize-handle:hover {
+    -fx-background-color: -color-accent-subtle;
 }

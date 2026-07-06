@@ -21,10 +21,9 @@ public record MinDisPreferences(
         Theme theme,
         WindowBounds windowBounds,
         int solverSecondsLimit,
-        Map<String, Integer> softConstraintWeights,
-        boolean largeSidebarIcons) {
+        Map<String, Integer> softConstraintWeights) {
 
-    public static final int CURRENT_VERSION = 3;
+    public static final int CURRENT_VERSION = 4;
     public static final int DEFAULT_SOLVER_SECONDS = 30;
 
     public enum Theme implements PreferenceEnumValue {
@@ -63,7 +62,7 @@ public record MinDisPreferences(
     public static MinDisPreferences defaults() {
         String language = Locale.getDefault().getLanguage().equals("de") ? "de" : "en";
         return new MinDisPreferences(CURRENT_VERSION, language, Theme.LIGHT, null,
-                DEFAULT_SOLVER_SECONDS, MinDisConstraintProvider.defaultSoftWeights(), false);
+                DEFAULT_SOLVER_SECONDS, MinDisConstraintProvider.defaultSoftWeights());
     }
 
     public Locale locale() {
@@ -72,33 +71,28 @@ public record MinDisPreferences(
 
     public MinDisPreferences withLanguageTag(String newLanguageTag) {
         return new MinDisPreferences(version, newLanguageTag, theme, windowBounds,
-                solverSecondsLimit, softConstraintWeights, largeSidebarIcons);
+                solverSecondsLimit, softConstraintWeights);
     }
 
     public MinDisPreferences withTheme(Theme newTheme) {
         return new MinDisPreferences(version, languageTag, newTheme, windowBounds,
-                solverSecondsLimit, softConstraintWeights, largeSidebarIcons);
+                solverSecondsLimit, softConstraintWeights);
     }
 
     public MinDisPreferences withWindowBounds(WindowBounds newWindowBounds) {
         return new MinDisPreferences(version, languageTag, theme, newWindowBounds,
-                solverSecondsLimit, softConstraintWeights, largeSidebarIcons);
+                solverSecondsLimit, softConstraintWeights);
     }
 
     public MinDisPreferences withSolverSecondsLimit(int newSolverSecondsLimit) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
-                newSolverSecondsLimit, softConstraintWeights, largeSidebarIcons);
+                newSolverSecondsLimit, softConstraintWeights);
     }
 
     public MinDisPreferences withSoftConstraintWeight(String constraintName, int weight) {
         Map<String, Integer> weights = new HashMap<>(softConstraintWeights);
         weights.put(constraintName, weight);
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
-                solverSecondsLimit, weights, largeSidebarIcons);
-    }
-
-    public MinDisPreferences withLargeSidebarIcons(boolean newLargeSidebarIcons) {
-        return new MinDisPreferences(version, languageTag, theme, windowBounds,
-                solverSecondsLimit, softConstraintWeights, newLargeSidebarIcons);
+                solverSecondsLimit, weights);
     }
 }

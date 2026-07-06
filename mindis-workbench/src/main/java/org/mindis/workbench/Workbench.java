@@ -5,10 +5,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import javafx.scene.Cursor;
+import javafx.scene.control.Button;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -22,25 +26,47 @@ import org.kordamp.ikonli.javafx.FontIcon;
  * module's content on the right. API modeled on WorkbenchFX (Apache-2.0),
  * implemented from scratch against JavaFX 26 and AtlantaFX styling
  * (see docs/adr/005-workbench-shell.md).
+ *
+ * <p>The sidebar is resizable: drag the handle on its right edge to change its
+ * width. Dragged below {@link #COLLAPSE_THRESHOLD} it snaps to an icon-only
+ * rail (labels hidden, module name shown as a tooltip); a chevron toggle at the
+ * top expands it back to a labelled width. Inspired by FXComponents'
+ * NavigationPane shrunken/unshrunken width model.
  */
 public final class Workbench extends BorderPane {
+
+    /** Icon-only rail width. */
+    private static final double COLLAPSED_WIDTH = 60;
+    /** Default width the chevron toggle expands to. */
+    private static final double EXPANDED_WIDTH = 180;
+    /** Narrowest labelled width; below this the sidebar collapses. */
+    private static final double MIN_EXPANDED_WIDTH = 140;
+    /** Widest the sidebar may be dragged. */
+    private static final double MAX_WIDTH = 360;
+    /** Drag narrower than this and the sidebar snaps to the icon-only rail. */
+    private static final double COLLAPSE_THRESHOLD = 120;
 
     private final Map<WorkbenchModule, ToggleButton> navButtons = new LinkedHashMap<>();
     private final ToggleGroup navGroup = new ToggleGroup();
     private final StackPane contentPane = new StackPane();
     private final List<WorkbenchModule> modules;
-    private final boolean largeIcons;
+
+    private final VBox sidebar = new VBox();
+    private final FontIcon toggleIcon = new FontIcon();
+    private final Tooltip toggleTooltip = new Tooltip();
 
     private WorkbenchModule activeModule;
+    private boolean collapsed;
+    private double dragStartSceneX;
+    private double dragStartWidth;
 
     private Workbench(Builder builder) {
         this.modules = List.copyOf(builder.modules);
-        this.largeIcons = builder.largeIcons;
         getStyleClass().add("workbench");
         getStylesheets().add(Workbench.class.getResource("workbench.css").toExternalForm());
 
-        VBox sidebar = new VBox();
         sidebar.getStyleClass().add("workbench-sidebar");
+        sidebar.getChildren().add(createToggleButton());
         for (WorkbenchModule module : modules) {
             sidebar.getChildren().add(createNavButton(module));
         }
@@ -61,8 +87,11 @@ public final class Workbench extends BorderPane {
             }
         });
 
-        setLeft(sidebar);
+        setLeft(new HBox(sidebar, createResizeHandle()));
         setCenter(contentPane);
+
+        setSidebarWidth(EXPANDED_WIDTH);
+        updateToggleIcon();
 
         if (!navButtons.isEmpty()) {
             navButtons.values().iterator().next().setSelected(true);
@@ -91,20 +120,71 @@ public final class Workbench extends BorderPane {
         }
     }
 
+    private Button createToggleButton() {
+        toggleIcon.getStyleClass().add("workbench-nav-icon");
+        Button button = new Button();
+        button.setGraphic(toggleIcon);
+        button.setTooltip(toggleTooltip);
+        button.getStyleClass().add("workbench-toggle-button");
+        button.setMaxWidth(Double.MAX_VALUE);
+        // Collapsed -> expand to a labelled width; expanded -> collapse to rail.
+        button.setOnAction(_ -> setSidebarWidth(collapsed ? EXPANDED_WIDTH : COLLAPSED_WIDTH));
+        return button;
+    }
+
+    private Region createResizeHandle() {
+        Region handle = new Region();
+        handle.getStyleClass().add("workbench-resize-handle");
+        handle.setCursor(Cursor.H_RESIZE);
+        handle.setMinWidth(6);
+        handle.setPrefWidth(6);
+        handle.setMaxHeight(Double.MAX_VALUE);
+        handle.addEventHandler(MouseEvent.MOUSE_PRESSED, event -> {
+            dragStartSceneX = event.getSceneX();
+            dragStartWidth = sidebar.getWidth();
+        });
+        handle.addEventHandler(MouseEvent.MOUSE_DRAGGED, event ->
+                setSidebarWidth(dragStartWidth + (event.getSceneX() - dragStartSceneX)));
+        return handle;
+    }
+
+    /**
+     * Pins the sidebar to a width (min == pref == max so it never flexes in the
+     * enclosing HBox) and derives collapsed state from it: narrower than
+     * {@link #COLLAPSE_THRESHOLD} snaps to the icon-only rail.
+     */
+    private void setSidebarWidth(double width) {
+        boolean shouldCollapse = width < COLLAPSE_THRESHOLD;
+        double applied = shouldCollapse
+                ? COLLAPSED_WIDTH
+                : Math.min(MAX_WIDTH, Math.max(MIN_EXPANDED_WIDTH, width));
+        sidebar.setMinWidth(applied);
+        sidebar.setPrefWidth(applied);
+        sidebar.setMaxWidth(applied);
+        setCollapsed(shouldCollapse);
+    }
+
+    private void setCollapsed(boolean value) {
+        if (collapsed == value) {
+            return;
+        }
+        collapsed = value;
+        navButtons.forEach(this::applyButtonMode);
+        updateToggleIcon();
+    }
+
+    private void updateToggleIcon() {
+        toggleIcon.setIconLiteral(collapsed ? "mdi2c-chevron-right" : "mdi2c-chevron-left");
+        toggleTooltip.setText(collapsed ? "Expand" : "Collapse");
+    }
+
     private ToggleButton createNavButton(WorkbenchModule module) {
         ToggleButton button = new ToggleButton();
-        boolean iconOnly = largeIcons && module.getIconLiteral() != null;
         if (module.getIconLiteral() != null) {
             FontIcon icon = new FontIcon(module.getIconLiteral());
             icon.getStyleClass().add("workbench-nav-icon");
             button.setGraphic(icon);
             button.setGraphicTextGap(10);
-        }
-        if (iconOnly) {
-            button.getStyleClass().add("workbench-nav-button-large");
-            Tooltip.install(button, new Tooltip(module.getName()));
-        } else {
-            button.setText(module.getName());
         }
         button.getStyleClass().add("workbench-nav-button");
         button.setToggleGroup(navGroup);
@@ -115,7 +195,25 @@ public final class Workbench extends BorderPane {
             }
         });
         navButtons.put(module, button);
+        applyButtonMode(module, button);
         return button;
+    }
+
+    /**
+     * Shows or hides the module label per collapsed state; when collapsed the
+     * name moves to a tooltip so the icon-only rail stays legible.
+     */
+    private void applyButtonMode(WorkbenchModule module, ToggleButton button) {
+        boolean iconOnly = collapsed && module.getIconLiteral() != null;
+        button.getStyleClass().remove("workbench-nav-button-collapsed");
+        if (iconOnly) {
+            button.setText(null);
+            button.setTooltip(new Tooltip(module.getName()));
+            button.getStyleClass().add("workbench-nav-button-collapsed");
+        } else {
+            button.setText(module.getName());
+            button.setTooltip(null);
+        }
     }
 
     private void activateModule(WorkbenchModule module) {
@@ -133,7 +231,6 @@ public final class Workbench extends BorderPane {
 
         private final List<WorkbenchModule> modules;
         private final List<WorkbenchModule> bottomModules = new ArrayList<>();
-        private boolean largeIcons;
 
         private Builder(WorkbenchModule... modules) {
             this.modules = List.of(modules);
@@ -145,15 +242,6 @@ public final class Workbench extends BorderPane {
          */
         public Builder bottomModule(WorkbenchModule module) {
             this.bottomModules.add(module);
-            return this;
-        }
-
-        /**
-         * Icon-only sidebar entries (~3x the default font size), module name
-         * shown as a tooltip instead of an inline label.
-         */
-        public Builder largeIcons(boolean largeIcons) {
-            this.largeIcons = largeIcons;
             return this;
         }
 

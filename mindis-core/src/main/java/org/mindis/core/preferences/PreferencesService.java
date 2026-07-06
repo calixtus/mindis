@@ -97,6 +97,8 @@ public class PreferencesService {
         // v1 -> v2: solverSecondsLimit added; absent field deserializes as 0.
         // v2 -> v3: softConstraintWeights added; the record's compact
         // constructor already fills missing weights with defaults.
+        // v3 -> v4: largeSidebarIcons dropped; the unknown field in older JSON
+        // is ignored on read (FAIL_ON_UNKNOWN_PROPERTIES is off).
         int solverSeconds = loaded.solverSecondsLimit() > 0
                 ? loaded.solverSecondsLimit()
                 : MinDisPreferences.DEFAULT_SOLVER_SECONDS;
@@ -106,8 +108,7 @@ public class PreferencesService {
                 loaded.theme(),
                 loaded.windowBounds(),
                 solverSeconds,
-                loaded.softConstraintWeights(),
-                loaded.largeSidebarIcons());
+                loaded.softConstraintWeights());
     }
 
     private void save(MinDisPreferences preferences) {
