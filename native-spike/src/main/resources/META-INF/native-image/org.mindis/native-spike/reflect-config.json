@@ -1,0 +1,24 @@
+[
+  {
+    "name": "org.mindis.core.planning.ServicePlan",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "org.mindis.core.planning.Assignment",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "org.mindis.core.planning.MinDisConstraintProvider",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "ai.timefold.solver.core.api.score.HardMediumSoftScore",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  }
+]

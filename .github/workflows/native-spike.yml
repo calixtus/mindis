@@ -28,12 +28,8 @@ jobs:
           Select-String -Path jit.log -Pattern "Solving ended|wall-millis|score:|unassigned" | ForEach-Object { $_.Line } >> $env:GITHUB_STEP_SUMMARY
           '```' >> $env:GITHUB_STEP_SUMMARY
 
-      - name: Collect reachability metadata (tracing agent)
-        run: ./gradlew -Pagent :native-spike:run --args="3"
-
-      - name: Copy metadata into sources
-        run: ./gradlew :native-spike:metadataCopy --task run --dir src/main/resources/META-INF/native-image
-
+      # Reflection surface is small and known (our planning classes only);
+      # checked-in reflect-config.json instead of the fragile tracing agent.
       - name: Build native image
         run: ./gradlew :native-spike:nativeCompile
 
