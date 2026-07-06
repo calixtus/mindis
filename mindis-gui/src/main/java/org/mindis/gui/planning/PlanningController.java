@@ -205,6 +205,8 @@ public class PlanningController {
         statusLabel.setText(Localization.lang("Plan saved"));
     }
 
+    private static File lastExportDirectory;
+
     @FXML
     private void onExport() {
         if (currentPlan == null || currentPlan.getAssignments().isEmpty()) {
@@ -218,11 +220,15 @@ public class PlanningController {
                 new FileChooser.ExtensionFilter("TXT", "*.txt"),
                 new FileChooser.ExtensionFilter("RTF", "*.rtf"),
                 new FileChooser.ExtensionFilter("Markdown", "*.md"));
+        if (lastExportDirectory != null && lastExportDirectory.isDirectory()) {
+            chooser.setInitialDirectory(lastExportDirectory);
+        }
         chooser.setInitialFileName("MinDis-" + fromPicker.getValue() + ".pdf");
         File target = chooser.showSaveDialog(assignmentsTable.getScene().getWindow());
         if (target == null) {
             return;
         }
+        lastExportDirectory = target.getParentFile();
         PlanExportFormat format = formatOf(target, chooser.getSelectedExtensionFilter());
         try {
             planExportService.export(
