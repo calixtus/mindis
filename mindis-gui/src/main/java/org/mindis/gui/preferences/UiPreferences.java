@@ -12,6 +12,7 @@ import java.util.function.Function;
 import javafx.beans.property.ObjectProperty;
 
 import org.mindis.core.planning.MinDisConstraintProvider;
+import org.mindis.core.preferences.AccentColor;
 import org.mindis.core.preferences.AppLanguage;
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.preferences.PreferencesService;
@@ -35,6 +36,10 @@ public final class UiPreferences {
     private final PreferenceValue<AppLanguage> language;
     private final PreferenceValue<MinDisPreferences.Theme> theme;
     private final PreferenceValue<Integer> solverSecondsLimit;
+    private final PreferenceValue<AccentColor> accentColor;
+    private final PreferenceValue<String> fontFamily;
+    private final PreferenceValue<Integer> fontSize;
+    private final PreferenceValue<Boolean> followSystemTheme;
     private final Map<String, PreferenceValue<Integer>> softWeights = new LinkedHashMap<>();
 
     public UiPreferences(PreferencesService preferencesService) {
@@ -49,6 +54,18 @@ public final class UiPreferences {
         solverSecondsLimit = register(
                 MinDisPreferences::solverSecondsLimit,
                 MinDisPreferences::withSolverSecondsLimit);
+        accentColor = register(
+                MinDisPreferences::accentColor,
+                MinDisPreferences::withAccentColor);
+        fontFamily = register(
+                MinDisPreferences::fontFamily,
+                MinDisPreferences::withFontFamily);
+        fontSize = register(
+                MinDisPreferences::fontSize,
+                MinDisPreferences::withFontSize);
+        followSystemTheme = register(
+                MinDisPreferences::followSystemTheme,
+                MinDisPreferences::withFollowSystemTheme);
         for (String constraintName : MinDisConstraintProvider.tunableSoftConstraints()) {
             softWeights.put(constraintName, register(
                     p -> p.softConstraintWeights().get(constraintName),
@@ -78,6 +95,22 @@ public final class UiPreferences {
 
     public ObjectProperty<Integer> solverSecondsLimitProperty() {
         return solverSecondsLimit.property();
+    }
+
+    public ObjectProperty<AccentColor> accentColorProperty() {
+        return accentColor.property();
+    }
+
+    public ObjectProperty<String> fontFamilyProperty() {
+        return fontFamily.property();
+    }
+
+    public ObjectProperty<Integer> fontSizeProperty() {
+        return fontSize.property();
+    }
+
+    public ObjectProperty<Boolean> followSystemThemeProperty() {
+        return followSystemTheme.property();
     }
 
     /**

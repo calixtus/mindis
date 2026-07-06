@@ -21,10 +21,19 @@ public record MinDisPreferences(
         Theme theme,
         WindowBounds windowBounds,
         int solverSecondsLimit,
-        Map<String, Integer> softConstraintWeights) {
+        Map<String, Integer> softConstraintWeights,
+        AccentColor accentColor,
+        String fontFamily,
+        int fontSize,
+        boolean followSystemTheme) {
 
-    public static final int CURRENT_VERSION = 4;
+    public static final int CURRENT_VERSION = 6;
     public static final int DEFAULT_SOLVER_SECONDS = 30;
+    /** Sentinel meaning "use the theme's default font family" (no override). */
+    public static final String DEFAULT_FONT_FAMILY = "Default";
+    public static final int DEFAULT_FONT_SIZE = 14;
+    public static final int MIN_FONT_SIZE = 10;
+    public static final int MAX_FONT_SIZE = 24;
 
     public enum Theme implements PreferenceEnumValue {
         LIGHT("Light"),
@@ -51,18 +60,28 @@ public record MinDisPreferences(
     }
 
     public MinDisPreferences {
-        // Null-tolerant + default-filling: older JSON lacks newer weights.
+        // Null-tolerant + default-filling: older JSON lacks newer fields.
         Map<String, Integer> weights = new HashMap<>(MinDisConstraintProvider.defaultSoftWeights());
         if (softConstraintWeights != null) {
             weights.putAll(softConstraintWeights);
         }
         softConstraintWeights = Map.copyOf(weights);
+        if (accentColor == null) {
+            accentColor = AccentColor.DEFAULT;
+        }
+        if (fontFamily == null || fontFamily.isBlank()) {
+            fontFamily = DEFAULT_FONT_FAMILY;
+        }
+        if (fontSize <= 0) {
+            fontSize = DEFAULT_FONT_SIZE;
+        }
     }
 
     public static MinDisPreferences defaults() {
         String language = Locale.getDefault().getLanguage().equals("de") ? "de" : "en";
         return new MinDisPreferences(CURRENT_VERSION, language, Theme.LIGHT, null,
-                DEFAULT_SOLVER_SECONDS, MinDisConstraintProvider.defaultSoftWeights());
+                DEFAULT_SOLVER_SECONDS, MinDisConstraintProvider.defaultSoftWeights(),
+                AccentColor.DEFAULT, DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE, false);
     }
 
     public Locale locale() {
@@ -71,28 +90,56 @@ public record MinDisPreferences(
 
     public MinDisPreferences withLanguageTag(String newLanguageTag) {
         return new MinDisPreferences(version, newLanguageTag, theme, windowBounds,
-                solverSecondsLimit, softConstraintWeights);
+                solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
+                followSystemTheme);
     }
 
     public MinDisPreferences withTheme(Theme newTheme) {
         return new MinDisPreferences(version, languageTag, newTheme, windowBounds,
-                solverSecondsLimit, softConstraintWeights);
+                solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
+                followSystemTheme);
     }
 
     public MinDisPreferences withWindowBounds(WindowBounds newWindowBounds) {
         return new MinDisPreferences(version, languageTag, theme, newWindowBounds,
-                solverSecondsLimit, softConstraintWeights);
+                solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
+                followSystemTheme);
     }
 
     public MinDisPreferences withSolverSecondsLimit(int newSolverSecondsLimit) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
-                newSolverSecondsLimit, softConstraintWeights);
+                newSolverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
+                followSystemTheme);
     }
 
     public MinDisPreferences withSoftConstraintWeight(String constraintName, int weight) {
         Map<String, Integer> weights = new HashMap<>(softConstraintWeights);
         weights.put(constraintName, weight);
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
-                solverSecondsLimit, weights);
+                solverSecondsLimit, weights, accentColor, fontFamily, fontSize, followSystemTheme);
+    }
+
+    public MinDisPreferences withAccentColor(AccentColor newAccentColor) {
+        return new MinDisPreferences(version, languageTag, theme, windowBounds,
+                solverSecondsLimit, softConstraintWeights, newAccentColor, fontFamily, fontSize,
+                followSystemTheme);
+    }
+
+    public MinDisPreferences withFontFamily(String newFontFamily) {
+        return new MinDisPreferences(version, languageTag, theme, windowBounds,
+                solverSecondsLimit, softConstraintWeights, accentColor, newFontFamily, fontSize,
+                followSystemTheme);
+    }
+
+    public MinDisPreferences withFontSize(int newFontSize) {
+        return new MinDisPreferences(version, languageTag, theme, windowBounds,
+                solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, newFontSize,
+                followSystemTheme);
+    }
+
+    public MinDisPreferences withFollowSystemTheme(boolean newFollowSystemTheme) {
+        return new MinDisPreferences(version, languageTag, theme, windowBounds,
+                solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
+                newFollowSystemTheme);
     }
 }

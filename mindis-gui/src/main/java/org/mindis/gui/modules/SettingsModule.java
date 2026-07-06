@@ -1,12 +1,17 @@
 package org.mindis.gui.modules;
 
+import javafx.collections.FXCollections;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Font;
+import javafx.util.StringConverter;
 
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.planning.MinDisConstraintProvider;
@@ -14,6 +19,7 @@ import org.mindis.core.preferences.AppLanguage;
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.gui.preferences.PreferenceControls;
 import org.mindis.gui.preferences.UiPreferences;
+import org.mindis.gui.theme.AccentColorSelector;
 import org.mindis.workbench.WorkbenchModule;
 
 /**
@@ -38,6 +44,40 @@ public class SettingsModule extends WorkbenchModule {
         solverSecondsSpinner.getValueFactory().valueProperty()
                 .bindBidirectional(uiPreferences.solverSecondsLimitProperty());
 
+        // Theme dropdown is disabled while the app follows the OS light/dark
+        // scheme; the follow toggle drives that.
+        ComboBox<MinDisPreferences.Theme> themeBox =
+                PreferenceControls.choiceBox(MinDisPreferences.Theme.values(), uiPreferences.themeProperty());
+        themeBox.disableProperty().bind(uiPreferences.followSystemThemeProperty());
+        CheckBox followSystemCheck = new CheckBox();
+        followSystemCheck.selectedProperty().bindBidirectional(uiPreferences.followSystemThemeProperty());
+
+        AccentColorSelector accentSelector = new AccentColorSelector(uiPreferences.accentColorProperty());
+
+        // "Default" sentinel first, then every font family the platform offers.
+        ComboBox<String> fontFamilyBox = new ComboBox<>(FXCollections.observableArrayList());
+        fontFamilyBox.getItems().add(MinDisPreferences.DEFAULT_FONT_FAMILY);
+        fontFamilyBox.getItems().addAll(Font.getFamilies());
+        fontFamilyBox.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(String family) {
+                return MinDisPreferences.DEFAULT_FONT_FAMILY.equals(family)
+                        ? Localization.lang("Default") : family;
+            }
+
+            @Override
+            public String fromString(String string) {
+                return string;
+            }
+        });
+        fontFamilyBox.valueProperty().bindBidirectional(uiPreferences.fontFamilyProperty());
+
+        Spinner<Integer> fontSizeSpinner = new Spinner<>(
+                MinDisPreferences.MIN_FONT_SIZE, MinDisPreferences.MAX_FONT_SIZE,
+                uiPreferences.fontSizeProperty().get());
+        fontSizeSpinner.getValueFactory().valueProperty()
+                .bindBidirectional(uiPreferences.fontSizeProperty());
+
         GridPane grid = new GridPane();
         grid.setHgap(12);
         grid.setVgap(12);
@@ -45,9 +85,17 @@ public class SettingsModule extends WorkbenchModule {
         grid.add(new Label(Localization.lang("Language")), 0, 0);
         grid.add(PreferenceControls.choiceBox(AppLanguage.values(), uiPreferences.languageProperty()), 1, 0);
         grid.add(new Label(Localization.lang("Theme")), 0, 1);
-        grid.add(PreferenceControls.choiceBox(MinDisPreferences.Theme.values(), uiPreferences.themeProperty()), 1, 1);
-        grid.add(new Label(Localization.lang("Solver time limit (seconds)")), 0, 2);
-        grid.add(solverSecondsSpinner, 1, 2);
+        grid.add(themeBox, 1, 1);
+        grid.add(new Label(Localization.lang("Follow system theme")), 0, 2);
+        grid.add(followSystemCheck, 1, 2);
+        grid.add(new Label(Localization.lang("Accent color")), 0, 3);
+        grid.add(accentSelector, 1, 3);
+        grid.add(new Label(Localization.lang("Font")), 0, 4);
+        grid.add(fontFamilyBox, 1, 4);
+        grid.add(new Label(Localization.lang("Font size")), 0, 5);
+        grid.add(fontSizeSpinner, 1, 5);
+        grid.add(new Label(Localization.lang("Solver time limit (seconds)")), 0, 6);
+        grid.add(solverSecondsSpinner, 1, 6);
 
         GridPane weightsGrid = new GridPane();
         weightsGrid.setHgap(12);

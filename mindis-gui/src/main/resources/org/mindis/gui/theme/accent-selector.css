@@ -1,0 +1,29 @@
+/* Accent color swatches. Colors on the fill Region come from inline styles
+   (one hex per AccentColor); this only handles shape and selection ring. */
+
+.accent-swatch {
+    -fx-background-color: transparent;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-border-width: 2;
+    -fx-border-color: transparent;
+    -fx-padding: 3;
+    -fx-cursor: hand;
+}
+
+.accent-swatch:hover {
+    -fx-background-color: -color-bg-subtle;
+}
+
+.accent-swatch:selected {
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: -color-fg-muted;
+}
+
+.accent-swatch .swatch-fill {
+    -fx-min-width: 20;
+    -fx-min-height: 20;
+    -fx-max-width: 20;
+    -fx-max-height: 20;
+    -fx-background-radius: 5;
+}

@@ -99,6 +99,11 @@ public class PreferencesService {
         // constructor already fills missing weights with defaults.
         // v3 -> v4: largeSidebarIcons dropped; the unknown field in older JSON
         // is ignored on read (FAIL_ON_UNKNOWN_PROPERTIES is off).
+        // v4 -> v5: accentColor/fontFamily/fontSize added; absent fields
+        // deserialize as null/0 and the record's compact constructor fills
+        // them with defaults.
+        // v5 -> v6: followSystemTheme added; absent boolean deserializes as
+        // false (do not follow), which is the intended default.
         int solverSeconds = loaded.solverSecondsLimit() > 0
                 ? loaded.solverSecondsLimit()
                 : MinDisPreferences.DEFAULT_SOLVER_SECONDS;
@@ -108,7 +113,11 @@ public class PreferencesService {
                 loaded.theme(),
                 loaded.windowBounds(),
                 solverSeconds,
-                loaded.softConstraintWeights());
+                loaded.softConstraintWeights(),
+                loaded.accentColor(),
+                loaded.fontFamily(),
+                loaded.fontSize(),
+                loaded.followSystemTheme());
     }
 
     private void save(MinDisPreferences preferences) {
