@@ -1,3 +1,4 @@
+import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.nativeplatform.MachineArchitecture
 import org.gradle.nativeplatform.OperatingSystemFamily
 
@@ -12,6 +13,15 @@ application {
     mainModule = "org.mindis.gui"
     mainClass = "org.mindis.gui.MinDisApp"
     applicationDefaultJvmArgs = listOf("--enable-native-access=javafx.graphics")
+}
+
+// Bakes the project version into a resource read by the About module -
+// avoids relying on JPMS module/jar-manifest versioning, which jpackage's
+// jlink runtime image does not carry through reliably.
+tasks.named<ProcessResources>("processResources") {
+    filesMatching("org/mindis/gui/about/version.properties") {
+        expand("version" to project.version)
+    }
 }
 
 // Installer type: 'exe' (default; needs WiX, present on GitHub runners) or

@@ -1,5 +1,6 @@
 package org.mindis.workbench;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,11 +41,13 @@ public final class Workbench extends BorderPane {
         for (WorkbenchModule module : modules) {
             sidebar.getChildren().add(createNavButton(module));
         }
-        if (builder.bottomModule != null) {
+        if (!builder.bottomModules.isEmpty()) {
             Region spacer = new Region();
             VBox.setVgrow(spacer, Priority.ALWAYS);
             sidebar.getChildren().add(spacer);
-            sidebar.getChildren().add(createNavButton(builder.bottomModule));
+            for (WorkbenchModule module : builder.bottomModules) {
+                sidebar.getChildren().add(createNavButton(module));
+            }
         }
 
         // A ToggleGroup allows deselecting by re-clicking; keep one module
@@ -119,17 +122,18 @@ public final class Workbench extends BorderPane {
     public static final class Builder {
 
         private final List<WorkbenchModule> modules;
-        private WorkbenchModule bottomModule;
+        private final List<WorkbenchModule> bottomModules = new ArrayList<>();
 
         private Builder(WorkbenchModule... modules) {
             this.modules = List.of(modules);
         }
 
         /**
-         * Pins a module (typically Settings) to the bottom of the sidebar.
+         * Pins a module to the bottom of the sidebar, below a spacer. Call
+         * order is preserved (e.g. About above Settings).
          */
         public Builder bottomModule(WorkbenchModule module) {
-            this.bottomModule = module;
+            this.bottomModules.add(module);
             return this;
         }
 

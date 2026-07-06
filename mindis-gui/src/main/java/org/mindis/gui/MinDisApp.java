@@ -6,10 +6,12 @@ import com.dlsc.fxmlkit.fxml.FxmlKit;
 
 import io.avaje.inject.BeanScope;
 
+import java.util.List;
 import java.util.logging.Logger;
 
 import javafx.application.Application;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
 import org.mindis.core.l10n.Localization;
@@ -18,6 +20,7 @@ import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.preferences.PreferencesService;
 import org.mindis.gui.di.AvajeDiAdapter;
 import org.mindis.gui.logging.AlertOnErrorHandler;
+import org.mindis.gui.modules.AboutModule;
 import org.mindis.gui.modules.DashboardModule;
 import org.mindis.gui.modules.PlanningModule;
 import org.mindis.gui.modules.ServersModule;
@@ -33,6 +36,8 @@ import org.mindis.workbench.Workbench;
  * change.
  */
 public class MinDisApp extends Application {
+
+    private static final List<Integer> APP_ICON_SIZES = List.of(16, 32, 48, 64, 128, 256, 512);
 
     private BeanScope beanScope;
     private PreferencesService preferencesService;
@@ -70,10 +75,18 @@ public class MinDisApp extends Application {
         FxmlKit.setDiAdapter(new AvajeDiAdapter(beanScope));
         FxmlKit.setResourceBundle(Localization.getBundle());
 
+        stage.getIcons().addAll(loadAppIcons());
         stage.setScene(new Scene(buildWorkbench(), 960, 640));
         stage.setTitle(Localization.lang("MinDis - Minister Dispatcher"));
         restoreWindowBounds(preferences.windowBounds());
         stage.show();
+    }
+
+    private List<Image> loadAppIcons() {
+        return APP_ICON_SIZES.stream()
+                .map(size -> new Image(getClass().getResourceAsStream(
+                        "/org/mindis/gui/icons/app-icon/mindis-" + size + ".png")))
+                .toList();
     }
 
     @Override
@@ -90,6 +103,7 @@ public class MinDisApp extends Application {
                         new ServersModule(Localization.lang("Servers")),
                         new ServicesModule(Localization.lang("Services")),
                         new PlanningModule(Localization.lang("Planning")))
+                .bottomModule(new AboutModule(Localization.lang("About"), getHostServices()))
                 .bottomModule(new SettingsModule(Localization.lang("Settings"), uiPreferences))
                 .build();
     }
