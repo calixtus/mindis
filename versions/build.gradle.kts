@@ -31,4 +31,9 @@ dependencies.constraints {
     api("io.avaje:avaje-inject:$avajeInject")
     api("io.avaje:avaje-inject-generator:$avajeInject")
     api("jakarta.inject:jakarta.inject-api:2.0.1")
+
+    api("ai.timefold.solver:timefold-solver-core:2.2.0")
+    // Pinned down from 1.16.x: micrometer-core 1.16.5 class files carry type
+    // annotations that crash javac when read from the module path.
+    api("io.micrometer:micrometer-core:1.15.12!!")
 }

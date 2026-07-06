@@ -458,6 +458,16 @@ Key elements copied from the JabRef approach:
    listener/`CompletableFuture` API (§2.5 rule 3) — GUI adapts onto FX thread.
 4. **Done when:** headless test produces feasible plan (0 hard violations) for realistic
    month fixture (≈20 servers, ≈15 services) — proving core runs without any UI module.
+   **As built (2026-07-06):** done. Score is `HardMediumSoftScore` (not HardSoft as sketched
+   in §3): hard = rule violations, **medium = unassigned slots** (`allowsUnassigned` planning
+   variable — over-constrained months yield best partial plan instead of no plan), soft =
+   quality. Constraints deferred until the model carries the data: preferred-mass-times
+   reward, experienced/new pairing (no preference/experience fields yet — add fields + both
+   constraints in M4/M5). Timefold 2.2 API drift vs. §3 sketch: `PlanningId` in
+   `api.domain.common`, scores in `api.score`, ConstraintVerifier merged into core
+   (`api.score.stream.test`), `SolverManager<Solution>` single type param, best-solution
+   events via `withBestSolutionEventConsumer`. micrometer-core pinned to 1.15.x (1.16.5
+   class files crash javac on the module path).
 
 ### M4 — Planning UI
 1. *Planning* module: pick horizon → generate assignments → live solving view (score, progress,
