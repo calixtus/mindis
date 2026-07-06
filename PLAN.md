@@ -505,10 +505,25 @@ Key elements copied from the JabRef approach:
 2. GitHub Actions: build + test on push; package on tag.
 3. **Done when:** installable Windows build runs on a clean machine. **App is shippable here —
    M7 is optional optimization.**
+   **As built (2026-07-06):** packaging plugin wired via `feature.packaging` convention;
+   targets windows/linux/macos (host==target per CI runner; JavaFX via openjfx plugin
+   classifier, not variant patches). jlink rejects automatic modules ⇒
+   `extra-java-module-info` now patches openpdf, micrometer (3 jars, one optional SPI
+   ignored), HdrHistogram, LatencyUtils into real modules. Local verification: app-image
+   (`-PinstallerType=app-image`, WiX-free); packaged `MinDis.exe` boots with bundled runtime.
+   CI: `build.yml` (ubuntu, push/PR), `release.yml` (tag `v*` → windows runner, WiX
+   preinstalled → exe installer → GitHub release). Version in gradle.properties (`0.6.0`,
+   MSI-compatible x.y.z).
 
 ### M7 — GraalVM Native Image (last, self-contained)
 All native work lives here; nothing before M6 depends on it, and failure leaves M6 as the
 shipping path.
+**Reframed (2026-07-06):** native does NOT replace the jpackage installer — a native binary
+has no installer UX (Start menu, uninstall, upgrades), and Timefold's hot loops favor JIT
+(same solver budget likely yields better plans on the JVM). M7's deliverable is an
+**additional portable single-file `MinDis-portable.exe`** for no-install environments.
+Go/no-go criteria for the spike: (a) Timefold AOT works at all, (b) native solver benchmark
+vs. JIT is acceptable. Same release pipeline ships both artifacts.
 1. Create `org.mindis.gradle.feature.native` convention plugin: GraalVM toolchain
    (Liberica NIK / Gluon GraalVM with JavaFX static libs), GluonFX Gradle plugin.
    Windows: VS Build Tools (document in `docs/dev-setup.md`).

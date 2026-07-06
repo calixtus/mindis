@@ -1,0 +1,30 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  package-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build installer (jpackage, WiX preinstalled on runner)
+        run: ./gradlew :gui:jpackage
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MinDis-windows-installer
+          path: mindis-gui/build/packages/windows/*.exe
+      - name: Attach to GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: mindis-gui/build/packages/windows/*.exe
+          generate_release_notes: true
