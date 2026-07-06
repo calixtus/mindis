@@ -1,0 +1,53 @@
+name: Native Spike (M7)
+
+# Manual: compares Timefold solver throughput JIT vs. GraalVM native image
+# on the same fixture. Result feeds the M7 go/no-go decision (PLAN.md).
+on:
+  workflow_dispatch:
+
+jobs:
+  benchmark:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '25'
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: JIT baseline (10s budget)
+        shell: pwsh
+        run: |
+          ./gradlew :native-spike:run --args="10" 2>&1 | Tee-Object -FilePath jit.log
+          "## JIT (JVM)" >> $env:GITHUB_STEP_SUMMARY
+          '```' >> $env:GITHUB_STEP_SUMMARY
+          Select-String -Path jit.log -Pattern "Solving ended|wall-millis|score:|unassigned" | ForEach-Object { $_.Line } >> $env:GITHUB_STEP_SUMMARY
+          '```' >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Collect reachability metadata (tracing agent)
+        run: ./gradlew -Pagent :native-spike:run --args="3"
+
+      - name: Copy metadata into sources
+        run: ./gradlew :native-spike:metadataCopy --task run --dir src/main/resources/META-INF/native-image
+
+      - name: Build native image
+        run: ./gradlew :native-spike:nativeCompile
+
+      - name: Native benchmark (10s budget)
+        shell: pwsh
+        run: |
+          & "native-spike/build/native/nativeCompile/mindis-solver-benchmark.exe" 10 2>&1 | Tee-Object -FilePath native.log
+          "## Native (GraalVM)" >> $env:GITHUB_STEP_SUMMARY
+          '```' >> $env:GITHUB_STEP_SUMMARY
+          Select-String -Path native.log -Pattern "Solving ended|wall-millis|score:|unassigned" | ForEach-Object { $_.Line } >> $env:GITHUB_STEP_SUMMARY
+          '```' >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload native binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: mindis-solver-benchmark-native
+          path: native-spike/build/native/nativeCompile/mindis-solver-benchmark.exe
