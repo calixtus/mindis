@@ -13,7 +13,7 @@ public class ServicesModule extends WorkbenchModule {
     private ServicesView view;
 
     public ServicesModule(String name) {
-        super(name);
+        super(name, "mdi2c-church");
     }
 
     @Override

@@ -34,6 +34,10 @@ dependencies.constraints {
 
     api("ai.timefold.solver:timefold-solver-core:2.2.0")
     api("com.github.librepdf:openpdf:3.0.5")
+
+    api("org.kordamp.ikonli:ikonli-core:12.4.0")
+    api("org.kordamp.ikonli:ikonli-javafx:12.4.0")
+    api("org.kordamp.ikonli:ikonli-materialdesign2-pack:12.4.0")
     // Pinned down from 1.16.x: micrometer-core 1.16.5 class files carry type
     // annotations that crash javac when read from the module path.
     api("io.micrometer:micrometer-core:1.15.12!!")

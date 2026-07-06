@@ -28,3 +28,12 @@
     -fx-text-fill: -color-accent-fg;
     -fx-font-weight: bold;
 }
+
+.workbench-nav-button .workbench-nav-icon {
+    -fx-icon-size: 18;
+    -fx-icon-color: -color-fg-muted;
+}
+
+.workbench-nav-button:selected .workbench-nav-icon {
+    -fx-icon-color: -color-accent-fg;
+}

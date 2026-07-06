@@ -1,5 +1,6 @@
 package org.mindis.core.planning;
 
+import ai.timefold.solver.core.api.domain.solution.ConstraintWeightOverrides;
 import ai.timefold.solver.core.api.score.HardMediumSoftScore;
 import ai.timefold.solver.core.api.solver.SolutionManager;
 import ai.timefold.solver.core.api.solver.SolverConfigOverride;
@@ -12,6 +13,7 @@ import jakarta.inject.Singleton;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -23,6 +25,7 @@ import org.mindis.core.model.Server;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.preferences.MinDisPreferences;
+import org.mindis.core.preferences.PreferencesService;
 
 /**
  * Builds planning problems from the repositories and solves them
@@ -37,12 +40,16 @@ public class PlanningService implements AutoCloseable {
 
     private final ServerRepository serverRepository;
     private final ServiceRepository serviceRepository;
+    private final PreferencesService preferencesService;
     private final SolverManager<ServicePlan> solverManager;
     private final SolutionManager<ServicePlan, HardMediumSoftScore> solutionManager;
 
-    public PlanningService(ServerRepository serverRepository, ServiceRepository serviceRepository) {
+    public PlanningService(ServerRepository serverRepository,
+                           ServiceRepository serviceRepository,
+                           PreferencesService preferencesService) {
         this.serverRepository = serverRepository;
         this.serviceRepository = serviceRepository;
+        this.preferencesService = preferencesService;
         this.solverManager = SolverManager.create(solverConfig());
         this.solutionManager = SolutionManager.create(solverManager);
     }
@@ -79,7 +86,16 @@ public class PlanningService implements AutoCloseable {
                 }
             }
         }
-        return new ServicePlan(activeServers, assignments);
+        ServicePlan plan = new ServicePlan(activeServers, assignments);
+        plan.setConstraintWeightOverrides(weightOverridesFromPreferences());
+        return plan;
+    }
+
+    private ConstraintWeightOverrides<HardMediumSoftScore> weightOverridesFromPreferences() {
+        Map<String, HardMediumSoftScore> overrides = new HashMap<>();
+        preferencesService.get().softConstraintWeights().forEach(
+                (name, weight) -> overrides.put(name, HardMediumSoftScore.ofSoft(weight)));
+        return ConstraintWeightOverrides.of(overrides);
     }
 
     /**

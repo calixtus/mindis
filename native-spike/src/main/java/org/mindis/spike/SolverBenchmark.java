@@ -69,7 +69,7 @@ public final class SolverBenchmark {
                 default -> Set.of(Role.ACOLYTE);
             };
             servers.add(new Server("server-" + i, "First" + i, "Last" + i, "", null,
-                    i % 5 == 0 ? "family-" + (i / 5) : null, qualifications, List.of(), true));
+                    i % 5 == 0 ? "family-" + (i / 5) : null, qualifications, List.of(), Set.of(), false, true));
         }
 
         List<LiturgicalService> services = new ArrayList<>();

@@ -64,6 +64,21 @@ class PreferencesServiceTest {
     }
 
     @Test
+    void softWeightsDefaultAndOverrideSurviveRoundTrip() {
+        PreferencesService service = new PreferencesService(preferencesFile());
+        assertEquals(
+                org.mindis.core.planning.MinDisConstraintProvider.defaultSoftWeights(),
+                service.get().softConstraintWeights());
+
+        service.update(p -> p.withSoftConstraintWeight(
+                org.mindis.core.planning.MinDisConstraintProvider.SIBLINGS_TOGETHER, 9));
+
+        PreferencesService reloaded = new PreferencesService(preferencesFile());
+        assertEquals(9, reloaded.get().softConstraintWeights()
+                .get(org.mindis.core.planning.MinDisConstraintProvider.SIBLINGS_TOGETHER));
+    }
+
+    @Test
     void windowBoundsRoundTrip() {
         PreferencesService service = new PreferencesService(preferencesFile());
         MinDisPreferences.WindowBounds bounds = new MinDisPreferences.WindowBounds(10, 20, 800, 600, false);

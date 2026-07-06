@@ -33,7 +33,7 @@ class RepositoryRoundTripTest {
                 LocalDate.of(2012, 5, 14), "muster",
                 Set.of(Role.ACOLYTE, Role.THURIFER),
                 List.of(new UnavailabilityPeriod(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 15))),
-                true);
+                Set.of(LocalTime.of(10, 0)), true, true);
         Path file = tempDir.resolve("servers.json");
 
         new ServerRepository(file).save(server);
@@ -62,10 +62,10 @@ class RepositoryRoundTripTest {
     void upsertReplacesById() {
         Path file = tempDir.resolve("servers.json");
         ServerRepository repository = new ServerRepository(file);
-        Server original = new Server("id-1", "Anna", "Muster", "", null, null, Set.of(), List.of(), true);
+        Server original = new Server("id-1", "Anna", "Muster", "", null, null, Set.of(), List.of(), Set.of(), false, true);
         repository.save(original);
 
-        repository.save(new Server("id-1", "Anna", "Beispiel", "", null, null, Set.of(), List.of(), true));
+        repository.save(new Server("id-1", "Anna", "Beispiel", "", null, null, Set.of(), List.of(), Set.of(), false, true));
 
         assertEquals(1, repository.findAll().size());
         assertEquals("Beispiel", repository.findAll().getFirst().lastName());

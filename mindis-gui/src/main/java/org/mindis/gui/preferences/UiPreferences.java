@@ -21,11 +21,14 @@ import org.mindis.core.preferences.PreferencesService;
 @Singleton
 public final class UiPreferences {
 
+    private final PreferencesService preferencesService;
     private final StringProperty languageTag = new SimpleStringProperty();
     private final ObjectProperty<MinDisPreferences.Theme> theme = new SimpleObjectProperty<>();
     private final ObjectProperty<Integer> solverSecondsLimit = new SimpleObjectProperty<>();
+    private final java.util.Map<String, ObjectProperty<Integer>> softWeights = new java.util.HashMap<>();
 
     public UiPreferences(PreferencesService preferencesService) {
+        this.preferencesService = preferencesService;
         // Order matters: values first, write-through subscriptions second,
         // the external listener last. Registering listeners in a constructor
         // technically lets 'this' escape; acceptable here because Avaje wires
@@ -58,5 +61,20 @@ public final class UiPreferences {
 
     public ObjectProperty<Integer> solverSecondsLimitProperty() {
         return solverSecondsLimit;
+    }
+
+    /**
+     * Editable weight of one tunable soft constraint (names =
+     * MinDisConstraintProvider constants). Settings is the only writer, so no
+     * external re-sync is wired for these.
+     */
+    public ObjectProperty<Integer> softWeightProperty(String constraintName) {
+        return softWeights.computeIfAbsent(constraintName, name -> {
+            ObjectProperty<Integer> property = new SimpleObjectProperty<>(
+                    preferencesService.get().softConstraintWeights().getOrDefault(name, 1));
+            property.subscribe(weight ->
+                    preferencesService.update(p -> p.withSoftConstraintWeight(name, weight)));
+            return property;
+        });
     }
 }

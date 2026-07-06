@@ -17,7 +17,7 @@ import org.mindis.core.model.ServiceType;
 class ViolationCheckerTest {
 
     private static final Server ACOLYTE_ONLY =
-            new Server("s1", "Anna", "Muster", "", null, null, Set.of(Role.ACOLYTE), List.of(), true);
+            new Server("s1", "Anna", "Muster", "", null, null, Set.of(Role.ACOLYTE), List.of(), Set.of(), false, true);
     private static final LiturgicalService MASS = new LiturgicalService(
             "svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60, "St. Mary",
             ServiceType.SUNDAY_MASS, List.of(), "");

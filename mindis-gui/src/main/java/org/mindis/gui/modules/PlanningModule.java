@@ -13,7 +13,7 @@ public class PlanningModule extends WorkbenchModule {
     private PlanningView view;
 
     public PlanningModule(String name) {
-        super(name);
+        super(name, "mdi2c-calendar-check");
     }
 
     @Override

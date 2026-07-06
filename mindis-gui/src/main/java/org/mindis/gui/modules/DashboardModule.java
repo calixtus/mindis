@@ -12,7 +12,7 @@ import org.mindis.workbench.WorkbenchModule;
 public class DashboardModule extends WorkbenchModule {
 
     public DashboardModule(String name) {
-        super(name);
+        super(name, "mdi2v-view-dashboard");
     }
 
     @Override

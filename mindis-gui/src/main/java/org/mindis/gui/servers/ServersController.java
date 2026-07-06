@@ -3,6 +3,9 @@ package org.mindis.gui.servers;
 import io.avaje.inject.Prototype;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashSet;
@@ -60,6 +63,10 @@ public class ServersController {
     private DatePicker birthDatePicker;
     @FXML
     private TextField familyIdField;
+    @FXML
+    private TextField preferredTimesField;
+    @FXML
+    private CheckBox experiencedCheck;
     @FXML
     private CheckBox activeCheck;
     @FXML
@@ -138,6 +145,8 @@ public class ServersController {
                 familyId.isEmpty() ? null : familyId,
                 qualifications,
                 new ArrayList<>(unavailabilityList.getItems()),
+                parsePreferredTimes(preferredTimesField.getText()),
+                experiencedCheck.isSelected(),
                 activeCheck.isSelected());
         serverRepository.save(server);
         refreshTable(server.id());
@@ -190,11 +199,35 @@ public class ServersController {
         contactField.setText(server == null ? "" : server.contact());
         birthDatePicker.setValue(server == null ? null : server.birthDate());
         familyIdField.setText(server == null || server.familyId() == null ? "" : server.familyId());
+        preferredTimesField.setText(server == null ? "" : formatPreferredTimes(server.preferredTimes()));
+        experiencedCheck.setSelected(server != null && server.experienced());
         activeCheck.setSelected(server == null || server.active());
         qualificationChecks.forEach((role, check) ->
                 check.setSelected(server != null && server.qualifications().contains(role)));
         unavailabilityList.getItems().setAll(server == null ? List.of() : server.unavailabilities());
         periodFromPicker.setValue(null);
         periodToPicker.setValue(null);
+    }
+
+    /**
+     * Parses "10:00, 18:30" style input; unparsable entries are dropped.
+     */
+    private static Set<LocalTime> parsePreferredTimes(String text) {
+        Set<LocalTime> times = new HashSet<>();
+        for (String part : text.split(",")) {
+            try {
+                times.add(LocalTime.parse(part.strip(), DateTimeFormatter.ofPattern("H:mm")));
+            } catch (DateTimeParseException e) {
+                // Ignore invalid entries; the field is free-form.
+            }
+        }
+        return times;
+    }
+
+    private static String formatPreferredTimes(Set<LocalTime> times) {
+        return times.stream()
+                .sorted()
+                .map(LocalTime::toString)
+                .collect(Collectors.joining(", "));
     }
 }

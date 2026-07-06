@@ -20,12 +20,12 @@ class MinDisConstraintProviderTest {
             ConstraintVerifier.build(new MinDisConstraintProvider(), ServicePlan.class, Assignment.class);
 
     private static Server server(String id, Set<Role> qualifications) {
-        return new Server(id, "First-" + id, "Last-" + id, "", null, null, qualifications, List.of(), true);
+        return new Server(id, "First-" + id, "Last-" + id, "", null, null, qualifications, List.of(), Set.of(), false, true);
     }
 
     private static Server siblingServer(String id, String familyId) {
         return new Server(id, "First-" + id, "Last-" + id, "", null, familyId,
-                Set.of(Role.ACOLYTE), List.of(), true);
+                Set.of(Role.ACOLYTE), List.of(), Set.of(), false, true);
     }
 
     private static LiturgicalService serviceAt(String id, LocalDateTime dateTime) {
@@ -59,7 +59,7 @@ class MinDisConstraintProviderTest {
     @Test
     void unavailableServerPenalized() {
         Server onVacation = new Server("s1", "A", "B", "", null, null, Set.of(Role.ACOLYTE),
-                List.of(new UnavailabilityPeriod(LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31))), true);
+                List.of(new UnavailabilityPeriod(LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31))), Set.of(), false, true);
         verifier.verifyThat(MinDisConstraintProvider::serverMustBeAvailable)
                 .given(assigned("a1", serviceAt("svc1", SUNDAY_10), Role.ACOLYTE, onVacation))
                 .penalizesBy(1);
@@ -67,7 +67,7 @@ class MinDisConstraintProviderTest {
 
     @Test
     void inactiveServerPenalized() {
-        Server inactive = new Server("s1", "A", "B", "", null, null, Set.of(Role.ACOLYTE), List.of(), false);
+        Server inactive = new Server("s1", "A", "B", "", null, null, Set.of(Role.ACOLYTE), List.of(), Set.of(), false, false);
         verifier.verifyThat(MinDisConstraintProvider::serverMustBeActive)
                 .given(assigned("a1", serviceAt("svc1", SUNDAY_10), Role.ACOLYTE, inactive))
                 .penalizesBy(1);
@@ -121,6 +121,29 @@ class MinDisConstraintProviderTest {
         verifier.verifyThat(MinDisConstraintProvider::everySlotAssigned)
                 .given(new Assignment("a1", serviceAt("svc1", SUNDAY_10), Role.ACOLYTE))
                 .penalizesBy(1);
+    }
+
+    @Test
+    void preferredTimeRewarded() {
+        Server likesTen = new Server("s1", "A", "B", "", null, null, Set.of(Role.ACOLYTE),
+                List.of(), Set.of(java.time.LocalTime.of(10, 0)), false, true);
+        verifier.verifyThat(MinDisConstraintProvider::preferredServiceTime)
+                .given(assigned("a1", serviceAt("svc1", SUNDAY_10), Role.ACOLYTE, likesTen))
+                .rewardsWith(1);
+    }
+
+    @Test
+    void experiencedPresenceRewardedOncePerService() {
+        Server experiencedOne = new Server("s1", "A", "B", "", null, null, Set.of(Role.ACOLYTE),
+                List.of(), Set.of(), true, true);
+        Server experiencedTwo = new Server("s2", "C", "D", "", null, null, Set.of(Role.ACOLYTE),
+                List.of(), Set.of(), true, true);
+        LiturgicalService service = serviceAt("svc1", SUNDAY_10);
+        verifier.verifyThat(MinDisConstraintProvider::experiencedServerPresent)
+                .given(
+                        assigned("a1", service, Role.ACOLYTE, experiencedOne),
+                        assigned("a2", service, Role.ACOLYTE, experiencedTwo))
+                .rewardsWith(1);
     }
 
     @Test

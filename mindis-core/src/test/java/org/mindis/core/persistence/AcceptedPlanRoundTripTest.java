@@ -28,7 +28,7 @@ class AcceptedPlanRoundTripTest {
     java.nio.file.Path tempDir;
 
     private static final Server ANNA =
-            new Server("srv-1", "Anna", "Muster", "", null, null, Set.of(Role.ACOLYTE), List.of(), true);
+            new Server("srv-1", "Anna", "Muster", "", null, null, Set.of(Role.ACOLYTE), List.of(), Set.of(), false, true);
     private static final LiturgicalService MASS = new LiturgicalService(
             "svc-1", LocalDateTime.of(2026, 8, 2, 10, 0), 60, "St. Mary",
             ServiceType.SUNDAY_MASS, List.of(new RoleSlot(Role.ACOLYTE, 2)), "");

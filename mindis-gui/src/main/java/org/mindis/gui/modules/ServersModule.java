@@ -13,7 +13,7 @@ public class ServersModule extends WorkbenchModule {
     private ServersView view;
 
     public ServersModule(String name) {
-        super(name);
+        super(name, "mdi2a-account-group");
     }
 
     @Override

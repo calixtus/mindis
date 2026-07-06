@@ -12,6 +12,8 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
+import org.kordamp.ikonli.javafx.FontIcon;
+
 /**
  * Minimal workbench shell: a permanent left sidebar with one navigation entry
  * per module (bottom-pinned entries supported, e.g. Settings) and the active
@@ -85,6 +87,12 @@ public final class Workbench extends BorderPane {
 
     private ToggleButton createNavButton(WorkbenchModule module) {
         ToggleButton button = new ToggleButton(module.getName());
+        if (module.getIconLiteral() != null) {
+            FontIcon icon = new FontIcon(module.getIconLiteral());
+            icon.getStyleClass().add("workbench-nav-icon");
+            button.setGraphic(icon);
+            button.setGraphicTextGap(10);
+        }
         button.getStyleClass().add("workbench-nav-button");
         button.setToggleGroup(navGroup);
         button.setMaxWidth(Double.MAX_VALUE);

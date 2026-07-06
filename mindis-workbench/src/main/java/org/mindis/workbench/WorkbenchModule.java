@@ -20,13 +20,27 @@ import javafx.scene.Node;
 public abstract class WorkbenchModule {
 
     private final String name;
+    private final String iconLiteral;
 
     protected WorkbenchModule(String name) {
+        this(name, null);
+    }
+
+    /**
+     * @param iconLiteral Ikonli icon literal (e.g. {@code "mdi2v-view-dashboard"});
+     *                    {@code null} for a text-only sidebar entry
+     */
+    protected WorkbenchModule(String name, String iconLiteral) {
         this.name = name;
+        this.iconLiteral = iconLiteral;
     }
 
     public final String getName() {
         return name;
+    }
+
+    public final String getIconLiteral() {
+        return iconLiteral;
     }
 
     public abstract Node activate();

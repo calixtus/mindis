@@ -1,5 +1,6 @@
 package org.mindis.core.planning;
 
+import ai.timefold.solver.core.api.domain.solution.ConstraintWeightOverrides;
 import ai.timefold.solver.core.api.domain.solution.PlanningEntityCollectionProperty;
 import ai.timefold.solver.core.api.domain.solution.PlanningScore;
 import ai.timefold.solver.core.api.domain.solution.PlanningSolution;
@@ -25,6 +26,10 @@ public class ServicePlan {
     @PlanningEntityCollectionProperty
     private List<Assignment> assignments;
 
+    // Detected by field type: user-tunable soft constraint weights.
+    private ConstraintWeightOverrides<HardMediumSoftScore> constraintWeightOverrides =
+            ConstraintWeightOverrides.none();
+
     @PlanningScore
     private HardMediumSoftScore score;
 
@@ -35,6 +40,14 @@ public class ServicePlan {
     public ServicePlan(List<Server> servers, List<Assignment> assignments) {
         this.servers = servers;
         this.assignments = assignments;
+    }
+
+    public ConstraintWeightOverrides<HardMediumSoftScore> getConstraintWeightOverrides() {
+        return constraintWeightOverrides;
+    }
+
+    public void setConstraintWeightOverrides(ConstraintWeightOverrides<HardMediumSoftScore> overrides) {
+        this.constraintWeightOverrides = overrides;
     }
 
     public List<Server> getServers() {

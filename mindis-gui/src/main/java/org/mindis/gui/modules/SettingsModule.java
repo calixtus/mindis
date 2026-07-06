@@ -1,5 +1,6 @@
 package org.mindis.gui.modules;
 
+import java.util.List;
 import java.util.Map;
 
 import javafx.collections.FXCollections;
@@ -8,11 +9,13 @@ import javafx.scene.Node;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.TitledPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
 import org.mindis.core.l10n.Localization;
+import org.mindis.core.planning.MinDisConstraintProvider;
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.workbench.WorkbenchModule;
@@ -35,7 +38,7 @@ public class SettingsModule extends WorkbenchModule {
     private final UiPreferences uiPreferences;
 
     public SettingsModule(String name, UiPreferences uiPreferences) {
-        super(name);
+        super(name, "mdi2c-cog");
         this.uiPreferences = uiPreferences;
     }
 
@@ -93,8 +96,32 @@ public class SettingsModule extends WorkbenchModule {
         grid.add(new Label(Localization.lang("Solver time limit (seconds)")), 0, 2);
         grid.add(solverSecondsSpinner, 1, 2);
 
-        VBox content = new VBox(grid);
+        GridPane weightsGrid = new GridPane();
+        weightsGrid.setHgap(12);
+        weightsGrid.setVgap(8);
+        int row = 0;
+        for (String constraintName : List.of(
+                MinDisConstraintProvider.UNBALANCED_WORKLOAD,
+                MinDisConstraintProvider.SIBLINGS_TOGETHER,
+                MinDisConstraintProvider.TOO_CLOSE,
+                MinDisConstraintProvider.PREFERRED_TIME,
+                MinDisConstraintProvider.EXPERIENCED_PRESENT)) {
+            Spinner<Integer> weightSpinner = new Spinner<>(0, 20,
+                    uiPreferences.softWeightProperty(constraintName).get());
+            weightSpinner.getValueFactory().valueProperty()
+                    .bindBidirectional(uiPreferences.softWeightProperty(constraintName));
+            weightsGrid.add(new Label(Localization.lang(constraintName)), 0, row);
+            weightsGrid.add(weightSpinner, 1, row);
+            row++;
+        }
+        TitledPane weightsPane = new TitledPane(Localization.lang("Constraint weights"), weightsGrid);
+        weightsPane.setCollapsible(false);
+
+        VBox content = new VBox(24, grid, weightsPane);
         content.setAlignment(Pos.CENTER);
-        return content;
+        content.setMaxWidth(420);
+        VBox wrapper = new VBox(content);
+        wrapper.setAlignment(Pos.CENTER);
+        return wrapper;
     }
 }

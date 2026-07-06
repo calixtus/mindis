@@ -95,6 +95,8 @@ public class PreferencesService {
             return loaded;
         }
         // v1 -> v2: solverSecondsLimit added; absent field deserializes as 0.
+        // v2 -> v3: softConstraintWeights added; the record's compact
+        // constructor already fills missing weights with defaults.
         int solverSeconds = loaded.solverSecondsLimit() > 0
                 ? loaded.solverSecondsLimit()
                 : MinDisPreferences.DEFAULT_SOLVER_SECONDS;
@@ -103,7 +105,8 @@ public class PreferencesService {
                 loaded.languageTag(),
                 loaded.theme(),
                 loaded.windowBounds(),
-                solverSeconds);
+                solverSeconds,
+                loaded.softConstraintWeights());
     }
 
     private void save(MinDisPreferences preferences) {

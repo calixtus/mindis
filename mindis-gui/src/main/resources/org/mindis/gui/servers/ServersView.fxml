@@ -58,8 +58,13 @@
             <DatePicker fx:id="birthDatePicker" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
             <Label text="%Family" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
             <TextField fx:id="familyIdField" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
-            <Label text="%Active" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
-            <CheckBox fx:id="activeCheck" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
+            <Label text="%Preferred times" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
+            <TextField fx:id="preferredTimesField" promptText="10:00, 18:30"
+                       GridPane.rowIndex="5" GridPane.columnIndex="1"/>
+            <Label text="%Experienced" GridPane.rowIndex="6" GridPane.columnIndex="0"/>
+            <CheckBox fx:id="experiencedCheck" GridPane.rowIndex="6" GridPane.columnIndex="1"/>
+            <Label text="%Active" GridPane.rowIndex="7" GridPane.columnIndex="0"/>
+            <CheckBox fx:id="activeCheck" GridPane.rowIndex="7" GridPane.columnIndex="1"/>
         </GridPane>
 
         <TitledPane text="%Qualifications" collapsible="false">

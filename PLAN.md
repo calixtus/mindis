@@ -546,6 +546,20 @@ vs. JIT is acceptable. Same release pipeline ships both artifacts.
    (`native-spike/`, manual workflow) stays for one-click re-evaluation. Full analysis and
    revisit triggers: `docs/adr/002-packaging.md`.
 
+### Post-M7 polish (as built, 2026-07-06)
+- Server model: `preferredTimes` + `experienced` (null-tolerant compact constructor migrates
+  old JSON); the two deferred soft constraints now live: preferred-service-time reward,
+  experienced-server-present reward (one per service). Roster form edits both.
+- Soft constraint weights user-tunable: preferences v3 carries a name→weight map (defaults
+  from `MinDisConstraintProvider.defaultSoftWeights()`), Settings shows five spinners,
+  `buildProblem` applies them via `ConstraintWeightOverrides` on the solution.
+- Sidebar icons via Ikonli (proper JPMS modules, jlink-safe): `ikonli-javafx` +
+  materialdesign2 pack; `WorkbenchModule` carries an optional icon literal.
+- **Not built — reactive repository→UI layer:** activation-refresh covers every observable
+  case in a single-window app; an event/ObservableList layer would add machinery with no
+  visible behavior change (YAGNI). Revisit only if multi-window or background imports arrive.
+- Still deferred: TestFX harness (user decision).
+
 ### Future (explicitly out of scope for M0–M7): `mindis-web`
 
 Browser UI as additional module per §2.5. Prerequisites already in place by then: UI-free core,
