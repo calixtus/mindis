@@ -1,14 +1,20 @@
 package org.mindis.core.planning;
 
+import ai.timefold.solver.core.api.score.HardMediumSoftScore;
+import ai.timefold.solver.core.api.solver.SolutionManager;
+import ai.timefold.solver.core.api.solver.SolverConfigOverride;
 import ai.timefold.solver.core.api.solver.SolverManager;
 import ai.timefold.solver.core.config.solver.SolverConfig;
 import ai.timefold.solver.core.config.solver.termination.TerminationConfig;
 
 import jakarta.inject.Singleton;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -17,6 +23,7 @@ import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.Server;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
+import org.mindis.core.preferences.MinDisPreferences;
 
 /**
  * Builds planning problems from the repositories and solves them
@@ -27,17 +34,18 @@ import org.mindis.core.persistence.ServiceRepository;
 @Singleton
 public class PlanningService implements AutoCloseable {
 
-    private static final long MAX_SECONDS = 30L;
     private static final long UNIMPROVED_SECONDS = 5L;
 
     private final ServerRepository serverRepository;
     private final ServiceRepository serviceRepository;
     private final SolverManager<ServicePlan> solverManager;
+    private final SolutionManager<ServicePlan, HardMediumSoftScore> solutionManager;
 
     public PlanningService(ServerRepository serverRepository, ServiceRepository serviceRepository) {
         this.serverRepository = serverRepository;
         this.serviceRepository = serviceRepository;
         this.solverManager = SolverManager.create(solverConfig());
+        this.solutionManager = SolutionManager.create(solverManager);
     }
 
     static SolverConfig solverConfig() {
@@ -46,7 +54,7 @@ public class PlanningService implements AutoCloseable {
                 .withEntityClasses(Assignment.class)
                 .withConstraintProviderClass(MinDisConstraintProvider.class)
                 .withTerminationConfig(new TerminationConfig()
-                        .withSecondsSpentLimit(MAX_SECONDS)
+                        .withSecondsSpentLimit((long) MinDisPreferences.DEFAULT_SOLVER_SECONDS)
                         .withUnimprovedSecondsSpentLimit(UNIMPROVED_SECONDS));
     }
 
@@ -76,18 +84,57 @@ public class PlanningService implements AutoCloseable {
     }
 
     /**
+     * Re-applies a persisted plan onto a freshly built problem: assigned
+     * servers and pin flags are restored where the assignment ids still match
+     * (deleted servers or services degrade gracefully to empty slots).
+     */
+    public void applyAcceptedPlan(ServicePlan problem, AcceptedPlan acceptedPlan) {
+        Map<String, Server> serversById = new HashMap<>();
+        problem.getServers().forEach(server -> serversById.put(server.id(), server));
+        Map<String, AcceptedPlan.PlannedAssignment> plannedById = new HashMap<>();
+        acceptedPlan.assignments().forEach(planned -> plannedById.put(planned.assignmentId(), planned));
+
+        for (Assignment assignment : problem.getAssignments()) {
+            AcceptedPlan.PlannedAssignment planned = plannedById.get(assignment.getId());
+            if (planned == null) {
+                continue;
+            }
+            if (planned.serverId() != null) {
+                assignment.setServer(serversById.get(planned.serverId()));
+            }
+            assignment.setPinned(planned.pinned() && assignment.getServer() != null);
+        }
+    }
+
+    public AcceptedPlan toAcceptedPlan(ServicePlan plan, LocalDate from, LocalDate toInclusive) {
+        List<AcceptedPlan.PlannedAssignment> planned = plan.getAssignments().stream()
+                .map(assignment -> new AcceptedPlan.PlannedAssignment(
+                        assignment.getId(),
+                        assignment.getService().id(),
+                        assignment.getRole(),
+                        assignment.getServer() == null ? null : assignment.getServer().id(),
+                        assignment.isPinned()))
+                .toList();
+        return new AcceptedPlan(from, toInclusive, planned);
+    }
+
+    /**
      * Solves asynchronously; every improved solution is pushed to
      * {@code bestSolutionConsumer} (solver thread!). Returns a job id for
      * {@link #stopSolving}.
      */
     public UUID solveAsync(ServicePlan problem,
+                           Duration timeBudget,
                            Consumer<ServicePlan> bestSolutionConsumer,
+                           Consumer<ServicePlan> finalSolutionConsumer,
                            Consumer<Throwable> exceptionHandler) {
         UUID jobId = UUID.randomUUID();
         solverManager.solveBuilder()
                 .withProblemId(jobId)
                 .withProblem(problem)
+                .withConfigOverride(new SolverConfigOverride().withTerminationSpentLimit(timeBudget))
                 .withBestSolutionEventConsumer(event -> bestSolutionConsumer.accept(event.solution()))
+                .withFinalBestSolutionEventConsumer(event -> finalSolutionConsumer.accept(event.solution()))
                 .withExceptionHandler((id, throwable) -> exceptionHandler.accept(throwable))
                 .run();
         return jobId;
@@ -95,6 +142,25 @@ public class PlanningService implements AutoCloseable {
 
     public void stopSolving(UUID jobId) {
         solverManager.terminateEarly(jobId);
+    }
+
+    /**
+     * Current score of a (possibly manually edited) plan. Uses
+     * {@code SolutionManager.update} - Timefold's {@code analyze()} is an
+     * enterprise-only feature (see PLAN.md risk table).
+     */
+    public HardMediumSoftScore scoreOf(ServicePlan plan) {
+        return solutionManager.update(plan);
+    }
+
+    /**
+     * Per-assignment violation summary: assignment id to the names of the
+     * violated hard/medium constraints. Constraint names are full-text
+     * localization keys (PLAN.md section 2.3). Computed by
+     * {@link ViolationChecker} - Timefold's {@code analyze()} is enterprise-only.
+     */
+    public Map<String, List<String>> violationsByAssignment(ServicePlan plan) {
+        return ViolationChecker.violationsByAssignment(plan);
     }
 
     @Override

@@ -14,9 +14,11 @@ public record MinDisPreferences(
         int version,
         String languageTag,
         Theme theme,
-        WindowBounds windowBounds) {
+        WindowBounds windowBounds,
+        int solverSecondsLimit) {
 
-    public static final int CURRENT_VERSION = 1;
+    public static final int CURRENT_VERSION = 2;
+    public static final int DEFAULT_SOLVER_SECONDS = 30;
 
     public enum Theme {
         LIGHT,
@@ -31,7 +33,7 @@ public record MinDisPreferences(
 
     public static MinDisPreferences defaults() {
         String language = Locale.getDefault().getLanguage().equals("de") ? "de" : "en";
-        return new MinDisPreferences(CURRENT_VERSION, language, Theme.LIGHT, null);
+        return new MinDisPreferences(CURRENT_VERSION, language, Theme.LIGHT, null, DEFAULT_SOLVER_SECONDS);
     }
 
     public Locale locale() {
@@ -39,14 +41,18 @@ public record MinDisPreferences(
     }
 
     public MinDisPreferences withLanguageTag(String newLanguageTag) {
-        return new MinDisPreferences(version, newLanguageTag, theme, windowBounds);
+        return new MinDisPreferences(version, newLanguageTag, theme, windowBounds, solverSecondsLimit);
     }
 
     public MinDisPreferences withTheme(Theme newTheme) {
-        return new MinDisPreferences(version, languageTag, newTheme, windowBounds);
+        return new MinDisPreferences(version, languageTag, newTheme, windowBounds, solverSecondsLimit);
     }
 
     public MinDisPreferences withWindowBounds(WindowBounds newWindowBounds) {
-        return new MinDisPreferences(version, languageTag, theme, newWindowBounds);
+        return new MinDisPreferences(version, languageTag, theme, newWindowBounds, solverSecondsLimit);
+    }
+
+    public MinDisPreferences withSolverSecondsLimit(int newSolverSecondsLimit) {
+        return new MinDisPreferences(version, languageTag, theme, windowBounds, newSolverSecondsLimit);
     }
 }

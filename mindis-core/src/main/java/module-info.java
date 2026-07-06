@@ -19,7 +19,7 @@ module org.mindis.core {
     requires ai.timefold.solver.core;
 
     opens org.mindis.core.model to com.fasterxml.jackson.databind;
-    opens org.mindis.core.planning to ai.timefold.solver.core;
+    opens org.mindis.core.planning to ai.timefold.solver.core, com.fasterxml.jackson.databind;
     opens org.mindis.core.preferences to com.fasterxml.jackson.databind;
 
     provides io.avaje.inject.spi.InjectExtension with org.mindis.core.CoreModule;

@@ -94,13 +94,16 @@ public class PreferencesService {
         if (loaded.version() == MinDisPreferences.CURRENT_VERSION) {
             return loaded;
         }
-        // Version 1 is the first shape; unknown versions are normalized to the
-        // current one. Future incompatible changes get explicit steps here.
+        // v1 -> v2: solverSecondsLimit added; absent field deserializes as 0.
+        int solverSeconds = loaded.solverSecondsLimit() > 0
+                ? loaded.solverSecondsLimit()
+                : MinDisPreferences.DEFAULT_SOLVER_SECONDS;
         return new MinDisPreferences(
                 MinDisPreferences.CURRENT_VERSION,
                 loaded.languageTag(),
                 loaded.theme(),
-                loaded.windowBounds());
+                loaded.windowBounds(),
+                solverSeconds);
     }
 
     private void save(MinDisPreferences preferences) {

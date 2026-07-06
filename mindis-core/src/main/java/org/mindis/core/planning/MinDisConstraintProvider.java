@@ -29,6 +29,14 @@ public class MinDisConstraintProvider implements ConstraintProvider {
     static final int SIBLINGS_REWARD = 5;
     static final int SPACING_PENALTY = 3;
 
+    // Constraint names double as full-text localization keys (PLAN.md 2.3)
+    // and are reused by ViolationChecker for the per-assignment display.
+    public static final String NOT_QUALIFIED = "Server not qualified for role";
+    public static final String UNAVAILABLE = "Server unavailable";
+    public static final String INACTIVE = "Server inactive";
+    public static final String DOUBLE_BOOKED = "Server double-booked";
+    public static final String UNASSIGNED = "Slot unassigned";
+
     @Override
     public Constraint[] defineConstraints(ConstraintFactory factory) {
         return new Constraint[] {
@@ -47,21 +55,21 @@ public class MinDisConstraintProvider implements ConstraintProvider {
         return factory.forEach(Assignment.class)
                 .filter(assignment -> !assignment.getServer().qualifications().contains(assignment.getRole()))
                 .penalize(HardMediumSoftScore.ONE_HARD)
-                .asConstraint("Server not qualified for role");
+                .asConstraint(NOT_QUALIFIED);
     }
 
     Constraint serverMustBeAvailable(ConstraintFactory factory) {
         return factory.forEach(Assignment.class)
                 .filter(assignment -> !assignment.getServer().isAvailableAt(assignment.serviceStart()))
                 .penalize(HardMediumSoftScore.ONE_HARD)
-                .asConstraint("Server unavailable");
+                .asConstraint(UNAVAILABLE);
     }
 
     Constraint serverMustBeActive(ConstraintFactory factory) {
         return factory.forEach(Assignment.class)
                 .filter(assignment -> !assignment.getServer().active())
                 .penalize(HardMediumSoftScore.ONE_HARD)
-                .asConstraint("Server inactive");
+                .asConstraint(INACTIVE);
     }
 
     Constraint noOverlappingAssignments(ConstraintFactory factory) {
@@ -70,14 +78,14 @@ public class MinDisConstraintProvider implements ConstraintProvider {
                         equal(Assignment::getServer),
                         overlapping(Assignment::serviceStart, Assignment::serviceEnd))
                 .penalize(HardMediumSoftScore.ONE_HARD)
-                .asConstraint("Server double-booked");
+                .asConstraint(DOUBLE_BOOKED);
     }
 
     Constraint everySlotAssigned(ConstraintFactory factory) {
         return factory.forEachIncludingUnassigned(Assignment.class)
                 .filter(assignment -> assignment.getServer() == null)
                 .penalize(HardMediumSoftScore.ONE_MEDIUM)
-                .asConstraint("Slot unassigned");
+                .asConstraint(UNASSIGNED);
     }
 
     Constraint fairWorkloadDistribution(ConstraintFactory factory) {

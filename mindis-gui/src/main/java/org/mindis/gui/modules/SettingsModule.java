@@ -5,6 +5,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.Spinner;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
@@ -89,6 +90,15 @@ public class SettingsModule extends WorkbenchModule {
             }
         });
 
+        Spinner<Integer> solverSecondsSpinner =
+                new Spinner<>(5, 600, preferences.solverSecondsLimit(), 5);
+        solverSecondsSpinner.setEditable(true);
+        solverSecondsSpinner.valueProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue != null && !newValue.equals(oldValue)) {
+                preferencesService.update(p -> p.withSolverSecondsLimit(newValue));
+            }
+        });
+
         GridPane grid = new GridPane();
         grid.setHgap(12);
         grid.setVgap(12);
@@ -97,6 +107,8 @@ public class SettingsModule extends WorkbenchModule {
         grid.add(languageBox, 1, 0);
         grid.add(new Label(Localization.lang("Theme")), 0, 1);
         grid.add(themeBox, 1, 1);
+        grid.add(new Label(Localization.lang("Solver time limit (seconds)")), 0, 2);
+        grid.add(solverSecondsSpinner, 1, 2);
 
         VBox content = new VBox(grid);
         content.setAlignment(Pos.CENTER);

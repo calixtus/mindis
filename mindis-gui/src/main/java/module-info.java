@@ -14,6 +14,7 @@ open module org.mindis.gui {
 
     requires io.avaje.inject;
     requires jakarta.inject;
+    requires ai.timefold.solver.core;
 
     provides io.avaje.inject.spi.InjectExtension with org.mindis.gui.GuiModule;
 }

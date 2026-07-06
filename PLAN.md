@@ -386,6 +386,7 @@ Key elements copied from the JabRef approach:
 | **GraalVM (all M7):** JavaFX native fragility, Timefold AOT (Quarkus-tested, plain-Java less trodden), FXMLLoader + Jackson reflection | M7 fails or slips | Whole risk deferred to M7 by design — **jpackage (M6) is the shipping path and stays regardless**, so native is pure upside. In M7: GluonFX plugin, tracing-agent metadata over every view, headless solver spike first; if FXML metadata churn is chronic, revisit FXML/2 per ADR-001. Rules §2.2 keep M0–M6 code from making it worse. |
 | Full-text keys clash with properties format (spaces, `=`, `:` need escaping) | Messy bundle files | Exactly JabRef's trade-off — proven workable; localization check task (§5) catches drift; consider JabRef's tooling for bundle maintenance. |
 | Timefold under JPMS | Reflection failures at runtime | `opens org.mindis.core.model, org.mindis.core.planning to ai.timefold.solver.core;` — covered by solver smoke test in CI. |
+| **Timefold enterprise gating**: `SolutionManager.analyze()`, `diff()`, `recommendAssignment()`, multithreaded solving are commercial-only in 2.x — fail at runtime with `IllegalStateException`, not at compile time | Silent feature landmines | Discovered in M4. Community-safe substitutes in use: `SolutionManager.update()` for scores, own `ViolationChecker` (mirrors hard/medium constraints, shared name constants, unit-tested) for per-assignment display. Rule: any new SolutionManager/solver feature gets a runtime smoke test before UI wiring. |
 | Avaje annotation processor + JPMS friction (processor on module path, generated sources in module) | M0 setup pain | Known-workable combo (Avaje documents JPMS use); part of M0 spike — DI-injected controller must work before M1. Fallback: manual composition root (Avaje removal is mechanical — constructor injection stays). |
 | Web-readiness discipline erodes (JavaFX types leak into core) | Future web module blocked | `module-info` (core requires no `javafx.*`) + Checkstyle `IllegalImport` fail the build on first leak (§2.5). |
 
@@ -478,6 +479,11 @@ Key elements copied from the JabRef approach:
    localized.
 4. Persist accepted plan as JSON next to roster data.
 5. **Done when:** full loop works — edit roster → solve → pin → re-solve → save → restart → plan restored.
+   **As built (2026-07-06):** done — loop verified on a real run (solve, manual pin via
+   editable server column, save, restart restore). Violation display uses the own
+   `ViolationChecker` (hard/medium constraints) instead of Timefold `ScoreAnalysis` —
+   enterprise-gated, see risk table. Solver time budget in preferences (v2) + Settings;
+   constraint-weight editing deferred (needs `ConstraintWeightOverrides` wiring).
 
 ### M5 — Export & polish
 1. PDF export of accepted plan (grouped by service; per-server view), via OpenPDF or similar;

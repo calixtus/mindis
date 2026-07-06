@@ -16,7 +16,7 @@ import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.preferences.PreferencesService;
 import org.mindis.gui.di.AvajeDiAdapter;
 import org.mindis.gui.modules.DashboardModule;
-import org.mindis.gui.modules.PlaceholderModule;
+import org.mindis.gui.modules.PlanningModule;
 import org.mindis.gui.modules.ServersModule;
 import org.mindis.gui.modules.ServicesModule;
 import org.mindis.gui.modules.SettingsModule;
@@ -71,7 +71,7 @@ public class MinDisApp extends Application {
                         new DashboardModule(Localization.lang("Dashboard")),
                         new ServersModule(Localization.lang("Servers")),
                         new ServicesModule(Localization.lang("Services")),
-                        new PlaceholderModule(Localization.lang("Planning")),
+                        new PlanningModule(Localization.lang("Planning")),
                         new SettingsModule(Localization.lang("Settings"), preferencesService, this::rebuildUi))
                 .homeTabTitle(Localization.lang("Home"))
                 .build();
