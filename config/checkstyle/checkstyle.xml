@@ -22,10 +22,14 @@
         <module name="AvoidStarImport"/>
         <module name="RedundantImport"/>
         <module name="UnusedImports"/>
-        <!-- Web-readiness (PLAN.md §2.5): mindis-core must stay free of JavaFX.
-             Suppressed for mindis-gui and mindis-workbench via suppressions.xml. -->
+        <!-- Web-readiness (PLAN.md §2.5): mindis-core must stay free of JavaFX UI
+             packages; javafx.base (beans/collections) is allowed. Suppressed for
+             mindis-gui and mindis-workbench via suppressions.xml. -->
         <module name="IllegalImport">
-            <property name="illegalPkgs" value="javafx"/>
+            <property name="illegalPkgs"
+                      value="javafx.scene, javafx.stage, javafx.fxml, javafx.application,
+                             javafx.animation, javafx.css, javafx.concurrent, javafx.geometry,
+                             javafx.print, javafx.web, javafx.media"/>
         </module>
 
         <!-- Blocks and statements -->

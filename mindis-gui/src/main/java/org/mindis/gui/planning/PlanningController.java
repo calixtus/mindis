@@ -14,6 +14,10 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -84,9 +88,11 @@ public class PlanningController {
     @FXML
     private TableColumn<AssignmentRow, String> violationsColumn;
 
+    private final BooleanProperty solving = new SimpleBooleanProperty(false);
+    private final ObservableList<AssignmentRow> rows = FXCollections.observableArrayList();
+
     private ServicePlan currentPlan;
     private UUID jobId;
-    private boolean solving;
 
     public PlanningController(PlanningService planningService,
                               PlanRepository planRepository,
@@ -117,6 +123,16 @@ public class PlanningController {
         pinnedColumn.setCellValueFactory(data -> data.getValue().pinnedProperty());
         pinnedColumn.setCellFactory(CheckBoxTableCell.forTableColumn(pinnedColumn));
 
+        // All control states derive from two observables: 'solving' and the rows.
+        assignmentsTable.setItems(rows);
+        BooleanBinding noRows = Bindings.isEmpty(rows);
+        solveButton.disableProperty().bind(solving.or(noRows));
+        stopButton.disableProperty().bind(solving.not());
+        saveButton.disableProperty().bind(solving.or(noRows));
+        exportButton.disableProperty().bind(solving.or(noRows));
+        fromPicker.disableProperty().bind(solving);
+        toPicker.disableProperty().bind(solving);
+
         planRepository.load().ifPresent(saved -> {
             fromPicker.setValue(saved.from());
             toPicker.setValue(saved.toInclusive());
@@ -138,8 +154,6 @@ public class PlanningController {
         setupServerColumn();
         rebuildRows();
         refreshScoreAndViolations();
-        saveButton.setDisable(currentPlan.getAssignments().isEmpty());
-        exportButton.setDisable(currentPlan.getAssignments().isEmpty());
         statusLabel.setText(Localization.lang("%0 slots loaded",
                 currentPlan.getAssignments().size()));
     }
@@ -149,7 +163,7 @@ public class PlanningController {
         if (currentPlan == null || currentPlan.getAssignments().isEmpty()) {
             return;
         }
-        setSolving(true);
+        solving.set(true);
         statusLabel.setText(Localization.lang("Solving..."));
         int seconds = preferencesService.get().solverSecondsLimit();
         jobId = planningService.solveAsync(
@@ -163,11 +177,11 @@ public class PlanningController {
                     } catch (RuntimeException e) {
                         statusLabel.setText(Localization.lang("Solving failed: %0", e.getMessage()));
                     } finally {
-                        setSolving(false);
+                        solving.set(false);
                     }
                 }),
                 error -> Platform.runLater(() -> {
-                    setSolving(false);
+                    solving.set(false);
                     statusLabel.setText(Localization.lang("Solving failed: %0", error.getMessage()));
                 }));
     }
@@ -243,11 +257,10 @@ public class PlanningController {
     }
 
     private void rebuildRows() {
-        List<AssignmentRow> rows = currentPlan.getAssignments().stream()
+        rows.setAll(currentPlan.getAssignments().stream()
                 .sorted(Comparator.comparing(a -> a.serviceStart()))
                 .map(AssignmentRow::new)
-                .toList();
-        assignmentsTable.setItems(FXCollections.observableArrayList(rows));
+                .toList());
     }
 
     private void refreshScoreAndViolations() {
@@ -257,7 +270,7 @@ public class PlanningController {
         }
         updateScoreLabel(planningService.scoreOf(currentPlan));
         Map<String, List<String>> violations = planningService.violationsByAssignment(currentPlan);
-        for (AssignmentRow row : assignmentsTable.getItems()) {
+        for (AssignmentRow row : rows) {
             List<String> names = violations.getOrDefault(row.assignment().getId(), List.of());
             row.violationsProperty().set(names.stream()
                     .map(Localization::lang)
@@ -283,7 +296,7 @@ public class PlanningController {
      * the Planning tab is re-activated after edits in other modules.
      */
     public void refreshFromRepositories() {
-        if (solving) {
+        if (solving.get()) {
             return;
         }
         if (currentPlan == null) {
@@ -297,17 +310,5 @@ public class PlanningController {
         setupServerColumn();
         rebuildRows();
         refreshScoreAndViolations();
-        saveButton.setDisable(currentPlan.getAssignments().isEmpty());
-        exportButton.setDisable(currentPlan.getAssignments().isEmpty());
-    }
-
-    private void setSolving(boolean solving) {
-        this.solving = solving;
-        solveButton.setDisable(solving);
-        stopButton.setDisable(!solving);
-        saveButton.setDisable(solving);
-        exportButton.setDisable(solving);
-        fromPicker.setDisable(solving);
-        toPicker.setDisable(solving);
     }
 }

@@ -16,6 +16,7 @@ import java.util.Map;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
@@ -50,6 +51,8 @@ public class ServicesController {
     private final ServiceRepository serviceRepository;
     private final TemplateRepository templateRepository;
     private final Map<Role, Spinner<Integer>> slotSpinners = new EnumMap<>(Role.class);
+    private final ObservableList<LiturgicalService> serviceItems = FXCollections.observableArrayList();
+    private final ObservableList<ServiceTemplate> templateItems = FXCollections.observableArrayList();
 
     @FXML
     private TableView<LiturgicalService> servicesTable;
@@ -143,8 +146,9 @@ public class ServicesController {
         templateTypeColumn.setCellValueFactory(data -> new SimpleStringProperty(EnumDisplay.of(data.getValue().type())));
         templateLocationColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().location()));
 
-        servicesTable.getSelectionModel().selectedItemProperty()
-                .addListener((obs, oldService, newService) -> showService(newService));
+        servicesTable.setItems(serviceItems);
+        templatesTable.setItems(templateItems);
+        servicesTable.getSelectionModel().selectedItemProperty().subscribe(this::showService);
 
         refreshServices(null);
         refreshTemplates();
@@ -255,7 +259,7 @@ public class ServicesController {
 
     private void refreshServices(String selectId) {
         List<LiturgicalService> services = serviceRepository.findAll();
-        servicesTable.setItems(FXCollections.observableArrayList(services));
+        serviceItems.setAll(services);
         if (selectId != null) {
             services.stream()
                     .filter(service -> service.id().equals(selectId))
@@ -265,7 +269,7 @@ public class ServicesController {
     }
 
     private void refreshTemplates() {
-        templatesTable.setItems(FXCollections.observableArrayList(templateRepository.findAll()));
+        templateItems.setAll(templateRepository.findAll());
     }
 
     private void showService(LiturgicalService service) {

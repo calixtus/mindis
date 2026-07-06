@@ -1,5 +1,7 @@
 package org.mindis.gui.modules;
 
+import java.util.Map;
+
 import javafx.collections.FXCollections;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -12,13 +14,13 @@ import javafx.util.StringConverter;
 
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.preferences.MinDisPreferences;
-import org.mindis.core.preferences.PreferencesService;
+import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.workbench.WorkbenchModule;
 
 /**
- * Settings: language and theme, persisted via {@link PreferencesService}.
- * Language changes trigger a full UI rebuild (labels are created with the
- * active locale); theme changes apply immediately.
+ * Settings: language, theme and solver time budget, bound bidirectionally to
+ * {@link UiPreferences} (persistence and application of the values happen
+ * behind those properties).
  */
 public class SettingsModule extends WorkbenchModule {
 
@@ -26,25 +28,20 @@ public class SettingsModule extends WorkbenchModule {
      * Display names of supported languages are shown in their own language on
      * purpose (never translated), so they stay readable for everyone.
      */
-    private static final java.util.Map<String, String> LANGUAGES = java.util.Map.of(
+    private static final Map<String, String> LANGUAGES = Map.of(
             "en", "English",
             "de", "Deutsch");
 
-    private final PreferencesService preferencesService;
-    private final Runnable onLanguageChanged;
+    private final UiPreferences uiPreferences;
 
-    public SettingsModule(String name, PreferencesService preferencesService, Runnable onLanguageChanged) {
+    public SettingsModule(String name, UiPreferences uiPreferences) {
         super(name);
-        this.preferencesService = preferencesService;
-        this.onLanguageChanged = onLanguageChanged;
+        this.uiPreferences = uiPreferences;
     }
 
     @Override
     public Node activate() {
-        MinDisPreferences preferences = preferencesService.get();
-
-        ComboBox<String> languageBox = new ComboBox<>(
-                FXCollections.observableArrayList("en", "de"));
+        ComboBox<String> languageBox = new ComboBox<>(FXCollections.observableArrayList("en", "de"));
         languageBox.setConverter(new StringConverter<>() {
             @Override
             public String toString(String tag) {
@@ -56,13 +53,7 @@ public class SettingsModule extends WorkbenchModule {
                 return string;
             }
         });
-        languageBox.getSelectionModel().select(preferences.languageTag());
-        languageBox.valueProperty().addListener((obs, oldTag, newTag) -> {
-            if (newTag != null && !newTag.equals(oldTag)) {
-                preferencesService.update(p -> p.withLanguageTag(newTag));
-                onLanguageChanged.run();
-            }
-        });
+        languageBox.valueProperty().bindBidirectional(uiPreferences.languageTagProperty());
 
         ComboBox<MinDisPreferences.Theme> themeBox = new ComboBox<>(
                 FXCollections.observableArrayList(MinDisPreferences.Theme.values()));
@@ -83,21 +74,13 @@ public class SettingsModule extends WorkbenchModule {
                 return null;
             }
         });
-        themeBox.getSelectionModel().select(preferences.theme());
-        themeBox.valueProperty().addListener((obs, oldTheme, newTheme) -> {
-            if (newTheme != null && newTheme != oldTheme) {
-                preferencesService.update(p -> p.withTheme(newTheme));
-            }
-        });
+        themeBox.valueProperty().bindBidirectional(uiPreferences.themeProperty());
 
-        Spinner<Integer> solverSecondsSpinner =
-                new Spinner<>(5, 600, preferences.solverSecondsLimit(), 5);
+        Spinner<Integer> solverSecondsSpinner = new Spinner<>(5, 600,
+                uiPreferences.solverSecondsLimitProperty().get(), 5);
         solverSecondsSpinner.setEditable(true);
-        solverSecondsSpinner.valueProperty().addListener((obs, oldValue, newValue) -> {
-            if (newValue != null && !newValue.equals(oldValue)) {
-                preferencesService.update(p -> p.withSolverSecondsLimit(newValue));
-            }
-        });
+        solverSecondsSpinner.getValueFactory().valueProperty()
+                .bindBidirectional(uiPreferences.solverSecondsLimitProperty());
 
         GridPane grid = new GridPane();
         grid.setHgap(12);

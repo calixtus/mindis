@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.DatePicker;
@@ -39,6 +40,7 @@ public class ServersController {
 
     private final ServerRepository serverRepository;
     private final Map<Role, CheckBox> qualificationChecks = new EnumMap<>(Role.class);
+    private final ObservableList<Server> tableItems = FXCollections.observableArrayList();
 
     @FXML
     private TableView<Server> serversTable;
@@ -101,8 +103,8 @@ public class ServersController {
             }
         });
 
-        serversTable.getSelectionModel().selectedItemProperty()
-                .addListener((obs, oldServer, newServer) -> showServer(newServer));
+        serversTable.setItems(tableItems);
+        serversTable.getSelectionModel().selectedItemProperty().subscribe(this::showServer);
         refreshTable(null);
     }
 
@@ -172,7 +174,7 @@ public class ServersController {
 
     private void refreshTable(String selectId) {
         List<Server> servers = serverRepository.findAll();
-        serversTable.setItems(FXCollections.observableArrayList(servers));
+        tableItems.setAll(servers);
         if (selectId != null) {
             servers.stream()
                     .filter(server -> server.id().equals(selectId))

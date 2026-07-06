@@ -26,7 +26,7 @@ public final class AssignmentRow {
         this.assignment = assignment;
         this.server = new SimpleObjectProperty<>(assignment.getServer());
         this.pinned = new SimpleBooleanProperty(assignment.isPinned());
-        this.pinned.addListener((obs, oldValue, newValue) -> assignment.setPinned(newValue));
+        this.pinned.subscribe(assignment::setPinned);
     }
 
     public Assignment assignment() {

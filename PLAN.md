@@ -155,10 +155,12 @@ A browser-based UI is a **future option, not current scope**. Nothing web-relate
 M0–M7 — but the module cut is chosen now so a web module can be added later without touching
 `mindis-core`:
 
-1. **`mindis-core` must not depend on JavaFX.** No `javafx.*` import anywhere in core —
-   enforced by `module-info` (core simply doesn't `require` any `javafx.*` module) and
-   Checkstyle `IllegalImport`. Domain model uses plain Java/records — **no JavaFX properties in
-   domain classes**; `mindis-gui` wraps domain objects in its own observable view models.
+1. **`mindis-core` must not depend on JavaFX UI modules.** `javafx.base` (properties,
+   observable collections — headless-safe) is allowed; `javafx.controls`, `javafx.graphics`,
+   `javafx.fxml` etc. are banned — enforced by Checkstyle `IllegalImport` (UI packages) and
+   module-info review. Domain model stays plain Java/records — **records are always immutable
+   and never carry properties or observables**; `mindis-gui` wraps domain objects in its own
+   observable view models.
 2. **All business capability lives in core:** domain, validation, repositories, solver
    (`PlanningService`), localization, PDF export. UI modules are thin adapters over core
    services. Litmus test: *a CLI could be written against `mindis-core` alone.*
@@ -611,8 +613,9 @@ Reviewers/agents: cite the violated principle or item when rejecting code.
   no `java.util.prefs`.
 - **DI via Avaje Inject (§2.4):** constructor injection only (no field injection); services in
   core, controllers/view models in gui; one `BeanScope` per app. No other DI mechanism.
-- **Web-readiness (§2.5):** no `javafx.*` in `mindis-core` (build-enforced); core service APIs
-  UI-agnostic (plain types, futures/listeners — no `ObservableValue` in signatures).
+- **Web-readiness (§2.5):** no JavaFX **UI** packages in `mindis-core` (build-enforced;
+  `javafx.base` allowed); records immutable, never propertyfied; prefer plain types and
+  listeners in core service APIs.
 - All versions only in `versions/build.gradle.kts` (plus `javafxVersion` in gradle.properties);
   module-name ↔ coordinate mappings in `gradle/modules.properties`. No version catalog.
 - Don't-block-native rules (§2.2) apply to every PR: new reflection outside
