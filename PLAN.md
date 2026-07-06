@@ -539,6 +539,12 @@ vs. JIT is acceptable. Same release pipeline ships both artifacts.
 5. CI: native job on tag (Windows first).
 6. **Done when:** native Windows binary passes the smoke test — or ADR-002 documents why
    jpackage stays primary.
+   **As built (2026-07-06): decided — no native artifact.** Spike ran on CI (headless
+   core + solver, GraalVM for JDK 25, Windows runner): Timefold AOT works (criterion a),
+   but native throughput is 39k vs. 90k moves/sec under JIT — 2.3x slower on the product's
+   core path (criterion b failed). jpackage remains the only shipping path. Spike harness
+   (`native-spike/`, manual workflow) stays for one-click re-evaluation. Full analysis and
+   revisit triggers: `docs/adr/002-packaging.md`.
 
 ### Future (explicitly out of scope for M0–M7): `mindis-web`
 
