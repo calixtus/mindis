@@ -2,6 +2,7 @@ package org.mindis.gui.modules;
 
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.TitledPane;
@@ -38,6 +39,9 @@ public class SettingsModule extends WorkbenchModule {
         solverSecondsSpinner.getValueFactory().valueProperty()
                 .bindBidirectional(uiPreferences.solverSecondsLimitProperty());
 
+        CheckBox largeSidebarIconsCheck = new CheckBox();
+        largeSidebarIconsCheck.selectedProperty().bindBidirectional(uiPreferences.largeSidebarIconsProperty());
+
         GridPane grid = new GridPane();
         grid.setHgap(12);
         grid.setVgap(12);
@@ -48,6 +52,8 @@ public class SettingsModule extends WorkbenchModule {
         grid.add(PreferenceControls.choiceBox(MinDisPreferences.Theme.values(), uiPreferences.themeProperty()), 1, 1);
         grid.add(new Label(Localization.lang("Solver time limit (seconds)")), 0, 2);
         grid.add(solverSecondsSpinner, 1, 2);
+        grid.add(new Label(Localization.lang("Large sidebar icons")), 0, 3);
+        grid.add(largeSidebarIconsCheck, 1, 3);
 
         GridPane weightsGrid = new GridPane();
         weightsGrid.setHgap(12);

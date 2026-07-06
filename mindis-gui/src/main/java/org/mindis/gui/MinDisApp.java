@@ -67,6 +67,7 @@ public class MinDisApp extends Application {
         // Language changes need a full UI rebuild; the two-arg subscribe does
         // not fire initially (the scene does not exist yet).
         uiPreferences.languageProperty().subscribe((_, _) -> rebuildUi());
+        uiPreferences.largeSidebarIconsProperty().subscribe((_, _) -> rebuildUi());
 
         // Deliberate DIP exception (documented in ADR-001): FxmlKit's Tier-2
         // integration is a global DiAdapter - effectively a service locator
@@ -105,6 +106,7 @@ public class MinDisApp extends Application {
                         new PlanningModule(Localization.lang("Planning")))
                 .bottomModule(new AboutModule(Localization.lang("About"), getHostServices()))
                 .bottomModule(new SettingsModule(Localization.lang("Settings"), uiPreferences))
+                .largeIcons(uiPreferences.largeSidebarIconsProperty().get())
                 .build();
     }
 

@@ -106,7 +106,8 @@ public class PreferencesService {
                 loaded.theme(),
                 loaded.windowBounds(),
                 solverSeconds,
-                loaded.softConstraintWeights());
+                loaded.softConstraintWeights(),
+                loaded.largeSidebarIcons());
     }
 
     private void save(MinDisPreferences preferences) {

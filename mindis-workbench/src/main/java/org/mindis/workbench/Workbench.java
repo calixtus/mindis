@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.BorderPane;
@@ -28,11 +29,13 @@ public final class Workbench extends BorderPane {
     private final ToggleGroup navGroup = new ToggleGroup();
     private final StackPane contentPane = new StackPane();
     private final List<WorkbenchModule> modules;
+    private final boolean largeIcons;
 
     private WorkbenchModule activeModule;
 
     private Workbench(Builder builder) {
         this.modules = List.copyOf(builder.modules);
+        this.largeIcons = builder.largeIcons;
         getStyleClass().add("workbench");
         getStylesheets().add(Workbench.class.getResource("workbench.css").toExternalForm());
 
@@ -89,12 +92,19 @@ public final class Workbench extends BorderPane {
     }
 
     private ToggleButton createNavButton(WorkbenchModule module) {
-        ToggleButton button = new ToggleButton(module.getName());
+        ToggleButton button = new ToggleButton();
+        boolean iconOnly = largeIcons && module.getIconLiteral() != null;
         if (module.getIconLiteral() != null) {
             FontIcon icon = new FontIcon(module.getIconLiteral());
             icon.getStyleClass().add("workbench-nav-icon");
             button.setGraphic(icon);
             button.setGraphicTextGap(10);
+        }
+        if (iconOnly) {
+            button.getStyleClass().add("workbench-nav-button-large");
+            Tooltip.install(button, new Tooltip(module.getName()));
+        } else {
+            button.setText(module.getName());
         }
         button.getStyleClass().add("workbench-nav-button");
         button.setToggleGroup(navGroup);
@@ -123,6 +133,7 @@ public final class Workbench extends BorderPane {
 
         private final List<WorkbenchModule> modules;
         private final List<WorkbenchModule> bottomModules = new ArrayList<>();
+        private boolean largeIcons;
 
         private Builder(WorkbenchModule... modules) {
             this.modules = List.of(modules);
@@ -134,6 +145,15 @@ public final class Workbench extends BorderPane {
          */
         public Builder bottomModule(WorkbenchModule module) {
             this.bottomModules.add(module);
+            return this;
+        }
+
+        /**
+         * Icon-only sidebar entries (~3x the default font size), module name
+         * shown as a tooltip instead of an inline label.
+         */
+        public Builder largeIcons(boolean largeIcons) {
+            this.largeIcons = largeIcons;
             return this;
         }
 
