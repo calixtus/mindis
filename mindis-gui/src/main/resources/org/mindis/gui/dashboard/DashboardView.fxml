@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="org.mindis.gui.dashboard.DashboardController"
+      spacing="12">
+    <padding>
+        <Insets top="16" right="16" bottom="16" left="16"/>
+    </padding>
+
+    <Label fx:id="summaryLabel" style="-fx-font-size: 1.2em;"/>
+
+    <HBox spacing="12" VBox.vgrow="ALWAYS">
+        <TitledPane text="%Next services" collapsible="false" HBox.hgrow="ALWAYS">
+            <ListView fx:id="nextServicesList"/>
+        </TitledPane>
+        <TitledPane text="%Assignments per server" collapsible="false" HBox.hgrow="ALWAYS">
+            <ListView fx:id="serverLoadList"/>
+        </TitledPane>
+    </HBox>
+</VBox>

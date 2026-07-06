@@ -26,7 +26,7 @@ public class ServerRepository {
         this(AppDirectories.userDataDir().resolve("servers.json"));
     }
 
-    ServerRepository(Path file) {
+    protected ServerRepository(Path file) {
         this.store = new JsonStore<>(file, new TypeReference<>() {
         });
     }

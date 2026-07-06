@@ -1,6 +1,5 @@
-package org.mindis.gui.util;
+package org.mindis.core.l10n;
 
-import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.ServiceType;
 

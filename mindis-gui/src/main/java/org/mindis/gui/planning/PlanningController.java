@@ -25,15 +25,19 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.control.cell.ComboBoxTableCell;
+import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
 
+import java.io.File;
+
+import org.mindis.core.export.PlanExportService;
+import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Server;
 import org.mindis.core.persistence.PlanRepository;
 import org.mindis.core.planning.PlanningService;
 import org.mindis.core.planning.ServicePlan;
 import org.mindis.core.preferences.PreferencesService;
-import org.mindis.gui.util.EnumDisplay;
 
 /**
  * Planning workflow: load assignments for a horizon, solve with live score
@@ -47,6 +51,7 @@ public class PlanningController {
     private final PlanningService planningService;
     private final PlanRepository planRepository;
     private final PreferencesService preferencesService;
+    private final PlanExportService planExportService;
 
     @FXML
     private DatePicker fromPicker;
@@ -58,6 +63,8 @@ public class PlanningController {
     private Button stopButton;
     @FXML
     private Button saveButton;
+    @FXML
+    private Button exportButton;
     @FXML
     private Label scoreLabel;
     @FXML
@@ -79,13 +86,16 @@ public class PlanningController {
 
     private ServicePlan currentPlan;
     private UUID jobId;
+    private boolean solving;
 
     public PlanningController(PlanningService planningService,
                               PlanRepository planRepository,
-                              PreferencesService preferencesService) {
+                              PreferencesService preferencesService,
+                              PlanExportService planExportService) {
         this.planningService = planningService;
         this.planRepository = planRepository;
         this.preferencesService = preferencesService;
+        this.planExportService = planExportService;
     }
 
     @FXML
@@ -129,6 +139,7 @@ public class PlanningController {
         rebuildRows();
         refreshScoreAndViolations();
         saveButton.setDisable(currentPlan.getAssignments().isEmpty());
+        exportButton.setDisable(currentPlan.getAssignments().isEmpty());
         statusLabel.setText(Localization.lang("%0 slots loaded",
                 currentPlan.getAssignments().size()));
     }
@@ -176,6 +187,29 @@ public class PlanningController {
         planRepository.save(planningService.toAcceptedPlan(
                 currentPlan, fromPicker.getValue(), toPicker.getValue()));
         statusLabel.setText(Localization.lang("Plan saved"));
+    }
+
+    @FXML
+    private void onExport() {
+        if (currentPlan == null || currentPlan.getAssignments().isEmpty()) {
+            return;
+        }
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(Localization.lang("Export PDF"));
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF", "*.pdf"));
+        chooser.setInitialFileName("MinDis-" + fromPicker.getValue() + ".pdf");
+        File target = chooser.showSaveDialog(assignmentsTable.getScene().getWindow());
+        if (target == null) {
+            return;
+        }
+        try {
+            planExportService.exportPdf(
+                    planningService.toAcceptedPlan(currentPlan, fromPicker.getValue(), toPicker.getValue()),
+                    target.toPath());
+            statusLabel.setText(Localization.lang("PDF saved to %0", target.getName()));
+        } catch (RuntimeException e) {
+            statusLabel.setText(Localization.lang("PDF export failed: %0", e.getMessage()));
+        }
     }
 
     private void applySolution(ServicePlan solution, boolean withViolations) {
@@ -243,10 +277,36 @@ public class PlanningController {
         scoreLabel.setText(Localization.lang("Score") + ": " + score + " (" + feasibility + ")");
     }
 
+    /**
+     * Re-syncs the plan with the repositories (fresh server/service data)
+     * while keeping the current slot decisions and pins by id. Called when
+     * the Planning tab is re-activated after edits in other modules.
+     */
+    public void refreshFromRepositories() {
+        if (solving) {
+            return;
+        }
+        if (currentPlan == null) {
+            onGenerate();
+            return;
+        }
+        var snapshot = planningService.toAcceptedPlan(
+                currentPlan, fromPicker.getValue(), toPicker.getValue());
+        currentPlan = planningService.buildProblem(fromPicker.getValue(), toPicker.getValue());
+        planningService.applyAcceptedPlan(currentPlan, snapshot);
+        setupServerColumn();
+        rebuildRows();
+        refreshScoreAndViolations();
+        saveButton.setDisable(currentPlan.getAssignments().isEmpty());
+        exportButton.setDisable(currentPlan.getAssignments().isEmpty());
+    }
+
     private void setSolving(boolean solving) {
+        this.solving = solving;
         solveButton.setDisable(solving);
         stopButton.setDisable(!solving);
         saveButton.setDisable(solving);
+        exportButton.setDisable(solving);
         fromPicker.setDisable(solving);
         toPicker.setDisable(solving);
     }

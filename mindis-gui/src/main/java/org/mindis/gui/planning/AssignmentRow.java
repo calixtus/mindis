@@ -35,14 +35,13 @@ public final class AssignmentRow {
 
     /**
      * A manual swap by the planner: writes through and pins, so the next
-     * solve keeps the decision.
+     * solve keeps the decision. Clearing the server unpins, so the solver may
+     * fill the slot again.
      */
     public void setServerManually(Server newServer) {
         assignment.setServer(newServer);
         server.set(newServer);
-        if (newServer != null) {
-            pinned.set(true);
-        }
+        pinned.set(newServer != null);
     }
 
     public ObjectProperty<Server> serverProperty() {

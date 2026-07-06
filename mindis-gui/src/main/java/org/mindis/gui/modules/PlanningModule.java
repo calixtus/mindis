@@ -20,6 +20,10 @@ public class PlanningModule extends WorkbenchModule {
     public Node activate() {
         if (view == null) {
             view = new PlanningView();
+        } else if (view.getController() != null) {
+            // Pick up roster/service edits from other modules; keeps the
+            // current slot decisions (see PlanningController).
+            view.getController().refreshFromRepositories();
         }
         return view;
     }

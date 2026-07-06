@@ -1,7 +1,7 @@
 package org.mindis.gui;
 
-import atlantafx.base.theme.PrimerDark;
-import atlantafx.base.theme.PrimerLight;
+import atlantafx.base.theme.NordDark;
+import atlantafx.base.theme.NordLight;
 
 import com.dlsc.fxmlkit.fxml.FxmlKit;
 
@@ -90,8 +90,8 @@ public class MinDisApp extends Application {
 
     private void applyTheme(MinDisPreferences.Theme theme) {
         setUserAgentStylesheet(switch (theme) {
-            case LIGHT -> new PrimerLight().getUserAgentStylesheet();
-            case DARK -> new PrimerDark().getUserAgentStylesheet();
+            case LIGHT -> new NordLight().getUserAgentStylesheet();
+            case DARK -> new NordDark().getUserAgentStylesheet();
         });
     }
 

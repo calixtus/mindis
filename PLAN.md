@@ -491,6 +491,12 @@ Key elements copied from the JabRef approach:
 2. Dashboard module: next services, unassigned slots, per-server load stats.
 3. Localization pass: complete `de` bundle, review `en` texts.
 4. **Done when:** printable monthly plan PDF generated from the app in both languages.
+   **As built (2026-07-06):** done. OpenPDF 3.0.5 (packages `org.openpdf.*`, automatic module
+   `com.github.librepdf.openpdf`); `PlanExportService` in core (services chronological +
+   per-server summary, fully localized); export button in Planning with FileChooser.
+   Dashboard = FxmlKit view (next services with staffing state from accepted plan,
+   unassigned count, per-server load), rebuilt on every activation. M0 hello spike and
+   GreetingService removed; `EnumDisplay` moved to core l10n (shared by GUI + PDF).
 
 ### M6 — Packaging & CI (jpackage)
 1. `org.gradlex.java-module-packaging`: jpackage installers for Windows (primary), macOS, Linux.

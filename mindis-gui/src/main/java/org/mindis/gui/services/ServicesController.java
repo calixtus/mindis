@@ -35,7 +35,7 @@ import org.mindis.core.model.ServiceType;
 import org.mindis.core.persistence.ServiceGenerator;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.persistence.TemplateRepository;
-import org.mindis.gui.util.EnumDisplay;
+import org.mindis.core.l10n.EnumDisplay;
 
 /**
  * CRUD for liturgical services plus weekly templates and horizon generation.

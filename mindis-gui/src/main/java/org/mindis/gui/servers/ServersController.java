@@ -28,7 +28,7 @@ import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.UnavailabilityPeriod;
 import org.mindis.core.persistence.ServerRepository;
-import org.mindis.gui.util.EnumDisplay;
+import org.mindis.core.l10n.EnumDisplay;
 
 /**
  * CRUD for the altar server roster. Prototype bean: a fresh controller per
