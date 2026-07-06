@@ -191,6 +191,11 @@ window geometry) are handled by a small core-owned mechanism — **no preference
   workbench module edits them. Locale + theme are applied at startup before the first scene.
 - Versioning: record carries a `version` field; migrations are explicit code, no magic.
 
+**Architecture refined (2026-07-06, ADR-006):** gui side is a `PreferenceValue<T>` registry
+(each setting defined once: getter + wither; load/write-through/re-sync generic) and enum
+values are self-describing via `PreferenceEnumValue` (`displayName`/`isSelectable`, generic
+`choiceBox`).
+
 Rejected: `java.util.prefs` (Windows Registry backend — invisible, no backup, stringly-typed),
 PreferencesFX (JavaFX-coupled + FormsFX baggage + stores via java.util.prefs anyway),
 avaje-config (read-oriented app config, no user save-back),

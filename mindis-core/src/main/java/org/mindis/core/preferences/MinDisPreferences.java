@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
+import org.mindis.core.l10n.Localization;
 import org.mindis.core.planning.MinDisConstraintProvider;
 
 /**
@@ -25,9 +26,22 @@ public record MinDisPreferences(
     public static final int CURRENT_VERSION = 3;
     public static final int DEFAULT_SOLVER_SECONDS = 30;
 
-    public enum Theme {
-        LIGHT,
-        DARK
+    public enum Theme implements PreferenceEnumValue {
+        LIGHT("Light"),
+        DARK("Dark");
+
+        private final String l10nKey;
+
+        Theme(String l10nKey) {
+            this.l10nKey = l10nKey;
+        }
+
+        @Override
+        public String displayName() {
+            // Looked up lazily (not cached): must reflect the current
+            // language, not the language active when this enum was loaded.
+            return Localization.lang(l10nKey);
+        }
     }
 
     /**

@@ -54,7 +54,7 @@ public class MinDisApp extends Application {
         uiPreferences.themeProperty().subscribe(this::applyTheme);
         // Language changes need a full UI rebuild; the two-arg subscribe does
         // not fire initially (the scene does not exist yet).
-        uiPreferences.languageTagProperty().subscribe((oldTag, newTag) -> rebuildUi());
+        uiPreferences.languageProperty().subscribe((_, _) -> rebuildUi());
 
         // Deliberate DIP exception (documented in ADR-001): FxmlKit's Tier-2
         // integration is a global DiAdapter - effectively a service locator

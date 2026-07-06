@@ -11,6 +11,7 @@ import ai.timefold.solver.core.api.score.stream.ConstraintFactory;
 import ai.timefold.solver.core.api.score.stream.ConstraintProvider;
 
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -45,6 +46,19 @@ public class MinDisConstraintProvider implements ConstraintProvider {
     public static final String TOO_CLOSE = "Assignments too close together";
     public static final String PREFERRED_TIME = "Preferred service time";
     public static final String EXPERIENCED_PRESENT = "Experienced server present";
+
+    /**
+     * The tunable soft constraints in display order - single source for the
+     * preferences UI and the default weight map.
+     */
+    public static java.util.List<String> tunableSoftConstraints() {
+        return List.of(
+                UNBALANCED_WORKLOAD,
+                SIBLINGS_TOGETHER,
+                TOO_CLOSE,
+                PREFERRED_TIME,
+                EXPERIENCED_PRESENT);
+    }
 
     /**
      * Default weights of the tunable soft constraints, keyed by constraint

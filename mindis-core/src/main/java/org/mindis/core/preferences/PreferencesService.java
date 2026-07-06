@@ -41,7 +41,7 @@ public class PreferencesService {
         this(dataDirectory.resolve("preferences.json"));
     }
 
-    PreferencesService(Path preferencesFile) {
+    protected PreferencesService(Path preferencesFile) {
         this.preferencesFile = preferencesFile;
         this.objectMapper = new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
