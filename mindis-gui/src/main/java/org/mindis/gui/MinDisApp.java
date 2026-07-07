@@ -22,6 +22,7 @@ import org.mindis.core.preferences.AccentColor;
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
+import org.mindis.core.persistence.TemplateRepository;
 import org.mindis.core.preferences.PreferencesService;
 import org.mindis.gui.di.AvajeDiAdapter;
 import org.mindis.gui.logging.AlertOnErrorHandler;
@@ -134,7 +135,9 @@ public class MinDisApp extends Application {
                                 new ServersModule(Localization.lang("Servers"),
                                         beanScope.get(ServerRepository.class),
                                         beanScope.get(RoleRepository.class), uiPreferences),
-                                new TemplatesModule(Localization.lang("Templates")),
+                                new TemplatesModule(Localization.lang("Templates"),
+                                        beanScope.get(TemplateRepository.class),
+                                        beanScope.get(RoleRepository.class)),
                                 new ServicesModule(Localization.lang("Services")),
                                 new PlanningModule(Localization.lang("Planning")))
                         .bottomModule(new AboutModule(Localization.lang("About"), getHostServices()))
