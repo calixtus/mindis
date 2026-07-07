@@ -83,7 +83,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Setup JDK ${{ inputs.jvmDistribution || env.JVM_DISTRIBUTION }}-${{ inputs.javaVersion || env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
