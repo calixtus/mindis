@@ -13,10 +13,6 @@ on:
     types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Tag to release (e.g. v1.2.0)'
-        required: true
-        type: string
       jvmDistribution:
         # No 'default:' - the dropdown pre-selects the first option (temurin),
         # and push/PR fall back to env.JVM_DISTRIBUTION, so the default value is
@@ -41,6 +37,11 @@ on:
         description: 'JDK version - blank uses the default'
         type: string
         required: false
+      buildInstaller:
+        description: "Build native installer + portable zip (jpackage)"
+        type: boolean
+        required: false
+        default: false
       upload-as-release-draft:
         description: "Upload as release draft"
         type: boolean
@@ -77,10 +78,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Fetch all history for all tags and branches
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag || github.ref }}
       - name: Setup JDK ${{ inputs.jvmDistribution || env.JVM_DISTRIBUTION }}-${{ inputs.javaVersion || env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
@@ -88,8 +87,10 @@ jobs:
           java-version: ${{ inputs.javaVersion || env.JAVA_VERSION }}
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+      - name: Build
+        run: ./gradlew build
       - name: Install WiX
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && github.event.inputs.buildInstaller == 'true'
         shell: pwsh
         run: |
           dotnet tool install --global wix --version 5.0.2
@@ -99,11 +100,14 @@ jobs:
           wix extension add --global WixToolset.UI.wixext/5.0.2
           wix extension add --global WixToolset.Util.wixext/5.0.2
       - name: Build installer (jpackage)
+        if: github.event.inputs.buildInstaller == 'true'
         run: ./gradlew :gui:jpackage
       - name: Archive portable app-image (no-install zip)
+        if: github.event.inputs.buildInstaller == 'true'
         shell: bash
         run: ${{ matrix.archivePortable }}
       - name: Upload installer and portable artifact
+        if: github.event.inputs.buildInstaller == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: MinDis-${{ matrix.platform }}-installer
@@ -112,10 +116,9 @@ jobs:
           path: mindis-gui/build/packages/${{ matrix.platform }}/*
           if-no-files-found: error
       - name: Attach to GitHub release
-        if: ${{ github.event.inputs.upload-as-release-draft == 'true' }}
+        if: ${{ github.event.inputs.buildInstaller == 'true' && github.event.inputs.upload-as-release-draft == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.tag }}
           files: |
             mindis-gui/build/packages/${{ matrix.platform }}/*.msi
             mindis-gui/build/packages/${{ matrix.platform }}/*.exe
