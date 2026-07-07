@@ -21,7 +21,7 @@ class RoleRepositoryRoundTripTest {
         List<Role> roles = new RoleRepository(tempDir.resolve("roles.json")).findAll();
 
         assertFalse(roles.isEmpty(), "expected seeded default roles");
-        assertTrue(roles.stream().anyMatch(role -> role.id().equals(Role.ACOLYTE)));
+        assertTrue(roles.stream().anyMatch(role -> Role.ACOLYTE.equals(role.id())));
     }
 
     @Test

@@ -47,7 +47,7 @@ public final class ThemeStyler {
 
     /** Web hex ({@code #rrggbb}) for a JavaFX color (e.g. the OS accent). */
     public static String toWebHex(Color color) {
-        return String.format("#%02x%02x%02x",
+        return "#%02x%02x%02x".formatted(
                 Math.round(color.getRed() * 255),
                 Math.round(color.getGreen() * 255),
                 Math.round(color.getBlue() * 255));

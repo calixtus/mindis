@@ -256,7 +256,7 @@ public class PlanningController {
                 // Fall through to the filter the user picked in the chooser.
             }
         }
-        return PlanExportFormat.fromExtension(selectedFilter.getExtensions().get(0).substring(2));
+        return PlanExportFormat.fromExtension(selectedFilter.getExtensions().getFirst().substring(2));
     }
 
     private void applySolution(ServicePlan solution, boolean withViolations) {
