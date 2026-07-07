@@ -46,10 +46,6 @@ on:
         default: false
 
 jobs:
-  conditions:
-    # Dependency updates should only run in the main repo
-    if: ${{ github.repository == 'JabRef/jabref' || github.actor != 'dependabot[bot]' || github.ref_name != 'main' }}
-    runs-on: ubuntu-slim
   package:
     strategy:
       fail-fast: false
@@ -88,7 +84,6 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          # 
           dotnet tool install --global wix --version 5.0.2
           $tools = "$env:USERPROFILE\.dotnet\tools"
           $env:PATH = "$tools;$env:PATH"
