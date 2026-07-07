@@ -1,9 +1,58 @@
-name: Binaries
+name: Release
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - 'src/test/**'
+      - 'README.md'
+    tags:
+      - '*'
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
+    inputs:
+      jvmDistribution:
+        # No 'default:' - the dropdown pre-selects the first option (temurin),
+        # and push/PR fall back to env.JVM_DISTRIBUTION, so the default value is
+        # defined only once (in env). List from setup-java supported distributions.
+        description: 'JDK distribution (setup-java)'
+        type: choice
+        options:
+          - temurin
+          - adopt
+          - adopt-openj9
+          - corretto
+          - dragonwell
+          - graalvm
+          - jetbrains
+          - liberica
+          - microsoft
+          - oracle
+          - sapmachine
+          - semeru
+          - zulu
+      javaVersion:
+        description: 'JDK version - blank uses the default'
+        type: string
+        required: false
+      buildInstaller:
+        description: "Build native installer + portable zip (jpackage)"
+        type: boolean
+        required: false
+        default: false
+      upload-as-release-draft:
+        description: "Upload as release draft"
+        type: boolean
+        required: false
+        default: false
+
+# Single source of truth for the JDK defaults, used on push/PR (where inputs are
+# empty) and as the fallback for a blank workflow_dispatch input.
+env:
+  JVM_DISTRIBUTION: temurin
+  JAVA_VERSION: '25'
 
 jobs:
   package:
@@ -15,26 +64,37 @@ jobs:
           # then delete the dir so only the installer + zip remain (JabRef pattern).
           - os: windows-latest
             platform: windows
+            displayName: Windows
             appImage: MinDis
             archivePortable: 7z a -r mindis-gui/build/packages/windows/MinDis-portable-windows.zip ./mindis-gui/build/packages/windows/MinDis && rm -r mindis-gui/build/packages/windows/MinDis
           - os: ubuntu-latest
             platform: linux
+            displayName: Linux
             appImage: MinDis
             archivePortable: cd mindis-gui/build/packages/linux && zip -r MinDis-portable-linux.zip MinDis && rm -r MinDis
           - os: macos-latest
             platform: macos
+            displayName: macOS
             appImage: MinDis.app
             archivePortable: cd mindis-gui/build/packages/macos && ditto -c -k --keepParent MinDis.app MinDis-portable-macos.zip && rm -r MinDis.app
+    name: ${{ matrix.displayName }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup JDK ${{ inputs.jvmDistribution || env.JVM_DISTRIBUTION }}-${{ inputs.javaVersion || env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: '25'
-      - uses: gradle/actions/setup-gradle@v4
+          distribution: ${{ inputs.jvmDistribution || env.JVM_DISTRIBUTION }}
+          java-version: ${{ inputs.javaVersion || env.JAVA_VERSION }}
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Build
+        run: ./gradlew build
       - name: Install WiX
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && github.event.inputs.buildInstaller == 'true'
         shell: pwsh
         run: |
           dotnet tool install --global wix --version 5.0.2
@@ -43,12 +103,15 @@ jobs:
           echo "$tools" >> $env:GITHUB_PATH
           wix extension add --global WixToolset.UI.wixext/5.0.2
           wix extension add --global WixToolset.Util.wixext/5.0.2
-      - name: Package installer (jpackage)
+      - name: Build installer (jpackage)
+        if: github.event.inputs.buildInstaller == 'true'
         run: ./gradlew :gui:jpackage
       - name: Archive portable app-image (no-install zip)
+        if: github.event.inputs.buildInstaller == 'true'
         shell: bash
         run: ${{ matrix.archivePortable }}
-      - name: Upload installer + portable artifact
+      - name: Upload installer and portable artifact
+        if: github.event.inputs.buildInstaller == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: MinDis-${{ matrix.platform }}-installer
@@ -56,3 +119,17 @@ jobs:
           # zipped and removed by the archive step above.
           path: mindis-gui/build/packages/${{ matrix.platform }}/*
           if-no-files-found: error
+      - name: Attach to GitHub release
+        if: ${{ github.event.inputs.buildInstaller == 'true' && github.event.inputs.upload-as-release-draft == 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            mindis-gui/build/packages/${{ matrix.platform }}/*.msi
+            mindis-gui/build/packages/${{ matrix.platform }}/*.exe
+            mindis-gui/build/packages/${{ matrix.platform }}/*.deb
+            mindis-gui/build/packages/${{ matrix.platform }}/*.rpm
+            mindis-gui/build/packages/${{ matrix.platform }}/*.dmg
+            mindis-gui/build/packages/${{ matrix.platform }}/*.pkg
+            mindis-gui/build/packages/${{ matrix.platform }}/*-portable-*.zip
+            mindis-gui/build/packages/${{ matrix.platform }}/*.sha256
+          generate_release_notes: true
