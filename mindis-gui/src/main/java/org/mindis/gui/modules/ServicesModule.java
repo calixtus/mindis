@@ -5,22 +5,17 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
-import javafx.scene.control.Spinner;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.ColumnConstraints;
@@ -33,8 +28,6 @@ import javafx.util.StringConverter;
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.LiturgicalService;
-import org.mindis.core.model.Role;
-import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServiceGenerator;
@@ -50,7 +43,6 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
     private static final int DEFAULT_DURATION_MINUTES = 60;
-    private static final int MAX_SLOT_COUNT = 10;
     private static final double EDITOR_MIN_HEIGHT = 520;
 
     private final ServiceRepository serviceRepository;
@@ -174,25 +166,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         TextField locationField = new TextField(service.location());
         TextField noteField = new TextField(service.note());
 
-        // Role id -> its count spinner, in role display order.
-        Map<String, Spinner<Integer>> slotSpinners = new LinkedHashMap<>();
-        VBox slotsList = new VBox(8);
-        for (Role role : roleRepository.findAll()) {
-            Spinner<Integer> spinner = new Spinner<>(0, MAX_SLOT_COUNT, slotCount(service, role.id()));
-            spinner.getStyleClass().add(Spinner.STYLE_CLASS_SPLIT_ARROWS_HORIZONTAL);
-            // Trim the theme's roomy editor padding (7px 11px) so the field is
-            // narrower without collapsing the split arrows. Font-relative (em),
-            // not fixed pixels, so it scales with the font size.
-            spinner.getEditor().setStyle("-fx-padding: 0.2em 0.4em 0.2em 0.4em;");
-            slotSpinners.put(role.id(), spinner);
-
-            Label roleName = new Label(role.name());
-            roleName.setMaxWidth(Double.MAX_VALUE);
-            HBox.setHgrow(roleName, Priority.ALWAYS);
-            HBox row = new HBox(8, roleName, spinner);
-            row.setAlignment(Pos.CENTER_LEFT);
-            slotsList.getChildren().add(row);
-        }
+        RoleSlotsEditor slotsEditor = new RoleSlotsEditor(roleRepository, service.slots());
 
         GridPane grid = new GridPane();
         grid.setHgap(8);
@@ -215,18 +189,10 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         grid.add(new Label(Localization.lang("Note")), 0, row);
         grid.add(noteField, 1, row++);
 
-        Label slotsLabel = new Label(Localization.lang("Required servers"));
-        GridPane.setValignment(slotsLabel, VPos.TOP);
-        // Gives the label exactly the height of the first slot row and centers
-        // its text in it, so the label baseline matches the first role name's
-        // (which is centered against its taller spinner). Layout-driven.
-        if (!slotsList.getChildren().isEmpty() && slotsList.getChildren().getFirst() instanceof HBox firstRow) {
-            slotsLabel.minHeightProperty().bind(firstRow.heightProperty());
-            slotsLabel.prefHeightProperty().bind(firstRow.heightProperty());
-        }
-        grid.add(slotsLabel, 0, row);
-        GridPane.setVgrow(slotsList, Priority.ALWAYS);
-        grid.add(slotsList, 1, row++);
+        GridPane.setValignment(slotsEditor.label, VPos.TOP);
+        grid.add(slotsEditor.label, 0, row);
+        GridPane.setVgrow(slotsEditor.list(), Priority.ALWAYS);
+        grid.add(slotsEditor.list(), 1, row++);
 
         Button saveButton = new Button(Localization.lang("Save"));
         saveButton.setDefaultButton(true);
@@ -236,31 +202,16 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             if (date == null || time == null) {
                 return;
             }
-            List<RoleSlot> slots = new ArrayList<>();
-            slotSpinners.forEach((roleId, spinner) -> {
-                int count = spinner.getValue();
-                if (count > 0) {
-                    slots.add(new RoleSlot(roleId, count));
-                }
-            });
             save(new LiturgicalService(service.id(), date.atTime(time), service.durationMinutes(),
                     locationField.getText().strip(),
                     typeBox.getValue() == null ? ServiceType.OTHER : typeBox.getValue(),
-                    slots, noteField.getText().strip()));
+                    slotsEditor.collectSlots(), noteField.getText().strip()));
         });
 
         VBox content = new VBox(10, grid, new HBox(saveButton));
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
         return content;
-    }
-
-    private static int slotCount(LiturgicalService service, String roleId) {
-        return service.slots().stream()
-                .filter(slot -> slot.role().equals(roleId))
-                .mapToInt(RoleSlot::count)
-                .findFirst()
-                .orElse(0);
     }
 
     private static LocalTime parseTime(String text) {
