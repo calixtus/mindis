@@ -24,7 +24,7 @@ dependencies {
     implementation(platform(project(":versions")))
     implementation(project(":core"))
     implementation("ai.timefold.solver:timefold-solver-core")
-    runtimeOnly("org.slf4j:slf4j-simple:2.0.17")
+    runtimeOnly("org.slf4j:slf4j-simple:2.0.18")
 }
 
 graalvmNative {
