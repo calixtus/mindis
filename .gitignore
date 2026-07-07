@@ -3,9 +3,17 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
-# IDE
-.idea/
+# IDEs
+
+# IntelliJ IDEA
+!.idea/codeStyles
+!.idea/.gitignore
+!.idea/checkstyle-idea.xml
+!.idea/vcs.xml
+.idea
+*.ipr
 *.iml
+
 .vscode/
 .settings/
 .classpath
