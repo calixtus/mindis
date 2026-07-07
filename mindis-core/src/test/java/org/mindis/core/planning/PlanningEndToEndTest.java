@@ -1,5 +1,6 @@
 package org.mindis.core.planning;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import ai.timefold.solver.core.api.solver.SolverFactory;
@@ -86,7 +87,7 @@ class PlanningEndToEndTest {
         long unassigned = solved.getAssignments().stream()
                 .filter(assignment -> assignment.getServer() == null)
                 .count();
-        assertTrue(unassigned == 0, "Expected all slots assigned, " + unassigned + " unassigned");
+        assertEquals(0, unassigned, "Expected all slots assigned, " + unassigned + " unassigned");
     }
 
     private static LiturgicalService sundayMass(String id, LocalDateTime dateTime) {

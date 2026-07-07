@@ -78,7 +78,7 @@ public record MinDisPreferences(
     }
 
     public static MinDisPreferences defaults() {
-        String language = Locale.getDefault().getLanguage().equals("de") ? "de" : "en";
+        String language = "de".equals(Locale.getDefault().getLanguage()) ? "de" : "en";
         return new MinDisPreferences(CURRENT_VERSION, language, Theme.LIGHT, null,
                 DEFAULT_SOLVER_SECONDS, MinDisConstraintProvider.defaultSoftWeights(),
                 AccentColor.DEFAULT, DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE, false);
