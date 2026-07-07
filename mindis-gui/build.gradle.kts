@@ -15,10 +15,11 @@ application {
     applicationDefaultJvmArgs = listOf("--enable-native-access=javafx.graphics")
 }
 
-// Bakes the project version into a resource read by the About module -
-// avoids relying on JPMS module/jar-manifest versioning, which jpackage's
-// jlink runtime image does not carry through reliably.
 tasks.named<ProcessResources>("processResources") {
+    // Track up-to-date variable
+    inputs.property("version",this.project.version)
+
+    // Insert in properties
     filesMatching("org/mindis/gui/about/version.properties") {
         expand("version" to project.version)
     }
