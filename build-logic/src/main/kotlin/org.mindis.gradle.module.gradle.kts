@@ -6,6 +6,8 @@ plugins {
     id("org.mindis.gradle.feature.compile")
     id("org.mindis.gradle.feature.test")
     id("org.mindis.gradle.feature.localization")
+    id("org.mindis.gradle.check.checkstyle")
+    id("org.mindis.gradle.check.modernizer")
 }
 
 // All dependency versions come from the :versions platform (JabRef pattern).
