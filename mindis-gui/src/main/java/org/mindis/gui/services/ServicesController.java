@@ -2,16 +2,13 @@ package org.mindis.gui.services;
 
 import io.avaje.inject.Prototype;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import javafx.beans.property.SimpleStringProperty;
@@ -35,7 +32,6 @@ import javafx.util.StringConverter;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
-import org.mindis.core.model.ServiceTemplate;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServiceGenerator;
@@ -44,8 +40,9 @@ import org.mindis.core.persistence.TemplateRepository;
 import org.mindis.core.l10n.EnumDisplay;
 
 /**
- * CRUD for liturgical services plus weekly templates and horizon generation.
- * Prototype bean: fresh controller per FXML load.
+ * CRUD for liturgical services plus generation from weekly templates
+ * (managed in the Templates module). Prototype bean: fresh controller per
+ * FXML load.
  */
 @Prototype
 public class ServicesController {
@@ -60,7 +57,6 @@ public class ServicesController {
     // Role id -> its count spinner, in role display order.
     private final Map<String, Spinner<Integer>> slotSpinners = new LinkedHashMap<>();
     private final ObservableList<LiturgicalService> serviceItems = FXCollections.observableArrayList();
-    private final ObservableList<ServiceTemplate> templateItems = FXCollections.observableArrayList();
 
     @FXML
     private TableView<LiturgicalService> servicesTable;
@@ -92,24 +88,6 @@ public class ServicesController {
     private DatePicker generateFromPicker;
     @FXML
     private DatePicker generateToPicker;
-    @FXML
-    private TableView<ServiceTemplate> templatesTable;
-    @FXML
-    private TableColumn<ServiceTemplate, String> templateDayColumn;
-    @FXML
-    private TableColumn<ServiceTemplate, String> templateTimeColumn;
-    @FXML
-    private TableColumn<ServiceTemplate, String> templateTypeColumn;
-    @FXML
-    private TableColumn<ServiceTemplate, String> templateLocationColumn;
-    @FXML
-    private ComboBox<DayOfWeek> templateDayBox;
-    @FXML
-    private TextField templateTimeField;
-    @FXML
-    private ComboBox<ServiceType> templateTypeBox;
-    @FXML
-    private TextField templateLocationField;
 
     private LiturgicalService selected;
 
@@ -130,20 +108,6 @@ public class ServicesController {
                 String.valueOf(data.getValue().totalSlots())));
 
         setupTypeBox(serviceTypeBox);
-        setupTypeBox(templateTypeBox);
-
-        templateDayBox.setItems(FXCollections.observableArrayList(DayOfWeek.values()));
-        templateDayBox.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(DayOfWeek day) {
-                return day == null ? "" : day.getDisplayName(TextStyle.FULL, Locale.getDefault());
-            }
-
-            @Override
-            public DayOfWeek fromString(String string) {
-                return null;
-            }
-        });
 
         // Rebuild the role slot editor whenever the module is shown, so roles
         // added or removed in the Roles module are picked up (the view is cached,
@@ -154,18 +118,10 @@ public class ServicesController {
             }
         });
 
-        templateDayColumn.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().dayOfWeek().getDisplayName(TextStyle.FULL, Locale.getDefault())));
-        templateTimeColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().time().toString()));
-        templateTypeColumn.setCellValueFactory(data -> new SimpleStringProperty(EnumDisplay.of(data.getValue().type())));
-        templateLocationColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().location()));
-
         servicesTable.setItems(serviceItems);
-        templatesTable.setItems(templateItems);
         servicesTable.getSelectionModel().selectedItemProperty().subscribe(this::showService);
 
         refreshServices(null);
-        refreshTemplates();
     }
 
     @FXML
@@ -214,34 +170,6 @@ public class ServicesController {
                 templateRepository.findAll(), serviceRepository.findAll(), from, to);
         serviceRepository.saveAll(generated);
         refreshServices(null);
-    }
-
-    @FXML
-    private void onAddTemplate() {
-        DayOfWeek day = templateDayBox.getValue();
-        LocalTime time = parseTime(templateTimeField.getText());
-        if (day == null || time == null) {
-            return;
-        }
-        ServiceTemplate template = new ServiceTemplate(
-                ServiceTemplate.newId(),
-                day,
-                time,
-                DEFAULT_DURATION_MINUTES,
-                templateLocationField.getText().strip(),
-                templateTypeBox.getValue() == null ? ServiceType.SUNDAY_MASS : templateTypeBox.getValue(),
-                collectSlots());
-        templateRepository.save(template);
-        refreshTemplates();
-    }
-
-    @FXML
-    private void onRemoveTemplate() {
-        ServiceTemplate template = templatesTable.getSelectionModel().getSelectedItem();
-        if (template != null) {
-            templateRepository.delete(template.id());
-            refreshTemplates();
-        }
     }
 
     private void setupTypeBox(ComboBox<ServiceType> box) {
@@ -336,10 +264,6 @@ public class ServicesController {
                     .findFirst()
                     .ifPresent(service -> servicesTable.getSelectionModel().select(service));
         }
-    }
-
-    private void refreshTemplates() {
-        templateItems.setAll(templateRepository.findAll());
     }
 
     private void showService(LiturgicalService service) {

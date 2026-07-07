@@ -11,7 +11,6 @@
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
-<?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.control.ToolBar?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
@@ -80,32 +79,6 @@
         <HBox spacing="8">
             <Button text="%Save" onAction="#onSaveService" defaultButton="true"/>
         </HBox>
-
-        <TitledPane text="%Weekly templates" collapsible="false">
-            <VBox spacing="8">
-                <padding>
-                    <Insets top="8" right="8" bottom="8" left="8"/>
-                </padding>
-                <TableView fx:id="templatesTable" prefHeight="140">
-                    <columns>
-                        <TableColumn fx:id="templateDayColumn" text="%Weekday" prefWidth="110"/>
-                        <TableColumn fx:id="templateTimeColumn" text="%Time" prefWidth="70"/>
-                        <TableColumn fx:id="templateTypeColumn" text="%Type" prefWidth="110"/>
-                        <TableColumn fx:id="templateLocationColumn" text="%Location" prefWidth="110"/>
-                    </columns>
-                </TableView>
-                <HBox spacing="8">
-                    <ComboBox fx:id="templateDayBox"/>
-                    <TextField fx:id="templateTimeField" promptText="10:00" prefWidth="70"/>
-                    <ComboBox fx:id="templateTypeBox"/>
-                    <TextField fx:id="templateLocationField" promptText="%Location" HBox.hgrow="ALWAYS"/>
-                </HBox>
-                <HBox spacing="8">
-                    <Button text="%Add" onAction="#onAddTemplate"/>
-                    <Button text="%Remove" onAction="#onRemoveTemplate"/>
-                </HBox>
-            </VBox>
-        </TitledPane>
     </VBox>
     </ScrollPane>
     </SplitPane>

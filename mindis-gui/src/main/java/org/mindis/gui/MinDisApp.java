@@ -30,6 +30,7 @@ import org.mindis.gui.modules.RolesModule;
 import org.mindis.gui.modules.ServersModule;
 import org.mindis.gui.modules.ServicesModule;
 import org.mindis.gui.modules.SettingsModule;
+import org.mindis.gui.modules.TemplatesModule;
 import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.gui.theme.ThemeStyler;
 import org.mindis.workbench.Workbench;
@@ -126,14 +127,15 @@ public class MinDisApp extends Application {
 
     private Workbench buildWorkbench() {
         return Workbench.builder(
-                        new DashboardModule(Localization.lang("Dashboard")),
-                        new RolesModule(Localization.lang("Roles")),
-                        new ServersModule(Localization.lang("Servers")),
-                        new ServicesModule(Localization.lang("Services")),
-                        new PlanningModule(Localization.lang("Planning")))
-                .bottomModule(new AboutModule(Localization.lang("About"), getHostServices()))
-                .bottomModule(new SettingsModule(Localization.lang("Settings"), uiPreferences))
-                .build();
+                                new DashboardModule(Localization.lang("Dashboard")),
+                                new RolesModule(Localization.lang("Roles")),
+                                new ServersModule(Localization.lang("Servers")),
+                                new TemplatesModule(Localization.lang("Templates")),
+                                new ServicesModule(Localization.lang("Services")),
+                                new PlanningModule(Localization.lang("Planning")))
+                        .bottomModule(new AboutModule(Localization.lang("About"), getHostServices()))
+                        .bottomModule(new SettingsModule(Localization.lang("Settings"), uiPreferences))
+                        .build();
     }
 
     /**
