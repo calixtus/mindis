@@ -48,6 +48,7 @@ public class MinDisApp extends Application {
     private PreferencesService preferencesService;
     private UiPreferences uiPreferences;
     private Stage stage;
+    private Workbench workbench;
 
     public static void main(String[] args) {
         launch(args);
@@ -101,7 +102,8 @@ public class MinDisApp extends Application {
         FxmlKit.setResourceBundle(Localization.getBundle());
 
         stage.getIcons().addAll(loadAppIcons());
-        stage.setScene(new Scene(buildWorkbench(), 960, 640));
+        workbench = buildWorkbench();
+        stage.setScene(new Scene(workbench, 960, 640));
         stage.setTitle(Localization.lang("MinDis - Minister Dispatcher"));
         restoreWindowBounds(preferences.windowBounds());
         stage.show();
@@ -141,7 +143,12 @@ public class MinDisApp extends Application {
     private void rebuildUi() {
         Localization.setLocale(preferencesService.get().locale());
         FxmlKit.setResourceBundle(Localization.getBundle());
-        stage.getScene().setRoot(buildWorkbench());
+        // Preserve the active module across the rebuild instead of snapping back
+        // to Dashboard; by module class, since names change with the locale.
+        String activeModuleClass = workbench == null ? null : workbench.getActiveModuleClassName();
+        workbench = buildWorkbench();
+        stage.getScene().setRoot(workbench);
+        workbench.openModule(activeModuleClass);
         stage.setTitle(Localization.lang("MinDis - Minister Dispatcher"));
     }
 

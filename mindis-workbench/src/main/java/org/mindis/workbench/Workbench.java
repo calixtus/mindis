@@ -120,6 +120,29 @@ public final class Workbench extends BorderPane {
         }
     }
 
+    /**
+     * Fully-qualified class name of the active module, or {@code null} if none.
+     * Stable across a UI rebuild (module instances are recreated) and
+     * independent of the localized module names, so it survives a language
+     * change - unlike a name or the module instance itself.
+     */
+    public String getActiveModuleClassName() {
+        return activeModule == null ? null : activeModule.getClass().getName();
+    }
+
+    /** Selects the sidebar entry whose module has the given class name. */
+    public void openModule(String className) {
+        if (className == null) {
+            return;
+        }
+        for (Map.Entry<WorkbenchModule, ToggleButton> entry : navButtons.entrySet()) {
+            if (entry.getKey().getClass().getName().equals(className)) {
+                entry.getValue().setSelected(true);
+                return;
+            }
+        }
+    }
+
     private Button createToggleButton() {
         toggleIcon.getStyleClass().add("workbench-nav-icon");
         Button button = new Button();
