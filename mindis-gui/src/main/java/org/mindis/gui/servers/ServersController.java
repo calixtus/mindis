@@ -15,6 +15,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -38,6 +40,7 @@ import org.mindis.core.model.Server;
 import org.mindis.core.model.UnavailabilityPeriod;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
+import org.mindis.gui.preferences.UiPreferences;
 
 /**
  * CRUD for the altar server roster. Prototype bean: a fresh controller per
@@ -46,8 +49,12 @@ import org.mindis.core.persistence.ServerRepository;
 @Prototype
 public class ServersController {
 
+    // Checkbox list row height as a multiple of the app font size.
+    private static final double CELL_SIZE_FONT_FACTOR = 2.0;
+
     private final ServerRepository serverRepository;
     private final RoleRepository roleRepository;
+    private final UiPreferences uiPreferences;
     // Role id -> whether its qualification checkbox is ticked, shared with the
     // CheckBoxListCell so ticks survive list rebuilds.
     private final Map<String, BooleanProperty> qualificationSelected = new HashMap<>();
@@ -92,9 +99,11 @@ public class ServersController {
 
     private Server selected;
 
-    public ServersController(ServerRepository serverRepository, RoleRepository roleRepository) {
+    public ServersController(ServerRepository serverRepository, RoleRepository roleRepository,
+                             UiPreferences uiPreferences) {
         this.serverRepository = serverRepository;
         this.roleRepository = roleRepository;
+        this.uiPreferences = uiPreferences;
     }
 
     @FXML
@@ -107,6 +116,14 @@ public class ServersController {
                         .collect(Collectors.joining(", "))));
         activeColumn.setCellValueFactory(data -> new SimpleStringProperty(
                 data.getValue().active() ? Localization.lang("Yes") : Localization.lang("No")));
+
+        // Row height scales with the app font size (keeps rows compact and
+        // legible when the user changes the font in Settings).
+        DoubleBinding cellSize = Bindings.createDoubleBinding(
+                () -> uiPreferences.fontSizeProperty().get() * CELL_SIZE_FONT_FACTOR,
+                uiPreferences.fontSizeProperty());
+        qualificationsList.fixedCellSizeProperty().bind(cellSize);
+        unavailabilityList.fixedCellSizeProperty().bind(cellSize);
 
         qualificationsList.setItems(qualificationRoles);
         qualificationsList.setCellFactory(CheckBoxListCell.forListView(
