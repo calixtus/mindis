@@ -1,8 +1,9 @@
 package org.mindis.core.export;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import org.openpdf.text.Document;
@@ -30,7 +31,7 @@ final class PdfPlanExporter implements PlanExporter {
         Font bodyFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
 
         Document pdf = new Document(PageSize.A4);
-        try (FileOutputStream out = new FileOutputStream(targetFile.toFile())) {
+        try (OutputStream out = Files.newOutputStream(targetFile)) {
             PdfWriter.getInstance(pdf, out);
             pdf.open();
 

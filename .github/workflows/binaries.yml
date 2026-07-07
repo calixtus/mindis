@@ -1,12 +1,9 @@
-name: Release
+name: Binaries
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to release (e.g. v1.2.0)'
-        required: true
-        type: string
+  push:
+    branches: [main]
+  pull_request:
 
 jobs:
   package:
@@ -21,12 +18,8 @@ jobs:
           - os: macos-latest
             platform: macos
     runs-on: ${{ matrix.os }}
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -36,14 +29,13 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          # 
           dotnet tool install --global wix --version 5.0.2
           $tools = "$env:USERPROFILE\.dotnet\tools"
           $env:PATH = "$tools;$env:PATH"
           echo "$tools" >> $env:GITHUB_PATH
           wix extension add --global WixToolset.UI.wixext/5.0.2
           wix extension add --global WixToolset.Util.wixext/5.0.2
-      - name: Build installer (jpackage)
+      - name: Package installer (jpackage)
         run: ./gradlew :gui:jpackage
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
@@ -51,9 +43,3 @@ jobs:
           name: MinDis-${{ matrix.platform }}-installer
           path: mindis-gui/build/packages/${{ matrix.platform }}/*
           if-no-files-found: error
-      - name: Attach to GitHub release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ inputs.tag }}
-          files: mindis-gui/build/packages/${{ matrix.platform }}/*
-          generate_release_notes: true

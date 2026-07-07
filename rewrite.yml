@@ -1,0 +1,107 @@
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: org.mindis.config.rewrite.cleanup
+# Derived from JabRef's rewrite.yml. See that project for the rationale behind
+# each disabled recipe (kept as comments so the exclusions are self-documenting).
+recipeList:
+  - org.openrewrite.java.migrate.guava.NoMapsAndSetsWithExpectedSize
+
+  - org.openrewrite.java.migrate.io.ReplaceFileInOrOutputStreamFinalizeWithClose
+  - org.openrewrite.java.migrate.lang.StringFormatted
+  - org.openrewrite.java.migrate.lang.SwitchCaseAssignmentsToSwitchExpression
+  - org.openrewrite.java.migrate.lang.SwitchCaseReturnsToSwitchExpression
+  - org.openrewrite.java.migrate.lang.SwitchExpressionYieldToArrow
+  - org.openrewrite.java.migrate.net.JavaNetAPIs
+  - org.openrewrite.java.migrate.net.URLConstructorToURICreate
+  - org.openrewrite.java.migrate.net.URLConstructorsToNewURI
+  - org.openrewrite.java.migrate.util.OptionalNotEmptyToIsPresent
+  - org.openrewrite.java.migrate.util.OptionalNotPresentToIsEmpty
+  - org.openrewrite.java.migrate.util.SequencedCollection
+
+  - org.openrewrite.java.RemoveObjectsIsNull
+
+  - org.openrewrite.java.testing.junit5.AssertTrueInstanceofToAssertInstanceOf
+  - org.openrewrite.java.testing.junit5.RemoveTryCatchFailBlocks
+
+  - org.openrewrite.staticanalysis.AtomicPrimitiveEqualsUsesGet
+  - org.openrewrite.staticanalysis.BigDecimalRoundingConstantsToEnums
+  - org.openrewrite.staticanalysis.BooleanChecksNotInverted
+  - org.openrewrite.staticanalysis.CaseInsensitiveComparisonsDoNotChangeCase
+  - org.openrewrite.staticanalysis.CatchClauseOnlyRethrows
+  - org.openrewrite.staticanalysis.ChainStringBuilderAppendCalls
+  # Might need manual intervention, because negations are not treated properly
+  - org.openrewrite.staticanalysis.CompareEnumsWithEqualityOperator
+  - org.openrewrite.staticanalysis.ControlFlowIndentation
+  - org.openrewrite.staticanalysis.CovariantEquals
+  - org.openrewrite.staticanalysis.DefaultComesLast
+  - org.openrewrite.staticanalysis.EmptyBlock
+  - org.openrewrite.staticanalysis.EqualsAvoidsNull
+  - org.openrewrite.staticanalysis.EqualsToContentEquals
+  - org.openrewrite.staticanalysis.ExternalizableHasNoArgsConstructor
+  - org.openrewrite.staticanalysis.FallThrough
+  - org.openrewrite.staticanalysis.ForLoopIncrementInUpdate
+  - org.openrewrite.staticanalysis.IndexOfChecksShouldUseAStartPosition
+  - org.openrewrite.staticanalysis.IndexOfReplaceableByContains
+  - org.openrewrite.staticanalysis.InstanceOfPatternMatch
+  - org.openrewrite.staticanalysis.IsEmptyCallOnCollections
+  - org.openrewrite.staticanalysis.MultipleVariableDeclarations
+  - org.openrewrite.staticanalysis.NeedBraces
+  - org.openrewrite.staticanalysis.NestedEnumsAreNotStatic
+  - org.openrewrite.staticanalysis.NewStringBuilderBufferWithCharArgument
+  - org.openrewrite.staticanalysis.NoDoubleBraceInitialization
+  - org.openrewrite.staticanalysis.NoEqualityInForCondition
+  - org.openrewrite.staticanalysis.NoFinalizer
+  - org.openrewrite.staticanalysis.NoToStringOnStringType
+  - org.openrewrite.staticanalysis.NoValueOfOnStringType
+  - org.openrewrite.staticanalysis.ObjectFinalizeCallsSuper
+  - org.openrewrite.staticanalysis.PreferEqualityComparisonOverDifferenceCheck
+  - org.openrewrite.staticanalysis.PreferIncrementOperator
+  - org.openrewrite.staticanalysis.PreferSystemGetPropertyOverGetenv
+  - org.openrewrite.staticanalysis.PrimitiveWrapperClassConstructorToValueOf
+  - org.openrewrite.staticanalysis.RedundantFileCreation
+  - org.openrewrite.staticanalysis.RemoveCallsToObjectFinalize
+  - org.openrewrite.staticanalysis.RemoveEmptyJavaDocParameters
+  - org.openrewrite.staticanalysis.RemoveExtraSemicolons
+  - org.openrewrite.staticanalysis.RemoveJavaDocAuthorTag
+  - org.openrewrite.staticanalysis.RemoveHashCodeCallsFromArrayInstances
+  - org.openrewrite.staticanalysis.RemoveRedundantNullCheckBeforeInstanceof
+  - org.openrewrite.staticanalysis.RemoveRedundantNullCheckBeforeLiteralEquals
+  - org.openrewrite.staticanalysis.RemoveToStringCallsFromArrayInstances
+  - org.openrewrite.staticanalysis.RemoveUnneededAssertion
+  - org.openrewrite.staticanalysis.RemoveUnneededBlock
+  - org.openrewrite.staticanalysis.RenameMethodsNamedHashcodeEqualOrToString
+  - org.openrewrite.staticanalysis.ReplaceRedundantFormatWithPrintf
+  - org.openrewrite.staticanalysis.ReplaceStringBuilderWithString
+  - org.openrewrite.staticanalysis.ReplaceWeekYearWithYear
+  - org.openrewrite.staticanalysis.SimplifyArraysAsList
+  - org.openrewrite.staticanalysis.SimplifyBooleanExpression
+  - org.openrewrite.staticanalysis.SimplifyBooleanReturn
+  - org.openrewrite.staticanalysis.SimplifyDurationCreationUnits
+  - org.openrewrite.staticanalysis.SortedSetStreamToLinkedHashSet
+  - org.openrewrite.staticanalysis.StaticMethodNotFinal
+  - org.openrewrite.staticanalysis.StringLiteralEquality
+  - org.openrewrite.staticanalysis.UnwrapRepeatableAnnotations
+  - org.openrewrite.staticanalysis.UpperCaseLiteralSuffixes
+  - org.openrewrite.staticanalysis.UseDiamondOperator
+  - org.openrewrite.staticanalysis.UseLambdaForFunctionalInterface
+  - org.openrewrite.staticanalysis.UseObjectNotifyAll
+  - org.openrewrite.staticanalysis.UseStandardCharset
+  - org.openrewrite.staticanalysis.UseStringReplace
+  - org.openrewrite.staticanalysis.UseSystemLineSeparator
+  - org.openrewrite.staticanalysis.WhileInsteadOfFor
+
+  - org.openrewrite.java.testing.cleanup.AssertLiteralBooleanToFailRecipes
+  - org.openrewrite.java.testing.cleanup.AssertLiteralBooleanRemovedRecipe
+  - org.openrewrite.java.testing.cleanup.RemoveTestPrefix
+  - org.openrewrite.java.testing.junit5.AddParameterizedTestAnnotation
+  - org.openrewrite.java.testing.junit5.CleanupAssertions
+  - org.openrewrite.java.testing.junit5.RemoveDuplicateTestTemplates
+  - org.openrewrite.java.testing.junit5.RemoveTryCatchFailBlocks
+  - org.openrewrite.java.testing.junit5.LifecycleNonPrivate
+
+  # Logging: manual selection of https://docs.openrewrite.org/recipes/java/logging/slf4j/slf4jbestpractices
+  # (the umbrella best-practices recipe rewrites LOGGER.debug -> LOGGER.error, which we do not want)
+  - org.openrewrite.java.logging.slf4j.LoggersNamedForEnclosingClass
+  - org.openrewrite.java.logging.slf4j.ParameterizedLogging
+  - org.openrewrite.java.logging.slf4j.Slf4jLogShouldBeConstant
+  - org.openrewrite.java.logging.slf4j.CompleteExceptionLogging

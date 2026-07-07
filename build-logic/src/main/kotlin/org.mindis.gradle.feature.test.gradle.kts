@@ -10,4 +10,9 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+
+    // Fork tests across processes. See
+    // https://docs.gradle.org/current/userguide/performance.html#execute_tests_in_parallel
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() - 1).coerceAtLeast(1)
+    forkEvery = 100
 }

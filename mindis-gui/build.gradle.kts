@@ -28,7 +28,11 @@ tasks.named<ProcessResources>("processResources") {
 // 'app-image' for a local smoke build without WiX:
 //   rm -rf mindis-gui/build/packages && ./gradlew jpackage -PinstallerType=app-image
 // (delete the packages dir first - jpackage refuses an existing app-image dir)
-val installerType = providers.gradleProperty("installerType").getOrElse("exe")
+// 'msi' (default), 'exe', or 'app-image' (local smoke build, no WiX).
+// NOTE: jpackage's WiX v5 'exe' bundler is broken (JDK-8356592) - the msiwrapper
+// step fails with AccessDeniedException copying the final .exe. The 'msi' path
+// works with WiX v5, so ship an MSI installer.
+val installerType = providers.gradleProperty("installerType").getOrElse("msi")
 
 javaModulePackaging {
     applicationName = "MinDis"
