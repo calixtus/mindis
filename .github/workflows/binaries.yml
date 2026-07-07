@@ -1,11 +1,55 @@
-name: Binaries
+name: Release
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - 'src/test/**'
+      - 'README.md'
+    tags:
+      - '*'
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v1.2.0)'
+        required: true
+        type: string
+      jvmDistribution:
+        description: 'JDK distribution (setup-java)'
+        type: choice
+        default: temurin
+        options:
+          - adopt
+          - adopt-openj9
+          - corretto
+          - dragonwell
+          - graalvm
+          - jetbrains
+          - liberica
+          - microsoft
+          - oracle
+          - sapmachine
+          - semeru
+          - temurin
+          - zulu
+      javaVersion:
+        description: 'JDK version'
+        type: string
+        default: '25'
+      upload-as-release-draft:
+        description: "Upload as release draft"
+        type: boolean
+        required: false
+        default: false
 
 jobs:
+  conditions:
+    # Dependency updates should only run in the main repo
+    if: ${{ github.repository == 'JabRef/jabref' || github.actor != 'dependabot[bot]' || github.ref_name != 'main' }}
+    runs-on: ubuntu-slim
   package:
     strategy:
       fail-fast: false
@@ -26,29 +70,37 @@ jobs:
             appImage: MinDis.app
             archivePortable: cd mindis-gui/build/packages/macos && ditto -c -k --keepParent MinDis.app MinDis-portable-macos.zip && rm -r MinDis.app
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Fetch all history for all tags and branches
+        uses: actions/checkout@v4
         with:
-          distribution: temurin
-          java-version: '25'
-      - uses: gradle/actions/setup-gradle@v4
+          ref: ${{ inputs.tag }}
+      - name: Setup JDK ${{ inputs.jvmDistribution }}-${{ inputs.javaVersion }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ inputs.jvmDistribution }}
+          java-version: ${{ inputs.javaVersion }}
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
       - name: Install WiX
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          # 
           dotnet tool install --global wix --version 5.0.2
           $tools = "$env:USERPROFILE\.dotnet\tools"
           $env:PATH = "$tools;$env:PATH"
           echo "$tools" >> $env:GITHUB_PATH
           wix extension add --global WixToolset.UI.wixext/5.0.2
           wix extension add --global WixToolset.Util.wixext/5.0.2
-      - name: Package installer (jpackage)
+      - name: Build installer (jpackage)
         run: ./gradlew :gui:jpackage
       - name: Archive portable app-image (no-install zip)
         shell: bash
         run: ${{ matrix.archivePortable }}
-      - name: Upload installer + portable artifact
+      - name: Upload installer and portable artifact
         uses: actions/upload-artifact@v4
         with:
           name: MinDis-${{ matrix.platform }}-installer
@@ -56,3 +108,18 @@ jobs:
           # zipped and removed by the archive step above.
           path: mindis-gui/build/packages/${{ matrix.platform }}/*
           if-no-files-found: error
+      - name: Attach to GitHub release
+        if: ${{ github.event.inputs.upload-as-release-draft == 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          files: |
+            mindis-gui/build/packages/${{ matrix.platform }}/*.msi
+            mindis-gui/build/packages/${{ matrix.platform }}/*.exe
+            mindis-gui/build/packages/${{ matrix.platform }}/*.deb
+            mindis-gui/build/packages/${{ matrix.platform }}/*.rpm
+            mindis-gui/build/packages/${{ matrix.platform }}/*.dmg
+            mindis-gui/build/packages/${{ matrix.platform }}/*.pkg
+            mindis-gui/build/packages/${{ matrix.platform }}/*-portable-*.zip
+            mindis-gui/build/packages/${{ matrix.platform }}/*.sha256
+          generate_release_notes: true
