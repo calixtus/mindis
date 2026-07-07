@@ -9,15 +9,21 @@
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.ToolBar?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<SplitPane fx:id="root" xmlns="http://javafx.com/javafx"
-           xmlns:fx="http://javafx.com/fxml"
-           fx:controller="org.mindis.gui.templates.TemplatesController"
-           dividerPositions="0.5">
+<VBox fx:id="root" xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="org.mindis.gui.templates.TemplatesController">
+    <ToolBar style="-fx-padding: 8 12 8 12; -fx-spacing: 8;">
+        <Button text="%New" onAction="#onAddTemplate" defaultButton="true"/>
+        <Button text="%Delete" onAction="#onRemoveTemplate"/>
+    </ToolBar>
+
+    <SplitPane VBox.vgrow="ALWAYS" dividerPositions="0.5">
     <VBox spacing="8">
         <padding>
             <Insets top="12" right="12" bottom="12" left="12"/>
@@ -30,9 +36,6 @@
                 <TableColumn fx:id="templateLocationColumn" text="%Location" prefWidth="110"/>
             </columns>
         </TableView>
-        <HBox spacing="8">
-            <Button text="%Remove" onAction="#onRemoveTemplate"/>
-        </HBox>
     </VBox>
 
     <ScrollPane fitToWidth="true" fitToHeight="true" styleClass="edge-to-edge"
@@ -63,10 +66,7 @@
                 <VBox fx:id="slotsList" spacing="8"/>
             </ScrollPane>
         </GridPane>
-
-        <HBox spacing="8">
-            <Button text="%Add" onAction="#onAddTemplate" defaultButton="true"/>
-        </HBox>
     </VBox>
     </ScrollPane>
-</SplitPane>
+    </SplitPane>
+</VBox>

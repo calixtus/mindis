@@ -10,15 +10,21 @@
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.ToolBar?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<SplitPane xmlns="http://javafx.com/javafx"
-           xmlns:fx="http://javafx.com/fxml"
-           fx:controller="org.mindis.gui.roles.RolesController"
-           dividerPositions="0.55">
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="org.mindis.gui.roles.RolesController">
+    <ToolBar style="-fx-padding: 8 12 8 12; -fx-spacing: 8;">
+        <Button fx:id="newButton" text="%New" onAction="#onNew"/>
+        <Button fx:id="deleteButton" text="%Delete" onAction="#onDelete"/>
+    </ToolBar>
+
+    <SplitPane VBox.vgrow="ALWAYS" dividerPositions="0.55">
     <VBox spacing="8">
         <padding>
             <Insets top="12" right="12" bottom="12" left="12"/>
@@ -29,10 +35,6 @@
                 <TableColumn fx:id="ageRangeColumn" text="%Age range" prefWidth="140"/>
             </columns>
         </TableView>
-        <HBox spacing="8">
-            <Button fx:id="newButton" text="%New" onAction="#onNew"/>
-            <Button fx:id="deleteButton" text="%Delete" onAction="#onDelete"/>
-        </HBox>
     </VBox>
 
     <ScrollPane fitToWidth="true" styleClass="edge-to-edge">
@@ -60,4 +62,5 @@
         </HBox>
     </VBox>
     </ScrollPane>
-</SplitPane>
+    </SplitPane>
+</VBox>

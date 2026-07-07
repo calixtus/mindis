@@ -27,11 +27,11 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
-import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.CheckBoxListCell;
+import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
 import org.mindis.core.l10n.Localization;
@@ -63,7 +63,7 @@ public class ServersController {
     private final ObservableList<Server> tableItems = FXCollections.observableArrayList();
 
     @FXML
-    private SplitPane root;
+    private VBox root;
     @FXML
     private TableView<Server> serversTable;
     @FXML

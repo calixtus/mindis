@@ -21,7 +21,6 @@ import javafx.geometry.Pos;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
-import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -59,7 +58,7 @@ public class TemplatesController {
     private final ObservableList<ServiceTemplate> templateItems = FXCollections.observableArrayList();
 
     @FXML
-    private SplitPane root;
+    private VBox root;
     @FXML
     private TableView<ServiceTemplate> templatesTable;
     @FXML
