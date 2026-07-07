@@ -4,8 +4,6 @@
     -fx-background-color: -color-bg-subtle;
     -fx-padding: 12 8 12 8;
     -fx-spacing: 4;
-    -fx-border-color: transparent -color-border-default transparent transparent;
-    -fx-border-width: 0 1 0 0;
 }
 
 .workbench-nav-button {
@@ -61,11 +59,16 @@
     -fx-icon-color: -color-fg-muted;
 }
 
-/* Draggable divider between sidebar and content. */
+/* Draggable divider between sidebar and content: same fill as the sidebar
+   (so the two read as one surface, no seam) with the boundary line on its
+   right edge, against the content pane. */
 .workbench-resize-handle {
-    -fx-background-color: transparent;
+    -fx-background-color: -color-bg-subtle;
+    -fx-border-color: transparent -color-border-default transparent transparent;
+    -fx-border-width: 0 1 0 0;
 }
 
 .workbench-resize-handle:hover {
-    -fx-background-color: -color-accent-subtle;
+    -fx-border-color: transparent -color-accent-emphasis transparent transparent;
+    -fx-border-width: 0 2 0 0;
 }

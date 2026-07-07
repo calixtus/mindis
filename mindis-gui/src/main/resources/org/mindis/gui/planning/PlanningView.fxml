@@ -13,13 +13,8 @@
 
 <VBox xmlns="http://javafx.com/javafx"
       xmlns:fx="http://javafx.com/fxml"
-      fx:controller="org.mindis.gui.planning.PlanningController"
-      spacing="8">
-    <padding>
-        <Insets top="12" right="12" bottom="12" left="12"/>
-    </padding>
-
-    <ToolBar>
+      fx:controller="org.mindis.gui.planning.PlanningController">
+    <ToolBar style="-fx-padding: 8 12 8 12; -fx-spacing: 8;">
         <Label text="%From"/>
         <DatePicker fx:id="fromPicker" prefWidth="130"/>
         <Label text="%To"/>
@@ -33,19 +28,25 @@
         <Button fx:id="exportButton" text="%Export plan" onAction="#onExport" disable="true"/>
     </ToolBar>
 
-    <HBox spacing="16">
-        <Label fx:id="scoreLabel"/>
-        <Label fx:id="statusLabel"/>
-    </HBox>
+    <VBox spacing="8" VBox.vgrow="ALWAYS">
+        <padding>
+            <Insets top="12" right="12" bottom="12" left="12"/>
+        </padding>
 
-    <TableView fx:id="assignmentsTable" editable="true" VBox.vgrow="ALWAYS">
-        <columns>
-            <TableColumn fx:id="dateColumn" text="%Date" prefWidth="130" editable="false"/>
-            <TableColumn fx:id="serviceColumn" text="%Services" prefWidth="170" editable="false"/>
-            <TableColumn fx:id="roleColumn" text="%Role" prefWidth="120" editable="false"/>
-            <TableColumn fx:id="serverColumn" text="%Server" prefWidth="170"/>
-            <TableColumn fx:id="pinnedColumn" text="%Pinned" prefWidth="70"/>
-            <TableColumn fx:id="violationsColumn" text="%Violations" prefWidth="260" editable="false"/>
-        </columns>
-    </TableView>
+        <HBox spacing="16">
+            <Label fx:id="scoreLabel"/>
+            <Label fx:id="statusLabel"/>
+        </HBox>
+
+        <TableView fx:id="assignmentsTable" editable="true" VBox.vgrow="ALWAYS">
+            <columns>
+                <TableColumn fx:id="dateColumn" text="%Date" prefWidth="130" editable="false"/>
+                <TableColumn fx:id="serviceColumn" text="%Services" prefWidth="170" editable="false"/>
+                <TableColumn fx:id="roleColumn" text="%Role" prefWidth="120" editable="false"/>
+                <TableColumn fx:id="serverColumn" text="%Server" prefWidth="170"/>
+                <TableColumn fx:id="pinnedColumn" text="%Pinned" prefWidth="70"/>
+                <TableColumn fx:id="violationsColumn" text="%Violations" prefWidth="260" editable="false"/>
+            </columns>
+        </TableView>
+    </VBox>
 </VBox>
