@@ -18,10 +18,13 @@ on:
         required: true
         type: string
       jvmDistribution:
+        # No 'default:' - the dropdown pre-selects the first option (temurin),
+        # and push/PR fall back to env.JVM_DISTRIBUTION, so the default value is
+        # defined only once (in env). List from setup-java supported distributions.
         description: 'JDK distribution (setup-java)'
         type: choice
-        default: temurin
         options:
+          - temurin
           - adopt
           - adopt-openj9
           - corretto
@@ -33,23 +36,24 @@ on:
           - oracle
           - sapmachine
           - semeru
-          - temurin
           - zulu
       javaVersion:
-        description: 'JDK version'
+        description: 'JDK version - blank uses the default'
         type: string
-        default: '25'
+        required: false
       upload-as-release-draft:
         description: "Upload as release draft"
         type: boolean
         required: false
         default: false
 
+# Single source of truth for the JDK defaults, used on push/PR (where inputs are
+# empty) and as the fallback for a blank workflow_dispatch input.
+env:
+  JVM_DISTRIBUTION: temurin
+  JAVA_VERSION: '25'
+
 jobs:
-  conditions:
-    # Dependency updates should only run in the main repo
-    if: ${{ github.repository == 'JabRef/jabref' || github.actor != 'dependabot[bot]' || github.ref_name != 'main' }}
-    runs-on: ubuntu-slim
   package:
     strategy:
       fail-fast: false
@@ -76,19 +80,18 @@ jobs:
       - name: Fetch all history for all tags and branches
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
-      - name: Setup JDK ${{ inputs.jvmDistribution }}-${{ inputs.javaVersion }}
+          ref: ${{ inputs.tag || github.ref }}
+      - name: Setup JDK ${{ inputs.jvmDistribution || env.JVM_DISTRIBUTION }}-${{ inputs.javaVersion || env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
-          distribution: ${{ inputs.jvmDistribution }}
-          java-version: ${{ inputs.javaVersion }}
+          distribution: ${{ inputs.jvmDistribution || env.JVM_DISTRIBUTION }}
+          java-version: ${{ inputs.javaVersion || env.JAVA_VERSION }}
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
       - name: Install WiX
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          # 
           dotnet tool install --global wix --version 5.0.2
           $tools = "$env:USERPROFILE\.dotnet\tools"
           $env:PATH = "$tools;$env:PATH"
