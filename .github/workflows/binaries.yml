@@ -85,7 +85,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup JDK ${{ inputs.jvmDistribution || env.JVM_DISTRIBUTION }}-${{ inputs.javaVersion || env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: ${{ inputs.jvmDistribution || env.JVM_DISTRIBUTION }}
           java-version: ${{ inputs.javaVersion || env.JAVA_VERSION }}
