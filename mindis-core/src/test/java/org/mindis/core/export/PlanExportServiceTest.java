@@ -1,5 +1,6 @@
 package org.mindis.core.export;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -38,7 +39,7 @@ class PlanExportServiceTest {
         assertTrue(Files.size(target) > 500, "PDF suspiciously small");
         byte[] head = new byte[4];
         try (var in = Files.newInputStream(target)) {
-            assertTrue(in.read(head) == 4);
+            assertEquals(4, in.read(head));
         }
         assertTrue(new String(head).startsWith("%PDF"), "Not a PDF file");
     }
