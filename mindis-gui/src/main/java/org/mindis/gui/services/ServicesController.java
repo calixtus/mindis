@@ -18,14 +18,18 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.geometry.Pos;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
 import org.mindis.core.model.LiturgicalService;
@@ -48,6 +52,7 @@ public class ServicesController {
 
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
     private static final int DEFAULT_DURATION_MINUTES = 60;
+    private static final int MAX_SLOT_COUNT = 10;
 
     private final ServiceRepository serviceRepository;
     private final TemplateRepository templateRepository;
@@ -78,7 +83,11 @@ public class ServicesController {
     @FXML
     private TextField serviceNoteField;
     @FXML
-    private GridPane slotsGrid;
+    private SplitPane root;
+    @FXML
+    private Label slotsLabel;
+    @FXML
+    private VBox slotsList;
     @FXML
     private DatePicker generateFromPicker;
     @FXML
@@ -136,14 +145,14 @@ public class ServicesController {
             }
         });
 
-        for (Role role : roleRepository.findAll()) {
-            Spinner<Integer> spinner = new Spinner<>(0, 10, 0);
-            spinner.setPrefWidth(70);
-            slotSpinners.put(role.id(), spinner);
-            int row = slotsGrid.getRowCount();
-            slotsGrid.add(new Label(role.name()), 0, row);
-            slotsGrid.add(spinner, 1, row);
-        }
+        // Rebuild the role slot editor whenever the module is shown, so roles
+        // added or removed in the Roles module are picked up (the view is cached,
+        // so building once in initialize() would go stale).
+        root.sceneProperty().subscribe(scene -> {
+            if (scene != null) {
+                rebuildSlots();
+            }
+        });
 
         templateDayColumn.setCellValueFactory(data -> new SimpleStringProperty(
                 data.getValue().dayOfWeek().getDisplayName(TextStyle.FULL, Locale.getDefault())));
@@ -251,6 +260,62 @@ public class ServicesController {
         box.getSelectionModel().select(ServiceType.SUNDAY_MASS);
     }
 
+    /**
+     * Rebuilds the role slot editor from the current roles: one compact row per
+     * role (name on the left, a small split-arrow count spinner on the right),
+     * matching the form fields above. Preserves the selected service's counts.
+     */
+    private void rebuildSlots() {
+        slotSpinners.clear();
+        slotsList.getChildren().clear();
+        for (Role role : roleRepository.findAll()) {
+            Spinner<Integer> spinner = new Spinner<>(0, MAX_SLOT_COUNT, 0);
+            spinner.getStyleClass().add(Spinner.STYLE_CLASS_SPLIT_ARROWS_HORIZONTAL);
+            // Trim the theme's roomy editor padding (7px 11px) so the field is
+            // narrower without collapsing the split arrows. Font-relative (em),
+            // not fixed pixels, so it scales with the font size.
+            spinner.getEditor().setStyle("-fx-padding: 0.2em 0.4em 0.2em 0.4em;");
+            slotSpinners.put(role.id(), spinner);
+
+            Label name = new Label(role.name());
+            name.setMaxWidth(Double.MAX_VALUE);
+            HBox.setHgrow(name, Priority.ALWAYS);
+            HBox row = new HBox(8, name, spinner);
+            row.setAlignment(Pos.CENTER_LEFT);
+            slotsList.getChildren().add(row);
+        }
+        alignSlotsLabel();
+        applySlots(selected);
+    }
+
+    /**
+     * Gives the "Required servers" label exactly the height of the first slot
+     * row and centers its text in it, so the label baseline matches the first
+     * role name's (which is centered against its taller spinner). Layout-driven,
+     * no hardcoded offsets; rebound on every rebuild since rows are recreated.
+     */
+    private void alignSlotsLabel() {
+        slotsLabel.minHeightProperty().unbind();
+        slotsLabel.prefHeightProperty().unbind();
+        if (!slotsList.getChildren().isEmpty()
+                && slotsList.getChildren().getFirst() instanceof HBox firstRow) {
+            slotsLabel.minHeightProperty().bind(firstRow.heightProperty());
+            slotsLabel.prefHeightProperty().bind(firstRow.heightProperty());
+        }
+    }
+
+    /** Sets each slot spinner to the count the service requires for that role. */
+    private void applySlots(LiturgicalService service) {
+        slotSpinners.forEach((roleId, spinner) -> spinner.getValueFactory().setValue(
+                service == null
+                        ? 0
+                        : service.slots().stream()
+                                .filter(slot -> slot.role().equals(roleId))
+                                .mapToInt(RoleSlot::count)
+                                .findFirst()
+                                .orElse(0)));
+    }
+
     private List<RoleSlot> collectSlots() {
         List<RoleSlot> slots = new ArrayList<>();
         slotSpinners.forEach((roleId, spinner) -> {
@@ -284,14 +349,7 @@ public class ServicesController {
         serviceTypeBox.getSelectionModel().select(service == null ? ServiceType.SUNDAY_MASS : service.type());
         serviceLocationField.setText(service == null ? "" : service.location());
         serviceNoteField.setText(service == null ? "" : service.note());
-        slotSpinners.forEach((roleId, spinner) -> spinner.getValueFactory().setValue(
-                service == null
-                        ? 0
-                        : service.slots().stream()
-                                .filter(slot -> slot.role().equals(roleId))
-                                .mapToInt(RoleSlot::count)
-                                .findFirst()
-                                .orElse(0)));
+        applySlots(service);
     }
 
     private static LocalTime parseTime(String text) {

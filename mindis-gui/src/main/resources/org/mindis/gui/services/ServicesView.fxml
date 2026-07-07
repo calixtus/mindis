@@ -16,7 +16,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<SplitPane xmlns="http://javafx.com/javafx"
+<SplitPane fx:id="root" xmlns="http://javafx.com/javafx"
            xmlns:fx="http://javafx.com/fxml"
            fx:controller="org.mindis.gui.services.ServicesController"
            dividerPositions="0.5">
@@ -48,8 +48,9 @@
         </TitledPane>
     </VBox>
 
-    <ScrollPane fitToWidth="true" styleClass="edge-to-edge">
-    <VBox spacing="12">
+    <ScrollPane fitToWidth="true" fitToHeight="true" styleClass="edge-to-edge"
+                hbarPolicy="NEVER">
+    <VBox spacing="10" minHeight="520">
         <padding>
             <Insets top="12" right="12" bottom="12" left="12"/>
         </padding>
@@ -68,15 +69,14 @@
             <TextField fx:id="serviceLocationField" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
             <Label text="%Note" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
             <TextField fx:id="serviceNoteField" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
-        </GridPane>
 
-        <TitledPane text="%Required servers" collapsible="false">
-            <GridPane fx:id="slotsGrid" hgap="8" vgap="6">
-                <padding>
-                    <Insets top="8" right="8" bottom="8" left="8"/>
-                </padding>
-            </GridPane>
-        </TitledPane>
+            <Label fx:id="slotsLabel" text="%Required servers" alignment="CENTER_LEFT"
+                   GridPane.rowIndex="5" GridPane.columnIndex="0" GridPane.valignment="TOP"/>
+            <ScrollPane styleClass="edge-to-edge" fitToWidth="true" prefHeight="200"
+                        GridPane.rowIndex="5" GridPane.columnIndex="1" GridPane.vgrow="ALWAYS">
+                <VBox fx:id="slotsList" spacing="8"/>
+            </ScrollPane>
+        </GridPane>
 
         <HBox spacing="8">
             <Button text="%Save" onAction="#onSaveService" defaultButton="true"/>
