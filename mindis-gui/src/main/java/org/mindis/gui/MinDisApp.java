@@ -21,6 +21,7 @@ import org.mindis.core.logging.LoggingBootstrap;
 import org.mindis.core.preferences.AccentColor;
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.persistence.RoleRepository;
+import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.preferences.PreferencesService;
 import org.mindis.gui.di.AvajeDiAdapter;
 import org.mindis.gui.logging.AlertOnErrorHandler;
@@ -130,7 +131,9 @@ public class MinDisApp extends Application {
         return Workbench.builder(
                                 new DashboardModule(Localization.lang("Dashboard")),
                                 new RolesModule(Localization.lang("Roles"), beanScope.get(RoleRepository.class)),
-                                new ServersModule(Localization.lang("Servers")),
+                                new ServersModule(Localization.lang("Servers"),
+                                        beanScope.get(ServerRepository.class),
+                                        beanScope.get(RoleRepository.class), uiPreferences),
                                 new TemplatesModule(Localization.lang("Templates")),
                                 new ServicesModule(Localization.lang("Services")),
                                 new PlanningModule(Localization.lang("Planning")))
