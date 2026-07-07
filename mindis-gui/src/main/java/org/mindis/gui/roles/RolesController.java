@@ -38,9 +38,7 @@ public class RolesController {
     @FXML
     private TableColumn<Role, String> nameColumn;
     @FXML
-    private TableColumn<Role, String> minAgeColumn;
-    @FXML
-    private TableColumn<Role, String> maxAgeColumn;
+    private TableColumn<Role, String> ageRangeColumn;
     @FXML
     private TextField nameField;
     @FXML
@@ -57,8 +55,8 @@ public class RolesController {
     @FXML
     private void initialize() {
         nameColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().name()));
-        minAgeColumn.setCellValueFactory(data -> new SimpleStringProperty(ageText(data.getValue().minAge())));
-        maxAgeColumn.setCellValueFactory(data -> new SimpleStringProperty(ageText(data.getValue().maxAge())));
+        ageRangeColumn.setCellValueFactory(data -> new SimpleStringProperty(
+                ageRange(data.getValue().minAge(), data.getValue().maxAge())));
 
         // Min: floor is the absolute minimum age; blank below it.
         minAgeSpinner.setValueFactory(
@@ -144,6 +142,18 @@ public class RolesController {
     }
 
     /**
+     * Formats a role's age range for the table: {@code "min–max"}, or one-sided
+     * ({@code "min–"} / {@code "–max"}) when only one bound is set, or empty when
+     * neither is. Uses an en dash, the typographic range separator.
+     */
+    private static String ageRange(Integer min, Integer max) {
+        if (min == null && max == null) {
+            return "";
+        }
+        return ageText(min) + "–" + ageText(max);
+    }
+
+    /**
      * Parses an age field: blank means "no bound"; a non-numeric or negative
      * value is treated as no bound rather than an error (the field is free-form).
      */
@@ -164,11 +174,6 @@ public class RolesController {
     private Integer minAgeOrFloor() {
         Integer min = minAgeSpinner.getValue();
         return min == null ? MIN_AGE : min;
-    }
-
-    private Integer minAgePlusOne() {
-        Integer min = minAgeSpinner.getValue();
-        return min == null ? MIN_AGE : min + 1;
     }
 
     /**

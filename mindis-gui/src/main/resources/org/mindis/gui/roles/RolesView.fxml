@@ -26,8 +26,7 @@
         <TableView fx:id="rolesTable" VBox.vgrow="ALWAYS">
             <columns>
                 <TableColumn fx:id="nameColumn" text="%Name" prefWidth="200"/>
-                <TableColumn fx:id="minAgeColumn" text="%Minimum age" prefWidth="110"/>
-                <TableColumn fx:id="maxAgeColumn" text="%Maximum age" prefWidth="110"/>
+                <TableColumn fx:id="ageRangeColumn" text="%Age range" prefWidth="140"/>
             </columns>
         </TableView>
         <HBox spacing="8">
