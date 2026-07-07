@@ -7,6 +7,19 @@ on:
         description: 'Tag to release (e.g. v1.2.0)'
         required: true
         type: string
+      jvmDistribution:
+        description: 'JDK distribution (setup-java)'
+        type: choice
+        default: temurin
+        options:
+          - temurin
+          - corretto
+          - zulu
+          - liberica
+      javaVersion:
+        description: 'JDK version'
+        type: string
+        default: '25'
 
 jobs:
   package:
@@ -34,8 +47,8 @@ jobs:
           ref: ${{ inputs.tag }}
       - uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: '25'
+          distribution: ${{ inputs.jvmDistribution }}
+          java-version: ${{ inputs.javaVersion }}
       - uses: gradle/actions/setup-gradle@v4
       - name: Install WiX
         if: runner.os == 'Windows'
