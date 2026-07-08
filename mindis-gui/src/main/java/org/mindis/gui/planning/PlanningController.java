@@ -4,7 +4,6 @@ import ai.timefold.solver.core.api.score.HardMediumSoftScore;
 
 import io.avaje.inject.Prototype;
 
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
@@ -38,15 +37,10 @@ import javafx.util.StringConverter;
 import java.io.File;
 
 import org.mindis.core.export.PlanExportFormat;
-import org.mindis.core.export.PlanExportService;
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Server;
-import org.mindis.core.persistence.PlanRepository;
-import org.mindis.core.planning.PlanMapper;
-import org.mindis.core.planning.PlanningService;
 import org.mindis.core.planning.ServicePlan;
-import org.mindis.core.preferences.PreferencesService;
 import org.mindis.gui.util.CalendarPickers;
 
 /**
@@ -59,10 +53,7 @@ public class PlanningController {
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
     private static final Logger LOGGER = Logger.getLogger(PlanningController.class.getName());
 
-    private final PlanningService planningService;
-    private final PlanRepository planRepository;
-    private final PreferencesService preferencesService;
-    private final PlanExportService planExportService;
+    private final PlanningViewModel viewModel;
 
     @FXML
     private CalendarPicker fromPicker;
@@ -101,14 +92,8 @@ public class PlanningController {
     private ServicePlan currentPlan;
     private UUID jobId;
 
-    public PlanningController(PlanningService planningService,
-                              PlanRepository planRepository,
-                              PreferencesService preferencesService,
-                              PlanExportService planExportService) {
-        this.planningService = planningService;
-        this.planRepository = planRepository;
-        this.preferencesService = preferencesService;
-        this.planExportService = planExportService;
+    public PlanningController(PlanningViewModel viewModel) {
+        this.viewModel = viewModel;
     }
 
     @FXML
@@ -143,7 +128,7 @@ public class PlanningController {
         fromPicker.disableProperty().bind(solving);
         toPicker.disableProperty().bind(solving);
 
-        planRepository.load().ifPresent(saved -> {
+        viewModel.loadSavedPlan().ifPresent(saved -> {
             fromPicker.setValue(saved.from());
             toPicker.setValue(saved.toInclusive());
         });
@@ -157,10 +142,7 @@ public class PlanningController {
         if (from == null || to == null || to.isBefore(from)) {
             return;
         }
-        currentPlan = planningService.buildProblem(from, to);
-        planRepository.load()
-                .filter(saved -> saved.from().equals(from) && saved.toInclusive().equals(to))
-                .ifPresent(saved -> PlanMapper.applyAcceptedPlan(currentPlan, saved));
+        currentPlan = viewModel.generateProblem(from, to);
         setupServerColumn();
         rebuildRows();
         refreshScoreAndViolations();
@@ -175,10 +157,8 @@ public class PlanningController {
         }
         solving.set(true);
         statusLabel.setText(Localization.lang("Solving..."));
-        int seconds = preferencesService.get().solverSecondsLimit();
-        jobId = planningService.solveAsync(
+        jobId = viewModel.solveAsync(
                 currentPlan,
-                Duration.ofSeconds(seconds),
                 best -> Platform.runLater(() -> applySolution(best, false)),
                 finalBest -> Platform.runLater(() -> {
                     try {
@@ -201,7 +181,7 @@ public class PlanningController {
     @FXML
     private void onStop() {
         if (jobId != null) {
-            planningService.stopSolving(jobId);
+            viewModel.stopSolving(jobId);
         }
     }
 
@@ -210,8 +190,7 @@ public class PlanningController {
         if (currentPlan == null) {
             return;
         }
-        planRepository.save(PlanMapper.toAcceptedPlan(
-                currentPlan, fromPicker.getValue(), toPicker.getValue()));
+        viewModel.savePlan(currentPlan, fromPicker.getValue(), toPicker.getValue());
         statusLabel.setText(Localization.lang("Plan saved"));
     }
 
@@ -239,29 +218,14 @@ public class PlanningController {
             return;
         }
         lastExportDirectory = target.getParentFile();
-        PlanExportFormat format = formatOf(target, chooser.getSelectedExtensionFilter());
+        PlanExportFormat format = PlanningViewModel.resolveFormat(
+                target.getName(), chooser.getSelectedExtensionFilter().getExtensions());
         try {
-            planExportService.export(
-                    PlanMapper.toAcceptedPlan(currentPlan, fromPicker.getValue(), toPicker.getValue()),
-                    target.toPath(),
-                    format);
+            viewModel.exportPlan(currentPlan, fromPicker.getValue(), toPicker.getValue(), target.toPath(), format);
             statusLabel.setText(Localization.lang("%0 saved to %1", format.name(), target.getName()));
         } catch (RuntimeException e) {
             statusLabel.setText(Localization.lang("%0 export failed: %1", format.name(), e.getMessage()));
         }
-    }
-
-    private static PlanExportFormat formatOf(File target, FileChooser.ExtensionFilter selectedFilter) {
-        String fileName = target.getName();
-        int dot = fileName.lastIndexOf('.');
-        if (dot >= 0 && dot < fileName.length() - 1) {
-            try {
-                return PlanExportFormat.fromExtension(fileName.substring(dot + 1));
-            } catch (IllegalArgumentException ignored) {
-                // Fall through to the filter the user picked in the chooser.
-            }
-        }
-        return PlanExportFormat.fromExtension(selectedFilter.getExtensions().getFirst().substring(2));
     }
 
     private void applySolution(ServicePlan solution, boolean withViolations) {
@@ -306,8 +270,8 @@ public class PlanningController {
             scoreLabel.setText("");
             return;
         }
-        updateScoreLabel(planningService.scoreOf(currentPlan));
-        Map<String, List<String>> violations = planningService.violationsByAssignment(currentPlan);
+        updateScoreLabel(viewModel.scoreOf(currentPlan));
+        Map<String, List<String>> violations = viewModel.violationsByAssignment(currentPlan);
         for (AssignmentRow row : rows) {
             List<String> names = violations.getOrDefault(row.assignment().getId(), List.of());
             row.violationsProperty().set(names.stream()
@@ -341,10 +305,7 @@ public class PlanningController {
             onGenerate();
             return;
         }
-        var snapshot = PlanMapper.toAcceptedPlan(
-                currentPlan, fromPicker.getValue(), toPicker.getValue());
-        currentPlan = planningService.buildProblem(fromPicker.getValue(), toPicker.getValue());
-        PlanMapper.applyAcceptedPlan(currentPlan, snapshot);
+        currentPlan = viewModel.rebuildPreservingAssignments(currentPlan, fromPicker.getValue(), toPicker.getValue());
         setupServerColumn();
         rebuildRows();
         refreshScoreAndViolations();
