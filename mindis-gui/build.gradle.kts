@@ -23,6 +23,13 @@ tasks.named<ProcessResources>("processResources") {
     filesMatching("org/mindis/gui/about/version.properties") {
         expand("version" to project.version)
     }
+
+    // The About screen's Maintainers section reads this at runtime - kept as
+    // one file at the repo root (where GitHub expects it) rather than
+    // duplicated into a resource, so it's always in sync.
+    from(rootProject.file("MAINTAINERS")) {
+        into("org/mindis/gui/about")
+    }
 }
 
 // Installer type: 'exe' (default; needs WiX, present on GitHub runners) or

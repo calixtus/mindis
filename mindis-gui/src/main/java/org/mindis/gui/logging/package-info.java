@@ -1,4 +1,4 @@
-/** Alerts the user on uncaught SEVERE log records. */
+/** Alerts the user on MinDis's own uncaught SEVERE log records, and keeps the in-app error console's history. */
 @NullMarked
 package org.mindis.gui.logging;
 

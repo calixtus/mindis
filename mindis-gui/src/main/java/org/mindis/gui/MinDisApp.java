@@ -29,6 +29,8 @@ import org.mindis.core.persistence.TemplateRepository;
 import org.mindis.core.preferences.PreferencesService;
 import org.mindis.gui.di.AvajeDiAdapter;
 import org.mindis.gui.logging.AlertOnErrorHandler;
+import org.mindis.gui.logging.LogConsoleHandler;
+import org.mindis.gui.logging.LogConsoleModel;
 import org.mindis.gui.modules.AboutModule;
 import org.mindis.gui.modules.DashboardModule;
 import org.mindis.gui.modules.PlanningModule;
@@ -59,6 +61,7 @@ public class MinDisApp extends Application {
     private UiPreferences uiPreferences;
     private Stage stage;
     private Workbench workbench;
+    private final LogConsoleModel logConsole = new LogConsoleModel();
 
     public static void main(String[] args) {
         launch(args);
@@ -68,6 +71,7 @@ public class MinDisApp extends Application {
     public void start(Stage primaryStage) {
         LoggingBootstrap.configure();
         Logger.getLogger("").addHandler(new AlertOnErrorHandler());
+        Logger.getLogger("").addHandler(new LogConsoleHandler(logConsole));
 
         this.stage = primaryStage;
         beanScope = BeanScope.builder().build();
@@ -157,7 +161,7 @@ public class MinDisApp extends Application {
                                         beanScope.get(TemplateRepository.class),
                                         beanScope.get(RoleRepository.class)),
                                 new PlanningModule(Localization.lang("Planning")))
-                        .bottomModule(new AboutModule(Localization.lang("About"), getHostServices()))
+                        .bottomModule(new AboutModule(Localization.lang("About"), getHostServices(), logConsole))
                         .bottomModule(new SettingsModule(Localization.lang("Settings"), uiPreferences));
         if (sidebarWidth != null) {
             builder.initialSidebarWidth(sidebarWidth);
