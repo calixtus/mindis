@@ -15,7 +15,6 @@ import javafx.scene.layout.VBox;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
-import org.mindis.core.persistence.RoleRepository;
 
 /**
  * "Required servers" role/slot-count editor shared by {@link ServicesModule}
@@ -35,8 +34,8 @@ final class RoleSlotsEditor {
     private final Map<String, Spinner<Integer>> spinners = new LinkedHashMap<>();
     private final VBox list = new VBox(8);
 
-    RoleSlotsEditor(RoleRepository roleRepository, List<RoleSlot> initialSlots) {
-        for (Role role : roleRepository.findAll()) {
+    RoleSlotsEditor(List<Role> roles, List<RoleSlot> initialSlots) {
+        for (Role role : roles) {
             Spinner<Integer> spinner = new Spinner<>(0, MAX_SLOT_COUNT, slotCount(initialSlots, role.id()));
             spinner.getStyleClass().add(Spinner.STYLE_CLASS_SPLIT_ARROWS_HORIZONTAL);
             // Trim the theme's roomy editor padding (7px 11px) so the field is

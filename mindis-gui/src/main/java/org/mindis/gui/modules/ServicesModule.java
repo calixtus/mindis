@@ -169,7 +169,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         TextField locationField = new TextField(service.location());
         TextField noteField = new TextField(service.note());
 
-        RoleSlotsEditor slotsEditor = new RoleSlotsEditor(roleRepository, service.slots());
+        RoleSlotsEditor slotsEditor = new RoleSlotsEditor(roleRepository.findAll(), service.slots());
 
         GridPane grid = new GridPane();
         grid.setHgap(8);

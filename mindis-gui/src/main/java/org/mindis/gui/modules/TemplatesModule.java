@@ -42,16 +42,13 @@ import org.mindis.workbench.CrudModule;
  */
 public class TemplatesModule extends CrudModule<ServiceTemplate> {
 
-    private static final int DEFAULT_DURATION_MINUTES = 60;
     private static final double EDITOR_MIN_HEIGHT = 420;
 
-    private final TemplateRepository templateRepository;
-    private final RoleRepository roleRepository;
+    private final TemplatesViewModel viewModel;
 
     public TemplatesModule(String name, TemplateRepository templateRepository, RoleRepository roleRepository) {
         super(name, "mdi2c-calendar-sync");
-        this.templateRepository = templateRepository;
-        this.roleRepository = roleRepository;
+        this.viewModel = new TemplatesViewModel(templateRepository, roleRepository);
 
         TableColumn<ServiceTemplate, String> dayColumn = new TableColumn<>(Localization.lang("Weekday"));
         dayColumn.setPrefWidth(110);
@@ -88,23 +85,22 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
 
     @Override
     protected ServiceTemplate createStub() {
-        return new ServiceTemplate(ServiceTemplate.newId(), DayOfWeek.SUNDAY, LocalTime.of(10, 0),
-                DEFAULT_DURATION_MINUTES, "", ServiceType.SUNDAY_MASS, List.of());
+        return viewModel.createStub();
     }
 
     @Override
     protected List<ServiceTemplate> loadAll() {
-        return templateRepository.findAll();
+        return viewModel.findAll();
     }
 
     @Override
     protected void persist(ServiceTemplate template) {
-        templateRepository.save(template);
+        viewModel.save(template);
     }
 
     @Override
     protected void delete(ServiceTemplate template) {
-        templateRepository.delete(template.id());
+        viewModel.delete(template);
     }
 
     @Override
@@ -147,7 +143,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
 
         TextField locationField = new TextField(template.location());
 
-        RoleSlotsEditor slotsEditor = new RoleSlotsEditor(roleRepository, template.slots());
+        RoleSlotsEditor slotsEditor = new RoleSlotsEditor(viewModel.findAllRoles(), template.slots());
 
         GridPane grid = new GridPane();
         grid.setHgap(8);
