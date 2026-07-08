@@ -1,9 +1,6 @@
 package org.mindis.gui.modules;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,15 +56,13 @@ public class ServersModule extends CrudModule<Server> {
     private static final double CELL_SIZE_FONT_FACTOR = 2.0;
     private static final double EDITOR_MIN_HEIGHT = 520;
 
-    private final ServerRepository serverRepository;
-    private final RoleRepository roleRepository;
+    private final ServersViewModel viewModel;
     private final UiPreferences uiPreferences;
 
     public ServersModule(String name, ServerRepository serverRepository, RoleRepository roleRepository,
                          UiPreferences uiPreferences) {
         super(name, "mdi2a-account-group");
-        this.serverRepository = serverRepository;
-        this.roleRepository = roleRepository;
+        this.viewModel = new ServersViewModel(serverRepository, roleRepository);
         this.uiPreferences = uiPreferences;
 
         TableColumn<Server, String> nameColumn = new TableColumn<>(Localization.lang("Name"));
@@ -78,7 +73,7 @@ public class ServersModule extends CrudModule<Server> {
         qualificationsColumn.setPrefWidth(160);
         qualificationsColumn.setCellValueFactory(data -> new SimpleStringProperty(
                 data.getValue().qualifications().stream()
-                        .map(this::roleName)
+                        .map(viewModel::roleName)
                         .sorted()
                         .collect(Collectors.joining(", "))));
 
@@ -104,32 +99,27 @@ public class ServersModule extends CrudModule<Server> {
 
     @Override
     protected Server createStub() {
-        return new Server(Server.newId(), "", "", "", null, null,
-                Set.of(), List.of(), Set.of(), false, true);
+        return viewModel.createStub();
     }
 
     @Override
     protected List<Server> loadAll() {
-        return serverRepository.findAll();
+        return viewModel.findAll();
     }
 
     @Override
     protected void persist(Server server) {
-        serverRepository.save(server);
+        viewModel.save(server);
     }
 
     @Override
     protected void delete(Server server) {
-        serverRepository.delete(server.id());
+        viewModel.delete(server);
     }
 
     @Override
     protected Object identity(Server server) {
         return server.id();
-    }
-
-    private String roleName(String roleId) {
-        return roleRepository.findById(roleId).map(Role::name).orElse(roleId);
     }
 
     @Override
@@ -140,7 +130,7 @@ public class ServersModule extends CrudModule<Server> {
         CalendarPicker birthDatePicker = CalendarPickers.create();
         birthDatePicker.setValue(server.birthDate());
         TextField familyIdField = new TextField(server.familyId() == null ? "" : server.familyId());
-        TextField preferredTimesField = new TextField(formatPreferredTimes(server.preferredTimes()));
+        TextField preferredTimesField = new TextField(viewModel.formatPreferredTimes(server.preferredTimes()));
         preferredTimesField.setPromptText("10:00, 18:30");
         CheckBox experiencedCheck = new CheckBox();
         experiencedCheck.setSelected(server.experienced());
@@ -154,7 +144,7 @@ public class ServersModule extends CrudModule<Server> {
                 uiPreferences.fontSizeProperty());
 
         Map<String, BooleanProperty> qualificationSelected = new HashMap<>();
-        ObservableList<Role> roles = FXCollections.observableArrayList(roleRepository.findAll());
+        ObservableList<Role> roles = FXCollections.observableArrayList(viewModel.findAllRoles());
         for (Role role : roles) {
             qualificationSelected.put(role.id(),
                     new SimpleBooleanProperty(server.qualifications().contains(role.id())));
@@ -275,7 +265,7 @@ public class ServersModule extends CrudModule<Server> {
                     familyId.isEmpty() ? null : familyId,
                     qualifications,
                     new ArrayList<>(unavailabilityList.getItems()),
-                    parsePreferredTimes(preferredTimesField.getText()),
+                    viewModel.parsePreferredTimes(preferredTimesField.getText()),
                     experiencedCheck.isSelected(),
                     activeCheck.isSelected()));
         });
@@ -284,25 +274,5 @@ public class ServersModule extends CrudModule<Server> {
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
         return content;
-    }
-
-    /** Parses "10:00, 18:30" style input; unparsable entries are dropped. */
-    private static Set<LocalTime> parsePreferredTimes(String text) {
-        Set<LocalTime> times = new HashSet<>();
-        for (String part : text.split(",")) {
-            try {
-                times.add(LocalTime.parse(part.strip(), DateTimeFormatter.ofPattern("H:mm")));
-            } catch (DateTimeParseException e) {
-                // Ignore invalid entries; the field is free-form.
-            }
-        }
-        return times;
-    }
-
-    private static String formatPreferredTimes(Set<LocalTime> times) {
-        return times.stream()
-                .sorted()
-                .map(LocalTime::toString)
-                .collect(Collectors.joining(", "));
     }
 }
