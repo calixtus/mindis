@@ -2,8 +2,6 @@ package org.mindis.gui.planning;
 
 import ai.timefold.solver.core.api.score.HardMediumSoftScore;
 
-import io.avaje.inject.Prototype;
-
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -25,13 +23,14 @@ import org.mindis.core.planning.ServicePlan;
 import org.mindis.core.preferences.PreferencesService;
 
 /**
- * ViewModel for {@link PlanningController}: owns every call into
- * {@link PlanningService}, {@link PlanRepository} and {@link PlanExportService},
- * plus the {@link PlanMapper} snapshot/apply plumbing between them, so the
- * controller only constructs UI, marshals async callbacks onto the FX thread,
- * and binds to this class.
+ * ViewModel for {@link org.mindis.gui.modules.ServicesModule}'s solve/save/
+ * export/archive workflow: owns every call into {@link PlanningService},
+ * {@link PlanRepository} and {@link PlanExportService}, plus the {@link
+ * PlanMapper} snapshot/apply plumbing between them, so the module only
+ * constructs UI, marshals async callbacks onto the FX thread, and binds to
+ * this class. Plain-constructed and held as a field for the app's lifetime,
+ * like {@code ServicesModule}'s other dependencies - not avaje-managed.
  */
-@Prototype
 public class PlanningViewModel {
 
     private final PlanningService planningService;

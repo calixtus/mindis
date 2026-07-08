@@ -18,14 +18,17 @@ import javafx.stage.Stage;
 
 import org.jspecify.annotations.Nullable;
 
+import org.mindis.core.export.PlanExportService;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.logging.LoggingBootstrap;
+import org.mindis.core.persistence.PlanRepository;
 import org.mindis.core.preferences.AccentColor;
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.persistence.TemplateRepository;
+import org.mindis.core.planning.PlanningService;
 import org.mindis.core.preferences.PreferencesService;
 import org.mindis.gui.di.AvajeDiAdapter;
 import org.mindis.gui.logging.AlertOnErrorHandler;
@@ -33,12 +36,12 @@ import org.mindis.gui.logging.LogConsoleHandler;
 import org.mindis.gui.logging.LogConsoleModel;
 import org.mindis.gui.modules.AboutModule;
 import org.mindis.gui.modules.DashboardModule;
-import org.mindis.gui.modules.PlanningModule;
 import org.mindis.gui.modules.RolesModule;
 import org.mindis.gui.modules.ServersModule;
 import org.mindis.gui.modules.ServicesModule;
 import org.mindis.gui.modules.SettingsModule;
 import org.mindis.gui.modules.TemplatesModule;
+import org.mindis.gui.planning.PlanningViewModel;
 import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.gui.theme.ThemeStyler;
 import org.mindis.workbench.Workbench;
@@ -159,8 +162,12 @@ public class MinDisApp extends Application {
                                 new ServicesModule(Localization.lang("Services"),
                                         beanScope.get(ServiceRepository.class),
                                         beanScope.get(TemplateRepository.class),
-                                        beanScope.get(RoleRepository.class)),
-                                new PlanningModule(Localization.lang("Planning")))
+                                        beanScope.get(RoleRepository.class),
+                                        new PlanningViewModel(
+                                                beanScope.get(PlanningService.class),
+                                                beanScope.get(PlanRepository.class),
+                                                preferencesService,
+                                                beanScope.get(PlanExportService.class))))
                         .bottomModule(new AboutModule(Localization.lang("About"), getHostServices(), logConsole))
                         .bottomModule(new SettingsModule(Localization.lang("Settings"), uiPreferences));
         if (sidebarWidth != null) {

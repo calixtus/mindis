@@ -35,7 +35,7 @@ import org.mindis.core.planning.AcceptedPlan;
  * only viewable and exportable, so there's no re-solve/re-save affordance
  * here.
  */
-final class ArchivedPlansDialog {
+public final class ArchivedPlansDialog {
 
     private static final DateTimeFormatter SAVED_AT_FORMAT =
             DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(ZoneId.systemDefault());
@@ -43,7 +43,7 @@ final class ArchivedPlansDialog {
     private ArchivedPlansDialog() {
     }
 
-    static void show(PlanningViewModel viewModel, Window owner) {
+    public static void show(PlanningViewModel viewModel, Window owner) {
         List<AcceptedPlan> archived = viewModel.listArchivedPlans();
 
         TableView<AcceptedPlan> table = new TableView<>();
