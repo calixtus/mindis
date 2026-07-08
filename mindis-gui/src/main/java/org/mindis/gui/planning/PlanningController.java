@@ -35,9 +35,9 @@ import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
 
 import java.io.File;
+import java.nio.file.Path;
 
 import org.mindis.core.export.PlanExportFormat;
-import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Server;
 import org.mindis.core.planning.ServicePlan;
@@ -106,12 +106,9 @@ public class PlanningController {
         toPicker.setValue(firstOfNextMonth.plusMonths(1).minusDays(1));
 
         dateColumn.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().assignment().serviceStart().format(DATE_TIME_FORMAT)));
-        serviceColumn.setCellValueFactory(data -> new SimpleStringProperty(
-                EnumDisplay.of(data.getValue().assignment().getService().type())
-                        + " " + data.getValue().assignment().getService().location()));
-        roleColumn.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().assignment().getRole().name()));
+                data.getValue().serviceStart().format(DATE_TIME_FORMAT)));
+        serviceColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().serviceLabel()));
+        roleColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().roleName()));
         violationsColumn.setCellValueFactory(data -> data.getValue().violationsProperty());
 
         serverColumn.setCellValueFactory(data -> data.getValue().serverProperty());
@@ -194,8 +191,6 @@ public class PlanningController {
         statusLabel.setText(Localization.lang("Plan saved"));
     }
 
-    private static File lastExportDirectory;
-
     @FXML
     private void onExport() {
         if (currentPlan == null || currentPlan.getAssignments().isEmpty()) {
@@ -209,15 +204,16 @@ public class PlanningController {
                 new FileChooser.ExtensionFilter("TXT", "*.txt"),
                 new FileChooser.ExtensionFilter("RTF", "*.rtf"),
                 new FileChooser.ExtensionFilter("Markdown", "*.md"));
-        if (lastExportDirectory != null && lastExportDirectory.isDirectory()) {
-            chooser.setInitialDirectory(lastExportDirectory);
-        }
+        viewModel.lastExportDirectory()
+                .map(Path::toFile)
+                .filter(File::isDirectory)
+                .ifPresent(chooser::setInitialDirectory);
         chooser.setInitialFileName("MinDis-" + fromPicker.getValue() + ".pdf");
         File target = chooser.showSaveDialog(assignmentsTable.getScene().getWindow());
         if (target == null) {
             return;
         }
-        lastExportDirectory = target.getParentFile();
+        viewModel.rememberExportDirectory(target.getParentFile().toPath());
         PlanExportFormat format = PlanningViewModel.resolveFormat(
                 target.getName(), chooser.getSelectedExtensionFilter().getExtensions());
         try {
@@ -273,7 +269,7 @@ public class PlanningController {
         updateScoreLabel(viewModel.scoreOf(currentPlan));
         Map<String, List<String>> violations = viewModel.violationsByAssignment(currentPlan);
         for (AssignmentRow row : rows) {
-            List<String> names = violations.getOrDefault(row.assignment().getId(), List.of());
+            List<String> names = violations.getOrDefault(row.id(), List.of());
             row.violationsProperty().set(names.stream()
                     .map(Localization::lang)
                     .distinct()

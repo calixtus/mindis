@@ -106,6 +106,16 @@ public class PlanningViewModel {
         return planningService.violationsByAssignment(plan);
     }
 
+    /** Directory the export {@code FileChooser} last saved into; empty until the first export. */
+    public Optional<Path> lastExportDirectory() {
+        String directory = preferencesService.get().lastExportDirectory();
+        return directory == null ? Optional.empty() : Optional.of(Path.of(directory));
+    }
+
+    public void rememberExportDirectory(Path directory) {
+        preferencesService.update(p -> p.withLastExportDirectory(directory.toString()));
+    }
+
     /**
      * Infers the export format from {@code fileName}'s extension, falling back
      * to the first of {@code fallbackExtensions} (e.g. a FileChooser filter's

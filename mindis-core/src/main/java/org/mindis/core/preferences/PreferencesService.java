@@ -104,6 +104,8 @@ public class PreferencesService {
         // them with defaults.
         // v5 -> v6: followSystemTheme added; absent boolean deserializes as
         // false (do not follow), which is the intended default.
+        // v6 -> v7: lastExportDirectory added; absent field deserializes as
+        // null, which is the intended default (no remembered directory yet).
         int solverSeconds = loaded.solverSecondsLimit() > 0
                 ? loaded.solverSecondsLimit()
                 : MinDisPreferences.DEFAULT_SOLVER_SECONDS;
@@ -117,7 +119,8 @@ public class PreferencesService {
                 loaded.accentColor(),
                 loaded.fontFamily(),
                 loaded.fontSize(),
-                loaded.followSystemTheme());
+                loaded.followSystemTheme(),
+                loaded.lastExportDirectory());
     }
 
     private void save(MinDisPreferences preferences) {

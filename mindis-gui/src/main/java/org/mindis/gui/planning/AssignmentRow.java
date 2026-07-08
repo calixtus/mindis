@@ -1,5 +1,7 @@
 package org.mindis.gui.planning;
 
+import java.time.LocalDateTime;
+
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -7,6 +9,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
+import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.model.Server;
 import org.mindis.core.planning.Assignment;
 
@@ -29,8 +32,22 @@ public final class AssignmentRow {
         this.pinned.subscribe(assignment::setPinned);
     }
 
-    public Assignment assignment() {
-        return assignment;
+    /** Assignment id, for matching against {@link org.mindis.core.planning.PlanningService} violation results. */
+    public String id() {
+        return assignment.getId();
+    }
+
+    public LocalDateTime serviceStart() {
+        return assignment.serviceStart();
+    }
+
+    /** Service type and location, e.g. {@code "Sunday Mass St. Mary"}. */
+    public String serviceLabel() {
+        return EnumDisplay.of(assignment.getService().type()) + " " + assignment.getService().location();
+    }
+
+    public String roleName() {
+        return assignment.getRole().name();
     }
 
     /**
