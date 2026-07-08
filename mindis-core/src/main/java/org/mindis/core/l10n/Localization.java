@@ -3,10 +3,10 @@ package org.mindis.core.l10n;
 import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Localization with full-text keys (JabRef style): the key IS the English text.
@@ -22,7 +22,7 @@ import org.jspecify.annotations.Nullable;
  */
 public final class Localization {
 
-    private static final Logger LOGGER = Logger.getLogger(Localization.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(Localization.class);
     private static final String BUNDLE_BASE_NAME = "org.mindis.core.l10n.MinDis";
 
     private static volatile ResourceBundle bundle = loadBundle(Locale.getDefault());
@@ -44,7 +44,7 @@ public final class Localization {
         try {
             translation = bundle.getString(englishText);
         } catch (MissingResourceException e) {
-            LOGGER.log(Level.FINE, "No translation for key: {0}", englishText);
+            LOGGER.debug("No translation for key: {}", englishText);
             translation = englishText;
         }
         for (int i = 0; i < parameters.length; i++) {

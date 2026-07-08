@@ -10,8 +10,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import javafx.application.Platform;
@@ -38,6 +36,8 @@ import java.io.File;
 import java.nio.file.Path;
 
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.mindis.core.export.PlanExportFormat;
 import org.mindis.core.l10n.Localization;
@@ -53,7 +53,7 @@ import org.mindis.gui.util.CalendarPickers;
 public class PlanningController {
 
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
-    private static final Logger LOGGER = Logger.getLogger(PlanningController.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(PlanningController.class);
 
     private final PlanningViewModel viewModel;
 
@@ -167,7 +167,7 @@ public class PlanningController {
                         applySolution(finalBest, true);
                         statusLabel.setText(Localization.lang("Solving finished"));
                     } catch (RuntimeException e) {
-                        LOGGER.log(Level.SEVERE, "Could not apply the final solution", e);
+                        LOGGER.error("Could not apply the final solution", e);
                         statusLabel.setText(Localization.lang("Solving failed: %0", e.getMessage()));
                     } finally {
                         solving.set(false);
@@ -175,7 +175,7 @@ public class PlanningController {
                 }),
                 error -> Platform.runLater(() -> {
                     solving.set(false);
-                    LOGGER.log(Level.SEVERE, "Solving failed", error);
+                    LOGGER.error("Solving failed", error);
                     statusLabel.setText(Localization.lang("Solving failed: %0", error.getMessage()));
                 }));
     }

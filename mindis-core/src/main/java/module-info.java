@@ -13,7 +13,11 @@ module org.mindis.core {
     exports org.mindis.core.preferences;
 
     requires org.jspecify;
+    // java.logging is for org.mindis.core.logging.LoggingBootstrap only,
+    // which configures the JUL backend itself; everything else in this
+    // module logs through org.slf4j.
     requires java.logging;
+    requires org.slf4j;
     requires io.avaje.inject;
     requires jakarta.inject;
     requires com.fasterxml.jackson.databind;

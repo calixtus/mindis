@@ -13,8 +13,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Loads and saves a list of records as one pretty-printed JSON file.
@@ -23,7 +24,7 @@ import java.util.logging.Logger;
  */
 public final class JsonStore<T> {
 
-    private static final Logger LOGGER = Logger.getLogger(JsonStore.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(JsonStore.class);
 
     private final Path file;
     private final ObjectMapper objectMapper;
@@ -46,7 +47,7 @@ public final class JsonStore<T> {
         try {
             return objectMapper.readValue(file.toFile(), listType);
         } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Could not read " + file + ", starting empty", e);
+            LOGGER.warn("Could not read {}, starting empty", file, e);
             return List.of();
         }
     }

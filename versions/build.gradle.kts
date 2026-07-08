@@ -38,9 +38,13 @@ dependencies.constraints {
 
     api("org.jspecify:jspecify:1.0.0")
 
-    // Bridges the slf4j-api pulled in transitively (avaje-inject et al) into
-    // java.util.logging, so library log calls land in the same console/file
-    // handlers as the app's own JUL loggers (org.mindis.core.logging).
+    // mindis's own code logs through slf4j-api (never java.util.logging
+    // directly, except org.mindis.core.logging.LoggingBootstrap and
+    // org.mindis.gui.logging.AlertOnErrorHandler, which configure/extend the
+    // JUL backend itself). slf4j-jdk14 binds both that and every
+    // slf4j-emitting third-party library (avaje-inject et al) into the same
+    // JUL handlers, so console/file output is unified regardless of caller.
+    api("org.slf4j:slf4j-api:2.0.18")
     api("org.slf4j:slf4j-jdk14:2.0.18")
 
     api("org.kordamp.ikonli:ikonli-core:12.4.0")

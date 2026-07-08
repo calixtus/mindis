@@ -15,10 +15,10 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Loads and stores {@link MinDisPreferences} as JSON in the user data
@@ -31,7 +31,7 @@ import org.jspecify.annotations.Nullable;
 @Singleton
 public class PreferencesService {
 
-    private static final Logger LOGGER = Logger.getLogger(PreferencesService.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(PreferencesService.class);
 
     private final Path preferencesFile;
     private final ObjectMapper objectMapper;
@@ -89,7 +89,7 @@ public class PreferencesService {
             MinDisPreferences loaded = objectMapper.readValue(preferencesFile.toFile(), MinDisPreferences.class);
             return migrate(loaded);
         } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Could not read preferences, falling back to defaults: " + preferencesFile, e);
+            LOGGER.warn("Could not read preferences, falling back to defaults: {}", preferencesFile, e);
             return MinDisPreferences.defaults();
         }
     }
@@ -143,7 +143,7 @@ public class PreferencesService {
                 Files.move(tempFile, preferencesFile, StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Could not save preferences: " + preferencesFile, e);
+            LOGGER.warn("Could not save preferences: {}", preferencesFile, e);
         }
     }
 }

@@ -7,7 +7,7 @@ module org.mindis.workbench {
     exports org.mindis.workbench;
 
     requires org.jspecify;
-    requires java.logging;
+    requires org.slf4j;
     requires javafx.controls;
     requires org.kordamp.ikonli.javafx;
     // Icon pack resolved via ServiceLoader; must be in the module graph.

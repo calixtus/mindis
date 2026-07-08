@@ -17,10 +17,18 @@ open module org.mindis.gui {
     requires io.avaje.inject;
     requires jakarta.inject;
     requires ai.timefold.solver.core;
+    requires org.slf4j;
+
+    // java.logging is for org.mindis.gui.logging.AlertOnErrorHandler (a JUL
+    // Handler) and registering it on the JUL root logger; everything else in
+    // this module logs through org.slf4j.
     requires java.logging;
 
-    // Binds the slf4j-api pulled in transitively (avaje-inject et al) to
-    // java.util.logging; never referenced directly from mindis code.
+    // Binds org.slf4j (both mindis's own calls and every slf4j-emitting
+    // third-party library, e.g. avaje-inject) into java.util.logging, so
+    // console/file output all lands in the same JUL handlers
+    // (org.mindis.core.logging.LoggingBootstrap). Runtime-only: nothing in
+    // mindis code references this module's types directly.
     requires org.slf4j.jul;
 
     provides io.avaje.inject.spi.InjectExtension with org.mindis.gui.GuiModule;

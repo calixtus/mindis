@@ -6,8 +6,6 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -33,6 +31,8 @@ import javafx.stage.FileChooser;
 import javafx.stage.Window;
 
 import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Base {@link WorkbenchModule} for the common "table on the left, editor on
@@ -69,7 +69,7 @@ import org.jspecify.annotations.Nullable;
  */
 public abstract class CrudModule<T> extends WorkbenchModule {
 
-    private static final Logger LOGGER = Logger.getLogger(CrudModule.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(CrudModule.class);
     private static final PseudoClass CRUD_NEW = PseudoClass.getPseudoClass("crud-new");
 
     private final TableView<T> table = new TableView<>();
@@ -293,7 +293,7 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         try (Writer writer = Files.newBufferedWriter(target.toPath())) {
             CsvIO.write(writer, mapper.header(), rows);
         } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "CSV export failed: " + target, e);
+            LOGGER.warn("CSV export failed: {}", target, e);
             new Alert(AlertType.ERROR, e.getMessage()).showAndWait();
         }
     }
@@ -321,7 +321,7 @@ public abstract class CrudModule<T> extends WorkbenchModule {
             refresh();
             new Alert(AlertType.INFORMATION, importSummary(imported, dataRows.size())).showAndWait();
         } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "CSV import failed: " + source, e);
+            LOGGER.warn("CSV import failed: {}", source, e);
             new Alert(AlertType.ERROR, e.getMessage()).showAndWait();
         }
     }
