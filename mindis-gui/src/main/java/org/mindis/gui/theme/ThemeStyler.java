@@ -161,6 +161,10 @@ public final class ThemeStyler {
             .search-field-list-view > .virtual-flow > .clipped-container > .sheet > .list-cell {
               -fx-background-color: -color-bg-overlay;
             }
+            .tile .title {
+              -fx-wrap-text: false;
+              -fx-text-overrun: ellipsis;
+            }
             """;
 
     static String buildCss(MinDisPreferences.Theme theme, String accentHex,

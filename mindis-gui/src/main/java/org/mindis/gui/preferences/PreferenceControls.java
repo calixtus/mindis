@@ -5,6 +5,7 @@ import java.util.Arrays;
 import javafx.beans.property.Property;
 import javafx.collections.FXCollections;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Slider;
 import javafx.util.StringConverter;
 
 import org.jspecify.annotations.Nullable;
@@ -38,5 +39,28 @@ public final class PreferenceControls {
         });
         box.valueProperty().bindBidirectional(property);
         return box;
+    }
+
+    /**
+     * An AtlantaFX-themed {@link Slider} bound to an integer preference.
+     * {@code Slider.valueProperty()} is a primitive {@code DoubleProperty} -
+     * plain JavaFX bidirectional binding needs matching types, so this syncs
+     * both directions by hand instead, rounding on the way into the
+     * (integer) preference.
+     */
+    public static Slider intSlider(int min, int max, Property<Integer> property) {
+        Slider slider = new Slider(min, max, property.getValue());
+        slider.valueProperty().addListener((obs, oldValue, newValue) -> {
+            int rounded = (int) Math.round(newValue.doubleValue());
+            if (!Integer.valueOf(rounded).equals(property.getValue())) {
+                property.setValue(rounded);
+            }
+        });
+        property.addListener((obs, oldValue, newValue) -> {
+            if (newValue != null && slider.getValue() != newValue.doubleValue()) {
+                slider.setValue(newValue);
+            }
+        });
+        return slider;
     }
 }
