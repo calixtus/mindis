@@ -160,6 +160,37 @@ class MinDisConstraintProviderTest {
     }
 
     @Test
+    void assignmentTooCloseToPriorPlanPenalized() {
+        Server one = server("s1", Set.of(Role.ACOLYTE));
+        verifier.verifyThat(MinDisConstraintProvider::spacingFromPriorPlan)
+                .given(
+                        assigned("a1", serviceAt("svc1", SUNDAY_10), ROLE_ACOLYTE, one),
+                        new PriorAssignment(SUNDAY_10.toLocalDate().minusDays(1), one))
+                .penalizesBy(1);
+    }
+
+    @Test
+    void assignmentFarFromPriorPlanNotPenalized() {
+        Server one = server("s1", Set.of(Role.ACOLYTE));
+        verifier.verifyThat(MinDisConstraintProvider::spacingFromPriorPlan)
+                .given(
+                        assigned("a1", serviceAt("svc1", SUNDAY_10), ROLE_ACOLYTE, one),
+                        new PriorAssignment(SUNDAY_10.toLocalDate().minusDays(7), one))
+                .penalizesBy(0);
+    }
+
+    @Test
+    void differentServerAcrossPriorPlanNotPenalized() {
+        Server one = server("s1", Set.of(Role.ACOLYTE));
+        Server two = server("s2", Set.of(Role.ACOLYTE));
+        verifier.verifyThat(MinDisConstraintProvider::spacingFromPriorPlan)
+                .given(
+                        assigned("a1", serviceAt("svc1", SUNDAY_10), ROLE_ACOLYTE, one),
+                        new PriorAssignment(SUNDAY_10.toLocalDate().minusDays(1), two))
+                .penalizesBy(0);
+    }
+
+    @Test
     void underageServerPenalizedForAgeRestrictedRole() {
         Role thurifer14 = new Role(Role.THURIFER, "Thurifer", 14, null, 2);
         Server child = new Server("s1", "A", "B", "", LocalDate.of(2016, 1, 1), null,

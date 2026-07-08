@@ -25,6 +25,7 @@ import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.Server;
+import org.mindis.core.persistence.PlanRepository;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
@@ -46,17 +47,20 @@ public class PlanningService implements AutoCloseable {
     private final ServiceRepository serviceRepository;
     private final RoleRepository roleRepository;
     private final PreferencesService preferencesService;
+    private final PlanRepository planRepository;
     private final SolverManager<ServicePlan> solverManager;
     private final SolutionManager<ServicePlan, HardMediumSoftScore> solutionManager;
 
     public PlanningService(ServerRepository serverRepository,
                            ServiceRepository serviceRepository,
                            RoleRepository roleRepository,
-                           PreferencesService preferencesService) {
+                           PreferencesService preferencesService,
+                           PlanRepository planRepository) {
         this.serverRepository = serverRepository;
         this.serviceRepository = serviceRepository;
         this.roleRepository = roleRepository;
         this.preferencesService = preferencesService;
+        this.planRepository = planRepository;
         this.solverManager = SolverManager.create(solverConfig());
         this.solutionManager = SolutionManager.create(solverManager);
     }
@@ -101,8 +105,48 @@ public class PlanningService implements AutoCloseable {
             }
         }
         ServicePlan plan = new ServicePlan(activeServers, assignments);
+        plan.setPriorAssignments(buildPriorAssignments(from));
         plan.setConstraintWeightOverrides(weightOverridesFromPreferences());
         return plan;
+    }
+
+    /**
+     * {@link PriorAssignment} facts from the plan immediately preceding
+     * {@code from}, if any, trimmed to the {@link
+     * MinDisConstraintProvider#SPACING_THRESHOLD_DAYS}-day tail that {@link
+     * MinDisConstraintProvider#spacingFromPriorPlan} actually looks at -
+     * loading the rest of a possibly month-long prior plan would just be
+     * dead weight in the solver's fact list.
+     */
+    private List<PriorAssignment> buildPriorAssignments(LocalDate from) {
+        return planRepository.mostRecentBefore(from)
+                .map(prior -> priorAssignmentsFrom(prior, from))
+                .orElse(List.of());
+    }
+
+    private List<PriorAssignment> priorAssignmentsFrom(AcceptedPlan prior, LocalDate from) {
+        LocalDate cutoff = from.minusDays(MinDisConstraintProvider.SPACING_THRESHOLD_DAYS);
+        List<PriorAssignment> result = new ArrayList<>();
+        for (AcceptedPlan.PlannedAssignment assignment : prior.assignments()) {
+            String serverId = assignment.serverId();
+            if (serverId == null) {
+                continue;
+            }
+            LiturgicalService service = serviceRepository.findById(assignment.serviceId()).orElse(null);
+            if (service == null) {
+                continue;
+            }
+            LocalDate date = service.dateTime().toLocalDate();
+            if (date.isBefore(cutoff)) {
+                continue;
+            }
+            Server server = serverRepository.findById(serverId).orElse(null);
+            if (server == null) {
+                continue;
+            }
+            result.add(new PriorAssignment(date, server));
+        }
+        return result;
     }
 
     private ConstraintWeightOverrides<HardMediumSoftScore> weightOverridesFromPreferences() {

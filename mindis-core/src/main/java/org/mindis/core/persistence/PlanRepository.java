@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import jakarta.inject.Singleton;
 
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,5 +35,17 @@ public class PlanRepository {
 
     public synchronized void save(AcceptedPlan plan) {
         store.save(List.of(plan));
+    }
+
+    /**
+     * The most recently saved plan that ended before {@code date}, if any -
+     * used by {@link org.mindis.core.planning.PlanningService} to seed
+     * {@link org.mindis.core.planning.PriorAssignment} facts so the solver
+     * can see across a plan boundary. Only the single stored plan exists yet
+     * (single-slot store, see class doc); once archiving keeps plan history
+     * this should search the full archive for the latest match instead.
+     */
+    public synchronized Optional<AcceptedPlan> mostRecentBefore(LocalDate date) {
+        return load().filter(plan -> plan.toInclusive().isBefore(date));
     }
 }

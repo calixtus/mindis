@@ -32,10 +32,17 @@ public class MinDisConstraintProvider implements ConstraintProvider {
     static final int FAIRNESS_WEIGHT = 2;
     static final int SIBLINGS_REWARD = 5;
     static final int SPACING_PENALTY = 3;
+    static final int PRIOR_SPACING_PENALTY = 3;
 
     static final int PREFERRED_TIME_REWARD = 2;
     static final int EXPERIENCE_REWARD = 4;
     static final int AGE_REQUIREMENT_PENALTY = 4;
+
+    // Shared with PlanningService, which uses it to decide how much of a
+    // preceding plan's tail is even worth loading as PriorAssignment facts -
+    // one number so the "how close counts as too close" definition can't
+    // drift between the two.
+    public static final long SPACING_THRESHOLD_DAYS = 1;
 
     // Constraint names double as full-text localization keys (PLAN.md 2.3)
     // and are reused by ViolationChecker for the per-assignment display.
@@ -47,6 +54,7 @@ public class MinDisConstraintProvider implements ConstraintProvider {
     public static final String UNBALANCED_WORKLOAD = "Unbalanced workload";
     public static final String SIBLINGS_TOGETHER = "Siblings serve together";
     public static final String TOO_CLOSE = "Assignments too close together";
+    public static final String TOO_CLOSE_TO_PRIOR_PLAN = "Too close to previous plan";
     public static final String PREFERRED_TIME = "Preferred service time";
     public static final String EXPERIENCED_PRESENT = "Experienced server present";
     public static final String AGE_REQUIREMENT = "Server age outside role range";
@@ -60,6 +68,7 @@ public class MinDisConstraintProvider implements ConstraintProvider {
                 UNBALANCED_WORKLOAD,
                 SIBLINGS_TOGETHER,
                 TOO_CLOSE,
+                TOO_CLOSE_TO_PRIOR_PLAN,
                 PREFERRED_TIME,
                 EXPERIENCED_PRESENT,
                 AGE_REQUIREMENT);
@@ -74,6 +83,7 @@ public class MinDisConstraintProvider implements ConstraintProvider {
                 UNBALANCED_WORKLOAD, FAIRNESS_WEIGHT,
                 SIBLINGS_TOGETHER, SIBLINGS_REWARD,
                 TOO_CLOSE, SPACING_PENALTY,
+                TOO_CLOSE_TO_PRIOR_PLAN, PRIOR_SPACING_PENALTY,
                 PREFERRED_TIME, PREFERRED_TIME_REWARD,
                 EXPERIENCED_PRESENT, EXPERIENCE_REWARD,
                 AGE_REQUIREMENT, AGE_REQUIREMENT_PENALTY);
@@ -90,6 +100,7 @@ public class MinDisConstraintProvider implements ConstraintProvider {
                 fairWorkloadDistribution(factory),
                 siblingsServeTogether(factory),
                 spacingBetweenAssignments(factory),
+                spacingFromPriorPlan(factory),
                 preferredServiceTime(factory),
                 experiencedServerPresent(factory),
                 ageWithinRoleRequirement(factory)
@@ -165,9 +176,35 @@ public class MinDisConstraintProvider implements ConstraintProvider {
                         filtering((a, b) -> !a.getService().id().equals(b.getService().id())
                                 && Math.abs(ChronoUnit.DAYS.between(
                                         a.serviceStart().toLocalDate(),
-                                        b.serviceStart().toLocalDate())) <= 1))
+                                        b.serviceStart().toLocalDate())) <= SPACING_THRESHOLD_DAYS))
                 .penalize(HardMediumSoftScore.ofSoft(SPACING_PENALTY))
                 .asConstraint(TOO_CLOSE);
+    }
+
+    /**
+     * The same "not too close together" intent as {@link
+     * #spacingBetweenAssignments}, but across a plan boundary: penalizes a
+     * server assigned within {@link #SPACING_THRESHOLD_DAYS} of a day they
+     * already served in the immediately preceding plan. A solve is confined
+     * to its own date range (PlanningService#buildProblem), so without this
+     * the solver has no way to know - and no way to be penalized for -
+     * scheduling the same server again the day after a previous plan ended.
+     * A separate constraint (not folded into spacingBetweenAssignments)
+     * because {@link PriorAssignment} isn't an {@link Assignment} - it's a
+     * read-only fact, never a planning entity - so it needs its own {@code
+     * join} rather than a {@code forEachUniquePair}; that in turn means its
+     * own constraint id, since Timefold requires those unique, which is why
+     * it has its own (separately tunable) weight rather than sharing {@link
+     * #SPACING_PENALTY}.
+     */
+    @SuppressWarnings("NullAway")
+    Constraint spacingFromPriorPlan(ConstraintFactory factory) {
+        return factory.forEach(Assignment.class)
+                .join(PriorAssignment.class, equal(Assignment::getServer, PriorAssignment::server))
+                .filter((assignment, prior) -> Math.abs(ChronoUnit.DAYS.between(
+                        assignment.serviceStart().toLocalDate(), prior.date())) <= SPACING_THRESHOLD_DAYS)
+                .penalize(HardMediumSoftScore.ofSoft(PRIOR_SPACING_PENALTY))
+                .asConstraint(TOO_CLOSE_TO_PRIOR_PLAN);
     }
 
     @SuppressWarnings("NullAway")

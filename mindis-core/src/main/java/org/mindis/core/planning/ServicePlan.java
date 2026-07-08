@@ -28,6 +28,13 @@ public class ServicePlan {
     @PlanningEntityCollectionProperty
     private List<Assignment> assignments;
 
+    // Read-only facts from the plan immediately preceding this one - not
+    // planning entities, never touched by the solver, exist only so
+    // MinDisConstraintProvider#spacingFromPriorPlan can see across the plan
+    // boundary. Empty unless a preceding plan exists.
+    @ProblemFactCollectionProperty
+    private List<PriorAssignment> priorAssignments = List.of();
+
     // Detected by field type: user-tunable soft constraint weights.
     private ConstraintWeightOverrides<HardMediumSoftScore> constraintWeightOverrides =
             ConstraintWeightOverrides.none();
@@ -58,6 +65,14 @@ public class ServicePlan {
 
     public List<Assignment> getAssignments() {
         return assignments;
+    }
+
+    public List<PriorAssignment> getPriorAssignments() {
+        return priorAssignments;
+    }
+
+    public void setPriorAssignments(List<PriorAssignment> priorAssignments) {
+        this.priorAssignments = priorAssignments;
     }
 
     public @Nullable HardMediumSoftScore getScore() {
