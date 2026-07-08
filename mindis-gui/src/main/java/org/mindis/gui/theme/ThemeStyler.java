@@ -53,6 +53,85 @@ public final class ThemeStyler {
                 Math.round(color.getBlue() * 255));
     }
 
+    /**
+     * Fallback definitions for legacy Modena tokens ({@code -fx-control-inner-background},
+     * {@code -fx-selection-bar-text}, ...) that GemsFX's bundled control CSS
+     * (CalendarPicker, SearchField/TagsField, TimePicker, ...) looks up but
+     * AtlantaFX's from-scratch {@code -color-*} stylesheet never defines -
+     * left unresolved, JavaFX logs a ClassCastException/"could not resolve"
+     * warning per lookup and the rule fails to paint. Defined once here
+     * (rather than per-control, as {@code CalendarPickers} does for rules
+     * this doesn't cover) because it's the only stylesheet popups consult
+     * (see the class javadoc), which per-control author stylesheets don't
+     * reach. Inert for AtlantaFX's own styling of standard controls - they
+     * key off {@code -color-*} tokens, never these.
+     *
+     * <p>{@code -fx-selection-bar-text} is GemsFX's row text color in
+     * {@code search-field-list-view} - applied via ONE unconditional rule to
+     * every row regardless of state (see {@code search-field.css}), so it
+     * can't differ between idle/hover/selected. Direct rule overrides
+     * targeting the hover/selected {@code .text} node specifically (tried
+     * first) never took effect: the popup's {@code ListView} overrides
+     * {@link javafx.scene.Node#getUserAgentStylesheet()} to return GemsFX's
+     * {@code search-field.css} directly (see {@code SearchFieldPopupSkin}),
+     * and per-Node user-agent stylesheets win property-for-property ties
+     * against the application-wide one from here, regardless of selector
+     * specificity - confirmed empirically (background token substitutions
+     * always took effect; competing background/fill *rules* for the same
+     * property never did).
+     *
+     * <p>What does reliably cross that boundary is custom-property
+     * (token) *inheritance*, since that's resolved by the normal CSS
+     * cascade rather than a property-value tie - the crash-fix tokens below
+     * prove it (zero resolution warnings). So instead of fighting for a
+     * rule, {@code -fx-accent}/{@code -fx-selection-bar} are redefined with
+     * a *scope*: pale ({@code -color-accent-subtle}) only inside
+     * {@code .search-field-list-view}, versus vivid
+     * ({@code -color-accent-emphasis}) at {@code .root} for whatever else
+     * (CalendarPicker, TimePicker, ...) still wants the strong version -
+     * both tokens are Modena-only (AtlantaFX's own controls key off
+     * {@code -color-*} directly, confirmed against {@code .button.accent}),
+     * so nothing outside this popup is affected. With hover/selected now
+     * pale rather than saturated, the same blanket
+     * {@code -fx-selection-bar-text} ({@code -color-fg-default}, dark)
+     * stays legible across all three row states - no per-state text swap
+     * needed at all.
+     *
+     * <p>The popup's own idle row background needed a separate fix:
+     * {@code search-field-list-view}'s original rule paints it with
+     * {@code linear-gradient(derive(-fx-color,-17%), derive(-fx-color,-30%))}
+     * layered under {@code -fx-control-inner-background} - patching the
+     * tokens that gradient derives from still leaves a *derived*, not flat,
+     * result. This one *is* a safe direct-rule override, unlike the
+     * hover/selected case above: GemsFX's idle-row rule only ever sets
+     * {@code -fx-background} (an unused intermediate, never converted to
+     * {@code -fx-background-color} for the idle state), so there's no
+     * competing property value to lose a tie against. Flattened to
+     * {@code -color-bg-overlay} (AtlantaFX's own popup-surface token),
+     * exactly what {@code CalendarPickers} does for gemsfx's calendar popup.
+     */
+    private static final String MODENA_COMPAT_CSS = """
+            .root {
+              -fx-control-inner-background: -color-bg-default;
+              -fx-text-background-color: -color-fg-default;
+              -fx-text-inner-color: -color-fg-default;
+              -fx-selection-bar: -color-accent-emphasis;
+              -fx-selection-bar-text: -color-fg-default;
+              -fx-cell-focus-inner-border: -color-border-default;
+              -fx-accent: -color-accent-emphasis;
+              -fx-color: -color-bg-default;
+              -fx-base: -color-bg-default;
+            }
+            .search-field-list-view {
+              -fx-background-color: -color-bg-overlay;
+              -fx-accent: -color-accent-subtle;
+              -fx-selection-bar: -color-accent-subtle;
+            }
+            .search-field-list-view > .virtual-flow > .clipped-container > .sheet > .list-cell {
+              -fx-background-color: -color-bg-overlay;
+            }
+            """;
+
     static String buildCss(MinDisPreferences.Theme theme, String accentHex,
                            String fontFamily, int fontSize) {
         StringBuilder root = new StringBuilder();
@@ -77,7 +156,7 @@ public final class ThemeStyler {
             root.append("  -fx-font-size: ").append(fontSize).append("px;\n");
         }
 
-        StringBuilder css = new StringBuilder();
+        StringBuilder css = new StringBuilder(MODENA_COMPAT_CSS);
         if (!root.isEmpty()) {
             css.append(".root {\n").append(root).append("}\n");
         }

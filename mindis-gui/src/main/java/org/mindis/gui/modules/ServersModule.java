@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -37,6 +38,7 @@ import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
 import com.dlsc.gemsfx.CalendarPicker;
+import com.dlsc.gemsfx.SearchField;
 
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
@@ -49,6 +51,7 @@ import org.mindis.core.persistence.ServerCsvMapper;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.gui.util.CalendarPickers;
+import org.mindis.gui.util.SearchFields;
 import org.mindis.workbench.CrudModule;
 import org.mindis.workbench.CsvRowMapper;
 
@@ -142,7 +145,7 @@ public class ServersModule extends CrudModule<Server> {
         TextField contactField = new TextField(server.contact());
         CalendarPicker birthDatePicker = CalendarPickers.create();
         birthDatePicker.setValue(server.birthDate());
-        TextField familyIdField = new TextField(server.familyId() == null ? "" : server.familyId());
+        SearchField<String> familyIdField = buildFamilyIdField(server.familyId());
         TextField preferredTimesField = new TextField(viewModel.formatPreferredTimes(server.preferredTimes()));
         preferredTimesField.setPromptText("10:00, 18:30");
         CheckBox experiencedCheck = new CheckBox();
@@ -287,5 +290,43 @@ public class ServersModule extends CrudModule<Server> {
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
         return content;
+    }
+
+    /**
+     * Free-text field with autocomplete over family ids already used by other
+     * servers, so a sibling gets linked to an existing family instead of a
+     * typo'd new one. A brand-new id (no match) is still accepted as-is via
+     * {@link SearchField#setNewItemProducer} - otherwise {@code commit()}
+     * would silently clear whatever the user typed.
+     */
+    private SearchField<String> buildFamilyIdField(@Nullable String familyId) {
+        SearchField<String> field = new SearchField<>();
+        SearchFields.applyTheme(field);
+        field.setPromptText(Localization.lang("Family"));
+        field.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(@Nullable String value) {
+                return value == null ? "" : value;
+            }
+
+            @Override
+            public String fromString(@Nullable String string) {
+                return string == null ? "" : string;
+            }
+        });
+        field.setMatcher((item, searchText) -> item.toLowerCase(Locale.ROOT).startsWith(searchText.toLowerCase(Locale.ROOT)));
+        field.setSuggestionProvider(request -> viewModel.familyIds().stream()
+                .filter(id -> id.toLowerCase(Locale.ROOT).contains(request.getUserText().toLowerCase(Locale.ROOT)))
+                .toList());
+        field.setNewItemProducer(text -> text);
+        // Seed via setSelectedItem(), not setText(): the editor's text listener
+        // starts a live search on every text change unless SearchField's own
+        // internal "committing" guard is active, which only setSelectedItem()
+        // (while the editor is still blank) goes through - setText() here would
+        // pop the suggestion popup open the instant the editor is built.
+        if (familyId != null && !familyId.isBlank()) {
+            field.setSelectedItem(familyId);
+        }
+        return field;
     }
 }

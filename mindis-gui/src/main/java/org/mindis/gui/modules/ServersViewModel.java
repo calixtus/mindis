@@ -55,6 +55,16 @@ final class ServersViewModel {
         return roleRepository.findById(roleId).map(Role::name).orElse(roleId);
     }
 
+    /** Family ids already in use, for the Family field's suggestion popup. */
+    List<String> familyIds() {
+        return serverRepository.findAll().stream()
+                .map(Server::familyId)
+                .filter(familyId -> familyId != null && !familyId.isBlank())
+                .distinct()
+                .sorted()
+                .toList();
+    }
+
     /** Parses "10:00, 18:30" style input; unparsable entries are dropped. */
     Set<LocalTime> parsePreferredTimes(String text) {
         return ServerCsvMapper.parsePreferredTimes(text);
