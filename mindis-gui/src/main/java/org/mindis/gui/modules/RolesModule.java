@@ -32,15 +32,14 @@ import org.mindis.workbench.CrudModule;
  */
 public class RolesModule extends CrudModule<Role> {
 
-    private static final int SORT_ORDER_STEP = 10;
     private static final int MIN_AGE = 1;
     private static final int MAX_AGE = 120;
 
-    private final RoleRepository roleRepository;
+    private final RolesViewModel viewModel;
 
     public RolesModule(String name, RoleRepository roleRepository) {
         super(name, "mdi2t-tag-multiple");
-        this.roleRepository = roleRepository;
+        this.viewModel = new RolesViewModel(roleRepository);
 
         TableColumn<Role, String> nameColumn = new TableColumn<>(Localization.lang("Name"));
         nameColumn.setPrefWidth(200);
@@ -67,22 +66,22 @@ public class RolesModule extends CrudModule<Role> {
 
     @Override
     protected Role createStub() {
-        return new Role(Role.newId(), "", null, null, nextSortOrder());
+        return viewModel.createStub();
     }
 
     @Override
     protected List<Role> loadAll() {
-        return roleRepository.findAll();
+        return viewModel.findAll();
     }
 
     @Override
     protected void persist(Role role) {
-        roleRepository.save(role);
+        viewModel.save(role);
     }
 
     @Override
     protected void delete(Role role) {
-        roleRepository.delete(role.id());
+        viewModel.delete(role);
     }
 
     @Override
@@ -141,13 +140,6 @@ public class RolesModule extends CrudModule<Role> {
         VBox content = new VBox(12, grid, new HBox(saveButton));
         content.setPadding(new Insets(12));
         return content;
-    }
-
-    private int nextSortOrder() {
-        return roleRepository.findAll().stream()
-                .mapToInt(Role::sortOrder)
-                .max()
-                .orElse(-SORT_ORDER_STEP) + SORT_ORDER_STEP;
     }
 
     /**
