@@ -34,6 +34,7 @@ import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.persistence.RoleRepository;
+import org.mindis.core.persistence.TemplateCsvMapper;
 import org.mindis.core.persistence.TemplateRepository;
 import org.mindis.workbench.CrudModule;
 import org.mindis.workbench.CsvRowMapper;
@@ -83,8 +84,9 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelected());
 
+        TemplateCsvMapper templateCsvMapper = new TemplateCsvMapper(roleRepository);
         CsvRowMapper<ServiceTemplate> csvMapper =
-                CsvRowMapper.of(viewModel::csvHeader, viewModel::toCsvRow, viewModel::fromCsvRow);
+                CsvRowMapper.of(templateCsvMapper::header, templateCsvMapper::toRow, templateCsvMapper::fromRow);
         Button exportButton = new Button(Localization.lang("Export"));
         exportButton.setOnAction(event -> exportCsv(csvMapper));
         Button importButton = new Button(Localization.lang("Import"));

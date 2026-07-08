@@ -32,6 +32,7 @@ import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.persistence.RoleRepository;
+import org.mindis.core.persistence.ServiceCsvMapper;
 import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.persistence.ServiceRepository;
@@ -99,8 +100,9 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelected());
 
+        ServiceCsvMapper serviceCsvMapper = new ServiceCsvMapper(roleRepository);
         CsvRowMapper<LiturgicalService> csvMapper =
-                CsvRowMapper.of(viewModel::csvHeader, viewModel::toCsvRow, viewModel::fromCsvRow);
+                CsvRowMapper.of(serviceCsvMapper::header, serviceCsvMapper::toRow, serviceCsvMapper::fromRow);
         Button exportButton = new Button(Localization.lang("Export"));
         exportButton.setOnAction(event -> exportCsv(csvMapper));
         Button importButton = new Button(Localization.lang("Import"));

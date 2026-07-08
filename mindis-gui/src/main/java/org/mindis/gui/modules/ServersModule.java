@@ -45,6 +45,7 @@ import org.mindis.core.model.UnavailabilityPeriod;
 import org.mindis.core.persistence.RoleRepository;
 import org.jspecify.annotations.Nullable;
 
+import org.mindis.core.persistence.ServerCsvMapper;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.gui.util.CalendarPickers;
@@ -97,7 +98,9 @@ public class ServersModule extends CrudModule<Server> {
         deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelected());
 
-        CsvRowMapper<Server> csvMapper = CsvRowMapper.of(viewModel::csvHeader, viewModel::toCsvRow, viewModel::fromCsvRow);
+        ServerCsvMapper serverCsvMapper = new ServerCsvMapper(roleRepository);
+        CsvRowMapper<Server> csvMapper =
+                CsvRowMapper.of(serverCsvMapper::header, serverCsvMapper::toRow, serverCsvMapper::fromRow);
         Button exportButton = new Button(Localization.lang("Export"));
         exportButton.setOnAction(event -> exportCsv(csvMapper));
         Button importButton = new Button(Localization.lang("Import"));

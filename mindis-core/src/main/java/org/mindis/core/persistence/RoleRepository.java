@@ -25,6 +25,8 @@ import org.mindis.core.preferences.DataDirectory;
 @Singleton
 public class RoleRepository {
 
+    private static final int SORT_ORDER_STEP = 10;
+
     private final JsonStore<Role> store;
     private @Nullable List<Role> roles;
 
@@ -57,6 +59,14 @@ public class RoleRepository {
         List<Role> list = cached();
         list.removeIf(existing -> existing.id().equals(id));
         store.save(list);
+    }
+
+    /** The next free sort order (current max + a step), for a role not yet in the store. */
+    public synchronized int nextSortOrder() {
+        return cached().stream()
+                .mapToInt(Role::sortOrder)
+                .max()
+                .orElse(-SORT_ORDER_STEP) + SORT_ORDER_STEP;
     }
 
     /** The live (mutable) cache, loading and seeding/sorting it on first access. */

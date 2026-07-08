@@ -1,4 +1,4 @@
-package org.mindis.gui.modules;
+package org.mindis.core.persistence;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,16 +8,14 @@ import org.jspecify.annotations.NullMarked;
 
 import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
-import org.mindis.core.persistence.RoleRepository;
 
 /**
  * CSV encoding of a {@link RoleSlot} list ("required servers"), shared by
- * {@link ServicesModule}/{@link ServicesViewModel} and
- * {@link TemplatesModule}/{@link TemplatesViewModel}: {@code "Acolyte:2, Cross bearer:1"}
- * - role name (not id, for readability) and count, comma-separated.
- * Roles are matched by name case-insensitively on import; unmatched or
- * zero/negative counts are dropped, mirroring {@code RoleSlotsEditor}'s
- * zero-count-omitted convention.
+ * {@link ServiceCsvMapper} and {@link TemplateCsvMapper}:
+ * {@code "Acolyte:2, Cross bearer:1"} - role name (not id, for readability)
+ * and count, comma-separated. Roles are matched by name case-insensitively
+ * on import; unmatched or zero/negative counts are dropped, mirroring the
+ * GUI's {@code RoleSlotsEditor} zero-count-omitted convention.
  */
 @NullMarked
 final class RoleSlotCsv {

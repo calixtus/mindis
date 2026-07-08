@@ -27,6 +27,7 @@ import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
+import org.mindis.core.persistence.RoleCsvMapper;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.workbench.CrudModule;
 import org.mindis.workbench.CsvRowMapper;
@@ -64,7 +65,8 @@ public class RolesModule extends CrudModule<Role> {
         deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelected());
 
-        CsvRowMapper<Role> csvMapper = CsvRowMapper.of(viewModel::csvHeader, viewModel::toCsvRow, viewModel::fromCsvRow);
+        RoleCsvMapper roleCsvMapper = new RoleCsvMapper(roleRepository);
+        CsvRowMapper<Role> csvMapper = CsvRowMapper.of(roleCsvMapper::header, roleCsvMapper::toRow, roleCsvMapper::fromRow);
         Button exportButton = new Button(Localization.lang("Export"));
         exportButton.setOnAction(event -> exportCsv(csvMapper));
         Button importButton = new Button(Localization.lang("Import"));
