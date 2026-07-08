@@ -13,6 +13,8 @@ open module org.mindis.gui {
     requires com.dlsc.fxmlkit;
     requires com.dlsc.gemsfx;
     requires atlantafx.base;
+    requires org.kordamp.ikonli.javafx;
+    requires org.kordamp.ikonli.materialdesign2;
 
     requires io.avaje.inject;
     requires jakarta.inject;

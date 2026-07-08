@@ -1,6 +1,8 @@
 package org.mindis.gui.modules;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -19,6 +21,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -30,15 +33,23 @@ import javafx.scene.control.Separator;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.CheckBoxListCell;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
+import atlantafx.base.theme.Styles;
 import com.dlsc.gemsfx.CalendarPicker;
+import com.dlsc.gemsfx.ChipView;
 import com.dlsc.gemsfx.SearchField;
+import com.dlsc.gemsfx.TimePicker;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
@@ -52,6 +63,7 @@ import org.mindis.core.persistence.ServerRepository;
 import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.gui.util.CalendarPickers;
 import org.mindis.gui.util.SearchFields;
+import org.mindis.gui.util.TimePickers;
 import org.mindis.workbench.CrudModule;
 import org.mindis.workbench.CsvRowMapper;
 
@@ -64,6 +76,7 @@ public class ServersModule extends CrudModule<Server> {
     // Checkbox list row height as a multiple of the app font size.
     private static final double CELL_SIZE_FONT_FACTOR = 2.0;
     private static final double EDITOR_MIN_HEIGHT = 520;
+    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
 
     private final ServersViewModel viewModel;
     private final UiPreferences uiPreferences;
@@ -146,8 +159,44 @@ public class ServersModule extends CrudModule<Server> {
         CalendarPicker birthDatePicker = CalendarPickers.create();
         birthDatePicker.setValue(server.birthDate());
         SearchField<String> familyIdField = buildFamilyIdField(server.familyId());
-        TextField preferredTimesField = new TextField(viewModel.formatPreferredTimes(server.preferredTimes()));
-        preferredTimesField.setPromptText("10:00, 18:30");
+        ObservableList<LocalTime> preferredTimesItems = FXCollections.observableArrayList(
+                server.preferredTimes().stream().sorted().toList());
+        FlowPane preferredTimesTiles = new FlowPane(6, 6);
+        TimePicker preferredTimePicker = TimePickers.create();
+        preferredTimePicker.getStyleClass().add(Styles.LEFT_PILL);
+        Button addPreferredTimeButton = new Button(null, new FontIcon("mdi2p-plus"));
+        addPreferredTimeButton.getStyleClass().add(Styles.RIGHT_PILL);
+        // A plain Button's own default padding computes a taller natural height
+        // than the TimePicker's - binding prefHeight to the picker's height alone
+        // (tried first) didn't fix it because minHeight, left at its own larger
+        // computed default, is what actually floors the final layout height
+        // (JavaFX clamps to at least minHeight). Pinning minHeight to track
+        // prefHeight lets it actually shrink to match, flushing the shared pill
+        // border top and bottom.
+        addPreferredTimeButton.setMinHeight(Region.USE_PREF_SIZE);
+        addPreferredTimeButton.setMaxHeight(Region.USE_PREF_SIZE);
+        addPreferredTimeButton.prefHeightProperty().bind(preferredTimePicker.heightProperty());
+        HBox preferredTimeInputGroup = new HBox(preferredTimePicker, addPreferredTimeButton);
+        preferredTimeInputGroup.setAlignment(Pos.CENTER_LEFT);
+        addPreferredTimeButton.setOnAction(event -> {
+            LocalTime time = preferredTimePicker.getTime();
+            if (time != null && !preferredTimesItems.contains(time)) {
+                preferredTimesItems.add(time);
+                preferredTimesItems.sort(null);
+                refreshPreferredTimeChips(preferredTimesTiles, preferredTimesItems, preferredTimeInputGroup);
+            }
+        });
+        // An event filter (not setOnKeyPressed) so this runs *before* and
+        // consumes the event ahead of TimePicker's own KEY_PRESSED handler,
+        // which would otherwise still fire its (now hidden, but F4-reachable)
+        // clock-face popup on Enter too.
+        preferredTimePicker.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                addPreferredTimeButton.fire();
+                event.consume();
+            }
+        });
+        refreshPreferredTimeChips(preferredTimesTiles, preferredTimesItems, preferredTimeInputGroup);
         CheckBox experiencedCheck = new CheckBox();
         experiencedCheck.setSelected(server.experienced());
         CheckBox activeCheck = new CheckBox();
@@ -236,8 +285,10 @@ public class ServersModule extends CrudModule<Server> {
         grid.add(birthDatePicker, 1, row++);
         grid.add(new Label(Localization.lang("Family")), 0, row);
         grid.add(familyIdField, 1, row++);
-        grid.add(new Label(Localization.lang("Preferred times")), 0, row);
-        grid.add(preferredTimesField, 1, row++);
+        Label preferredTimesLabel = new Label(Localization.lang("Preferred times"));
+        GridPane.setValignment(preferredTimesLabel, VPos.TOP);
+        grid.add(preferredTimesLabel, 0, row);
+        grid.add(preferredTimesTiles, 1, row++);
         grid.add(new Label(Localization.lang("Experienced")), 0, row);
         grid.add(experiencedCheck, 1, row++);
         grid.add(new Label(Localization.lang("Active")), 0, row);
@@ -245,12 +296,17 @@ public class ServersModule extends CrudModule<Server> {
 
         Label qualificationsLabel = new Label(Localization.lang("Qualifications"));
         GridPane.setValignment(qualificationsLabel, VPos.TOP);
+        // The list's first row isn't flush with its own top edge (border +
+        // cell padding), so a plain top-aligned label sits a few pixels
+        // above it - nudge the label down to match.
+        qualificationsLabel.setPadding(new Insets(4, 0, 0, 0));
         grid.add(qualificationsLabel, 0, row);
         GridPane.setVgrow(qualificationsList, Priority.ALWAYS);
         grid.add(qualificationsList, 1, row++);
 
         Label unavailabilityLabel = new Label(Localization.lang("Unavailable periods"));
         GridPane.setValignment(unavailabilityLabel, VPos.TOP);
+        unavailabilityLabel.setPadding(new Insets(4, 0, 0, 0));
         grid.add(unavailabilityLabel, 0, row);
         VBox unavailabilityBox = new VBox(8, unavailabilityList,
                 new HBox(8, periodFromPicker, periodToPicker, addPeriodButton, removePeriodButton));
@@ -281,7 +337,7 @@ public class ServersModule extends CrudModule<Server> {
                     familyId.isEmpty() ? null : familyId,
                     qualifications,
                     new ArrayList<>(unavailabilityList.getItems()),
-                    viewModel.parsePreferredTimes(preferredTimesField.getText()),
+                    new HashSet<>(preferredTimesItems),
                     experiencedCheck.isSelected(),
                     activeCheck.isSelected()));
         });
@@ -290,6 +346,34 @@ public class ServersModule extends CrudModule<Server> {
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
         return content;
+    }
+
+    /**
+     * Rebuilds {@code flow} from {@code times} - one closable {@link ChipView}
+     * per entry, plus {@code inputGroup} (the time picker + add button) as the
+     * trailing entry, so both chips and the input group share one
+     * {@link FlowPane}. A {@code FlowPane} (not a {@code TilePane}) so each
+     * chip stays sized to its own text instead of stretching to match the
+     * wider input group's cell width.
+     */
+    private void refreshPreferredTimeChips(FlowPane flow, ObservableList<LocalTime> times, Node inputGroup) {
+        List<Node> children = new ArrayList<>(times.stream()
+                .map(time -> (Node) buildPreferredTimeChip(time, times, flow, inputGroup))
+                .toList());
+        children.add(inputGroup);
+        flow.getChildren().setAll(children);
+    }
+
+    private ChipView<LocalTime> buildPreferredTimeChip(LocalTime time, ObservableList<LocalTime> times,
+                                                        FlowPane flow, Node inputGroup) {
+        ChipView<LocalTime> chip = new ChipView<>();
+        chip.setValue(time);
+        chip.setText(TIME_FORMAT.format(time));
+        chip.setOnClose(value -> {
+            times.remove(value);
+            refreshPreferredTimeChips(flow, times, inputGroup);
+        });
+        return chip;
     }
 
     /**

@@ -1,6 +1,5 @@
 package org.mindis.gui.modules;
 
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Set;
 
@@ -9,7 +8,6 @@ import org.jspecify.annotations.NullMarked;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.persistence.RoleRepository;
-import org.mindis.core.persistence.ServerCsvMapper;
 import org.mindis.core.persistence.ServerRepository;
 
 /**
@@ -65,12 +63,4 @@ final class ServersViewModel {
                 .toList();
     }
 
-    /** Parses "10:00, 18:30" style input; unparsable entries are dropped. */
-    Set<LocalTime> parsePreferredTimes(String text) {
-        return ServerCsvMapper.parsePreferredTimes(text);
-    }
-
-    String formatPreferredTimes(Set<LocalTime> times) {
-        return ServerCsvMapper.formatPreferredTimes(times);
-    }
 }

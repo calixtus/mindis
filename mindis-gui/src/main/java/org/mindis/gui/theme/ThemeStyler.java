@@ -109,6 +109,36 @@ public final class ThemeStyler {
      * competing property value to lose a tie against. Flattened to
      * {@code -color-bg-overlay} (AtlantaFX's own popup-surface token),
      * exactly what {@code CalendarPickers} does for gemsfx's calendar popup.
+     *
+     * <p>{@code -fx-box-border} is {@code TimePicker}'s clock-face popup
+     * ({@code TimePickerPopup}) crashing the same way {@code search-field-list-view}
+     * did - {@code -fx-background-color: -fx-box-border, white} left the first
+     * layer unresolved. Same value {@code CalendarPickers} already uses for
+     * {@code .calendar-view}, just global here: {@code TimePicker} exposes no
+     * popup-content accessor to attach an author-origin stylesheet to
+     * directly the way {@code CalendarPickers} does via {@code getCalendarView()}.
+     *
+     * <p>The rest of {@code time-picker-popup}'s rules aren't unresolved
+     * lookups - they're hardcoded literals ({@code white}/{@code gray}/
+     * {@code lightgray}/{@code black}), so they don't crash, just ignore the
+     * theme. Tried overriding those too, selector-for-selector matching
+     * {@code time-picker.css} exactly - confirmed empirically NOT to work:
+     * {@code TimePickerPopup} (the {@code HBox} gemsfx shows as the popup
+     * content) overrides {@code getUserAgentStylesheet()} per-node the same
+     * way SearchField's popup {@code ListView} does, and per-node
+     * stylesheets win these ties regardless of selector specificity, so the
+     * rule-based override attempt was reverted - it was dead code, not a
+     * partial fix. Only the *selected* cell happens to follow the theme
+     * (purple, matching the app accent) because gemsfx's own rule for it
+     * routes through the {@code -fx-accent} *token* rather than a literal,
+     * and token inheritance - unlike a competing rule - does cross this
+     * boundary (see the {@code search-field-list-view} case above). Full
+     * theming of the idle/hover rows would need an author-origin stylesheet
+     * attached directly to the internal {@code ListView}s the way
+     * {@code CalendarPickers} does via {@code getCalendarView()} - but
+     * {@code TimePicker} exposes no equivalent accessor, and reaching them
+     * would mean reflecting into gemsfx's private fields, too fragile to be
+     * worth it for what's otherwise dead-simple hour/minute lists.
      */
     private static final String MODENA_COMPAT_CSS = """
             .root {
@@ -121,6 +151,7 @@ public final class ThemeStyler {
               -fx-accent: -color-accent-emphasis;
               -fx-color: -color-bg-default;
               -fx-base: -color-bg-default;
+              -fx-box-border: -color-border-default;
             }
             .search-field-list-view {
               -fx-background-color: -color-bg-overlay;
