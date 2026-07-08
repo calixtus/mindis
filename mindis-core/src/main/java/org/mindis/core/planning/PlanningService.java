@@ -19,6 +19,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
@@ -141,7 +143,7 @@ public class PlanningService implements AutoCloseable {
      * {@code SolutionManager.update} - Timefold's {@code analyze()} is an
      * enterprise-only feature (see PLAN.md risk table).
      */
-    public HardMediumSoftScore scoreOf(ServicePlan plan) {
+    public @Nullable HardMediumSoftScore scoreOf(ServicePlan plan) {
         return solutionManager.update(plan);
     }
 

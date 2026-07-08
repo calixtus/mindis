@@ -32,6 +32,8 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Base {@link WorkbenchModule} for the common "table on the left, editor on
  * the right" CRUD screen (see Roles/Servers/Services/Templates): a toolbar
@@ -76,8 +78,8 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     private final ObjectProperty<Node> editor = new SimpleObjectProperty<>();
     private final StackPane editorContainer = new StackPane();
 
-    private Node view;
-    private T pendingNew;
+    private @Nullable Node view;
+    private @Nullable T pendingNew;
 
     protected CrudModule(String name, String iconLiteral) {
         super(name, iconLiteral);
@@ -134,7 +136,7 @@ public abstract class CrudModule<T> extends WorkbenchModule {
      * disable the Export/Import toolbar buttons. Override together with
      * {@link #exportButtonLabel()} and {@link #importButtonLabel()}.
      */
-    protected CsvRowMapper<T> csvMapper() {
+    protected @Nullable CsvRowMapper<T> csvMapper() {
         return null;
     }
 
@@ -160,11 +162,13 @@ public abstract class CrudModule<T> extends WorkbenchModule {
 
     @Override
     public final Node activate() {
-        if (view == null) {
-            view = buildView();
+        Node content = view;
+        if (content == null) {
+            content = buildView();
+            view = content;
         }
         refresh();
-        return view;
+        return content;
     }
 
     @Override

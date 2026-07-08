@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.planning.MinDisConstraintProvider;
 
@@ -19,15 +21,15 @@ public record MinDisPreferences(
         int version,
         String languageTag,
         Theme theme,
-        WindowBounds windowBounds,
+        @Nullable WindowBounds windowBounds,
         int solverSecondsLimit,
         Map<String, Integer> softConstraintWeights,
         AccentColor accentColor,
         String fontFamily,
         int fontSize,
         boolean followSystemTheme,
-        String lastExportDirectory,
-        Double sidebarWidth) {
+        @Nullable String lastExportDirectory,
+        @Nullable Double sidebarWidth) {
 
     public static final int CURRENT_VERSION = 8;
     public static final int DEFAULT_SOLVER_SECONDS = 30;

@@ -37,9 +37,9 @@ class ViolationCheckerTest {
         Map<String, List<String>> violations = ViolationChecker.violationsByAssignment(plan);
 
         assertEquals(List.of(MinDisConstraintProvider.UNASSIGNED), violations.get("a1"));
-        assertTrue(violations.get("a2").contains(MinDisConstraintProvider.NOT_QUALIFIED));
-        assertTrue(violations.get("a2").contains(MinDisConstraintProvider.DOUBLE_BOOKED));
-        assertTrue(violations.get("a3").contains(MinDisConstraintProvider.DOUBLE_BOOKED));
+        assertTrue(violations.getOrDefault("a2", List.of()).contains(MinDisConstraintProvider.NOT_QUALIFIED));
+        assertTrue(violations.getOrDefault("a2", List.of()).contains(MinDisConstraintProvider.DOUBLE_BOOKED));
+        assertTrue(violations.getOrDefault("a3", List.of()).contains(MinDisConstraintProvider.DOUBLE_BOOKED));
     }
 
     @Test

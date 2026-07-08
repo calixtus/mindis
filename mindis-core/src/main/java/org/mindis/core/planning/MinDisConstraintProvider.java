@@ -96,6 +96,12 @@ public class MinDisConstraintProvider implements ConstraintProvider {
         };
     }
 
+    // NullAway: factory.forEach(Assignment.class) below (unlike
+    // forEachIncludingUnassigned, used only in everySlotAssigned) yields only
+    // entities with a non-null planning variable, so getServer() is safe here
+    // - an invariant NullAway can't see through Timefold's API.
+
+    @SuppressWarnings("NullAway")
     Constraint serverMustBeQualified(ConstraintFactory factory) {
         return factory.forEach(Assignment.class)
                 .filter(assignment -> !assignment.getServer().qualifications().contains(assignment.getRole().id()))
@@ -103,6 +109,7 @@ public class MinDisConstraintProvider implements ConstraintProvider {
                 .asConstraint(NOT_QUALIFIED);
     }
 
+    @SuppressWarnings("NullAway")
     Constraint serverMustBeAvailable(ConstraintFactory factory) {
         return factory.forEach(Assignment.class)
                 .filter(assignment -> !assignment.getServer().isAvailableAt(assignment.serviceStart()))
@@ -110,6 +117,7 @@ public class MinDisConstraintProvider implements ConstraintProvider {
                 .asConstraint(UNAVAILABLE);
     }
 
+    @SuppressWarnings("NullAway")
     Constraint serverMustBeActive(ConstraintFactory factory) {
         return factory.forEach(Assignment.class)
                 .filter(assignment -> !assignment.getServer().active())
@@ -140,6 +148,7 @@ public class MinDisConstraintProvider implements ConstraintProvider {
                 .asConstraint(UNBALANCED_WORKLOAD);
     }
 
+    @SuppressWarnings("NullAway")
     Constraint siblingsServeTogether(ConstraintFactory factory) {
         return factory.forEachUniquePair(Assignment.class,
                         equal(assignment -> assignment.getService().id()),
@@ -161,6 +170,7 @@ public class MinDisConstraintProvider implements ConstraintProvider {
                 .asConstraint(TOO_CLOSE);
     }
 
+    @SuppressWarnings("NullAway")
     Constraint preferredServiceTime(ConstraintFactory factory) {
         return factory.forEach(Assignment.class)
                 .filter(assignment -> assignment.getServer().prefers(assignment.serviceStart()))
@@ -168,6 +178,7 @@ public class MinDisConstraintProvider implements ConstraintProvider {
                 .asConstraint(PREFERRED_TIME);
     }
 
+    @SuppressWarnings("NullAway")
     Constraint experiencedServerPresent(ConstraintFactory factory) {
         // One reward per service that has at least one experienced server.
         return factory.forEach(Assignment.class)
@@ -186,6 +197,9 @@ public class MinDisConstraintProvider implements ConstraintProvider {
                 .asConstraint(AGE_REQUIREMENT);
     }
 
+    // See the NullAway note above ageWithinRoleRequirement's forEach: only
+    // assigned entities reach here, so getServer() is safe.
+    @SuppressWarnings("NullAway")
     private static boolean outsideAgeRange(Assignment assignment) {
         Role role = assignment.getRole();
         if (role.minAge() == null && role.maxAge() == null) {

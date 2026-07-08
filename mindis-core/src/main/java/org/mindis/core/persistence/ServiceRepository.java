@@ -10,6 +10,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.preferences.DataDirectory;
 
@@ -20,7 +22,7 @@ import org.mindis.core.preferences.DataDirectory;
 public class ServiceRepository {
 
     private final JsonStore<LiturgicalService> store;
-    private List<LiturgicalService> services;
+    private @Nullable List<LiturgicalService> services;
 
     public ServiceRepository(DataDirectory dataDirectory) {
         this(dataDirectory.resolve("services.json"));
@@ -32,11 +34,7 @@ public class ServiceRepository {
     }
 
     public synchronized List<LiturgicalService> findAll() {
-        if (services == null) {
-            services = new ArrayList<>(store.load());
-            sort();
-        }
-        return List.copyOf(services);
+        return List.copyOf(cached());
     }
 
     public synchronized Optional<LiturgicalService> findById(String id) {
@@ -44,30 +42,39 @@ public class ServiceRepository {
     }
 
     public synchronized void save(LiturgicalService service) {
-        findAll();
-        services.removeIf(existing -> existing.id().equals(service.id()));
-        services.add(service);
-        sort();
-        store.save(services);
+        List<LiturgicalService> list = cached();
+        list.removeIf(existing -> existing.id().equals(service.id()));
+        list.add(service);
+        sort(list);
+        store.save(list);
     }
 
     public synchronized void saveAll(List<LiturgicalService> newServices) {
-        findAll();
+        List<LiturgicalService> list = cached();
         for (LiturgicalService service : newServices) {
-            services.removeIf(existing -> existing.id().equals(service.id()));
-            services.add(service);
+            list.removeIf(existing -> existing.id().equals(service.id()));
+            list.add(service);
         }
-        sort();
-        store.save(services);
+        sort(list);
+        store.save(list);
     }
 
     public synchronized void delete(String id) {
-        findAll();
-        services.removeIf(existing -> existing.id().equals(id));
-        store.save(services);
+        List<LiturgicalService> list = cached();
+        list.removeIf(existing -> existing.id().equals(id));
+        store.save(list);
     }
 
-    private void sort() {
-        services.sort(Comparator.comparing(LiturgicalService::dateTime));
+    /** The live (mutable) cache, loading and sorting it from disk on first access. */
+    private List<LiturgicalService> cached() {
+        if (services == null) {
+            services = new ArrayList<>(store.load());
+            sort(services);
+        }
+        return services;
+    }
+
+    private static void sort(List<LiturgicalService> list) {
+        list.sort(Comparator.comparing(LiturgicalService::dateTime));
     }
 }

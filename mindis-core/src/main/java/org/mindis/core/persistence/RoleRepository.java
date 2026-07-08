@@ -10,6 +10,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
 import org.mindis.core.preferences.DataDirectory;
@@ -24,7 +26,7 @@ import org.mindis.core.preferences.DataDirectory;
 public class RoleRepository {
 
     private final JsonStore<Role> store;
-    private List<Role> roles;
+    private @Nullable List<Role> roles;
 
     public RoleRepository(DataDirectory dataDirectory) {
         this(dataDirectory.resolve("roles.json"));
@@ -36,15 +38,7 @@ public class RoleRepository {
     }
 
     public synchronized List<Role> findAll() {
-        if (roles == null) {
-            roles = new ArrayList<>(store.load());
-            if (roles.isEmpty()) {
-                roles.addAll(defaults());
-                store.save(roles);
-            }
-            sort();
-        }
-        return List.copyOf(roles);
+        return List.copyOf(cached());
     }
 
     public synchronized Optional<Role> findById(String id) {
@@ -52,21 +46,34 @@ public class RoleRepository {
     }
 
     public synchronized void save(Role role) {
-        findAll();
-        roles.removeIf(existing -> existing.id().equals(role.id()));
-        roles.add(role);
-        sort();
-        store.save(roles);
+        List<Role> list = cached();
+        list.removeIf(existing -> existing.id().equals(role.id()));
+        list.add(role);
+        sort(list);
+        store.save(list);
     }
 
     public synchronized void delete(String id) {
-        findAll();
-        roles.removeIf(existing -> existing.id().equals(id));
-        store.save(roles);
+        List<Role> list = cached();
+        list.removeIf(existing -> existing.id().equals(id));
+        store.save(list);
     }
 
-    private void sort() {
-        roles.sort(Comparator.comparingInt(Role::sortOrder).thenComparing(Role::name));
+    /** The live (mutable) cache, loading and seeding/sorting it on first access. */
+    private List<Role> cached() {
+        if (roles == null) {
+            roles = new ArrayList<>(store.load());
+            if (roles.isEmpty()) {
+                roles.addAll(defaults());
+                store.save(roles);
+            }
+            sort(roles);
+        }
+        return roles;
+    }
+
+    private static void sort(List<Role> list) {
+        list.sort(Comparator.comparingInt(Role::sortOrder).thenComparing(Role::name));
     }
 
     /**

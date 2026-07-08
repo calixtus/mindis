@@ -13,9 +13,12 @@
         PlanExportService.class,  // org.mindis.core.export
         PlanningService.class     // org.mindis.core.planning
 })
+@NullMarked
 package org.mindis.gui;
 
 import io.avaje.inject.InjectModule;
+
+import org.jspecify.annotations.NullMarked;
 
 import org.mindis.core.export.PlanExportService;
 import org.mindis.core.persistence.RoleRepository;

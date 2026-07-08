@@ -10,6 +10,8 @@ import ai.timefold.solver.core.api.score.HardMediumSoftScore;
 
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.model.Server;
 
 /**
@@ -31,10 +33,10 @@ public class ServicePlan {
             ConstraintWeightOverrides.none();
 
     @PlanningScore
-    private HardMediumSoftScore score;
+    private @Nullable HardMediumSoftScore score;
 
+    @SuppressWarnings("NullAway.Init") // Timefold requires this constructor; it populates servers/assignments by reflection.
     public ServicePlan() {
-        // Required by Timefold.
     }
 
     public ServicePlan(List<Server> servers, List<Assignment> assignments) {
@@ -58,11 +60,11 @@ public class ServicePlan {
         return assignments;
     }
 
-    public HardMediumSoftScore getScore() {
+    public @Nullable HardMediumSoftScore getScore() {
         return score;
     }
 
-    public void setScore(HardMediumSoftScore score) {
+    public void setScore(@Nullable HardMediumSoftScore score) {
         this.score = score;
     }
 }

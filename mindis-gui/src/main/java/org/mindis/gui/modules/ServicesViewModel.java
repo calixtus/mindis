@@ -5,6 +5,9 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.ServiceType;
@@ -18,6 +21,7 @@ import org.mindis.core.persistence.TemplateRepository;
  * template-generation logic, so the module only constructs UI and binds to
  * this class.
  */
+@NullMarked
 final class ServicesViewModel {
 
     private static final int DEFAULT_DURATION_MINUTES = 60;
@@ -92,7 +96,7 @@ final class ServicesViewModel {
     }
 
     /** Rows with an unparsable date/time are skipped; a blank id gets a fresh one. */
-    LiturgicalService fromCsvRow(List<String> row) {
+    @Nullable LiturgicalService fromCsvRow(List<String> row) {
         LocalDate date = CsvFields.parseDate(CsvFields.at(row, 1));
         LocalTime time = CsvFields.parseTime(CsvFields.at(row, 2));
         if (date == null || time == null) {

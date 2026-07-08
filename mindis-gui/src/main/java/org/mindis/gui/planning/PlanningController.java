@@ -37,6 +37,8 @@ import javafx.util.StringConverter;
 import java.io.File;
 import java.nio.file.Path;
 
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.export.PlanExportFormat;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Server;
@@ -89,9 +91,12 @@ public class PlanningController {
     private final BooleanProperty solving = new SimpleBooleanProperty(false);
     private final ObservableList<AssignmentRow> rows = FXCollections.observableArrayList();
 
-    private ServicePlan currentPlan;
-    private UUID jobId;
+    private @Nullable ServicePlan currentPlan;
+    private @Nullable UUID jobId;
 
+    // NullAway: @FXML fields are populated by FXMLLoader reflection right
+    // after this constructor runs, before initialize() is called.
+    @SuppressWarnings("NullAway.Init")
     public PlanningController(PlanningViewModel viewModel) {
         this.viewModel = viewModel;
     }
@@ -234,17 +239,20 @@ public class PlanningController {
         }
     }
 
+    // NullAway: only called right after currentPlan is (re)assigned in
+    // onGenerate()/refreshFromRepositories(), never while it's null.
+    @SuppressWarnings("NullAway")
     private void setupServerColumn() {
         ObservableList<Server> choices = FXCollections.observableArrayList(currentPlan.getServers());
         choices.addFirst(null);
         serverColumn.setCellFactory(ComboBoxTableCell.forTableColumn(new StringConverter<>() {
             @Override
-            public String toString(Server server) {
+            public String toString(@Nullable Server server) {
                 return server == null ? "-" : server.displayName();
             }
 
             @Override
-            public Server fromString(String string) {
+            public @Nullable Server fromString(String string) {
                 return null;
             }
         }, choices));
@@ -254,6 +262,9 @@ public class PlanningController {
         });
     }
 
+    // NullAway: only called from applySolution/onGenerate/refreshFromRepositories,
+    // always right after currentPlan is (re)assigned.
+    @SuppressWarnings("NullAway")
     private void rebuildRows() {
         rows.setAll(currentPlan.getAssignments().stream()
                 .sorted(Comparator.comparing(a -> a.serviceStart()))
@@ -277,7 +288,7 @@ public class PlanningController {
         }
     }
 
-    private void updateScoreLabel(HardMediumSoftScore score) {
+    private void updateScoreLabel(@Nullable HardMediumSoftScore score) {
         if (score == null) {
             scoreLabel.setText("");
             return;

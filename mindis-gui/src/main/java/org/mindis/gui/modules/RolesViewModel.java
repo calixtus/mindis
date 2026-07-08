@@ -2,6 +2,9 @@ package org.mindis.gui.modules;
 
 import java.util.List;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.model.Role;
 import org.mindis.core.persistence.RoleRepository;
 
@@ -10,6 +13,7 @@ import org.mindis.core.persistence.RoleRepository;
  * the sort-order assignment for new roles, so the module only constructs UI and
  * binds to this class.
  */
+@NullMarked
 final class RolesViewModel {
 
     private static final int SORT_ORDER_STEP = 10;
@@ -58,7 +62,7 @@ final class RolesViewModel {
     }
 
     /** Blank name rows are skipped; a blank id gets a fresh one, matching {@link #createStub()}. */
-    Role fromCsvRow(List<String> row) {
+    @Nullable Role fromCsvRow(List<String> row) {
         String name = CsvFields.at(row, 1);
         if (name.isEmpty()) {
             return null;

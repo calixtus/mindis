@@ -18,6 +18,8 @@ import java.util.function.UnaryOperator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Loads and stores {@link MinDisPreferences} as JSON in the user data
  * directory (PLAN.md section 2.6). Writes are atomic (temp file + move).
@@ -35,7 +37,7 @@ public class PreferencesService {
     private final ObjectMapper objectMapper;
     private final List<Consumer<MinDisPreferences>> listeners = new CopyOnWriteArrayList<>();
 
-    private MinDisPreferences current;
+    private @Nullable MinDisPreferences current;
 
     public PreferencesService(DataDirectory dataDirectory) {
         this(dataDirectory.resolve("preferences.json"));
@@ -60,13 +62,15 @@ public class PreferencesService {
      * atomically and notifies listeners.
      */
     public synchronized MinDisPreferences update(UnaryOperator<MinDisPreferences> change) {
-        MinDisPreferences updated = change.apply(get());
-        if (!updated.equals(current)) {
-            current = updated;
-            save(updated);
-            listeners.forEach(listener -> listener.accept(updated));
+        MinDisPreferences before = get();
+        MinDisPreferences updated = change.apply(before);
+        if (updated.equals(before)) {
+            return before;
         }
-        return current;
+        current = updated;
+        save(updated);
+        listeners.forEach(listener -> listener.accept(updated));
+        return updated;
     }
 
     public void addListener(Consumer<MinDisPreferences> listener) {

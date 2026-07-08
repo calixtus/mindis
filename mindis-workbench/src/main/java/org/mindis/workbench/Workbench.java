@@ -18,6 +18,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
+import org.jspecify.annotations.Nullable;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 /**
@@ -55,7 +56,7 @@ public final class Workbench extends BorderPane {
     private final FontIcon toggleIcon = new FontIcon();
     private final Tooltip toggleTooltip = new Tooltip();
 
-    private WorkbenchModule activeModule;
+    private @Nullable WorkbenchModule activeModule;
     private boolean collapsed;
     private double dragStartSceneX;
     private double dragStartWidth;
@@ -107,7 +108,7 @@ public final class Workbench extends BorderPane {
         return modules;
     }
 
-    public WorkbenchModule getActiveModule() {
+    public @Nullable WorkbenchModule getActiveModule() {
         return activeModule;
     }
 
@@ -135,12 +136,12 @@ public final class Workbench extends BorderPane {
      * independent of the localized module names, so it survives a language
      * change - unlike a name or the module instance itself.
      */
-    public String getActiveModuleClassName() {
+    public @Nullable String getActiveModuleClassName() {
         return activeModule == null ? null : activeModule.getClass().getName();
     }
 
     /** Selects the sidebar entry whose module has the given class name. */
-    public void openModule(String className) {
+    public void openModule(@Nullable String className) {
         if (className == null) {
             return;
         }

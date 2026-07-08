@@ -2,6 +2,8 @@ package org.mindis.workbench;
 
 import javafx.scene.Node;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * One functional area of the application (Dashboard, Servers, ...), reachable
  * through a permanent sidebar entry in the {@link Workbench}.
@@ -20,7 +22,7 @@ import javafx.scene.Node;
 public abstract class WorkbenchModule {
 
     private final String name;
-    private final String iconLiteral;
+    private final @Nullable String iconLiteral;
 
     protected WorkbenchModule(String name) {
         this(name, null);
@@ -30,7 +32,7 @@ public abstract class WorkbenchModule {
      * @param iconLiteral Ikonli icon literal (e.g. {@code "mdi2v-view-dashboard"});
      *                    {@code null} for a text-only sidebar entry
      */
-    protected WorkbenchModule(String name, String iconLiteral) {
+    protected WorkbenchModule(String name, @Nullable String iconLiteral) {
         this.name = name;
         this.iconLiteral = iconLiteral;
     }
@@ -39,7 +41,7 @@ public abstract class WorkbenchModule {
         return name;
     }
 
-    public final String getIconLiteral() {
+    public final @Nullable String getIconLiteral() {
         return iconLiteral;
     }
 

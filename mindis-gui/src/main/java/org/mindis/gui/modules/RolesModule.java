@@ -21,6 +21,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
 import org.mindis.core.persistence.RoleRepository;
@@ -168,14 +170,14 @@ public class RolesModule extends CrudModule<Role> {
      * ({@code "min-"} / {@code "-max"}) when only one bound is set, or empty when
      * neither is. Uses an en dash, the typographic range separator.
      */
-    private static String ageRange(Integer min, Integer max) {
+    private static String ageRange(@Nullable Integer min, @Nullable Integer max) {
         if (min == null && max == null) {
             return "";
         }
         return ageText(min) + "–" + ageText(max);
     }
 
-    private static String ageText(Integer age) {
+    private static String ageText(@Nullable Integer age) {
         return age == null ? "" : String.valueOf(age);
     }
 
@@ -183,7 +185,7 @@ public class RolesModule extends CrudModule<Role> {
      * Parses an age field: blank means "no bound"; a non-numeric or negative
      * value is treated as no bound rather than an error (the field is free-form).
      */
-    private static Integer parseAge(String text) {
+    private static @Nullable Integer parseAge(@Nullable String text) {
         String trimmed = text == null ? "" : text.strip();
         if (trimmed.isEmpty()) {
             return null;
@@ -211,12 +213,12 @@ public class RolesModule extends CrudModule<Role> {
             this.floor = floor;
             setConverter(new StringConverter<>() {
                 @Override
-                public String toString(Integer value) {
+                public String toString(@Nullable Integer value) {
                     return ageText(value);
                 }
 
                 @Override
-                public Integer fromString(String text) {
+                public @Nullable Integer fromString(@Nullable String text) {
                     return parseAge(text);
                 }
             });
@@ -237,7 +239,7 @@ public class RolesModule extends CrudModule<Role> {
             }
         }
 
-        private Integer normalize(int value) {
+        private @Nullable Integer normalize(int value) {
             return value < floor.getAsInt() ? null : Math.min(MAX_AGE, value);
         }
     }

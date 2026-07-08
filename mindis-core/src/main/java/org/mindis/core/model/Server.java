@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * An altar server (ministrant). Plain record - no JavaFX types, no Timefold
  * annotations (those live on the planning entities, PLAN.md section 3).
@@ -23,8 +25,8 @@ public record Server(
         String firstName,
         String lastName,
         String contact,
-        LocalDate birthDate,
-        String familyId,
+        @Nullable LocalDate birthDate,
+        @Nullable String familyId,
         Set<String> qualifications,
         List<UnavailabilityPeriod> unavailabilities,
         Set<LocalTime> preferredTimes,
@@ -60,7 +62,7 @@ public record Server(
      *         if the birth date is unknown (age requirements are then not
      *         enforced).
      */
-    public Integer ageAt(LocalDate date) {
+    public @Nullable Integer ageAt(LocalDate date) {
         return birthDate == null ? null : Period.between(birthDate, date).getYears();
     }
 }

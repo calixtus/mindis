@@ -1,5 +1,7 @@
 package org.mindis.core.preferences;
 
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.l10n.Localization;
 
 /**
@@ -21,9 +23,9 @@ public enum AccentColor implements PreferenceEnumValue {
     TEAL("Teal", "#14b8a6");
 
     private final String l10nKey;
-    private final String baseHex;
+    private final @Nullable String baseHex;
 
-    AccentColor(String l10nKey, String baseHex) {
+    AccentColor(String l10nKey, @Nullable String baseHex) {
         this.l10nKey = l10nKey;
         this.baseHex = baseHex;
     }
@@ -32,7 +34,7 @@ public enum AccentColor implements PreferenceEnumValue {
      * @return the base hex (e.g. {@code #3b82f6}), or {@code null} for
      *         {@link #DEFAULT} (no override; theme decides).
      */
-    public String baseHex() {
+    public @Nullable String baseHex() {
         return baseHex;
     }
 

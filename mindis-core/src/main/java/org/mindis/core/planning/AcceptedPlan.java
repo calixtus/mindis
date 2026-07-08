@@ -3,6 +3,8 @@ package org.mindis.core.planning;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * A persisted planning result: which server serves which slot, and which of
  * those decisions the planner pinned manually. Stored as JSON and re-applied
@@ -26,7 +28,7 @@ public record AcceptedPlan(
             String assignmentId,
             String serviceId,
             String role,
-            String serverId,
+            @Nullable String serverId,
             boolean pinned) {
     }
 }

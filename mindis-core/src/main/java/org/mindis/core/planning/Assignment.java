@@ -7,6 +7,8 @@ import ai.timefold.solver.core.api.domain.variable.PlanningVariable;
 
 import java.time.LocalDateTime;
 
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
@@ -26,13 +28,13 @@ public class Assignment {
     private Role role;
 
     @PlanningVariable(allowsUnassigned = true)
-    private Server server;
+    private @Nullable Server server;
 
     @PlanningPin
     private boolean pinned;
 
+    @SuppressWarnings("NullAway.Init") // Timefold requires this constructor; it populates id/service/role by reflection.
     public Assignment() {
-        // Required by Timefold.
     }
 
     public Assignment(String id, LiturgicalService service, Role role) {
@@ -53,11 +55,11 @@ public class Assignment {
         return role;
     }
 
-    public Server getServer() {
+    public @Nullable Server getServer() {
         return server;
     }
 
-    public void setServer(Server server) {
+    public void setServer(@Nullable Server server) {
         this.server = server;
     }
 

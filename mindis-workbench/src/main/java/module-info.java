@@ -6,6 +6,7 @@
 module org.mindis.workbench {
     exports org.mindis.workbench;
 
+    requires org.jspecify;
     requires java.logging;
     requires javafx.controls;
     requires org.kordamp.ikonli.javafx;

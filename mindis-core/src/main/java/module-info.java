@@ -12,6 +12,7 @@ module org.mindis.core {
     exports org.mindis.core.planning;
     exports org.mindis.core.preferences;
 
+    requires org.jspecify;
     requires java.logging;
     requires io.avaje.inject;
     requires jakarta.inject;

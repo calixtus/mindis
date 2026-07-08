@@ -7,6 +7,9 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.model.ServiceType;
 
 /**
@@ -15,6 +18,7 @@ import org.mindis.core.model.ServiceType;
  * caller-supplied fallback) rather than throwing - CSV import is best-effort
  * per PLAN.md's "free-form field" convention used throughout the editors.
  */
+@NullMarked
 final class CsvFields {
 
     private CsvFields() {
@@ -25,7 +29,7 @@ final class CsvFields {
         return index < row.size() ? row.get(index).strip() : "";
     }
 
-    static Integer parseInt(String text) {
+    static @Nullable Integer parseInt(String text) {
         if (text.isEmpty()) {
             return null;
         }
@@ -36,7 +40,7 @@ final class CsvFields {
         }
     }
 
-    static LocalDate parseDate(String text) {
+    static @Nullable LocalDate parseDate(String text) {
         if (text.isEmpty()) {
             return null;
         }
@@ -47,7 +51,7 @@ final class CsvFields {
         }
     }
 
-    static LocalTime parseTime(String text) {
+    static @Nullable LocalTime parseTime(String text) {
         if (text.isEmpty()) {
             return null;
         }
@@ -58,7 +62,7 @@ final class CsvFields {
         }
     }
 
-    static DayOfWeek parseDayOfWeek(String text) {
+    static @Nullable DayOfWeek parseDayOfWeek(String text) {
         try {
             return DayOfWeek.valueOf(text.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException e) {

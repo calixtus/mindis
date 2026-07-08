@@ -41,6 +41,8 @@ import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.UnavailabilityPeriod;
 import org.mindis.core.persistence.RoleRepository;
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.gui.util.CalendarPickers;
@@ -177,12 +179,12 @@ public class ServersModule extends CrudModule<Server> {
                 role -> qualificationSelected.computeIfAbsent(role.id(), id -> new SimpleBooleanProperty()),
                 new StringConverter<>() {
                     @Override
-                    public String toString(Role role) {
+                    public String toString(@Nullable Role role) {
                         return role == null ? "" : role.name();
                     }
 
                     @Override
-                    public Role fromString(String string) {
+                    public @Nullable Role fromString(@Nullable String string) {
                         return null;
                     }
                 }));

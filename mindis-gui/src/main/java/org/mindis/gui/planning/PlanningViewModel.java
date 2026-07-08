@@ -13,6 +13,8 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.export.PlanExportFormat;
 import org.mindis.core.export.PlanExportService;
 import org.mindis.core.persistence.PlanRepository;
@@ -98,7 +100,7 @@ public class PlanningViewModel {
         planExportService.export(PlanMapper.toAcceptedPlan(plan, from, toInclusive), target, format);
     }
 
-    public HardMediumSoftScore scoreOf(ServicePlan plan) {
+    public @Nullable HardMediumSoftScore scoreOf(ServicePlan plan) {
         return planningService.scoreOf(plan);
     }
 

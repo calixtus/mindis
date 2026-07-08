@@ -28,6 +28,8 @@ import javafx.util.StringConverter;
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.ServiceTemplate;
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.TemplateRepository;
@@ -134,12 +136,12 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         ComboBox<DayOfWeek> dayBox = new ComboBox<>(FXCollections.observableArrayList(DayOfWeek.values()));
         dayBox.setConverter(new StringConverter<>() {
             @Override
-            public String toString(DayOfWeek day) {
+            public String toString(@Nullable DayOfWeek day) {
                 return day == null ? "" : day.getDisplayName(TextStyle.FULL, Locale.getDefault());
             }
 
             @Override
-            public DayOfWeek fromString(String string) {
+            public @Nullable DayOfWeek fromString(@Nullable String string) {
                 return null;
             }
         });
@@ -151,12 +153,12 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         ComboBox<ServiceType> typeBox = new ComboBox<>(FXCollections.observableArrayList(ServiceType.values()));
         typeBox.setConverter(new StringConverter<>() {
             @Override
-            public String toString(ServiceType type) {
+            public String toString(@Nullable ServiceType type) {
                 return type == null ? "" : EnumDisplay.of(type);
             }
 
             @Override
-            public ServiceType fromString(String string) {
+            public @Nullable ServiceType fromString(@Nullable String string) {
                 return null;
             }
         });
@@ -210,7 +212,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         return content;
     }
 
-    private static LocalTime parseTime(String text) {
+    private static @Nullable LocalTime parseTime(String text) {
         try {
             return LocalTime.parse(text.strip(), DateTimeFormatter.ofPattern("H:mm"));
         } catch (DateTimeParseException e) {

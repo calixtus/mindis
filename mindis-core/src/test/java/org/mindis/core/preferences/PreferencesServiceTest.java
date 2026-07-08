@@ -53,6 +53,9 @@ class PreferencesServiceTest {
     }
 
     @Test
+    // NullAway: the listener is invoked synchronously by update() above, so
+    // seen.get() is always populated by the time it's read.
+    @SuppressWarnings("NullAway")
     void listenersAreNotifiedOnUpdate() {
         PreferencesService service = new PreferencesService(preferencesFile());
         AtomicReference<MinDisPreferences> seen = new AtomicReference<>();

@@ -18,6 +18,8 @@ import javafx.util.StringConverter;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.planning.MinDisConstraintProvider;
 import org.mindis.core.preferences.AppLanguage;
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.gui.preferences.PreferenceControls;
 import org.mindis.gui.preferences.UiPreferences;
@@ -132,7 +134,7 @@ public class SettingsModule extends WorkbenchModule {
         return box;
     }
 
-    private Tile tile(String title, String description, Node action) {
+    private Tile tile(String title, @Nullable String description, Node action) {
         Tile tile = new Tile(title, description);
         tile.setAction(action);
         return tile;

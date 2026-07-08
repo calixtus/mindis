@@ -7,6 +7,8 @@ import javafx.collections.FXCollections;
 import javafx.scene.control.ComboBox;
 import javafx.util.StringConverter;
 
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.preferences.PreferenceEnumValue;
 
 /**
@@ -25,12 +27,12 @@ public final class PreferenceControls {
                 Arrays.stream(values).filter(PreferenceEnumValue::isSelectable).toList()));
         box.setConverter(new StringConverter<>() {
             @Override
-            public String toString(T value) {
+            public String toString(@Nullable T value) {
                 return value == null ? "" : value.displayName();
             }
 
             @Override
-            public T fromString(String string) {
+            public @Nullable T fromString(@Nullable String string) {
                 return null;
             }
         });

@@ -6,6 +6,8 @@ import java.util.ResourceBundle;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Localization with full-text keys (JabRef style): the key IS the English text.
  * Missing translations fall back to the key itself, so the UI never shows raw keys.
@@ -37,7 +39,7 @@ public final class Localization {
         return bundle;
     }
 
-    public static String lang(String englishText, Object... parameters) {
+    public static String lang(String englishText, @Nullable Object... parameters) {
         String translation;
         try {
             translation = bundle.getString(englishText);

@@ -2,6 +2,8 @@ package org.mindis.core.model;
 
 import java.util.UUID;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * A liturgical role an altar server can be qualified for (Acolyte, Cross
  * bearer, ...). Configurable and persisted like {@link Server}: referenced
@@ -15,8 +17,8 @@ import java.util.UUID;
 public record Role(
         String id,
         String name,
-        Integer minAge,
-        Integer maxAge,
+        @Nullable Integer minAge,
+        @Nullable Integer maxAge,
         int sortOrder) {
 
     // Stable ids of the seeded default roles (formerly enum constants).

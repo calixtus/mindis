@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.model.ServiceTemplate;
 import org.mindis.core.preferences.DataDirectory;
 
@@ -20,7 +22,7 @@ import org.mindis.core.preferences.DataDirectory;
 public class TemplateRepository {
 
     private final JsonStore<ServiceTemplate> store;
-    private List<ServiceTemplate> templates;
+    private @Nullable List<ServiceTemplate> templates;
 
     public TemplateRepository(DataDirectory dataDirectory) {
         this(dataDirectory.resolve("templates.json"));
@@ -32,28 +34,33 @@ public class TemplateRepository {
     }
 
     public synchronized List<ServiceTemplate> findAll() {
-        if (templates == null) {
-            templates = new ArrayList<>(store.load());
-            sort();
-        }
-        return List.copyOf(templates);
+        return List.copyOf(cached());
     }
 
     public synchronized void save(ServiceTemplate template) {
-        findAll();
-        templates.removeIf(existing -> existing.id().equals(template.id()));
-        templates.add(template);
-        sort();
-        store.save(templates);
+        List<ServiceTemplate> list = cached();
+        list.removeIf(existing -> existing.id().equals(template.id()));
+        list.add(template);
+        sort(list);
+        store.save(list);
     }
 
     public synchronized void delete(String id) {
-        findAll();
-        templates.removeIf(existing -> existing.id().equals(id));
-        store.save(templates);
+        List<ServiceTemplate> list = cached();
+        list.removeIf(existing -> existing.id().equals(id));
+        store.save(list);
     }
 
-    private void sort() {
-        templates.sort(Comparator.comparing(ServiceTemplate::dayOfWeek).thenComparing(ServiceTemplate::time));
+    /** The live (mutable) cache, loading and sorting it from disk on first access. */
+    private List<ServiceTemplate> cached() {
+        if (templates == null) {
+            templates = new ArrayList<>(store.load());
+            sort(templates);
+        }
+        return templates;
+    }
+
+    private static void sort(List<ServiceTemplate> list) {
+        list.sort(Comparator.comparing(ServiceTemplate::dayOfWeek).thenComparing(ServiceTemplate::time));
     }
 }

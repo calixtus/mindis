@@ -23,6 +23,9 @@ public class DashboardController {
     @FXML
     private ListView<String> serverLoadList;
 
+    // NullAway: @FXML fields are populated by FXMLLoader reflection right
+    // after this constructor runs, before initialize() is called.
+    @SuppressWarnings("NullAway.Init")
     public DashboardController(DashboardViewModel viewModel) {
         this.viewModel = viewModel;
     }

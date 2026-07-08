@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Translates a {@link CrudModule} item to and from one CSV row. Implement and
  * return from {@link CrudModule#csvMapper()} to enable the module's Export /
@@ -25,12 +27,12 @@ public interface CsvRowMapper<T> {
      * treated as absent by the mapper, not an error - CSV rows may be
      * shorter than the header if trailing columns were left blank.
      */
-    T fromRow(List<String> row);
+    @Nullable T fromRow(List<String> row);
 
     /** Builds a mapper from three functions, e.g. viewmodel method references. */
     static <T> CsvRowMapper<T> of(Supplier<List<String>> header,
                                   Function<T, List<String>> toRow,
-                                  Function<List<String>, T> fromRow) {
+                                  Function<List<String>, @Nullable T> fromRow) {
         return new CsvRowMapper<>() {
             @Override
             public List<String> header() {
@@ -43,7 +45,7 @@ public interface CsvRowMapper<T> {
             }
 
             @Override
-            public T fromRow(List<String> row) {
+            public @Nullable T fromRow(List<String> row) {
                 return fromRow.apply(row);
             }
         };

@@ -10,6 +10,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.model.Server;
 import org.mindis.core.preferences.DataDirectory;
 
@@ -20,7 +22,7 @@ import org.mindis.core.preferences.DataDirectory;
 public class ServerRepository {
 
     private final JsonStore<Server> store;
-    private List<Server> servers;
+    private @Nullable List<Server> servers;
 
     public ServerRepository(DataDirectory dataDirectory) {
         this(dataDirectory.resolve("servers.json"));
@@ -32,11 +34,7 @@ public class ServerRepository {
     }
 
     public synchronized List<Server> findAll() {
-        if (servers == null) {
-            servers = new ArrayList<>(store.load());
-            sort();
-        }
-        return List.copyOf(servers);
+        return List.copyOf(cached());
     }
 
     public synchronized Optional<Server> findById(String id) {
@@ -44,20 +42,29 @@ public class ServerRepository {
     }
 
     public synchronized void save(Server server) {
-        findAll();
-        servers.removeIf(existing -> existing.id().equals(server.id()));
-        servers.add(server);
-        sort();
-        store.save(servers);
+        List<Server> list = cached();
+        list.removeIf(existing -> existing.id().equals(server.id()));
+        list.add(server);
+        sort(list);
+        store.save(list);
     }
 
     public synchronized void delete(String id) {
-        findAll();
-        servers.removeIf(existing -> existing.id().equals(id));
-        store.save(servers);
+        List<Server> list = cached();
+        list.removeIf(existing -> existing.id().equals(id));
+        store.save(list);
     }
 
-    private void sort() {
-        servers.sort(Comparator.comparing(Server::lastName).thenComparing(Server::firstName));
+    /** The live (mutable) cache, loading and sorting it from disk on first access. */
+    private List<Server> cached() {
+        if (servers == null) {
+            servers = new ArrayList<>(store.load());
+            sort(servers);
+        }
+        return servers;
+    }
+
+    private static void sort(List<Server> list) {
+        list.sort(Comparator.comparing(Server::lastName).thenComparing(Server::firstName));
     }
 }

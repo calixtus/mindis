@@ -37,6 +37,10 @@ class PlanningEndToEndTest {
 
     @Test
     @Timeout(120)
+    // NullAway: ROLES.get(slot.role()) is always present (slots only ever
+    // reference the Role constants seeded into ROLES below), and solved's
+    // score is always set after SolverFactory.solve() returns.
+    @SuppressWarnings("NullAway")
     void realisticMonthYieldsFeasiblePlan() {
         List<Server> servers = new ArrayList<>();
         for (int i = 0; i < 20; i++) {

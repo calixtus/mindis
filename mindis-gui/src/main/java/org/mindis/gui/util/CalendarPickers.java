@@ -11,6 +11,8 @@ import java.util.Base64;
 
 import javafx.util.StringConverter;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * ISO ({@code yyyy-MM-dd}) formatting for GemsFX {@link CalendarPicker}s,
  * shared by every date field in the app (see ADR: date pickers use GemsFX's
@@ -134,12 +136,12 @@ public final class CalendarPickers {
         calendarView.getStylesheets().add(CALENDAR_THEME_STYLESHEET);
         picker.setConverter(new StringConverter<>() {
             @Override
-            public String toString(LocalDate date) {
+            public String toString(@Nullable LocalDate date) {
                 return date == null ? "" : ISO.format(date);
             }
 
             @Override
-            public LocalDate fromString(String text) {
+            public @Nullable LocalDate fromString(@Nullable String text) {
                 String trimmed = text == null ? "" : text.strip();
                 if (trimmed.isEmpty()) {
                     return null;

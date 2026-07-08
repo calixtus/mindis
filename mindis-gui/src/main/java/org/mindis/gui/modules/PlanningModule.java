@@ -2,6 +2,8 @@ package org.mindis.gui.modules;
 
 import javafx.scene.Node;
 
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.gui.planning.PlanningView;
 import org.mindis.workbench.WorkbenchModule;
 
@@ -10,7 +12,7 @@ import org.mindis.workbench.WorkbenchModule;
  */
 public class PlanningModule extends WorkbenchModule {
 
-    private PlanningView view;
+    private @Nullable PlanningView view;
 
     public PlanningModule(String name) {
         super(name, "mdi2c-calendar-check");
@@ -18,13 +20,15 @@ public class PlanningModule extends WorkbenchModule {
 
     @Override
     public Node activate() {
-        if (view == null) {
-            view = new PlanningView();
-        } else if (view.getController() != null) {
+        PlanningView content = view;
+        if (content == null) {
+            content = new PlanningView();
+            view = content;
+        } else if (content.getController() != null) {
             // Pick up roster/service edits from other modules; keeps the
             // current slot decisions (see PlanningController).
-            view.getController().refreshFromRepositories();
+            content.getController().refreshFromRepositories();
         }
-        return view;
+        return content;
     }
 }

@@ -30,6 +30,8 @@ import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.persistence.RoleRepository;
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.persistence.TemplateRepository;
 import org.mindis.gui.util.CalendarPickers;
@@ -160,12 +162,12 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         ComboBox<ServiceType> typeBox = new ComboBox<>(FXCollections.observableArrayList(ServiceType.values()));
         typeBox.setConverter(new StringConverter<>() {
             @Override
-            public String toString(ServiceType type) {
+            public String toString(@Nullable ServiceType type) {
                 return type == null ? "" : EnumDisplay.of(type);
             }
 
             @Override
-            public ServiceType fromString(String string) {
+            public @Nullable ServiceType fromString(@Nullable String string) {
                 return null;
             }
         });
@@ -222,7 +224,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         return content;
     }
 
-    private static LocalTime parseTime(String text) {
+    private static @Nullable LocalTime parseTime(String text) {
         try {
             return LocalTime.parse(text.strip(), DateTimeFormatter.ofPattern("H:mm"));
         } catch (DateTimeParseException e) {

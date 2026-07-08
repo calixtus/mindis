@@ -8,6 +8,7 @@ plugins {
     id("org.mindis.gradle.feature.localization")
     id("org.mindis.gradle.check.checkstyle")
     id("org.mindis.gradle.check.modernizer")
+    id("org.mindis.gradle.check.nullaway")
 }
 
 // All dependency versions come from the :versions platform (JabRef pattern).
@@ -22,6 +23,13 @@ jvmDependencyConflicts {
 // Automatic-Module-Name they had before (other module-infos require them).
 extraJavaModuleInfo {
     failOnAutomaticModules = false
+
+    // Annotation processors (incl. errorprone/NullAway and their transitive
+    // deps, e.g. com.github.kevinstern:software-and-algorithms, which ships
+    // neither a module-info nor an Automatic-Module-Name) run on a plain
+    // -processorpath, never the module path, so they need no module info.
+    deactivate(configurations.named("annotationProcessor"))
+    deactivate(configurations.named("testAnnotationProcessor"))
 
     module("com.github.librepdf:openpdf", "com.github.librepdf.openpdf") {
         exportAllPackages()

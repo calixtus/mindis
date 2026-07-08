@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.UnavailabilityPeriod;
@@ -21,6 +24,7 @@ import org.mindis.core.persistence.ServerRepository;
  * preferred-times text &lt;-&gt; {@code Set<LocalTime>} parsing/formatting, so the
  * module only constructs UI and binds to this class.
  */
+@NullMarked
 final class ServersViewModel {
 
     private final ServerRepository serverRepository;
@@ -101,7 +105,7 @@ final class ServersViewModel {
     }
 
     /** Blank first+last name rows are skipped; a blank id gets a fresh one, matching {@link #createStub()}. */
-    Server fromCsvRow(List<String> row) {
+    @Nullable Server fromCsvRow(List<String> row) {
         String firstName = CsvFields.at(row, 1);
         String lastName = CsvFields.at(row, 2);
         if (firstName.isEmpty() && lastName.isEmpty()) {

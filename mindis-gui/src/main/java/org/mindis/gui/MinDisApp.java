@@ -16,6 +16,8 @@ import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.logging.LoggingBootstrap;
 import org.mindis.core.preferences.AccentColor;
@@ -45,6 +47,9 @@ import org.mindis.workbench.Workbench;
  * window geometry) before the first scene and rebuilds the UI on language
  * change.
  */
+// NullAway: the JavaFX launcher instantiates this via a no-arg constructor
+// and populates real state via start(Stage), never a constructor we control.
+@SuppressWarnings("NullAway.Init")
 public class MinDisApp extends Application {
 
     private static final List<Integer> APP_ICON_SIZES = List.of(16, 32, 48, 64, 128, 256, 512);
@@ -216,6 +221,9 @@ public class MinDisApp extends Application {
      * AccentColor#DEFAULT} - the OS accent color from JavaFX platform
      * preferences.
      */
+    // NullAway: AccentColor.baseHex() is @Nullable only for DEFAULT, excluded
+    // by the branch above it - an invariant tied to the enum, not the type.
+    @SuppressWarnings("NullAway")
     private String resolveAccentHex() {
         AccentColor accent = uiPreferences.accentColorProperty().get();
         if (accent != AccentColor.DEFAULT) {
@@ -224,7 +232,7 @@ public class MinDisApp extends Application {
         return ThemeStyler.toWebHex(Platform.getPreferences().getAccentColor());
     }
 
-    private void restoreWindowBounds(MinDisPreferences.WindowBounds bounds) {
+    private void restoreWindowBounds(MinDisPreferences.@Nullable WindowBounds bounds) {
         if (bounds == null) {
             return;
         }

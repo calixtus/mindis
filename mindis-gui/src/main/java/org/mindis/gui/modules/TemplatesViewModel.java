@@ -4,6 +4,9 @@ import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.List;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import org.mindis.core.model.Role;
 import org.mindis.core.model.ServiceTemplate;
 import org.mindis.core.model.ServiceType;
@@ -14,6 +17,7 @@ import org.mindis.core.persistence.TemplateRepository;
  * ViewModel for {@link TemplatesModule}: owns every repository call, so the
  * module only constructs UI and binds to this class.
  */
+@NullMarked
 final class TemplatesViewModel {
 
     private static final int DEFAULT_DURATION_MINUTES = 60;
@@ -65,7 +69,7 @@ final class TemplatesViewModel {
     }
 
     /** Rows with an unparsable weekday/time are skipped; a blank id gets a fresh one. */
-    ServiceTemplate fromCsvRow(List<String> row) {
+    @Nullable ServiceTemplate fromCsvRow(List<String> row) {
         DayOfWeek day = CsvFields.parseDayOfWeek(CsvFields.at(row, 1));
         LocalTime time = CsvFields.parseTime(CsvFields.at(row, 2));
         if (day == null || time == null) {

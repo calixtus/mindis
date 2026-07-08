@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.jspecify.annotations.NullMarked;
+
 import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
 import org.mindis.core.persistence.RoleRepository;
@@ -17,6 +19,7 @@ import org.mindis.core.persistence.RoleRepository;
  * zero/negative counts are dropped, mirroring {@code RoleSlotsEditor}'s
  * zero-count-omitted convention.
  */
+@NullMarked
 final class RoleSlotCsv {
 
     private RoleSlotCsv() {
