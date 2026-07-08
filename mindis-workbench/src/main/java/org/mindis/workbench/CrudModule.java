@@ -183,6 +183,7 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         deleteButton.setOnAction(event -> onDelete());
 
         ToolBar toolbar = new ToolBar(newButton, deleteButton);
+        toolbar.setStyle("-fx-padding: 8 12 8 12; -fx-spacing: 8;");
         if (!toolbarExtras.isEmpty()) {
             toolbar.getItems().add(new Separator(Orientation.VERTICAL));
             toolbar.getItems().addAll(toolbarExtras);
