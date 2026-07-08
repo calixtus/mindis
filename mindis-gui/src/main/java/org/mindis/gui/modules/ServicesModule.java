@@ -1,7 +1,6 @@
 package org.mindis.gui.modules;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -31,7 +30,6 @@ import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.persistence.RoleRepository;
-import org.mindis.core.persistence.ServiceGenerator;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.persistence.TemplateRepository;
 import org.mindis.gui.util.CalendarPickers;
@@ -44,19 +42,14 @@ import org.mindis.workbench.CrudModule;
 public class ServicesModule extends CrudModule<LiturgicalService> {
 
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
-    private static final int DEFAULT_DURATION_MINUTES = 60;
     private static final double EDITOR_MIN_HEIGHT = 520;
 
-    private final ServiceRepository serviceRepository;
-    private final TemplateRepository templateRepository;
-    private final RoleRepository roleRepository;
+    private final ServicesViewModel viewModel;
 
     public ServicesModule(String name, ServiceRepository serviceRepository, TemplateRepository templateRepository,
                           RoleRepository roleRepository) {
         super(name, "mdi2c-church");
-        this.serviceRepository = serviceRepository;
-        this.templateRepository = templateRepository;
-        this.roleRepository = roleRepository;
+        this.viewModel = new ServicesViewModel(serviceRepository, templateRepository, roleRepository);
 
         TableColumn<LiturgicalService, String> dateColumn = new TableColumn<>(Localization.lang("Date"));
         dateColumn.setPrefWidth(140);
@@ -90,15 +83,9 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         toPicker.setPrefWidth(130);
         Button generateButton = new Button(Localization.lang("Generate from templates"));
         generateButton.setOnAction(event -> {
-            LocalDate from = fromPicker.getValue();
-            LocalDate to = toPicker.getValue();
-            if (from == null || to == null || to.isBefore(from)) {
-                return;
+            if (viewModel.generateFromTemplates(fromPicker.getValue(), toPicker.getValue())) {
+                refresh();
             }
-            List<LiturgicalService> generated = ServiceGenerator.generate(
-                    templateRepository.findAll(), serviceRepository.findAll(), from, to);
-            serviceRepository.saveAll(generated);
-            refresh();
         });
         toolbarExtras().add(new Label(Localization.lang("From")));
         toolbarExtras().add(fromPicker);
@@ -119,25 +106,22 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
     @Override
     protected LiturgicalService createStub() {
-        LocalDateTime nextFullHour = LocalDateTime.now()
-                .withMinute(0).withSecond(0).withNano(0).plusHours(1);
-        return new LiturgicalService(LiturgicalService.newId(), nextFullHour, DEFAULT_DURATION_MINUTES,
-                "", ServiceType.OTHER, List.of(), "");
+        return viewModel.createStub();
     }
 
     @Override
     protected List<LiturgicalService> loadAll() {
-        return serviceRepository.findAll();
+        return viewModel.findAll();
     }
 
     @Override
     protected void persist(LiturgicalService service) {
-        serviceRepository.save(service);
+        viewModel.save(service);
     }
 
     @Override
     protected void delete(LiturgicalService service) {
-        serviceRepository.delete(service.id());
+        viewModel.delete(service);
     }
 
     @Override
@@ -169,7 +153,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         TextField locationField = new TextField(service.location());
         TextField noteField = new TextField(service.note());
 
-        RoleSlotsEditor slotsEditor = new RoleSlotsEditor(roleRepository.findAll(), service.slots());
+        RoleSlotsEditor slotsEditor = new RoleSlotsEditor(viewModel.findAllRoles(), service.slots());
 
         GridPane grid = new GridPane();
         grid.setHgap(8);
