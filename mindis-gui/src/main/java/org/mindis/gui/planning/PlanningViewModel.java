@@ -100,6 +100,16 @@ public class PlanningViewModel {
         planExportService.export(PlanMapper.toAcceptedPlan(plan, from, toInclusive), target, format);
     }
 
+    /** Every saved plan from a period the planner has since moved past, newest first. */
+    public List<AcceptedPlan> listArchivedPlans() {
+        return planRepository.listArchived();
+    }
+
+    /** Exports an already-accepted (typically archived) plan directly - no live {@link ServicePlan} needed. */
+    public void exportAcceptedPlan(AcceptedPlan plan, Path target, PlanExportFormat format) {
+        planExportService.export(plan, target, format);
+    }
+
     public @Nullable HardMediumSoftScore scoreOf(ServicePlan plan) {
         return planningService.scoreOf(plan);
     }

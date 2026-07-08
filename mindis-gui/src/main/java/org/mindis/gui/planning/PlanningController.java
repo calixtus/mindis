@@ -70,6 +70,8 @@ public class PlanningController {
     @FXML
     private Button exportButton;
     @FXML
+    private Button archiveButton;
+    @FXML
     private Label scoreLabel;
     @FXML
     private Label statusLabel;
@@ -227,6 +229,11 @@ public class PlanningController {
         } catch (RuntimeException e) {
             statusLabel.setText(Localization.lang("%0 export failed: %1", format.name(), e.getMessage()));
         }
+    }
+
+    @FXML
+    private void onViewArchive() {
+        ArchivedPlansDialog.show(viewModel, assignmentsTable.getScene().getWindow());
     }
 
     private void applySolution(ServicePlan solution, boolean withViolations) {
