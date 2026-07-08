@@ -49,7 +49,13 @@ class AcceptedPlanRoundTripTest {
         repository.save(accepted);
         AcceptedPlan reloaded = new PlanRepository(tempDir.resolve("plan.json")).load().orElseThrow();
 
-        assertEquals(accepted, reloaded);
+        // save() stamps savedAt, so reloaded isn't identical to accepted
+        // (which has savedAt == null) - compare the content, then check the
+        // stamp landed.
+        assertEquals(accepted.from(), reloaded.from());
+        assertEquals(accepted.toInclusive(), reloaded.toInclusive());
+        assertEquals(accepted.assignments(), reloaded.assignments());
+        assertTrue(reloaded.savedAt() != null, "save() should stamp savedAt");
 
         // Re-apply onto a fresh problem: server and pin restored by id.
         Assignment freshAssigned = new Assignment("svc-1:ACOLYTE:0", MASS, ROLE_ACOLYTE);

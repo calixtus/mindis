@@ -26,7 +26,10 @@ public final class PlanMapper {
                         assignment.getServer() == null ? null : assignment.getServer().id(),
                         assignment.isPinned()))
                 .toList();
-        return new AcceptedPlan(from, toInclusive, planned);
+        // savedAt is stamped by PlanRepository#save, not here - this mapper
+        // is a pure ServicePlan<->AcceptedPlan conversion with no notion of
+        // "when", used for export and re-solving too, not just saving.
+        return new AcceptedPlan(from, toInclusive, planned, null);
     }
 
     /**
