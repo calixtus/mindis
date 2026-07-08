@@ -17,6 +17,7 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -24,6 +25,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.Separator;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.CheckBoxListCell;
@@ -88,16 +90,21 @@ public class ServersModule extends CrudModule<Server> {
         table().getColumns().add(nameColumn);
         table().getColumns().add(qualificationsColumn);
         table().getColumns().add(activeColumn);
-    }
 
-    @Override
-    protected String newButtonLabel() {
-        return Localization.lang("New");
-    }
+        Button newButton = new Button(Localization.lang("New"));
+        newButton.setOnAction(event -> newItem());
+        Button deleteButton = new Button(Localization.lang("Delete"));
+        deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
+        deleteButton.setOnAction(event -> deleteSelected());
 
-    @Override
-    protected String deleteButtonLabel() {
-        return Localization.lang("Delete");
+        CsvRowMapper<Server> csvMapper = CsvRowMapper.of(viewModel::csvHeader, viewModel::toCsvRow, viewModel::fromCsvRow);
+        Button exportButton = new Button(Localization.lang("Export"));
+        exportButton.setOnAction(event -> exportCsv(csvMapper));
+        Button importButton = new Button(Localization.lang("Import"));
+        importButton.setOnAction(event -> importCsv(csvMapper,
+                (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
+
+        toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL), exportButton, importButton);
     }
 
     @Override
@@ -123,26 +130,6 @@ public class ServersModule extends CrudModule<Server> {
     @Override
     protected Object identity(Server server) {
         return server.id();
-    }
-
-    @Override
-    protected CsvRowMapper<Server> csvMapper() {
-        return CsvRowMapper.of(viewModel::csvHeader, viewModel::toCsvRow, viewModel::fromCsvRow);
-    }
-
-    @Override
-    protected String exportButtonLabel() {
-        return Localization.lang("Export");
-    }
-
-    @Override
-    protected String importButtonLabel() {
-        return Localization.lang("Import");
-    }
-
-    @Override
-    protected String importSummary(int imported, int total) {
-        return Localization.lang("%0 of %1 rows imported", imported, total);
     }
 
     @Override

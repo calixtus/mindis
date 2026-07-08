@@ -7,9 +7,11 @@ import java.util.function.IntSupplier;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.Separator;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TableColumn;
@@ -55,16 +57,21 @@ public class RolesModule extends CrudModule<Role> {
 
         table().getColumns().add(nameColumn);
         table().getColumns().add(ageRangeColumn);
-    }
 
-    @Override
-    protected String newButtonLabel() {
-        return Localization.lang("New");
-    }
+        Button newButton = new Button(Localization.lang("New"));
+        newButton.setOnAction(event -> newItem());
+        Button deleteButton = new Button(Localization.lang("Delete"));
+        deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
+        deleteButton.setOnAction(event -> deleteSelected());
 
-    @Override
-    protected String deleteButtonLabel() {
-        return Localization.lang("Delete");
+        CsvRowMapper<Role> csvMapper = CsvRowMapper.of(viewModel::csvHeader, viewModel::toCsvRow, viewModel::fromCsvRow);
+        Button exportButton = new Button(Localization.lang("Export"));
+        exportButton.setOnAction(event -> exportCsv(csvMapper));
+        Button importButton = new Button(Localization.lang("Import"));
+        importButton.setOnAction(event -> importCsv(csvMapper,
+                (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
+
+        toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL), exportButton, importButton);
     }
 
     @Override
@@ -90,26 +97,6 @@ public class RolesModule extends CrudModule<Role> {
     @Override
     protected Object identity(Role role) {
         return role.id();
-    }
-
-    @Override
-    protected CsvRowMapper<Role> csvMapper() {
-        return CsvRowMapper.of(viewModel::csvHeader, viewModel::toCsvRow, viewModel::fromCsvRow);
-    }
-
-    @Override
-    protected String exportButtonLabel() {
-        return Localization.lang("Export");
-    }
-
-    @Override
-    protected String importButtonLabel() {
-        return Localization.lang("Import");
-    }
-
-    @Override
-    protected String importSummary(int imported, int total) {
-        return Localization.lang("%0 of %1 rows imported", imported, total);
     }
 
     @Override

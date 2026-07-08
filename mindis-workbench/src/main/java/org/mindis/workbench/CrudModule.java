@@ -6,6 +6,7 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -13,13 +14,10 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.css.PseudoClass;
 import javafx.geometry.Insets;
-import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
-import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.Separator;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
@@ -36,26 +34,31 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Base {@link WorkbenchModule} for the common "table on the left, editor on
- * the right" CRUD screen (see Roles/Servers/Services/Templates): a toolbar
- * with New/Delete, a table of items, and an editor pane for the selected item.
+ * the right" CRUD screen (see Roles/Servers/Services/Templates): a toolbar,
+ * a table of items, and an editor pane for the selected item. This class has
+ * no localized text anywhere (it can't reach {@code Localization} across the
+ * workbench/core module boundary) - every button, its label and its wiring
+ * belongs to the subclass.
  *
  * <p><b>Wiring a subclass:</b>
  * <ul>
  *   <li>{@link #table()} - configure columns; do not call
  *       {@code setItems} on it, {@code CrudModule} owns the item list via
  *       {@link #loadAll()} / {@link #refresh()}.
- *   <li>{@link #toolbarExtras()} - add extra toolbar nodes (buttons,
- *       separators) beyond New/Delete; add them before the module is first
- *       activated (e.g. in the subclass constructor), since the toolbar is
- *       built once on first {@link #activate()}.
+ *   <li>{@link #toolbarExtras()} - build the toolbar's buttons (localized
+ *       text, own {@code setOnAction}) and push them here, in display order;
+ *       bind {@link #newItem()}/{@link #deleteSelected()}/
+ *       {@link #exportCsv(CsvRowMapper)}/{@link #importCsv(CsvRowMapper,
+ *       BiFunction)} as their actions. Push them in the subclass constructor,
+ *       since the toolbar is built once on first {@link #activate()}.
  *   <li>{@link #editorProperty()} - set the editor {@link Node} (a
  *       {@code Pane} of field controls) whenever {@link #buildEditor(Object)}
  *       is called; the editor container is automatically disabled while no
  *       row is selected.
  * </ul>
  *
- * <p><b>New/save lifecycle:</b> clicking New calls {@link #createStub()} and
- * inserts+selects it as an unsaved placeholder row (styled with the
+ * <p><b>New/save lifecycle:</b> {@link #newItem()} calls {@link #createStub()}
+ * and inserts+selects it as an unsaved placeholder row (styled with the
  * {@code :crud-new} CSS pseudo-class - grey/italic by default, see
  * {@code workbench.css}). The subclass's editor is expected to call
  * {@link #save(Object)} with the filled-in item when the user confirms (e.g.
@@ -90,7 +93,7 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         return table;
     }
 
-    /** Extra toolbar nodes appended after New/Delete (behind a separator). */
+    /** The toolbar's buttons (and any separators between them), in display order. */
     protected final ObservableList<Node> toolbarExtras() {
         return toolbarExtras;
     }
@@ -99,12 +102,6 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     protected final ObjectProperty<Node> editorProperty() {
         return editor;
     }
-
-    /** Text for the New button, e.g. {@code Localization.lang("New")}. */
-    protected abstract String newButtonLabel();
-
-    /** Text for the Delete button, e.g. {@code Localization.lang("Delete")}. */
-    protected abstract String deleteButtonLabel();
 
     /** A blank/default item for the New action; not yet persisted. */
     protected abstract T createStub();
@@ -130,35 +127,6 @@ public abstract class CrudModule<T> extends WorkbenchModule {
      * including a freshly created stub.
      */
     protected abstract Node buildEditor(T item);
-
-    /**
-     * CSV mapping for this module's table, or {@code null} (the default) to
-     * disable the Export/Import toolbar buttons. Override together with
-     * {@link #exportButtonLabel()} and {@link #importButtonLabel()}.
-     */
-    protected @Nullable CsvRowMapper<T> csvMapper() {
-        return null;
-    }
-
-    /** Text for the Export button; only read when {@link #csvMapper()} is non-null. */
-    protected String exportButtonLabel() {
-        return "Export";
-    }
-
-    /** Text for the Import button; only read when {@link #csvMapper()} is non-null. */
-    protected String importButtonLabel() {
-        return "Import";
-    }
-
-    /** Title of the Export/Import file chooser dialogs. */
-    protected String csvChooserTitle() {
-        return getName();
-    }
-
-    /** Result summary after an import, e.g. {@code "12 of 14 rows imported"}. */
-    protected String importSummary(int imported, int total) {
-        return imported + " of " + total + " rows imported";
-    }
 
     @Override
     public final Node activate() {
@@ -221,27 +189,9 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         editor.subscribe(node -> editorContainer.getChildren().setAll(node == null ? List.of() : List.of(node)));
         editorContainer.disableProperty().bind(table.getSelectionModel().selectedItemProperty().isNull());
 
-        Button newButton = new Button(newButtonLabel());
-        newButton.setOnAction(event -> onNew());
-        Button deleteButton = new Button(deleteButtonLabel());
-        deleteButton.disableProperty().bind(table.getSelectionModel().selectedItemProperty().isNull());
-        deleteButton.setOnAction(event -> onDelete());
-
-        ToolBar toolbar = new ToolBar(newButton, deleteButton);
+        ToolBar toolbar = new ToolBar();
         toolbar.setStyle("-fx-padding: 8 12 8 12; -fx-spacing: 8;");
-        if (!toolbarExtras.isEmpty()) {
-            toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-            toolbar.getItems().addAll(toolbarExtras);
-        }
-        CsvRowMapper<T> csvMapper = csvMapper();
-        if (csvMapper != null) {
-            Button exportButton = new Button(exportButtonLabel());
-            exportButton.setOnAction(event -> onExportCsv(csvMapper));
-            Button importButton = new Button(importButtonLabel());
-            importButton.setOnAction(event -> onImportCsv(csvMapper));
-            toolbar.getItems().add(new Separator(Orientation.VERTICAL));
-            toolbar.getItems().addAll(exportButton, importButton);
-        }
+        toolbar.getItems().addAll(toolbarExtras);
 
         VBox.setVgrow(table, Priority.ALWAYS);
         VBox tableSide = new VBox(table);
@@ -256,14 +206,16 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         return new VBox(toolbar, split);
     }
 
-    private void onNew() {
+    /** Inserts and selects an unsaved {@link #createStub()} placeholder row. Bind to the New button's action. */
+    protected final void newItem() {
         T stub = createStub();
         pendingNew = stub;
         items.addFirst(stub);
         table.getSelectionModel().select(stub);
     }
 
-    private void onDelete() {
+    /** Deletes the selected row (or discards it, if unsaved). Bind to the Delete button's action. */
+    protected final void deleteSelected() {
         T selected = table.getSelectionModel().getSelectedItem();
         if (selected == null) {
             return;
@@ -277,9 +229,10 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         }
     }
 
-    private void onExportCsv(CsvRowMapper<T> mapper) {
+    /** Prompts for a file and writes every row via {@code mapper}. Bind to the Export button's action. */
+    protected final void exportCsv(CsvRowMapper<T> mapper) {
         FileChooser chooser = new FileChooser();
-        chooser.setTitle(csvChooserTitle());
+        chooser.setTitle(getName());
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv"));
         chooser.setInitialFileName(getName() + ".csv");
         File target = chooser.showSaveDialog(sceneWindow());
@@ -298,9 +251,15 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         }
     }
 
-    private void onImportCsv(CsvRowMapper<T> mapper) {
+    /**
+     * Prompts for a file and imports every row via {@code mapper}, then shows
+     * {@code summaryMessage.apply(imported, total)} (e.g. localized "12 of 14
+     * rows imported" text - this class has no localized text of its own).
+     * Bind to the Import button's action.
+     */
+    protected final void importCsv(CsvRowMapper<T> mapper, BiFunction<Integer, Integer, String> summaryMessage) {
         FileChooser chooser = new FileChooser();
-        chooser.setTitle(csvChooserTitle());
+        chooser.setTitle(getName());
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv"));
         File source = chooser.showOpenDialog(sceneWindow());
         if (source == null) {
@@ -319,7 +278,7 @@ public abstract class CrudModule<T> extends WorkbenchModule {
             }
             pendingNew = null;
             refresh();
-            new Alert(AlertType.INFORMATION, importSummary(imported, dataRows.size())).showAndWait();
+            new Alert(AlertType.INFORMATION, summaryMessage.apply(imported, dataRows.size())).showAndWait();
         } catch (IOException e) {
             LOGGER.warn("CSV import failed: {}", source, e);
             new Alert(AlertType.ERROR, e.getMessage()).showAndWait();
