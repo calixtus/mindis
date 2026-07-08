@@ -32,6 +32,7 @@ import org.mindis.core.model.ServiceType;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.TemplateRepository;
 import org.mindis.workbench.CrudModule;
+import org.mindis.workbench.CsvRowMapper;
 
 /**
  * Weekly recurring service templates ("every Sunday 10:00 at St. Mary"),
@@ -106,6 +107,26 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
     @Override
     protected Object identity(ServiceTemplate template) {
         return template.id();
+    }
+
+    @Override
+    protected CsvRowMapper<ServiceTemplate> csvMapper() {
+        return CsvRowMapper.of(viewModel::csvHeader, viewModel::toCsvRow, viewModel::fromCsvRow);
+    }
+
+    @Override
+    protected String exportButtonLabel() {
+        return Localization.lang("Export");
+    }
+
+    @Override
+    protected String importButtonLabel() {
+        return Localization.lang("Import");
+    }
+
+    @Override
+    protected String importSummary(int imported, int total) {
+        return Localization.lang("%0 of %1 rows imported", imported, total);
     }
 
     @Override

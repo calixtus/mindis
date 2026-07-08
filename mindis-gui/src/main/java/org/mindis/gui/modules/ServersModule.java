@@ -45,6 +45,7 @@ import org.mindis.core.persistence.ServerRepository;
 import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.gui.util.CalendarPickers;
 import org.mindis.workbench.CrudModule;
+import org.mindis.workbench.CsvRowMapper;
 
 /**
  * Altar server roster module: personal details, role qualifications and
@@ -120,6 +121,26 @@ public class ServersModule extends CrudModule<Server> {
     @Override
     protected Object identity(Server server) {
         return server.id();
+    }
+
+    @Override
+    protected CsvRowMapper<Server> csvMapper() {
+        return CsvRowMapper.of(viewModel::csvHeader, viewModel::toCsvRow, viewModel::fromCsvRow);
+    }
+
+    @Override
+    protected String exportButtonLabel() {
+        return Localization.lang("Export");
+    }
+
+    @Override
+    protected String importButtonLabel() {
+        return Localization.lang("Import");
+    }
+
+    @Override
+    protected String importSummary(int imported, int total) {
+        return Localization.lang("%0 of %1 rows imported", imported, total);
     }
 
     @Override

@@ -1,6 +1,13 @@
 package org.mindis.workbench;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.Writer;
+import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -10,6 +17,8 @@ import javafx.css.PseudoClass;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
@@ -20,6 +29,8 @@ import javafx.scene.control.ToolBar;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
+import javafx.stage.Window;
 
 /**
  * Base {@link WorkbenchModule} for the common "table on the left, editor on
@@ -56,6 +67,7 @@ import javafx.scene.layout.VBox;
  */
 public abstract class CrudModule<T> extends WorkbenchModule {
 
+    private static final Logger LOGGER = Logger.getLogger(CrudModule.class.getName());
     private static final PseudoClass CRUD_NEW = PseudoClass.getPseudoClass("crud-new");
 
     private final TableView<T> table = new TableView<>();
@@ -116,6 +128,35 @@ public abstract class CrudModule<T> extends WorkbenchModule {
      * including a freshly created stub.
      */
     protected abstract Node buildEditor(T item);
+
+    /**
+     * CSV mapping for this module's table, or {@code null} (the default) to
+     * disable the Export/Import toolbar buttons. Override together with
+     * {@link #exportButtonLabel()} and {@link #importButtonLabel()}.
+     */
+    protected CsvRowMapper<T> csvMapper() {
+        return null;
+    }
+
+    /** Text for the Export button; only read when {@link #csvMapper()} is non-null. */
+    protected String exportButtonLabel() {
+        return "Export";
+    }
+
+    /** Text for the Import button; only read when {@link #csvMapper()} is non-null. */
+    protected String importButtonLabel() {
+        return "Import";
+    }
+
+    /** Title of the Export/Import file chooser dialogs. */
+    protected String csvChooserTitle() {
+        return getName();
+    }
+
+    /** Result summary after an import, e.g. {@code "12 of 14 rows imported"}. */
+    protected String importSummary(int imported, int total) {
+        return imported + " of " + total + " rows imported";
+    }
 
     @Override
     public final Node activate() {
@@ -188,6 +229,15 @@ public abstract class CrudModule<T> extends WorkbenchModule {
             toolbar.getItems().add(new Separator(Orientation.VERTICAL));
             toolbar.getItems().addAll(toolbarExtras);
         }
+        CsvRowMapper<T> csvMapper = csvMapper();
+        if (csvMapper != null) {
+            Button exportButton = new Button(exportButtonLabel());
+            exportButton.setOnAction(event -> onExportCsv(csvMapper));
+            Button importButton = new Button(importButtonLabel());
+            importButton.setOnAction(event -> onImportCsv(csvMapper));
+            toolbar.getItems().add(new Separator(Orientation.VERTICAL));
+            toolbar.getItems().addAll(exportButton, importButton);
+        }
 
         VBox.setVgrow(table, Priority.ALWAYS);
         VBox tableSide = new VBox(table);
@@ -221,5 +271,58 @@ public abstract class CrudModule<T> extends WorkbenchModule {
             delete(selected);
             refresh();
         }
+    }
+
+    private void onExportCsv(CsvRowMapper<T> mapper) {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(csvChooserTitle());
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv"));
+        chooser.setInitialFileName(getName() + ".csv");
+        File target = chooser.showSaveDialog(sceneWindow());
+        if (target == null) {
+            return;
+        }
+        List<List<String>> rows = new ArrayList<>();
+        for (T item : items) {
+            rows.add(mapper.toRow(item));
+        }
+        try (Writer writer = Files.newBufferedWriter(target.toPath())) {
+            CsvIO.write(writer, mapper.header(), rows);
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "CSV export failed: " + target, e);
+            new Alert(AlertType.ERROR, e.getMessage()).showAndWait();
+        }
+    }
+
+    private void onImportCsv(CsvRowMapper<T> mapper) {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(csvChooserTitle());
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv"));
+        File source = chooser.showOpenDialog(sceneWindow());
+        if (source == null) {
+            return;
+        }
+        try {
+            List<List<String>> rows = CsvIO.parse(Files.readString(source.toPath()));
+            List<List<String>> dataRows = rows.isEmpty() ? List.of() : rows.subList(1, rows.size());
+            int imported = 0;
+            for (List<String> row : dataRows) {
+                T item = mapper.fromRow(row);
+                if (item != null) {
+                    persist(item);
+                    imported++;
+                }
+            }
+            pendingNew = null;
+            refresh();
+            new Alert(AlertType.INFORMATION, importSummary(imported, dataRows.size())).showAndWait();
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "CSV import failed: " + source, e);
+            new Alert(AlertType.ERROR, e.getMessage()).showAndWait();
+        }
+    }
+
+    private Window sceneWindow() {
+        return table.getScene().getWindow();
     }
 }

@@ -25,6 +25,7 @@ import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.workbench.CrudModule;
+import org.mindis.workbench.CsvRowMapper;
 
 /**
  * Liturgical role management module: name plus an optional minimum/maximum
@@ -87,6 +88,26 @@ public class RolesModule extends CrudModule<Role> {
     @Override
     protected Object identity(Role role) {
         return role.id();
+    }
+
+    @Override
+    protected CsvRowMapper<Role> csvMapper() {
+        return CsvRowMapper.of(viewModel::csvHeader, viewModel::toCsvRow, viewModel::fromCsvRow);
+    }
+
+    @Override
+    protected String exportButtonLabel() {
+        return Localization.lang("Export");
+    }
+
+    @Override
+    protected String importButtonLabel() {
+        return Localization.lang("Import");
+    }
+
+    @Override
+    protected String importSummary(int imported, int total) {
+        return Localization.lang("%0 of %1 rows imported", imported, total);
     }
 
     @Override

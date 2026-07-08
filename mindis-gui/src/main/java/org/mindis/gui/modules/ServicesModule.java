@@ -34,6 +34,7 @@ import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.persistence.TemplateRepository;
 import org.mindis.gui.util.CalendarPickers;
 import org.mindis.workbench.CrudModule;
+import org.mindis.workbench.CsvRowMapper;
 
 /**
  * Liturgical services module: individual date/time services plus generation
@@ -127,6 +128,26 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     @Override
     protected Object identity(LiturgicalService service) {
         return service.id();
+    }
+
+    @Override
+    protected CsvRowMapper<LiturgicalService> csvMapper() {
+        return CsvRowMapper.of(viewModel::csvHeader, viewModel::toCsvRow, viewModel::fromCsvRow);
+    }
+
+    @Override
+    protected String exportButtonLabel() {
+        return Localization.lang("Export");
+    }
+
+    @Override
+    protected String importButtonLabel() {
+        return Localization.lang("Import");
+    }
+
+    @Override
+    protected String importSummary(int imported, int total) {
+        return Localization.lang("%0 of %1 rows imported", imported, total);
     }
 
     @Override
