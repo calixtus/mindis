@@ -106,6 +106,9 @@ public class PreferencesService {
         // false (do not follow), which is the intended default.
         // v6 -> v7: lastExportDirectory added; absent field deserializes as
         // null, which is the intended default (no remembered directory yet).
+        // v7 -> v8: sidebarWidth added; absent field deserializes as null,
+        // which is the intended default (the workbench falls back to its own
+        // default width).
         int solverSeconds = loaded.solverSecondsLimit() > 0
                 ? loaded.solverSecondsLimit()
                 : MinDisPreferences.DEFAULT_SOLVER_SECONDS;
@@ -120,7 +123,8 @@ public class PreferencesService {
                 loaded.fontFamily(),
                 loaded.fontSize(),
                 loaded.followSystemTheme(),
-                loaded.lastExportDirectory());
+                loaded.lastExportDirectory(),
+                loaded.sidebarWidth());
     }
 
     private void save(MinDisPreferences preferences) {

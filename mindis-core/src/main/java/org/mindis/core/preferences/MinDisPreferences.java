@@ -26,9 +26,10 @@ public record MinDisPreferences(
         String fontFamily,
         int fontSize,
         boolean followSystemTheme,
-        String lastExportDirectory) {
+        String lastExportDirectory,
+        Double sidebarWidth) {
 
-    public static final int CURRENT_VERSION = 7;
+    public static final int CURRENT_VERSION = 8;
     public static final int DEFAULT_SOLVER_SECONDS = 30;
     /** Sentinel meaning "use the theme's default font family" (no override). */
     public static final String DEFAULT_FONT_FAMILY = "Default";
@@ -82,7 +83,7 @@ public record MinDisPreferences(
         String language = "de".equals(Locale.getDefault().getLanguage()) ? "de" : "en";
         return new MinDisPreferences(CURRENT_VERSION, language, Theme.LIGHT, null,
                 DEFAULT_SOLVER_SECONDS, MinDisConstraintProvider.defaultSoftWeights(),
-                AccentColor.DEFAULT, DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE, false, null);
+                AccentColor.DEFAULT, DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE, false, null, null);
     }
 
     public Locale locale() {
@@ -92,25 +93,25 @@ public record MinDisPreferences(
     public MinDisPreferences withLanguageTag(String newLanguageTag) {
         return new MinDisPreferences(version, newLanguageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
-                followSystemTheme, lastExportDirectory);
+                followSystemTheme, lastExportDirectory, sidebarWidth);
     }
 
     public MinDisPreferences withTheme(Theme newTheme) {
         return new MinDisPreferences(version, languageTag, newTheme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
-                followSystemTheme, lastExportDirectory);
+                followSystemTheme, lastExportDirectory, sidebarWidth);
     }
 
     public MinDisPreferences withWindowBounds(WindowBounds newWindowBounds) {
         return new MinDisPreferences(version, languageTag, theme, newWindowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
-                followSystemTheme, lastExportDirectory);
+                followSystemTheme, lastExportDirectory, sidebarWidth);
     }
 
     public MinDisPreferences withSolverSecondsLimit(int newSolverSecondsLimit) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 newSolverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
-                followSystemTheme, lastExportDirectory);
+                followSystemTheme, lastExportDirectory, sidebarWidth);
     }
 
     public MinDisPreferences withSoftConstraintWeight(String constraintName, int weight) {
@@ -118,37 +119,44 @@ public record MinDisPreferences(
         weights.put(constraintName, weight);
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, weights, accentColor, fontFamily, fontSize, followSystemTheme,
-                lastExportDirectory);
+                lastExportDirectory, sidebarWidth);
     }
 
     public MinDisPreferences withAccentColor(AccentColor newAccentColor) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, newAccentColor, fontFamily, fontSize,
-                followSystemTheme, lastExportDirectory);
+                followSystemTheme, lastExportDirectory, sidebarWidth);
     }
 
     public MinDisPreferences withFontFamily(String newFontFamily) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, newFontFamily, fontSize,
-                followSystemTheme, lastExportDirectory);
+                followSystemTheme, lastExportDirectory, sidebarWidth);
     }
 
     public MinDisPreferences withFontSize(int newFontSize) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, newFontSize,
-                followSystemTheme, lastExportDirectory);
+                followSystemTheme, lastExportDirectory, sidebarWidth);
     }
 
     public MinDisPreferences withFollowSystemTheme(boolean newFollowSystemTheme) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
-                newFollowSystemTheme, lastExportDirectory);
+                newFollowSystemTheme, lastExportDirectory, sidebarWidth);
     }
 
     /** Directory the plan export {@code FileChooser} last saved into; {@code null} until the first export. */
     public MinDisPreferences withLastExportDirectory(String newLastExportDirectory) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
-                followSystemTheme, newLastExportDirectory);
+                followSystemTheme, newLastExportDirectory, sidebarWidth);
+    }
+
+    /** Sidebar width; {@code null} until the first shutdown (the workbench then uses its own default). */
+    public MinDisPreferences withSidebarWidth(double newSidebarWidth) {
+        return new MinDisPreferences(version, languageTag, theme, windowBounds,
+                solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
+                followSystemTheme, lastExportDirectory, newSidebarWidth);
     }
 }

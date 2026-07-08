@@ -112,6 +112,10 @@ public class MinDisApp extends Application {
         stage.setTitle(Localization.lang("MinDis - Minister Dispatcher"));
         restoreWindowBounds(preferences.windowBounds());
         stage.show();
+        // On Windows, launching from a terminal/IDE can leave the new window
+        // behind whatever had focus; force it to the foreground on startup.
+        stage.toFront();
+        stage.requestFocus();
     }
 
     private List<Image> loadAppIcons() {
@@ -124,13 +128,17 @@ public class MinDisApp extends Application {
     @Override
     public void stop() {
         saveWindowBounds();
+        saveSidebarWidth();
         if (beanScope != null) {
             beanScope.close();
         }
     }
 
     private Workbench buildWorkbench() {
-        return Workbench.builder(
+        Double sidebarWidth = workbench == null
+                ? preferencesService.get().sidebarWidth()
+                : Double.valueOf(workbench.getSidebarWidth());
+        Workbench.Builder builder = Workbench.builder(
                                 new DashboardModule(Localization.lang("Dashboard")),
                                 new RolesModule(Localization.lang("Roles"), beanScope.get(RoleRepository.class)),
                                 new ServersModule(Localization.lang("Servers"),
@@ -145,8 +153,11 @@ public class MinDisApp extends Application {
                                         beanScope.get(RoleRepository.class)),
                                 new PlanningModule(Localization.lang("Planning")))
                         .bottomModule(new AboutModule(Localization.lang("About"), getHostServices()))
-                        .bottomModule(new SettingsModule(Localization.lang("Settings"), uiPreferences))
-                        .build();
+                        .bottomModule(new SettingsModule(Localization.lang("Settings"), uiPreferences));
+        if (sidebarWidth != null) {
+            builder.initialSidebarWidth(sidebarWidth);
+        }
+        return builder.build();
     }
 
     /**
@@ -234,5 +245,13 @@ public class MinDisApp extends Application {
         MinDisPreferences.WindowBounds bounds = new MinDisPreferences.WindowBounds(
                 stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight(), stage.isMaximized());
         preferencesService.update(p -> p.withWindowBounds(bounds));
+    }
+
+    private void saveSidebarWidth() {
+        if (workbench == null || preferencesService == null) {
+            return;
+        }
+        double width = workbench.getSidebarWidth();
+        preferencesService.update(p -> p.withSidebarWidth(width));
     }
 }

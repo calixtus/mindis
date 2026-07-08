@@ -59,6 +59,7 @@ public final class Workbench extends BorderPane {
     private boolean collapsed;
     private double dragStartSceneX;
     private double dragStartWidth;
+    private double currentWidth;
 
     private Workbench(Builder builder) {
         this.modules = List.copyOf(builder.modules);
@@ -90,7 +91,7 @@ public final class Workbench extends BorderPane {
         setLeft(new HBox(sidebar, createResizeHandle()));
         setCenter(contentPane);
 
-        setSidebarWidth(EXPANDED_WIDTH);
+        setSidebarWidth(builder.initialSidebarWidth);
         updateToggleIcon();
 
         if (!navButtons.isEmpty()) {
@@ -108,6 +109,14 @@ public final class Workbench extends BorderPane {
 
     public WorkbenchModule getActiveModule() {
         return activeModule;
+    }
+
+    /**
+     * Current sidebar width (icon-only rail width while collapsed), for
+     * persisting across restarts alongside window geometry.
+     */
+    public double getSidebarWidth() {
+        return currentWidth;
     }
 
     /**
@@ -181,6 +190,7 @@ public final class Workbench extends BorderPane {
         double applied = shouldCollapse
                 ? COLLAPSED_WIDTH
                 : Math.min(MAX_WIDTH, Math.max(MIN_EXPANDED_WIDTH, width));
+        currentWidth = applied;
         sidebar.setMinWidth(applied);
         sidebar.setPrefWidth(applied);
         sidebar.setMaxWidth(applied);
@@ -254,6 +264,7 @@ public final class Workbench extends BorderPane {
 
         private final List<WorkbenchModule> modules;
         private final List<WorkbenchModule> bottomModules = new ArrayList<>();
+        private double initialSidebarWidth = EXPANDED_WIDTH;
 
         private Builder(WorkbenchModule... modules) {
             this.modules = List.of(modules);
@@ -265,6 +276,17 @@ public final class Workbench extends BorderPane {
          */
         public Builder bottomModule(WorkbenchModule module) {
             this.bottomModules.add(module);
+            return this;
+        }
+
+        /**
+         * Sidebar width to start with (e.g. a previously persisted width);
+         * defaults to {@link #EXPANDED_WIDTH}. Clamped and collapse-checked
+         * the same as a drag, so any value (including a stale one from before
+         * {@link #MIN_EXPANDED_WIDTH}/{@link #MAX_WIDTH} changed) is safe.
+         */
+        public Builder initialSidebarWidth(double width) {
+            this.initialSidebarWidth = width;
             return this;
         }
 
