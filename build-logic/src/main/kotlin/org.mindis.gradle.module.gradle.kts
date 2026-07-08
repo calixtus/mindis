@@ -54,4 +54,22 @@ extraJavaModuleInfo {
         exportAllPackages()
         requires("org.HdrHistogram")
     }
+    module("javax.inject:javax.inject", "javax.inject") {
+        exportAllPackages()
+    }
+    module("commons-collections:commons-collections", "commons.collections") {
+        exportAllPackages()
+    }
+    module("commons-beanutils:commons-beanutils", "commons.beanutils") {
+        exportAllPackages()
+        requires("commons.collections")
+        requires("java.logging")
+        requires("java.desktop")
+    }
+    module("commons-digester:commons-digester", "commons.digester") {
+        exportAllPackages()
+        requires("commons.beanutils")
+        requires("commons.collections")
+        requires("java.logging")
+    }
 }

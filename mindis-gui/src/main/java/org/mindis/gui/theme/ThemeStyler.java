@@ -77,10 +77,11 @@ public final class ThemeStyler {
             root.append("  -fx-font-size: ").append(fontSize).append("px;\n");
         }
 
-        if (root.isEmpty()) {
-            return "";
+        StringBuilder css = new StringBuilder();
+        if (!root.isEmpty()) {
+            css.append(".root {\n").append(root).append("}\n");
         }
-        return ".root {\n" + root + "}\n";
+        return css.toString();
     }
 
     /**

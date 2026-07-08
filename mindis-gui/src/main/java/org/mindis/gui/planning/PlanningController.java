@@ -24,8 +24,9 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import com.dlsc.gemsfx.CalendarPicker;
+
 import javafx.scene.control.Button;
-import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -46,6 +47,7 @@ import org.mindis.core.planning.PlanMapper;
 import org.mindis.core.planning.PlanningService;
 import org.mindis.core.planning.ServicePlan;
 import org.mindis.core.preferences.PreferencesService;
+import org.mindis.gui.util.CalendarPickers;
 
 /**
  * Planning workflow: load assignments for a horizon, solve with live score
@@ -63,9 +65,9 @@ public class PlanningController {
     private final PlanExportService planExportService;
 
     @FXML
-    private DatePicker fromPicker;
+    private CalendarPicker fromPicker;
     @FXML
-    private DatePicker toPicker;
+    private CalendarPicker toPicker;
     @FXML
     private Button solveButton;
     @FXML
@@ -111,6 +113,9 @@ public class PlanningController {
 
     @FXML
     private void initialize() {
+        CalendarPickers.applyIsoFormat(fromPicker);
+        CalendarPickers.applyIsoFormat(toPicker);
+
         LocalDate firstOfNextMonth = LocalDate.now().plusMonths(1).withDayOfMonth(1);
         fromPicker.setValue(firstOfNextMonth);
         toPicker.setValue(firstOfNextMonth.plusMonths(1).minusDays(1));

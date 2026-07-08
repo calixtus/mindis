@@ -14,7 +14,6 @@ import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TextField;
@@ -25,6 +24,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
+import com.dlsc.gemsfx.CalendarPicker;
+
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.LiturgicalService;
@@ -33,6 +34,7 @@ import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServiceGenerator;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.persistence.TemplateRepository;
+import org.mindis.gui.util.CalendarPickers;
 import org.mindis.workbench.CrudModule;
 
 /**
@@ -80,10 +82,10 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         table().getColumns().add(locationColumn);
         table().getColumns().add(slotsColumn);
 
-        DatePicker fromPicker = new DatePicker();
+        CalendarPicker fromPicker = CalendarPickers.create();
         fromPicker.setPromptText(Localization.lang("From"));
         fromPicker.setPrefWidth(130);
-        DatePicker toPicker = new DatePicker();
+        CalendarPicker toPicker = CalendarPickers.create();
         toPicker.setPromptText(Localization.lang("To"));
         toPicker.setPrefWidth(130);
         Button generateButton = new Button(Localization.lang("Generate from templates"));
@@ -145,7 +147,8 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
     @Override
     protected Node buildEditor(LiturgicalService service) {
-        DatePicker dateField = new DatePicker(service.dateTime().toLocalDate());
+        CalendarPicker dateField = CalendarPickers.create();
+        dateField.setValue(service.dateTime().toLocalDate());
         TextField timeField = new TextField(service.dateTime().toLocalTime().toString());
         timeField.setPromptText("10:00");
 

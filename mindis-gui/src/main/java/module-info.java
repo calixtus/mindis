@@ -10,6 +10,7 @@ open module org.mindis.gui {
     requires javafx.controls;
     requires javafx.fxml;
     requires com.dlsc.fxmlkit;
+    requires com.dlsc.gemsfx;
     requires atlantafx.base;
 
     requires io.avaje.inject;

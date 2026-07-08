@@ -24,7 +24,6 @@ import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
-import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
@@ -38,6 +37,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
+import com.dlsc.gemsfx.CalendarPicker;
+
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
@@ -45,6 +46,7 @@ import org.mindis.core.model.UnavailabilityPeriod;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.gui.preferences.UiPreferences;
+import org.mindis.gui.util.CalendarPickers;
 import org.mindis.workbench.CrudModule;
 
 /**
@@ -135,7 +137,8 @@ public class ServersModule extends CrudModule<Server> {
         TextField firstNameField = new TextField(server.firstName());
         TextField lastNameField = new TextField(server.lastName());
         TextField contactField = new TextField(server.contact());
-        DatePicker birthDatePicker = new DatePicker(server.birthDate());
+        CalendarPicker birthDatePicker = CalendarPickers.create();
+        birthDatePicker.setValue(server.birthDate());
         TextField familyIdField = new TextField(server.familyId() == null ? "" : server.familyId());
         TextField preferredTimesField = new TextField(formatPreferredTimes(server.preferredTimes()));
         preferredTimesField.setPromptText("10:00, 18:30");
@@ -184,9 +187,9 @@ public class ServersModule extends CrudModule<Server> {
                 setText(empty || period == null ? null : period.start() + " - " + period.end());
             }
         });
-        DatePicker periodFromPicker = new DatePicker();
+        CalendarPicker periodFromPicker = CalendarPickers.create();
         periodFromPicker.setPromptText(Localization.lang("From"));
-        DatePicker periodToPicker = new DatePicker();
+        CalendarPicker periodToPicker = CalendarPickers.create();
         periodToPicker.setPromptText(Localization.lang("To"));
         Button addPeriodButton = new Button(Localization.lang("Add"));
         addPeriodButton.setOnAction(event -> {
