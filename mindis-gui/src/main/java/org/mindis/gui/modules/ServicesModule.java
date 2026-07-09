@@ -32,6 +32,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -41,6 +42,7 @@ import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
 
 import com.dlsc.gemsfx.CalendarPicker;
+import org.kordamp.ikonli.javafx.FontIcon;
 
 import org.mindis.core.export.PlanExportFormat;
 import org.mindis.core.l10n.EnumDisplay;
@@ -239,7 +241,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         TextField locationField = new TextField(service.location());
         TextField noteField = new TextField(service.note());
 
-        VBox assignmentSection = new VBox();
+        VBox assignmentSection = new VBox(6);
         RoleSlotsEditor slotsEditor = new RoleSlotsEditor(viewModel.findAllRoles(), service.slots(),
                 liveSlots -> assignmentSection.getChildren().setAll(buildAssignmentRows(service, liveSlots)));
         assignmentSection.getChildren().setAll(buildAssignmentRows(service, slotsEditor.collectSlots()));
@@ -360,23 +362,27 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     serverBox.setDisable(true);
                     serverBox.setPromptText(Localization.lang("Save to assign"));
                 }
-                HBox.setHgrow(serverBox, Priority.ALWAYS);
-                serverBox.setMaxWidth(Double.MAX_VALUE);
 
                 Label roleLabel = new Label(roleName);
                 roleLabel.setMinWidth(110);
                 HBox row = new HBox(8, roleLabel, serverBox);
                 row.setAlignment(Pos.CENTER_LEFT);
-                rows.add(row);
+                // A fixed fraction of the row's own width (not Hgrow.ALWAYS,
+                // which used to let the combo box eat the entire remaining
+                // row) - bound rather than a flat pixel value so it still
+                // scales with the editor pane's width.
+                serverBox.prefWidthProperty().bind(row.widthProperty().multiply(0.6));
 
                 List<String> names = assignment == null
                         ? List.of() : violations.getOrDefault(assignment.getId(), List.of());
                 if (!names.isEmpty()) {
-                    Label violationLabel = new Label(
-                            String.join(", ", names.stream().map(Localization::lang).toList()));
-                    violationLabel.setStyle("-fx-text-fill: -color-danger-fg; -fx-font-size: 0.85em;");
-                    rows.add(violationLabel);
+                    FontIcon warningIcon = new FontIcon("mdi2a-alert-circle");
+                    warningIcon.setStyle("-fx-icon-color: -color-danger-fg;");
+                    Tooltip.install(warningIcon, new Tooltip(
+                            String.join(", ", names.stream().map(Localization::lang).toList())));
+                    row.getChildren().add(1, warningIcon);
                 }
+                rows.add(row);
             }
         }
         return rows;
