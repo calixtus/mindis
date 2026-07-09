@@ -36,6 +36,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.Separator;
 import javafx.scene.control.SplitMenuButton;
 import javafx.scene.control.TableCell;
@@ -128,6 +129,14 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     // problem than a whole-plan solve, so it doesn't need the user's
     // full solverSecondsLimit (often 30s+) to converge.
     private static final Duration AUTO_FILL_TIME_BUDGET = Duration.ofSeconds(5);
+    // Fixed (not just minimum) widths for the tile row's left info block and
+    // role-slot grid columns - every row builds its own independent VBox/
+    // GridPane (one TableCell each), so without a shared fixed width each
+    // row's columns would auto-size to its own content and the grid would
+    // no longer line up from tile to tile.
+    private static final double TILE_INFO_WIDTH = 180;
+    private static final double ROLE_COLUMN_WIDTH = 100;
+    private static final double SLOT_COLUMN_WIDTH = 90;
 
     private final ServicesViewModel viewModel;
     private final PlanningViewModel planningViewModel;
@@ -602,8 +611,17 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         Label typeLabel = new Label(EnumDisplay.of(service.type()));
         Label locationLabel = new Label(service.location());
         VBox left = new VBox(2, dateTimeLabel, typeLabel, locationLabel);
-        left.setMinWidth(180);
+        // Fixed, not just minimum - see TILE_INFO_WIDTH's docs. Overflowing
+        // text (a long location) is clipped with an ellipsis rather than
+        // pushing the grid out of alignment with every other tile.
+        left.setMinWidth(TILE_INFO_WIDTH);
+        left.setPrefWidth(TILE_INFO_WIDTH);
+        left.setMaxWidth(TILE_INFO_WIDTH);
         left.setAlignment(Pos.CENTER_LEFT);
+        for (Label label : List.of(dateTimeLabel, typeLabel, locationLabel)) {
+            label.setMaxWidth(TILE_INFO_WIDTH);
+            label.setTextOverrun(OverrunStyle.ELLIPSIS);
+        }
 
         AssignedCount count = assignedCount(service);
         if (count.underfilled()) {
@@ -635,15 +653,8 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(2);
-        ColumnConstraints roleColumn = new ColumnConstraints();
-        roleColumn.setMinWidth(100);
-        ColumnConstraints slotColumn1 = new ColumnConstraints();
-        slotColumn1.setMinWidth(90);
-        slotColumn1.setHgrow(Priority.SOMETIMES);
-        ColumnConstraints slotColumn2 = new ColumnConstraints();
-        slotColumn2.setMinWidth(90);
-        slotColumn2.setHgrow(Priority.SOMETIMES);
-        grid.getColumnConstraints().addAll(roleColumn, slotColumn1, slotColumn2);
+        grid.getColumnConstraints().addAll(roleSlotColumn(ROLE_COLUMN_WIDTH), roleSlotColumn(SLOT_COLUMN_WIDTH),
+                roleSlotColumn(SLOT_COLUMN_WIDTH));
 
         ServicePlan plan = currentPlan;
         Map<String, Assignment> byId = plan == null ? Map.of() : plan.getAssignments().stream()
@@ -660,6 +671,8 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             Role role = rolesById.get(slot.role());
             Label roleLabel = new Label(role == null ? slot.role() : role.name());
             roleLabel.getStyleClass().add("service-tile-role");
+            roleLabel.setMaxWidth(ROLE_COLUMN_WIDTH);
+            roleLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
             grid.add(roleLabel, 0, gridRow);
 
             for (int slotIndex = 0; slotIndex < slot.count(); slotIndex++) {
@@ -669,6 +682,8 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                         ? assignment.getServer().displayName() : "-";
                 Label slotLabel = new Label(text);
                 slotLabel.getStyleClass().add("service-tile-slot");
+                slotLabel.setMaxWidth(SLOT_COLUMN_WIDTH);
+                slotLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
                 int column = 1 + slotIndex % 2;
                 grid.add(slotLabel, column, gridRow);
                 if (column == 2) {
@@ -680,6 +695,18 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             }
         }
         return grid;
+    }
+
+    /// A fixed (min == pref == max), non-growing column - see
+    /// {@link #TILE_INFO_WIDTH}'s docs for why every tile's grid needs the
+    /// exact same column widths rather than each auto-sizing to its own row.
+    private static ColumnConstraints roleSlotColumn(double width) {
+        ColumnConstraints column = new ColumnConstraints();
+        column.setMinWidth(width);
+        column.setPrefWidth(width);
+        column.setMaxWidth(width);
+        column.setHgrow(Priority.NEVER);
+        return column;
     }
 
     /// Open-slot fill rows for {@code service}, driven by {@code liveSlots} -
