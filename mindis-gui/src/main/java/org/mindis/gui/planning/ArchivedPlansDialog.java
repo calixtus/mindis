@@ -1,11 +1,10 @@
 package org.mindis.gui.planning;
 
-import java.io.File;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
@@ -20,7 +19,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser;
 import javafx.stage.Window;
 
 import org.mindis.core.export.PlanExportFormat;
@@ -97,28 +95,14 @@ public final class ArchivedPlansDialog {
     }
 
     private static void exportPlan(PlanningViewModel viewModel, AcceptedPlan plan, Window owner) {
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle(Localization.lang("Export plan"));
-        chooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("PDF", "*.pdf"),
-                new FileChooser.ExtensionFilter("CSV", "*.csv"),
-                new FileChooser.ExtensionFilter("TXT", "*.txt"),
-                new FileChooser.ExtensionFilter("RTF", "*.rtf"),
-                new FileChooser.ExtensionFilter("Markdown", "*.md"));
-        viewModel.lastExportDirectory()
-                .map(Path::toFile)
-                .filter(File::isDirectory)
-                .ifPresent(chooser::setInitialDirectory);
-        chooser.setInitialFileName("MinDis-" + plan.from() + ".pdf");
-        File target = chooser.showSaveDialog(owner);
-        if (target == null) {
+        Optional<PlanExportChooser.Target> target = PlanExportChooser.show(
+                owner, viewModel, "MinDis-" + plan.from(), PlanExportFormat.PDF);
+        if (target.isEmpty()) {
             return;
         }
-        viewModel.rememberExportDirectory(target.getParentFile().toPath());
-        PlanExportFormat format = PlanningViewModel.resolveFormat(
-                target.getName(), chooser.getSelectedExtensionFilter().getExtensions());
+        PlanExportFormat format = target.get().format();
         try {
-            viewModel.exportAcceptedPlan(plan, target.toPath(), format);
+            viewModel.exportAcceptedPlan(plan, target.get().file(), format);
         } catch (RuntimeException ex) {
             Alert alert = new Alert(AlertType.ERROR);
             alert.setTitle(Localization.lang("Export failed"));

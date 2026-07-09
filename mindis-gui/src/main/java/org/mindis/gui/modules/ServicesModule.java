@@ -2,8 +2,6 @@ package org.mindis.gui.modules;
 
 import ai.timefold.solver.core.api.score.HardMediumSoftScore;
 
-import java.io.File;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -13,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -37,7 +36,9 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.Separator;
+import javafx.scene.control.SplitMenuButton;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TextField;
@@ -50,7 +51,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
 import javafx.util.Subscription;
 
@@ -80,6 +80,7 @@ import org.slf4j.LoggerFactory;
 
 import org.mindis.gui.LiveDatabase;
 import org.mindis.gui.planning.ArchivedPlansDialog;
+import org.mindis.gui.planning.PlanExportChooser;
 import org.mindis.gui.planning.PlanningViewModel;
 import org.mindis.gui.util.CalendarPickers;
 import org.mindis.gui.util.TimePickers;
@@ -278,8 +279,6 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         ServiceCsvMapper serviceCsvMapper = new ServiceCsvMapper(roleRepository);
         CsvRowMapper<LiturgicalService> csvMapper =
                 CsvRowMapper.of(serviceCsvMapper::header, serviceCsvMapper::toRow, serviceCsvMapper::fromRow);
-        Button exportButton = new Button(Localization.lang("Export"));
-        exportButton.setOnAction(event -> exportCsv(csvMapper));
         Button importButton = new Button(Localization.lang("Import"));
         importButton.setOnAction(event -> importCsv(csvMapper,
                 (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
@@ -299,16 +298,22 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         Button stopButton = new Button(Localization.lang("Stop"));
         stopButton.disableProperty().bind(solving.not());
         stopButton.setOnAction(event -> onStop());
-        Button exportPlanButton = new Button(Localization.lang("Export plan"));
+        SplitMenuButton exportPlanButton = new SplitMenuButton();
+        exportPlanButton.setText(Localization.lang("Export plan"));
         exportPlanButton.disableProperty().bind(solving.or(hasPlan.not()));
-        exportPlanButton.setOnAction(event -> onExportPlan());
+        exportPlanButton.setOnAction(event -> onExportPlan(PlanExportFormat.PDF));
+        for (PlanExportFormat format : PlanExportFormat.values()) {
+            MenuItem formatItem = new MenuItem(format.name());
+            formatItem.setOnAction(event -> onExportPlan(format));
+            exportPlanButton.getItems().add(formatItem);
+        }
         Button archiveButton = new Button(Localization.lang("Archived plans"));
         archiveButton.setOnAction(event -> ArchivedPlansDialog.show(planningViewModel, table().getScene().getWindow()));
 
         toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL),
                 new Label(Localization.lang("From")), fromPicker,
                 new Label(Localization.lang("To")), toPicker, generateButton,
-                new Separator(Orientation.VERTICAL), exportButton, importButton,
+                new Separator(Orientation.VERTICAL), importButton,
                 new Separator(Orientation.VERTICAL),
                 solveAllButton, solvingIndicator, stopButton, exportPlanButton, archiveButton,
                 new Separator(Orientation.VERTICAL), scoreLabel, statusLabel);
@@ -1070,34 +1075,20 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         return solving;
     }
 
-    private void onExportPlan() {
+    private void onExportPlan(PlanExportFormat preferredFormat) {
         ServicePlan plan = currentPlan;
         if (plan == null || plan.getAssignments().isEmpty()) {
             return;
         }
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle(Localization.lang("Export plan"));
-        chooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("PDF", "*.pdf"),
-                new FileChooser.ExtensionFilter("CSV", "*.csv"),
-                new FileChooser.ExtensionFilter("TXT", "*.txt"),
-                new FileChooser.ExtensionFilter("RTF", "*.rtf"),
-                new FileChooser.ExtensionFilter("Markdown", "*.md"));
-        planningViewModel.lastExportDirectory()
-                .map(Path::toFile)
-                .filter(File::isDirectory)
-                .ifPresent(chooser::setInitialDirectory);
-        chooser.setInitialFileName("MinDis-" + fromPicker.getValue() + ".pdf");
-        File target = chooser.showSaveDialog(table().getScene().getWindow());
-        if (target == null) {
+        Optional<PlanExportChooser.Target> target = PlanExportChooser.show(
+                table().getScene().getWindow(), planningViewModel, "MinDis-" + fromPicker.getValue(), preferredFormat);
+        if (target.isEmpty()) {
             return;
         }
-        planningViewModel.rememberExportDirectory(target.getParentFile().toPath());
-        PlanExportFormat format = PlanningViewModel.resolveFormat(
-                target.getName(), chooser.getSelectedExtensionFilter().getExtensions());
+        PlanExportFormat format = target.get().format();
         try {
-            planningViewModel.exportPlan(plan, fromPicker.getValue(), toPicker.getValue(), target.toPath(), format);
-            statusLabel.setText(Localization.lang("%0 saved to %1", format.name(), target.getName()));
+            planningViewModel.exportPlan(plan, fromPicker.getValue(), toPicker.getValue(), target.get().file(), format);
+            statusLabel.setText(Localization.lang("%0 saved to %1", format.name(), target.get().file().getFileName()));
         } catch (RuntimeException e) {
             statusLabel.setText(Localization.lang("%0 export failed: %1", format.name(), e.getMessage()));
         }
