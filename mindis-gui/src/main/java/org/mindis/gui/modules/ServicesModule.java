@@ -8,11 +8,12 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -45,6 +46,8 @@ import org.mindis.core.export.PlanExportFormat;
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.LiturgicalService;
+import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.persistence.RoleRepository;
@@ -236,7 +239,10 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         TextField locationField = new TextField(service.location());
         TextField noteField = new TextField(service.note());
 
-        RoleSlotsEditor slotsEditor = new RoleSlotsEditor(viewModel.findAllRoles(), service.slots());
+        VBox assignmentSection = new VBox();
+        RoleSlotsEditor slotsEditor = new RoleSlotsEditor(viewModel.findAllRoles(), service.slots(),
+                liveSlots -> assignmentSection.getChildren().setAll(buildAssignmentRows(service, liveSlots)));
+        assignmentSection.getChildren().setAll(buildAssignmentRows(service, slotsEditor.collectSlots()));
 
         GridPane grid = new GridPane();
         grid.setHgap(8);
@@ -278,83 +284,102 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     slotsEditor.collectSlots(), noteField.getText().strip()));
         });
 
-        VBox content = new VBox(10, grid, new HBox(saveButton), buildAssignmentSection(service));
+        VBox content = new VBox(10, grid, new HBox(saveButton));
+        if (currentPlan != null) {
+            Button autoFillButton = new Button(Localization.lang("Auto-fill"));
+            autoFillButton.disableProperty().bind(solving);
+            autoFillButton.setOnAction(event -> onAutoFillService(service));
+            content.getChildren().addAll(
+                    new Separator(), new Label(Localization.lang("Altar servers")), assignmentSection, autoFillButton);
+        }
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
         return content;
     }
 
     /**
-     * Open-slot fill section for {@code service}'s editor: one row per role
-     * slot instance already materialized in {@link #currentPlan} (empty if no
-     * plan covers this service's date, e.g. its date falls outside the
-     * current From/To range), a manual {@code ComboBox<Server>} per slot -
-     * clearing it unpins, so the solver may fill it again, same as a manual
-     * edit always has - and an "Auto-fill" button scoped to just this
-     * service.
+     * Open-slot fill rows for {@code service}, driven by {@code liveSlots} -
+     * the role/count editor's current (possibly unsaved) values, not just
+     * whatever's in {@link #currentPlan} - so the list updates the moment a
+     * slot count changes, before Save. A slot instance still backed by an
+     * {@link Assignment} in {@link #currentPlan} (matched by its stable id,
+     * {@code service:role:index}) gets an editable dropdown seeded with its
+     * current server; one that isn't - a count bumped up since the plan was
+     * last built - gets a disabled placeholder, since there's nothing to
+     * write a pick into until Save regenerates the plan for the new count.
+     * Decrementing then incrementing a count back before saving never drops
+     * an assignment: the underlying {@link Assignment} objects in {@code
+     * currentPlan} aren't touched by hiding their row, only by an actual
+     * rebuild (Save, tab reactivation, or a range change), so the previously
+     * assigned server reappears exactly as it was.
      */
-    private Node buildAssignmentSection(LiturgicalService service) {
+    private List<Node> buildAssignmentRows(LiturgicalService service, List<RoleSlot> liveSlots) {
         ServicePlan plan = currentPlan;
-        if (plan == null) {
-            return new VBox();
+        if (plan == null || liveSlots.isEmpty()) {
+            return List.of();
         }
-        List<Assignment> assignments = plan.getAssignments().stream()
+        Map<String, Assignment> byId = plan.getAssignments().stream()
                 .filter(a -> a.getService().id().equals(service.id()))
-                .sorted(Comparator.comparing(a -> a.getRole().name()))
-                .toList();
-        if (assignments.isEmpty()) {
-            return new VBox();
-        }
+                .collect(Collectors.toMap(Assignment::getId, a -> a));
+        Map<String, Role> rolesById = new HashMap<>();
+        viewModel.findAllRoles().forEach(role -> rolesById.put(role.id(), role));
+        Map<String, List<String>> violations = planningViewModel.violationsByAssignment(plan);
 
         ObservableList<Server> choices = FXCollections.observableArrayList(plan.getServers());
         choices.addFirst(null);
-        Map<String, List<String>> violations = planningViewModel.violationsByAssignment(plan);
 
-        VBox rows = new VBox(6);
-        for (Assignment assignment : assignments) {
-            ComboBox<Server> serverBox = new ComboBox<>(choices);
-            serverBox.setConverter(new StringConverter<>() {
-                @Override
-                public String toString(@Nullable Server server) {
-                    return server == null ? "-" : server.displayName();
+        List<Node> rows = new ArrayList<>();
+        for (RoleSlot slot : liveSlots) {
+            Role role = rolesById.get(slot.role());
+            String roleName = role == null ? slot.role() : role.name();
+            for (int i = 0; i < slot.count(); i++) {
+                String assignmentId = service.id() + ":" + slot.role() + ":" + i;
+                Assignment assignment = byId.get(assignmentId);
+
+                ComboBox<Server> serverBox = new ComboBox<>(choices);
+                serverBox.setConverter(new StringConverter<>() {
+                    @Override
+                    public String toString(@Nullable Server server) {
+                        return server == null ? "-" : server.displayName();
+                    }
+
+                    @Override
+                    public @Nullable Server fromString(String string) {
+                        return null;
+                    }
+                });
+                if (assignment != null) {
+                    serverBox.setValue(assignment.getServer());
+                    serverBox.valueProperty().addListener((obs, oldServer, newServer) -> {
+                        assignment.setServer(newServer);
+                        assignment.setPinned(newServer != null);
+                        refreshScoreAndStatus();
+                        table().refresh();
+                    });
+                } else {
+                    serverBox.setDisable(true);
+                    serverBox.setPromptText(Localization.lang("Save to assign"));
                 }
+                HBox.setHgrow(serverBox, Priority.ALWAYS);
+                serverBox.setMaxWidth(Double.MAX_VALUE);
 
-                @Override
-                public @Nullable Server fromString(String string) {
-                    return null;
+                Label roleLabel = new Label(roleName);
+                roleLabel.setMinWidth(110);
+                HBox row = new HBox(8, roleLabel, serverBox);
+                row.setAlignment(Pos.CENTER_LEFT);
+                rows.add(row);
+
+                List<String> names = assignment == null
+                        ? List.of() : violations.getOrDefault(assignment.getId(), List.of());
+                if (!names.isEmpty()) {
+                    Label violationLabel = new Label(
+                            String.join(", ", names.stream().map(Localization::lang).toList()));
+                    violationLabel.setStyle("-fx-text-fill: -color-danger-fg; -fx-font-size: 0.85em;");
+                    rows.add(violationLabel);
                 }
-            });
-            serverBox.setValue(assignment.getServer());
-            serverBox.valueProperty().addListener((obs, oldServer, newServer) -> {
-                assignment.setServer(newServer);
-                assignment.setPinned(newServer != null);
-                refreshScoreAndStatus();
-                table().refresh();
-            });
-            HBox.setHgrow(serverBox, Priority.ALWAYS);
-            serverBox.setMaxWidth(Double.MAX_VALUE);
-
-            Label roleLabel = new Label(assignment.getRole().name());
-            roleLabel.setMinWidth(110);
-            HBox row = new HBox(8, roleLabel, serverBox);
-            row.setAlignment(Pos.CENTER_LEFT);
-            rows.getChildren().add(row);
-
-            List<String> names = violations.getOrDefault(assignment.getId(), List.of());
-            if (!names.isEmpty()) {
-                Label violationLabel = new Label(String.join(", ", names.stream().map(Localization::lang).toList()));
-                violationLabel.setStyle("-fx-text-fill: -color-danger-fg; -fx-font-size: 0.85em;");
-                rows.getChildren().add(violationLabel);
             }
         }
-
-        Button autoFillButton = new Button(Localization.lang("Auto-fill"));
-        autoFillButton.disableProperty().bind(solving);
-        autoFillButton.setOnAction(event -> onAutoFillService(service));
-
-        Label header = new Label(Localization.lang("Altar servers"));
-        VBox section = new VBox(8, new Separator(), header, rows, autoFillButton);
-        return section;
+        return rows;
     }
 
     /** Filled/total count shown in the "Assigned" column; falls back to just the total when no plan is loaded. */

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
@@ -35,6 +36,16 @@ final class RoleSlotsEditor {
     private final VBox list = new VBox(8);
 
     RoleSlotsEditor(List<Role> roles, List<RoleSlot> initialSlots) {
+        this(roles, initialSlots, slots -> { });
+    }
+
+    /**
+     * @param onChange called with {@link #collectSlots()}'s current result
+     *                 whenever any spinner's count changes - lets a caller
+     *                 (e.g. {@link ServicesModule}'s per-slot assignment
+     *                 rows) stay in sync with counts live, before Save.
+     */
+    RoleSlotsEditor(List<Role> roles, List<RoleSlot> initialSlots, Consumer<List<RoleSlot>> onChange) {
         for (Role role : roles) {
             Spinner<Integer> spinner = new Spinner<>(0, MAX_SLOT_COUNT, slotCount(initialSlots, role.id()));
             spinner.getStyleClass().add(Spinner.STYLE_CLASS_SPLIT_ARROWS_HORIZONTAL);
@@ -42,6 +53,7 @@ final class RoleSlotsEditor {
             // narrower without collapsing the split arrows. Font-relative (em),
             // not fixed pixels, so it scales with the font size.
             spinner.getEditor().setStyle("-fx-padding: 0.2em 0.4em 0.2em 0.4em;");
+            spinner.valueProperty().addListener((obs, oldValue, newValue) -> onChange.accept(collectSlots()));
             spinners.put(role.id(), spinner);
 
             Label roleName = new Label(role.name());
