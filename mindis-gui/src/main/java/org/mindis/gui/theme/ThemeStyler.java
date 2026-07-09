@@ -168,6 +168,11 @@ public final class ThemeStyler {
             .altar-warning-icon {
               -fx-icon-color: -color-danger-fg;
             }
+            .field-changed {
+              -fx-border-color: -color-accent-emphasis;
+              -fx-border-width: 0 0 0 3;
+              -fx-border-insets: 0;
+            }
             """;
 
     static String buildCss(MinDisPreferences.Theme theme, String accentHex,

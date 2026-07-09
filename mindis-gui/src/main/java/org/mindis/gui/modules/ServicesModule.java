@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -19,6 +20,7 @@ import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -43,6 +45,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
 
+import atlantafx.base.theme.Styles;
 import com.dlsc.gemsfx.CalendarPicker;
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -253,6 +256,17 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         TextField locationField = new TextField(service.location());
         TextField noteField = new TextField(service.note());
 
+        Map<String, Integer> originalSlotCounts = new HashMap<>();
+        service.slots().forEach(slot -> originalSlotCounts.put(slot.role(), slot.count()));
+        // RoleSlotsEditor's onChange callback needs to mark its own list
+        // dirty, but that list (slotsEditor.list()) doesn't exist until
+        // the RoleSlotsEditor constructor - which is where the callback
+        // itself gets built - returns. A one-element array sidesteps the
+        // chicken-and-egg: the callback only runs later, in response to a
+        // spinner change, well after the array's single slot is filled in
+        // right below the constructor call.
+        Region[] slotsListHolder = new Region[1];
+
         VBox assignmentSection = new VBox(6);
         RoleSlotsEditor slotsEditor = new RoleSlotsEditor(viewModel.findAllRoles(), service.slots(),
                 liveSlots -> {
@@ -265,7 +279,11 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     // now-stale ratio until something else (a solve, a
                     // manual pick) happened to trigger a refresh.
                     table().refresh();
+                    Map<String, Integer> liveCounts = new HashMap<>();
+                    liveSlots.forEach(slot -> liveCounts.put(slot.role(), slot.count()));
+                    setFieldChanged(slotsListHolder[0], !liveCounts.equals(originalSlotCounts));
                 });
+        slotsListHolder[0] = slotsEditor.list();
         assignmentSection.getChildren().setAll(buildAssignmentRows(service, slotsEditor.collectSlots(), assignmentSection));
 
         GridPane grid = new GridPane();
@@ -310,15 +328,54 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
         VBox content = new VBox(10, grid, new HBox(saveButton));
         if (currentPlan != null) {
-            Button autoFillButton = new Button(Localization.lang("Auto-fill"));
+            Label altarServersTitle = new Label(Localization.lang("Altar servers"));
+            Button autoFillButton = new Button(null, new FontIcon("mdi2a-auto-fix"));
+            autoFillButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
             autoFillButton.disableProperty().bind(solving);
             autoFillButton.setOnAction(event -> onAutoFillService(service));
-            content.getChildren().addAll(
-                    new Separator(), new Label(Localization.lang("Altar servers")), assignmentSection, autoFillButton);
+            Tooltip.install(autoFillButton, new Tooltip(Localization.lang("Auto-fill")));
+            Region titleSpacer = new Region();
+            HBox.setHgrow(titleSpacer, Priority.ALWAYS);
+            HBox altarServersHeader = new HBox(8, altarServersTitle, titleSpacer, autoFillButton);
+            altarServersHeader.setAlignment(Pos.CENTER_LEFT);
+
+            content.getChildren().addAll(new Separator(), altarServersHeader, assignmentSection);
         }
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
+        markDirtyOnChange(dateField.valueProperty(), service.dateTime().toLocalDate(), dateField);
+        markDirtyOnChange(timeField.textProperty(), service.dateTime().toLocalTime().toString(), timeField);
+        markDirtyOnChange(typeBox.valueProperty(), service.type(), typeBox);
+        markDirtyOnChange(locationField.textProperty(), service.location(), locationField);
+        markDirtyOnChange(noteField.textProperty(), service.note(), noteField);
         return content;
+    }
+
+    /**
+     * Left border accent while {@code property}'s current value differs from
+     * {@code original} (the just-loaded, on-disk value) - a lightweight
+     * "you have unsaved changes here" cue that needs no field-by-field
+     * "was this the one that changed" bookkeeping: each field just watches
+     * its own drift from where it started, and clears itself the moment the
+     * value round-trips back to the original (e.g. undoing a typo). Saving
+     * rebuilds the whole editor against the freshly-saved service as the
+     * new baseline, so every field naturally reports clean again with no
+     * extra reset step.
+     */
+    private static <T> void markDirtyOnChange(ObservableValue<T> property, T original, Region field) {
+        property.addListener((obs, oldValue, newValue) -> setFieldChanged(field, !Objects.equals(newValue, original)));
+        setFieldChanged(field, !Objects.equals(property.getValue(), original));
+    }
+
+    /** Toggles the left-border "unsaved change" accent (see {@code .field-changed} in ThemeStyler) on or off. */
+    private static void setFieldChanged(Region field, boolean changed) {
+        if (changed) {
+            if (!field.getStyleClass().contains("field-changed")) {
+                field.getStyleClass().add("field-changed");
+            }
+        } else {
+            field.getStyleClass().remove("field-changed");
+        }
     }
 
     /**
