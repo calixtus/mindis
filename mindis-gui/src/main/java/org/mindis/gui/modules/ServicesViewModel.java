@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.jspecify.annotations.Nullable;
 import org.jspecify.annotations.NullMarked;
 
 import org.mindis.core.model.LiturgicalService;
@@ -43,6 +44,11 @@ final class ServicesViewModel {
         serviceRepository.save(service);
     }
 
+    /** One whole-file rewrite for every dirty row, instead of one rewrite per row. */
+    void saveAll(List<LiturgicalService> services) {
+        serviceRepository.saveAll(services);
+    }
+
     void delete(LiturgicalService service) {
         serviceRepository.delete(service.id());
     }
@@ -62,18 +68,23 @@ final class ServicesViewModel {
 
     /**
      * Expands every weekly template into concrete services over
-     * {@code [from, toInclusive]} and persists them.
+     * {@code [from, toInclusive]} - pure computation, nothing is persisted;
+     * the caller merges the result into its live table state and it's
+     * written to disk on the next "Save all".
      *
-     * @return false if the range is invalid ({@code from}/{@code to} missing
-     *         or reversed) and nothing was generated
+     * @param existing services already in the live table (not the
+     *                 repository - a not-yet-saved live edit should count
+     *                 against duplicate generation just as much as a saved
+     *                 one), so generation doesn't re-propose a service that's
+     *                 only sitting unsaved in the table
+     * @return null if the range is invalid ({@code from}/{@code to} missing
+     *         or reversed)
      */
-    boolean generateFromTemplates(LocalDate from, LocalDate to) {
+    @Nullable List<LiturgicalService> generateFromTemplates(LocalDate from, LocalDate to,
+                                                             List<LiturgicalService> existing) {
         if (from == null || to == null || to.isBefore(from)) {
-            return false;
+            return null;
         }
-        List<LiturgicalService> generated = ServiceGenerator.generate(
-                templateRepository.findAll(), serviceRepository.findAll(), from, to);
-        serviceRepository.saveAll(generated);
-        return true;
+        return ServiceGenerator.generate(templateRepository.findAll(), existing, from, to);
     }
 }

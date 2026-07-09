@@ -63,16 +63,30 @@ import org.slf4j.LoggerFactory;
  * </ul>
  *
  * <p><b>New/live-edit/save-all lifecycle:</b> {@link #newItem()} calls
- * {@link #createStub()} and inserts+selects it as an unsaved placeholder row
- * (styled with the {@code :crud-new} CSS pseudo-class - grey/italic by
- * default, see {@code workbench.css}). The subclass's editor is a pure facade
- * over the table's live state: every control's change listener should call
+ * {@link #createStub()} and inserts+selects it as a live row - a normal row
+ * from that point on, styled with the {@code :crud-new} CSS pseudo-class
+ * (grey/italic by default, see {@code workbench.css}) only until it's first
+ * persisted. The subclass's editor is a pure facade over the table's live
+ * state: every control's change listener should call
  * {@link #updateLive(Object)} with a freshly rebuilt item (there is no
  * per-item Save button). {@link #dirtyCountProperty()} tracks how many rows
- * differ from their last-persisted snapshot (or are new); bind a "Save all"
- * button's {@code disableProperty} to it and call {@link #saveAll()} from its
- * action. Switching the table selection away from an unsaved placeholder
- * discards it.
+ * differ from their last-persisted snapshot (or have none yet - a new row),
+ * plus any row queued for deletion; bind a "Save all" button's
+ * {@code disableProperty} to it and call {@link #saveAll()} from its action.
+ * A new row survives switching the table selection away and back, and
+ * switching workbench tabs, exactly like an edited existing row.
+ *
+ * <p><b>"Save all" is the only path to disk:</b> {@link #deleteSelected()}
+ * removes a row from the live table immediately but only queues its actual
+ * repository deletion for the next {@link #saveAll()} (a never-persisted row
+ * is just dropped, nothing queued). {@link #importCsv(CsvRowMapper,
+ * BiFunction)} merges parsed rows into the live table as new/updated dirty
+ * rows rather than writing them straight to the repository. A subclass with
+ * its own bulk-generate action (e.g. "generate services from templates")
+ * should do the same via {@link #mergeLive(List)} instead of writing to its
+ * repository directly. {@link #persist(Object)}/{@link #persistAll(List)}
+ * and {@link #delete(Object)} are therefore only ever called from within
+ * {@link #saveAll()} - no other method in this class writes to disk.
  *
  * @param <T> the item type; must have a stable identity accessible via
  *            {@link #identity(Object)} (e.g. a record's {@code id()}), used to
@@ -90,10 +104,10 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     private final ObjectProperty<Node> editor = new SimpleObjectProperty<>();
     private final StackPane editorContainer = new StackPane();
     private final Map<Object, T> savedSnapshots = new HashMap<>();
+    private final Map<Object, T> pendingDeletions = new HashMap<>();
     private final ReadOnlyIntegerWrapper dirtyCount = new ReadOnlyIntegerWrapper(0);
 
     private @Nullable Node view;
-    private @Nullable Object pendingNewId;
     private boolean suppressEditorRebuild;
 
     protected CrudModule(String name, String iconLiteral) {
@@ -124,6 +138,16 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     /** Saves (creates or updates) an item in the backing repository. */
     protected abstract void persist(T item);
 
+    /**
+     * Saves every item in {@code items} (all dirty rows from a "Save all"
+     * click). Defaults to one {@link #persist(Object)} call per item;
+     * override when the backing repository has a batch write (e.g. a single
+     * whole-file rewrite instead of one rewrite per item).
+     */
+    protected void persistAll(List<T> items) {
+        items.forEach(this::persist);
+    }
+
     /** Removes an item from the backing repository. */
     protected abstract void delete(T item);
 
@@ -151,18 +175,6 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         return content;
     }
 
-    @Override
-    public void deactivate() {
-        if (pendingNewId != null) {
-            items.stream()
-                    .filter(item -> pendingNewId.equals(identity(item)))
-                    .findFirst()
-                    .ifPresent(items::remove);
-            pendingNewId = null;
-            recomputeDirtyCount();
-        }
-    }
-
     /**
      * Number of rows whose live value differs from its last-persisted
      * snapshot (or is a not-yet-saved new row). Bind a "Save all" button's
@@ -180,6 +192,19 @@ public abstract class CrudModule<T> extends WorkbenchModule {
      */
     protected boolean isEquivalent(T a, T b) {
         return Objects.equals(a, b);
+    }
+
+    /**
+     * The last-persisted value for the row sharing {@code item}'s identity,
+     * or {@code null} if it has none yet (a not-yet-saved new row). Useful as
+     * an editor's dirty-comparison baseline instead of the (possibly already
+     * live-edited) {@code item} passed into {@link #buildEditor(Object)} -
+     * comparing against {@code item} itself would always read "unchanged"
+     * once a live edit has updated it, even though it still differs from
+     * disk.
+     */
+    protected final @Nullable T savedSnapshot(T item) {
+        return savedSnapshots.get(identity(item));
     }
 
     /**
@@ -220,17 +245,65 @@ public abstract class CrudModule<T> extends WorkbenchModule {
 
     /**
      * Persists every row whose live value differs from its last-persisted
-     * snapshot (or has no snapshot yet - a pending-new row), then reloads.
-     * Bind to a "Save all" button's action.
+     * snapshot (or has no snapshot yet - a pending-new row), deletes every
+     * row queued by {@link #deleteSelected()}, then reloads. The only method
+     * in this class that writes to disk - bind to a "Save all" button's
+     * action.
      */
     protected final void saveAll() {
-        for (T item : List.copyOf(items)) {
+        List<T> dirty = new ArrayList<>();
+        for (T item : items) {
             if (isDirty(item)) {
-                persist(item);
+                dirty.add(item);
             }
         }
-        pendingNewId = null;
+        persistAll(dirty);
+        pendingDeletions.values().forEach(this::delete);
+        pendingDeletions.clear();
         refresh();
+    }
+
+    /**
+     * Merges {@code items} into the live table: an item sharing an existing
+     * row's identity replaces it in place, everything else is appended - both
+     * as ordinary (dirty, unsaved) live rows, same as a manual edit or
+     * {@link #newItem()}. For a subclass's own bulk-generate/import action
+     * that produces several items at once; does not touch disk.
+     */
+    protected final void mergeLive(List<T> items) {
+        T selected = table.getSelectionModel().getSelectedItem();
+        Object selectedKey = selected == null ? null : identity(selected);
+        suppressEditorRebuild = true;
+        try {
+            for (T item : items) {
+                Object key = identity(item);
+                int index = -1;
+                for (int i = 0; i < this.items.size(); i++) {
+                    if (key.equals(identity(this.items.get(i)))) {
+                        index = i;
+                        break;
+                    }
+                }
+                if (index >= 0) {
+                    this.items.set(index, item);
+                } else {
+                    this.items.add(item);
+                }
+            }
+            if (selectedKey != null && !selectedKey.equals(
+                    table.getSelectionModel().getSelectedItem() == null
+                            ? null : identity(table.getSelectionModel().getSelectedItem()))) {
+                for (int i = 0; i < this.items.size(); i++) {
+                    if (selectedKey.equals(identity(this.items.get(i)))) {
+                        table.getSelectionModel().select(i);
+                        break;
+                    }
+                }
+            }
+        } finally {
+            suppressEditorRebuild = false;
+        }
+        recomputeDirtyCount();
     }
 
     private boolean isDirty(T item) {
@@ -239,7 +312,7 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     }
 
     private void recomputeDirtyCount() {
-        int count = 0;
+        int count = pendingDeletions.size();
         for (T item : items) {
             if (isDirty(item)) {
                 count++;
@@ -251,9 +324,7 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     /** Reloads the table from {@link #loadAll()}, preserving the selection by identity. */
     protected final void refresh() {
         T selected = table.getSelectionModel().getSelectedItem();
-        boolean selectedIsPendingNew = selected != null && pendingNewId != null
-                && pendingNewId.equals(identity(selected));
-        Object key = selected == null || selectedIsPendingNew ? null : identity(selected);
+        Object key = selected == null ? null : identity(selected);
         items.setAll(loadAll());
         savedSnapshots.clear();
         for (T item : items) {
@@ -274,22 +345,13 @@ public abstract class CrudModule<T> extends WorkbenchModule {
             TableRow<T> row = new TableRow<>();
             row.itemProperty().subscribe(rowItem ->
                     row.pseudoClassStateChanged(CRUD_NEW,
-                            rowItem != null && pendingNewId != null && pendingNewId.equals(identity(rowItem))));
+                            rowItem != null && !savedSnapshots.containsKey(identity(rowItem))));
             return row;
         });
 
         table.getSelectionModel().selectedItemProperty().subscribe((previous, current) -> {
             if (suppressEditorRebuild) {
                 return;
-            }
-            boolean previousWasPendingNew = previous != null && pendingNewId != null
-                    && pendingNewId.equals(identity(previous));
-            boolean currentIsSamePendingNew = current != null && pendingNewId != null
-                    && pendingNewId.equals(identity(current));
-            if (previousWasPendingNew && !currentIsSamePendingNew) {
-                items.remove(previous);
-                pendingNewId = null;
-                recomputeDirtyCount();
             }
             editor.set(current == null ? null : buildEditor(current));
         });
@@ -313,29 +375,35 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         return new VBox(toolbar, split);
     }
 
-    /** Inserts and selects an unsaved {@link #createStub()} placeholder row. Bind to the New button's action. */
+    /**
+     * Inserts and selects a new {@link #createStub()} row - a normal live row
+     * from this point on (see class docs), immediately editable and included
+     * in the next {@link #saveAll()}. Bind to the New button's action.
+     */
     protected final void newItem() {
         T stub = createStub();
-        pendingNewId = identity(stub);
         items.addFirst(stub);
         table.getSelectionModel().select(stub);
         recomputeDirtyCount();
     }
 
-    /** Deletes the selected row (or discards it, if unsaved). Bind to the Delete button's action. */
+    /**
+     * Removes the selected row from the live table immediately. A row with a
+     * persisted snapshot (was ever saved) is queued for repository deletion
+     * on the next {@link #saveAll()}; a never-persisted row is just dropped,
+     * nothing queued. Bind to the Delete button's action.
+     */
     protected final void deleteSelected() {
         T selected = table.getSelectionModel().getSelectedItem();
         if (selected == null) {
             return;
         }
-        if (pendingNewId != null && pendingNewId.equals(identity(selected))) {
-            items.remove(selected);
-            pendingNewId = null;
-            recomputeDirtyCount();
-        } else {
-            delete(selected);
-            refresh();
+        Object key = identity(selected);
+        items.remove(selected);
+        if (savedSnapshots.containsKey(key)) {
+            pendingDeletions.put(key, selected);
         }
+        recomputeDirtyCount();
     }
 
     /** Prompts for a file and writes every row via {@code mapper}. Bind to the Export button's action. */
@@ -361,10 +429,11 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     }
 
     /**
-     * Prompts for a file and imports every row via {@code mapper}, then shows
-     * {@code summaryMessage.apply(imported, total)} (e.g. localized "12 of 14
-     * rows imported" text - this class has no localized text of its own).
-     * Bind to the Import button's action.
+     * Prompts for a file and merges every parsed row into the live table (via
+     * {@link #mergeLive(List)} - not written to disk until the next
+     * {@link #saveAll()}), then shows {@code summaryMessage.apply(imported,
+     * total)} (e.g. localized "12 of 14 rows imported" text - this class has
+     * no localized text of its own). Bind to the Import button's action.
      */
     protected final void importCsv(CsvRowMapper<T> mapper, BiFunction<Integer, Integer, String> summaryMessage) {
         FileChooser chooser = new FileChooser();
@@ -377,17 +446,15 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         try {
             List<List<String>> rows = CsvIO.parse(Files.readString(source.toPath()));
             List<List<String>> dataRows = rows.isEmpty() ? List.of() : rows.subList(1, rows.size());
-            int imported = 0;
+            List<T> imported = new ArrayList<>();
             for (List<String> row : dataRows) {
                 T item = mapper.fromRow(row);
                 if (item != null) {
-                    persist(item);
-                    imported++;
+                    imported.add(item);
                 }
             }
-            pendingNewId = null;
-            refresh();
-            new Alert(AlertType.INFORMATION, summaryMessage.apply(imported, dataRows.size())).showAndWait();
+            mergeLive(imported);
+            new Alert(AlertType.INFORMATION, summaryMessage.apply(imported.size(), dataRows.size())).showAndWait();
         } catch (IOException e) {
             LOGGER.warn("CSV import failed: {}", source, e);
             new Alert(AlertType.ERROR, e.getMessage()).showAndWait();

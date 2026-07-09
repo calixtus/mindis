@@ -63,6 +63,8 @@ public class RolesModule extends CrudModule<Role> {
         Button deleteButton = new Button(Localization.lang("Delete"));
         deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelected());
+        Button loadButton = new Button(Localization.lang("Load"));
+        loadButton.setOnAction(event -> refresh());
         Button saveAllButton = new Button(Localization.lang("Save all"));
         saveAllButton.disableProperty().bind(dirtyCountProperty().isEqualTo(0));
         saveAllButton.setOnAction(event -> saveAll());
@@ -75,7 +77,7 @@ public class RolesModule extends CrudModule<Role> {
         importButton.setOnAction(event -> importCsv(csvMapper,
                 (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
 
-        toolbarExtras().addAll(newButton, deleteButton, saveAllButton, new Separator(Orientation.VERTICAL), exportButton, importButton);
+        toolbarExtras().addAll(newButton, deleteButton, loadButton, saveAllButton, new Separator(Orientation.VERTICAL), exportButton, importButton);
     }
 
     @Override

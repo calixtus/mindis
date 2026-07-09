@@ -204,8 +204,10 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
         Button generateButton = new Button(Localization.lang("Generate from templates"));
         generateButton.setOnAction(event -> {
-            if (viewModel.generateFromTemplates(fromPicker.getValue(), toPicker.getValue())) {
-                refresh();
+            List<LiturgicalService> generated = viewModel.generateFromTemplates(
+                    fromPicker.getValue(), toPicker.getValue(), table().getItems());
+            if (generated != null) {
+                mergeLive(generated);
             }
         });
 
@@ -214,6 +216,8 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         Button deleteButton = new Button(Localization.lang("Delete"));
         deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelected());
+        Button loadButton = new Button(Localization.lang("Load"));
+        loadButton.setOnAction(event -> onLoad());
         Button saveAllButton = new Button(Localization.lang("Save all"));
         saveAllButton.disableProperty().bind(dirtyCountProperty().isEqualTo(0).and(planDirty.not()).or(solving));
         saveAllButton.setOnAction(event -> onSaveAll());
@@ -248,7 +252,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         Button archiveButton = new Button(Localization.lang("Archived plans"));
         archiveButton.setOnAction(event -> ArchivedPlansDialog.show(planningViewModel, table().getScene().getWindow()));
 
-        toolbarExtras().addAll(newButton, deleteButton, saveAllButton, new Separator(Orientation.VERTICAL),
+        toolbarExtras().addAll(newButton, deleteButton, loadButton, saveAllButton, new Separator(Orientation.VERTICAL),
                 new Label(Localization.lang("From")), fromPicker,
                 new Label(Localization.lang("To")), toPicker, generateButton,
                 new Separator(Orientation.VERTICAL), exportButton, importButton,
@@ -275,6 +279,11 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     }
 
     @Override
+    protected void persistAll(List<LiturgicalService> services) {
+        viewModel.saveAll(services);
+    }
+
+    @Override
     protected void delete(LiturgicalService service) {
         viewModel.delete(service);
     }
@@ -296,6 +305,14 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
     @Override
     protected Node buildEditor(LiturgicalService service) {
+        // The field-changed accents below compare each control against the
+        // last-persisted value, not against service itself - service may
+        // already be a live (unsaved) edit pushed in by a previous visit to
+        // this row's editor, and comparing against itself would always read
+        // "unchanged" even though it still differs from disk. Falls back to
+        // service for a not-yet-saved new row (no persisted snapshot exists).
+        LiturgicalService baseline = Objects.requireNonNullElse(savedSnapshot(service), service);
+
         CalendarPicker dateField = CalendarPickers.create();
         dateField.setValue(service.dateTime().toLocalDate());
         TimePicker timeField = TimePickers.create();
@@ -319,7 +336,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         TextField noteField = new TextField(service.note());
 
         Map<String, Integer> originalSlotCounts = new HashMap<>();
-        service.slots().forEach(slot -> originalSlotCounts.put(slot.role(), slot.count()));
+        baseline.slots().forEach(slot -> originalSlotCounts.put(slot.role(), slot.count()));
         // RoleSlotsEditor's onChange callback needs to mark its own label
         // dirty, but that label (slotsEditor.label) doesn't exist until the
         // RoleSlotsEditor constructor - which is where the callback itself
@@ -426,11 +443,11 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         }
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
-        markDirtyOnChange(dateField.valueProperty(), service.dateTime().toLocalDate(), dateLabel);
-        markDirtyOnChange(timeField.timeProperty(), service.dateTime().toLocalTime(), timeLabel);
-        markDirtyOnChange(typeBox.valueProperty(), service.type(), typeLabel);
-        markDirtyOnChange(locationField.textProperty(), service.location(), locationLabel);
-        markDirtyOnChange(noteField.textProperty(), service.note(), noteLabel);
+        markDirtyOnChange(dateField.valueProperty(), baseline.dateTime().toLocalDate(), dateLabel);
+        markDirtyOnChange(timeField.timeProperty(), baseline.dateTime().toLocalTime(), timeLabel);
+        markDirtyOnChange(typeBox.valueProperty(), baseline.type(), typeLabel);
+        markDirtyOnChange(locationField.textProperty(), baseline.location(), locationLabel);
+        markDirtyOnChange(noteField.textProperty(), baseline.note(), noteLabel);
         return content;
     }
 
@@ -635,6 +652,20 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     }
 
     private void onRangeChanged() {
+        currentPlan = null;
+        reloadSavedPlanSnapshot();
+        rebuildCurrentPlan();
+        table().refresh();
+    }
+
+    /**
+     * Discards any unsaved service edits/deletions and unsaved assignment
+     * picks, reloading both from disk - the plan-side counterpart to
+     * {@link #refresh()} (which only reloads {@link LiturgicalService}
+     * records). Bind to the Load button's action.
+     */
+    private void onLoad() {
+        refresh();
         currentPlan = null;
         reloadSavedPlanSnapshot();
         rebuildCurrentPlan();
