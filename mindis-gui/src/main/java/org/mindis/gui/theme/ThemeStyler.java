@@ -168,6 +168,23 @@ public final class ThemeStyler {
               -fx-border-insets: 0;
               -fx-padding: 0 0 0 6;
             }
+            .services-tile-table .column-header-background {
+              -fx-max-height: 0;
+              -fx-pref-height: 0;
+              visibility: hidden;
+            }
+            .services-tile-table .table-row-cell {
+              -fx-border-color: transparent transparent -color-border-default transparent;
+              -fx-border-width: 0 0 1 0;
+            }
+            .service-tile-datetime {
+              -fx-font-size: 1.3em;
+              -fx-font-weight: bold;
+            }
+            .service-tile-role {
+              -fx-font-weight: bold;
+              -fx-text-fill: -color-fg-muted;
+            }
             """;
 
     static String buildCss(MinDisPreferences.Theme theme, String accentHex,

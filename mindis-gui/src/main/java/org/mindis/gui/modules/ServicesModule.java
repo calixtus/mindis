@@ -23,7 +23,6 @@ import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -200,48 +199,32 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             table().refresh();
         });
 
-        TableColumn<LiturgicalService, String> dateColumn = new TableColumn<>(Localization.lang("Date"));
-        dateColumn.setPrefWidth(140);
-        dateColumn.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().dateTime().format(DATE_TIME_FORMAT)));
-
-        TableColumn<LiturgicalService, String> typeColumn = new TableColumn<>(Localization.lang("Type"));
-        typeColumn.setPrefWidth(120);
-        typeColumn.setCellValueFactory(data -> new SimpleStringProperty(EnumDisplay.of(data.getValue().type())));
-
-        TableColumn<LiturgicalService, String> locationColumn = new TableColumn<>(Localization.lang("Location"));
-        locationColumn.setPrefWidth(120);
-        locationColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().location()));
-
-        TableColumn<LiturgicalService, LiturgicalService> assignedColumn =
-                new TableColumn<>(Localization.lang("Assigned"));
-        assignedColumn.setPrefWidth(90);
-        assignedColumn.setCellValueFactory(data -> new SimpleObjectProperty<>(data.getValue()));
-        assignedColumn.setCellFactory(column -> new TableCell<>() {
+        // The table is used as a single-column tile list rather than a
+        // classic multi-column grid: each row's cell renders the whole
+        // date/type/location + role-slot summary via buildTileNode(...), so
+        // there is nothing meaningful left for a column header to label -
+        // hidden via the "services-tile-table" style class (see
+        // ThemeStyler).
+        TableColumn<LiturgicalService, LiturgicalService> tileColumn = new TableColumn<>();
+        tileColumn.setSortable(false);
+        tileColumn.setReorderable(false);
+        tileColumn.setCellValueFactory(data -> new SimpleObjectProperty<>(data.getValue()));
+        tileColumn.setCellFactory(column -> new TableCell<>() {
             @Override
             protected void updateItem(LiturgicalService service, boolean empty) {
                 super.updateItem(service, empty);
-                if (empty || service == null) {
-                    setText(null);
-                    setGraphic(null);
-                    return;
-                }
-                AssignedCount count = assignedCount(service);
-                setText(count.toString());
-                if (count.underfilled()) {
-                    FontIcon warningIcon = new FontIcon("mdi2a-alert-circle");
-                    warningIcon.getStyleClass().add("altar-warning-icon");
-                    setGraphic(warningIcon);
-                } else {
-                    setGraphic(null);
-                }
+                setText(null);
+                setGraphic(empty || service == null ? null : buildTileNode(service));
             }
         });
-
-        table().getColumns().add(dateColumn);
-        table().getColumns().add(typeColumn);
-        table().getColumns().add(locationColumn);
-        table().getColumns().add(assignedColumn);
+        // Fills the table's own width minus its vertical scrollbar/insets -
+        // a fixed prefWidth would either clip the role-slot grid or leave a
+        // dead strip on the right, and TableView gives a single column no
+        // other way to track the viewport's width automatically.
+        tileColumn.prefWidthProperty().bind(table().widthProperty().subtract(18));
+        table().getColumns().add(tileColumn);
+        table().setTableMenuButtonVisible(false);
+        table().getStyleClass().add("services-tile-table");
 
         fromPicker.setPromptText(Localization.lang("From"));
         fromPicker.setPrefWidth(130);
@@ -607,6 +590,96 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         } else {
             label.getStyleClass().remove("field-changed");
         }
+    }
+
+    /// The table row's tile: big-font date/time on the left (with an
+    /// underfilled warning icon, same rule the old "Assigned" column used),
+    /// type/location below it in normal size, and the role-slot grid on the
+    /// right (see {@link #buildRoleSlotGrid}).
+    private Node buildTileNode(LiturgicalService service) {
+        Label dateTimeLabel = new Label(service.dateTime().format(DATE_TIME_FORMAT));
+        dateTimeLabel.getStyleClass().add("service-tile-datetime");
+        Label typeLabel = new Label(EnumDisplay.of(service.type()));
+        Label locationLabel = new Label(service.location());
+        VBox left = new VBox(2, dateTimeLabel, typeLabel, locationLabel);
+        left.setMinWidth(180);
+        left.setAlignment(Pos.CENTER_LEFT);
+
+        AssignedCount count = assignedCount(service);
+        if (count.underfilled()) {
+            FontIcon warningIcon = new FontIcon("mdi2a-alert-circle");
+            warningIcon.getStyleClass().add("altar-warning-icon");
+            HBox dateRow = new HBox(6, dateTimeLabel, warningIcon);
+            dateRow.setAlignment(Pos.CENTER_LEFT);
+            left.getChildren().set(0, dateRow);
+        }
+
+        GridPane slotGrid = buildRoleSlotGrid(service);
+        HBox.setHgrow(slotGrid, Priority.ALWAYS);
+        HBox tile = new HBox(20, left, slotGrid);
+        tile.setAlignment(Pos.CENTER_LEFT);
+        tile.setPadding(new Insets(8, 4, 8, 4));
+        return tile;
+    }
+
+    /// Per-service role-slot summary, read-only (picks happen in the row's
+    /// editor, not here): three columns - role name, first slot, second slot -
+    /// with a role occupying as many further two-slot rows as its count
+    /// needs (role name cell left blank on those continuation rows). Reads
+    /// {@link #currentPlan} directly the same way {@link #buildAssignmentRows}
+    /// does, so a slot with no backing {@link Assignment} yet (a count bumped
+    /// up since the plan was last built) just shows as unfilled rather than
+    /// needing its own synthesized placeholder - this view never writes to
+    /// the plan.
+    private GridPane buildRoleSlotGrid(LiturgicalService service) {
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(2);
+        ColumnConstraints roleColumn = new ColumnConstraints();
+        roleColumn.setMinWidth(100);
+        ColumnConstraints slotColumn1 = new ColumnConstraints();
+        slotColumn1.setMinWidth(90);
+        slotColumn1.setHgrow(Priority.SOMETIMES);
+        ColumnConstraints slotColumn2 = new ColumnConstraints();
+        slotColumn2.setMinWidth(90);
+        slotColumn2.setHgrow(Priority.SOMETIMES);
+        grid.getColumnConstraints().addAll(roleColumn, slotColumn1, slotColumn2);
+
+        ServicePlan plan = currentPlan;
+        Map<String, Assignment> byId = plan == null ? Map.of() : plan.getAssignments().stream()
+                .filter(a -> a.getService().id().equals(service.id()))
+                .collect(Collectors.toMap(Assignment::getId, a -> a));
+        Map<String, Role> rolesById = new HashMap<>();
+        viewModel.findAllRoles().forEach(role -> rolesById.put(role.id(), role));
+
+        int gridRow = 0;
+        for (RoleSlot slot : service.slots()) {
+            if (slot.count() <= 0) {
+                continue;
+            }
+            Role role = rolesById.get(slot.role());
+            Label roleLabel = new Label(role == null ? slot.role() : role.name());
+            roleLabel.getStyleClass().add("service-tile-role");
+            grid.add(roleLabel, 0, gridRow);
+
+            for (int slotIndex = 0; slotIndex < slot.count(); slotIndex++) {
+                String assignmentId = service.id() + ":" + slot.role() + ":" + slotIndex;
+                Assignment assignment = byId.get(assignmentId);
+                String text = assignment != null && assignment.getServer() != null
+                        ? assignment.getServer().displayName() : "-";
+                Label slotLabel = new Label(text);
+                slotLabel.getStyleClass().add("service-tile-slot");
+                int column = 1 + slotIndex % 2;
+                grid.add(slotLabel, column, gridRow);
+                if (column == 2) {
+                    gridRow++;
+                }
+            }
+            if (slot.count() % 2 != 0) {
+                gridRow++;
+            }
+        }
+        return grid;
     }
 
     /// Open-slot fill rows for {@code service}, driven by {@code liveSlots} -
