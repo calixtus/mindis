@@ -258,10 +258,10 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
         Map<String, Integer> originalSlotCounts = new HashMap<>();
         service.slots().forEach(slot -> originalSlotCounts.put(slot.role(), slot.count()));
-        // RoleSlotsEditor's onChange callback needs to mark its own list
-        // dirty, but that list (slotsEditor.list()) doesn't exist until
-        // the RoleSlotsEditor constructor - which is where the callback
-        // itself gets built - returns. A one-element array sidesteps the
+        // RoleSlotsEditor's onChange callback needs to mark its own label
+        // dirty, but that label (slotsEditor.label) doesn't exist until the
+        // RoleSlotsEditor constructor - which is where the callback itself
+        // gets built - returns. A one-element array sidesteps the
         // chicken-and-egg: the callback only runs later, in response to a
         // spinner change, well after the array's single slot is filled in
         // right below the constructor call.
@@ -283,7 +283,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     liveSlots.forEach(slot -> liveCounts.put(slot.role(), slot.count()));
                     setFieldChanged(slotsListHolder[0], !liveCounts.equals(originalSlotCounts));
                 });
-        slotsListHolder[0] = slotsEditor.list();
+        slotsListHolder[0] = slotsEditor.label;
         assignmentSection.getChildren().setAll(buildAssignmentRows(service, slotsEditor.collectSlots(), assignmentSection));
 
         GridPane grid = new GridPane();
@@ -295,16 +295,22 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         fieldColumn.setHgrow(Priority.ALWAYS);
         grid.getColumnConstraints().addAll(labelColumn, fieldColumn);
 
+        Label dateLabel = new Label(Localization.lang("Date"));
+        Label timeLabel = new Label(Localization.lang("Time"));
+        Label typeLabel = new Label(Localization.lang("Type"));
+        Label locationLabel = new Label(Localization.lang("Location"));
+        Label noteLabel = new Label(Localization.lang("Note"));
+
         int row = 0;
-        grid.add(new Label(Localization.lang("Date")), 0, row);
+        grid.add(dateLabel, 0, row);
         grid.add(dateField, 1, row++);
-        grid.add(new Label(Localization.lang("Time")), 0, row);
+        grid.add(timeLabel, 0, row);
         grid.add(timeField, 1, row++);
-        grid.add(new Label(Localization.lang("Type")), 0, row);
+        grid.add(typeLabel, 0, row);
         grid.add(typeBox, 1, row++);
-        grid.add(new Label(Localization.lang("Location")), 0, row);
+        grid.add(locationLabel, 0, row);
         grid.add(locationField, 1, row++);
-        grid.add(new Label(Localization.lang("Note")), 0, row);
+        grid.add(noteLabel, 0, row);
         grid.add(noteField, 1, row++);
 
         GridPane.setValignment(slotsEditor.label, VPos.TOP);
@@ -343,38 +349,40 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         }
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
-        markDirtyOnChange(dateField.valueProperty(), service.dateTime().toLocalDate(), dateField);
-        markDirtyOnChange(timeField.textProperty(), service.dateTime().toLocalTime().toString(), timeField);
-        markDirtyOnChange(typeBox.valueProperty(), service.type(), typeBox);
-        markDirtyOnChange(locationField.textProperty(), service.location(), locationField);
-        markDirtyOnChange(noteField.textProperty(), service.note(), noteField);
+        markDirtyOnChange(dateField.valueProperty(), service.dateTime().toLocalDate(), dateLabel);
+        markDirtyOnChange(timeField.textProperty(), service.dateTime().toLocalTime().toString(), timeLabel);
+        markDirtyOnChange(typeBox.valueProperty(), service.type(), typeLabel);
+        markDirtyOnChange(locationField.textProperty(), service.location(), locationLabel);
+        markDirtyOnChange(noteField.textProperty(), service.note(), noteLabel);
         return content;
     }
 
     /**
-     * Left border accent while {@code property}'s current value differs from
-     * {@code original} (the just-loaded, on-disk value) - a lightweight
-     * "you have unsaved changes here" cue that needs no field-by-field
-     * "was this the one that changed" bookkeeping: each field just watches
-     * its own drift from where it started, and clears itself the moment the
-     * value round-trips back to the original (e.g. undoing a typo). Saving
-     * rebuilds the whole editor against the freshly-saved service as the
-     * new baseline, so every field naturally reports clean again with no
+     * Left border accent on {@code label} while {@code property}'s current
+     * value differs from {@code original} (the just-loaded, on-disk value) -
+     * a lightweight "you have unsaved changes here" cue that needs no
+     * field-by-field "was this the one that changed" bookkeeping: each field
+     * just watches its own drift from where it started, and clears itself
+     * the moment the value round-trips back to the original (e.g. undoing a
+     * typo). On the field's own label, not the field itself - keeps the
+     * accent out of the way of a field's own focus/validation styling.
+     * Saving rebuilds the whole editor against the freshly-saved service as
+     * the new baseline, so every field naturally reports clean again with no
      * extra reset step.
      */
-    private static <T> void markDirtyOnChange(ObservableValue<T> property, T original, Region field) {
-        property.addListener((obs, oldValue, newValue) -> setFieldChanged(field, !Objects.equals(newValue, original)));
-        setFieldChanged(field, !Objects.equals(property.getValue(), original));
+    private static <T> void markDirtyOnChange(ObservableValue<T> property, T original, Region label) {
+        property.addListener((obs, oldValue, newValue) -> setFieldChanged(label, !Objects.equals(newValue, original)));
+        setFieldChanged(label, !Objects.equals(property.getValue(), original));
     }
 
     /** Toggles the left-border "unsaved change" accent (see {@code .field-changed} in ThemeStyler) on or off. */
-    private static void setFieldChanged(Region field, boolean changed) {
+    private static void setFieldChanged(Region label, boolean changed) {
         if (changed) {
-            if (!field.getStyleClass().contains("field-changed")) {
-                field.getStyleClass().add("field-changed");
+            if (!label.getStyleClass().contains("field-changed")) {
+                label.getStyleClass().add("field-changed");
             }
         } else {
-            field.getStyleClass().remove("field-changed");
+            label.getStyleClass().remove("field-changed");
         }
     }
 
