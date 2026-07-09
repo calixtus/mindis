@@ -108,6 +108,23 @@ public final class CalendarPickers {
             .calendar-view .date-cell.selected:hover {
               -fx-background-color: derive(-color-accent-emphasis, -20%);
             }
+
+            /* Same issue TimePickers fixes for its own edit-button: gemsfx's
+               arrow-button paints its own 3-layer background (outer-border/
+               inner-border/body-color, inset from the button's own bounds)
+               to fake a miniature button border, independent of and inset
+               from the picker's real outer border - visible as a doubled/
+               inset line around the calendar icon. Flattened to a single
+               flat background with a plain 1px left divider. */
+            .calendar-picker > .box > .arrow-button,
+            .calendar-picker:focused > .box > .arrow-button {
+              -fx-background-color: -fx-body-color;
+              -fx-background-insets: 0;
+              -fx-background-radius: 0;
+              -fx-border-color: -fx-outer-border;
+              -fx-border-width: 0 0 0 1;
+              -fx-border-insets: 0;
+            }
             """;
 
     private static final String CALENDAR_THEME_STYLESHEET = "data:text/css;base64,"
