@@ -12,12 +12,10 @@ import javafx.scene.layout.Region;
 
 import org.mindis.core.preferences.AccentColor;
 
-/**
- * Row of colored swatch buttons for picking the UI accent - one flat, single
- * select {@link ToggleButton} per {@link AccentColor}, styled with that color.
- * Modeled on AtlantaFX sampler's AccentColorSelector. {@link AccentColor#DEFAULT}
- * shows the OS accent color from JavaFX platform preferences and tracks it live.
- */
+/// Row of colored swatch buttons for picking the UI accent - one flat, single
+/// select {@link ToggleButton} per {@link AccentColor}, styled with that color.
+/// Modeled on AtlantaFX sampler's AccentColorSelector. {@link AccentColor#DEFAULT}
+/// shows the OS accent color from JavaFX platform preferences and tracks it live.
 public final class AccentColorSelector extends HBox {
 
     public AccentColorSelector(ObjectProperty<AccentColor> accentProperty) {

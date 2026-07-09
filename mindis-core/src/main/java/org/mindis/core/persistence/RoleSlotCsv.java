@@ -9,14 +9,12 @@ import org.jspecify.annotations.NullMarked;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
 
-/**
- * CSV encoding of a {@link RoleSlot} list ("required servers"), shared by
- * {@link ServiceCsvMapper} and {@link TemplateCsvMapper}:
- * {@code "Acolyte:2, Cross bearer:1"} - role name (not id, for readability)
- * and count, comma-separated. Roles are matched by name case-insensitively
- * on import; unmatched or zero/negative counts are dropped, mirroring the
- * GUI's {@code RoleSlotsEditor} zero-count-omitted convention.
- */
+/// CSV encoding of a {@link RoleSlot} list ("required servers"), shared by
+/// {@link ServiceCsvMapper} and {@link TemplateCsvMapper}:
+/// {@code "Acolyte:2, Cross bearer:1"} - role name (not id, for readability)
+/// and count, comma-separated. Roles are matched by name case-insensitively
+/// on import; unmatched or zero/negative counts are dropped, mirroring the
+/// GUI's {@code RoleSlotsEditor} zero-count-omitted convention.
 @NullMarked
 final class RoleSlotCsv {
 

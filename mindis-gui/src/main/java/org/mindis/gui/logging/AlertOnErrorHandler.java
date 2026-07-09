@@ -15,24 +15,22 @@ import javafx.scene.layout.VBox;
 import org.jspecify.annotations.Nullable;
 import org.mindis.core.l10n.Localization;
 
-/**
- * Surfaces every {@link Level#SEVERE} log record from MinDis's own code as an
- * error dialog, in addition to whatever {@link org.mindis.core.logging.LoggingBootstrap}
- * already writes to console/file (every record, not just SEVERE, and not
- * just MinDis's own, still reaches {@link LogConsoleHandler}'s in-app
- * history). Restricted to {@code org.mindis} logger names - third-party code
- * bridged through SLF4J (avaje-inject, etc.) can log at SEVERE for its own
- * internal, often-recoverable reasons; popping a user-facing dialog for
- * those isn't a real error the user caused or needs to act on, just noise.
- *
- * <p>Content is a plain, non-editable {@link TextArea} rather than
- * {@link Alert#setContentText}, whose text is a {@code Label} - not
- * selectable, so a user hitting an error dialog can't copy it into a bug
- * report at all.
- *
- * <p>Log calls can come from any thread, so the dialog is always shown via
- * {@link Platform#runLater}.
- */
+/// Surfaces every {@link Level#SEVERE} log record from MinDis's own code as an
+/// error dialog, in addition to whatever {@link org.mindis.core.logging.LoggingBootstrap}
+/// already writes to console/file (every record, not just SEVERE, and not
+/// just MinDis's own, still reaches {@link LogConsoleHandler}'s in-app
+/// history). Restricted to {@code org.mindis} logger names - third-party code
+/// bridged through SLF4J (avaje-inject, etc.) can log at SEVERE for its own
+/// internal, often-recoverable reasons; popping a user-facing dialog for
+/// those isn't a real error the user caused or needs to act on, just noise.
+///
+/// <p>Content is a plain, non-editable {@link TextArea} rather than
+/// {@link Alert#setContentText}, whose text is a {@code Label} - not
+/// selectable, so a user hitting an error dialog can't copy it into a bug
+/// report at all.
+///
+/// <p>Log calls can come from any thread, so the dialog is always shown via
+/// {@link Platform#runLater}.
 public final class AlertOnErrorHandler extends Handler {
 
     public AlertOnErrorHandler() {

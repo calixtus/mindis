@@ -21,11 +21,9 @@ import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.planning.AcceptedPlan;
 
-/**
- * Builds a localized, format-agnostic {@link PlanExportDocument} from an
- * {@link AcceptedPlan} and dispatches it to the {@link PlanExporter}
- * registered for the requested {@link PlanExportFormat} (PLAN.md M5).
- */
+/// Builds a localized, format-agnostic {@link PlanExportDocument} from an
+/// {@link AcceptedPlan} and dispatches it to the {@link PlanExporter}
+/// registered for the requested {@link PlanExportFormat} (PLAN.md M5).
 @Singleton
 public class PlanExportService {
 

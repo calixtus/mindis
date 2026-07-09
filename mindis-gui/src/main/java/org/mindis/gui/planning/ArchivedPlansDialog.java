@@ -27,14 +27,12 @@ import org.mindis.core.export.PlanExportFormat;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.planning.AcceptedPlan;
 
-/**
- * Read-only browser over {@link PlanningViewModel#listArchivedPlans()}: every
- * plan whose period the planner has since moved past. Selecting a row and
- * exporting reuses the same {@link PlanExportFormat} file-chooser flow as the
- * active plan's own "Export plan" button - archived plans aren't editable,
- * only viewable and exportable, so there's no re-solve/re-save affordance
- * here.
- */
+/// Read-only browser over {@link PlanningViewModel#listArchivedPlans()}: every
+/// plan whose period the planner has since moved past. Selecting a row and
+/// exporting reuses the same {@link PlanExportFormat} file-chooser flow as the
+/// active plan's own "Export plan" button - archived plans aren't editable,
+/// only viewable and exportable, so there's no re-solve/re-save affordance
+/// here.
 public final class ArchivedPlansDialog {
 
     private static final DateTimeFormatter SAVED_AT_FORMAT =

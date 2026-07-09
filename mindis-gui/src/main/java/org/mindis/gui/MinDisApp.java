@@ -50,12 +50,10 @@ import org.mindis.gui.theme.ThemeStyler;
 import org.mindis.workbench.Workbench;
 import org.mindis.workbench.WorkbenchModule;
 
-/**
- * Application entry point. Owns the Avaje {@link BeanScope} (single scope per
- * application, PLAN.md section 2.4), applies preferences (locale, theme,
- * window geometry) before the first scene and rebuilds the UI on language
- * change.
- */
+/// Application entry point. Owns the Avaje {@link BeanScope} (single scope per
+/// application, PLAN.md section 2.4), applies preferences (locale, theme,
+/// window geometry) before the first scene and rebuilds the UI on language
+/// change.
 // NullAway: the JavaFX launcher instantiates this via a no-arg constructor
 // and populates real state via start(Stage), never a constructor we control.
 @SuppressWarnings("NullAway.Init")
@@ -197,19 +195,17 @@ public class MinDisApp extends Application {
         return built;
     }
 
-    /**
-     * The application-wide Save all/Load toolbar, spanning the top of the
-     * workbench - the only Save all/Load action app-wide. Delegates straight
-     * to {@link ServicesModule#saveAll()}/{@link ServicesModule#loadAll()}
-     * (which themselves flush/reload {@link #liveDatabase} plus the plan)
-     * rather than calling {@code liveDatabase} directly: a second "is there
-     * anything to save" calculation here - independent of
-     * {@link ServicesModule#planDirtyProperty()} - is exactly how this button
-     * used to go enabled/disabled out of step with an Altar-servers pick.
-     * Rebuilt with each workbench (labels are localized); the state it binds
-     * to is the long-lived {@code liveDatabase} plus the freshly built
-     * {@code servicesModule} (a new instance each rebuild, like every module).
-     */
+    /// The application-wide Save all/Load toolbar, spanning the top of the
+    /// workbench - the only Save all/Load action app-wide. Delegates straight
+    /// to {@link ServicesModule#saveAll()}/{@link ServicesModule#loadAll()}
+    /// (which themselves flush/reload {@link #liveDatabase} plus the plan)
+    /// rather than calling {@code liveDatabase} directly: a second "is there
+    /// anything to save" calculation here - independent of
+    /// {@link ServicesModule#planDirtyProperty()} - is exactly how this button
+    /// used to go enabled/disabled out of step with an Altar-servers pick.
+    /// Rebuilt with each workbench (labels are localized); the state it binds
+    /// to is the long-lived {@code liveDatabase} plus the freshly built
+    /// {@code servicesModule} (a new instance each rebuild, like every module).
     private ToolBar buildGlobalToolbar(ServicesModule servicesModule) {
         Button saveAllButton = new Button(Localization.lang("Save all"));
         saveAllButton.disableProperty().bind(liveDatabase.totalDirtyCount().isEqualTo(0)
@@ -223,10 +219,8 @@ public class MinDisApp extends Application {
         return toolbar;
     }
 
-    /**
-     * Recreates all UI content with the current locale. Called after a
-     * language change; modules are recreated so every label is rebuilt.
-     */
+    /// Recreates all UI content with the current locale. Called after a
+    /// language change; modules are recreated so every label is rebuilt.
     private void rebuildUi() {
         Localization.setLocale(preferencesService.get().locale());
         FxmlKit.setResourceBundle(Localization.getBundle());
@@ -245,10 +239,8 @@ public class MinDisApp extends Application {
         stage.setTitle(Localization.lang("MinDis - Minister Dispatcher"));
     }
 
-    /**
-     * The effective light/dark mode: the OS color scheme when "follow system"
-     * is on, otherwise the user's explicit theme choice.
-     */
+    /// The effective light/dark mode: the OS color scheme when "follow system"
+    /// is on, otherwise the user's explicit theme choice.
     private MinDisPreferences.Theme resolveTheme() {
         if (uiPreferences.followSystemThemeProperty().get()) {
             return Platform.getPreferences().getColorScheme() == ColorScheme.DARK
@@ -258,14 +250,12 @@ public class MinDisApp extends Application {
         return uiPreferences.themeProperty().get();
     }
 
-    /**
-     * Applies theme, accent and font as a single user-agent stylesheet: the
-     * base AtlantaFX theme {@code @import}ed, with the accent/font
-     * {@code .root} overrides appended. One UA stylesheet (rather than a UA
-     * theme plus a Scene override layer) keeps design tokens consistent in
-     * ComboBox popups and other popup windows, which only see the UA stylesheet
-     * - avoiding stale-token CSS warnings when the theme is switched at runtime.
-     */
+    /// Applies theme, accent and font as a single user-agent stylesheet: the
+    /// base AtlantaFX theme {@code @import}ed, with the accent/font
+    /// {@code .root} overrides appended. One UA stylesheet (rather than a UA
+    /// theme plus a Scene override layer) keeps design tokens consistent in
+    /// ComboBox popups and other popup windows, which only see the UA stylesheet
+    /// - avoiding stale-token CSS warnings when the theme is switched at runtime.
     private void applyAppearance() {
         MinDisPreferences.Theme theme = resolveTheme();
         String baseUrl = switch (theme) {
@@ -280,11 +270,9 @@ public class MinDisApp extends Application {
                 uiPreferences.fontSizeProperty().get()));
     }
 
-    /**
-     * The base accent hex to apply: a named color's own hex, or - for {@link
-     * AccentColor#DEFAULT} - the OS accent color from JavaFX platform
-     * preferences.
-     */
+    /// The base accent hex to apply: a named color's own hex, or - for {@link
+    /// AccentColor#DEFAULT} - the OS accent color from JavaFX platform
+    /// preferences.
     // NullAway: AccentColor.baseHex() is @Nullable only for DEFAULT, excluded
     // by the branch above it - an invariant tied to the enum, not the type.
     @SuppressWarnings("NullAway")

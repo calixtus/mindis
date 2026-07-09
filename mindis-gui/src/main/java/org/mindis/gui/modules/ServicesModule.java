@@ -87,40 +87,38 @@ import org.mindis.workbench.CrudModule;
 import org.mindis.workbench.CsvRowMapper;
 import org.mindis.workbench.LiveStore;
 
-/**
- * Liturgical services module: individual date/time services (plus generation
- * from weekly templates), and - folded in from the former standalone
- * Planning tab - filling their role slots, either manually or by running the
- * solver, and the solve/save/export/archive workflow around that. One
- * From/To range now drives both "Generate from templates" and which period's
- * plan is active: changing the range loads (or starts) that period's plan
- * fresh, while saving a service or reactivating the tab rebuilds the same
- * plan preserving in-progress (possibly unsaved) assignments - the same
- * "Load assignments" vs. "refresh preserving assignments" distinction the
- * old Planning controller made, just triggered by different UI events now.
- * There is exactly one Save all/Load action app-wide - the global toolbar
- * built in {@code MinDisApp} - which drives {@link #saveAll()}/
- * {@link #loadAll()} directly (this module keeps no Save all/Load buttons of
- * its own): a second, module-local button computing its own "is there
- * anything to save" independently of the global one is exactly how the
- * global button ended up enabled/disabled out of step with an Altar-servers
- * pick in practice.
- *
- * <p>There is deliberately no separate "plan" concept distinct from the
- * services list: {@link #liveAssignments} is a plain {@code ObservableList},
- * the same reactive idiom every {@code LiveStore} already uses - not a
- * bespoke property wrapper. Every place that used to need an explicit
- * "please rebuild the editor" call (a tab reactivation, a range change, a
- * Save all/Load, a solve finishing) now just calls
- * {@link #publishPlan(ServicePlan)}, which replaces {@link
- * #liveAssignments}' contents via {@code setAll(...)}; the open editor's
- * Altar-servers panel listens to that list directly (see {@link
- * #buildEditor}). {@code setAll(...)} always fires a change notification even
- * when the elements are the exact same object references already held -
- * unlike a plain {@code ObjectProperty<ServicePlan>}, which would silently
- * suppress the notification once Timefold's solver started mutating those
- * objects in place instead of replacing them.
- */
+/// Liturgical services module: individual date/time services (plus generation
+/// from weekly templates), and - folded in from the former standalone
+/// Planning tab - filling their role slots, either manually or by running the
+/// solver, and the solve/save/export/archive workflow around that. One
+/// From/To range now drives both "Generate from templates" and which period's
+/// plan is active: changing the range loads (or starts) that period's plan
+/// fresh, while saving a service or reactivating the tab rebuilds the same
+/// plan preserving in-progress (possibly unsaved) assignments - the same
+/// "Load assignments" vs. "refresh preserving assignments" distinction the
+/// old Planning controller made, just triggered by different UI events now.
+/// There is exactly one Save all/Load action app-wide - the global toolbar
+/// built in {@code MinDisApp} - which drives {@link #saveAll()}/
+/// {@link #loadAll()} directly (this module keeps no Save all/Load buttons of
+/// its own): a second, module-local button computing its own "is there
+/// anything to save" independently of the global one is exactly how the
+/// global button ended up enabled/disabled out of step with an Altar-servers
+/// pick in practice.
+///
+/// <p>There is deliberately no separate "plan" concept distinct from the
+/// services list: {@link #liveAssignments} is a plain {@code ObservableList},
+/// the same reactive idiom every {@code LiveStore} already uses - not a
+/// bespoke property wrapper. Every place that used to need an explicit
+/// "please rebuild the editor" call (a tab reactivation, a range change, a
+/// Save all/Load, a solve finishing) now just calls
+/// {@link #publishPlan(ServicePlan)}, which replaces {@link
+/// #liveAssignments}' contents via {@code setAll(...)}; the open editor's
+/// Altar-servers panel listens to that list directly (see {@link
+/// #buildEditor}). {@code setAll(...)} always fires a change notification even
+/// when the elements are the exact same object references already held -
+/// unlike a plain {@code ObjectProperty<ServicePlan>}, which would silently
+/// suppress the notification once Timefold's solver started mutating those
+/// objects in place instead of replacing them.
 public class ServicesModule extends CrudModule<LiturgicalService> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ServicesModule.class);
@@ -161,16 +159,14 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     // goes through publishPlan(...), which is also what keeps
     // liveAssignments/planPresent in sync - never assign this field itself.
     private @Nullable ServicePlan currentPlan;
-    /**
-     * The reactive surface for "what's currently assigned" - the open
-     * editor's Altar-servers panel and the table's "Assigned" column both
-     * ultimately read this (the table indirectly, via {@link #assignedCount}
-     * reading {@link #currentPlan} - {@link #publishPlan} always calls {@code
-     * table().refresh()}'s callers immediately afterward). See class docs for
-     * why this is a plain {@code ObservableList}, not a property.
-     */
+    /// The reactive surface for "what's currently assigned" - the open
+    /// editor's Altar-servers panel and the table's "Assigned" column both
+    /// ultimately read this (the table indirectly, via {@link #assignedCount}
+    /// reading {@link #currentPlan} - {@link #publishPlan} always calls {@code
+    /// table().refresh()}'s callers immediately afterward). See class docs for
+    /// why this is a plain {@code ObservableList}, not a property.
     private final ObservableList<Assignment> liveAssignments = FXCollections.observableArrayList();
-    /** Whether a plan object currently exists (regardless of whether it has any assignments yet). */
+    /// Whether a plan object currently exists (regardless of whether it has any assignments yet).
     private final ReadOnlyBooleanWrapper planPresent = new ReadOnlyBooleanWrapper(false);
     private @Nullable UUID jobId;
 
@@ -564,44 +560,40 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         });
     }
 
-    /**
-     * Left border accent on {@code label} while {@code property}'s current
-     * value differs from {@code original.get()} (the last-flushed value) - a
-     * lightweight "you have unsaved changes here" cue that needs no
-     * field-by-field "was this the one that changed" bookkeeping: each field
-     * just watches its own drift from where it started, and clears itself
-     * the moment the value round-trips back to the original (e.g. undoing a
-     * typo). On the field's own label, not the field itself - keeps the
-     * accent out of the way of a field's own focus/validation styling.
-     *
-     * <p>{@code original} is a supplier, not a fixed value: a Save all moves
-     * "the last-flushed value" without necessarily changing what the control
-     * displays (the row was already showing its own just-saved content), so
-     * no property change fires to re-evaluate the accent on its own - a fixed
-     * snapshot captured once at editor-build time would leave the accent
-     * stuck "dirty" forever after the first save. Re-reading the supplier on
-     * every future control edit keeps the listener correct going forward;
-     * {@link CrudModule.EditorBinding}'s {@code refresh} callback additionally
-     * re-invokes this method's initial check after a Save all/Load, since
-     * that path changes no control value and so triggers no listener at all.
-     */
+    /// Left border accent on {@code label} while {@code property}'s current
+    /// value differs from {@code original.get()} (the last-flushed value) - a
+    /// lightweight "you have unsaved changes here" cue that needs no
+    /// field-by-field "was this the one that changed" bookkeeping: each field
+    /// just watches its own drift from where it started, and clears itself
+    /// the moment the value round-trips back to the original (e.g. undoing a
+    /// typo). On the field's own label, not the field itself - keeps the
+    /// accent out of the way of a field's own focus/validation styling.
+    ///
+    /// <p>{@code original} is a supplier, not a fixed value: a Save all moves
+    /// "the last-flushed value" without necessarily changing what the control
+    /// displays (the row was already showing its own just-saved content), so
+    /// no property change fires to re-evaluate the accent on its own - a fixed
+    /// snapshot captured once at editor-build time would leave the accent
+    /// stuck "dirty" forever after the first save. Re-reading the supplier on
+    /// every future control edit keeps the listener correct going forward;
+    /// {@link CrudModule.EditorBinding}'s {@code refresh} callback additionally
+    /// re-invokes this method's initial check after a Save all/Load, since
+    /// that path changes no control value and so triggers no listener at all.
     private static <T> void markDirtyOnChange(ObservableValue<T> property, Supplier<T> original, Region label) {
         property.addListener((obs, oldValue, newValue) -> recomputeFieldChanged(property, original, label));
         recomputeFieldChanged(property, original, label);
     }
 
-    /**
-     * The comparison {@link #markDirtyOnChange} reruns on every control
-     * change - factored out so an {@code EditorBinding.refresh} (a Save
-     * all/Load, which moves {@code original} without necessarily changing
-     * what the control displays, so no listener fires on its own) can
-     * re-invoke just the comparison without registering a second listener.
-     */
+    /// The comparison {@link #markDirtyOnChange} reruns on every control
+    /// change - factored out so an {@code EditorBinding.refresh} (a Save
+    /// all/Load, which moves {@code original} without necessarily changing
+    /// what the control displays, so no listener fires on its own) can
+    /// re-invoke just the comparison without registering a second listener.
     private static <T> void recomputeFieldChanged(ObservableValue<T> property, Supplier<T> original, Region label) {
         setFieldChanged(label, !Objects.equals(property.getValue(), original.get()));
     }
 
-    /** Toggles the left-border "unsaved change" accent (see {@code .field-changed} in ThemeStyler) on or off. */
+    /// Toggles the left-border "unsaved change" accent (see {@code .field-changed} in ThemeStyler) on or off.
     private static void setFieldChanged(Region label, boolean changed) {
         if (changed) {
             if (!label.getStyleClass().contains("field-changed")) {
@@ -612,33 +604,31 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         }
     }
 
-    /**
-     * Open-slot fill rows for {@code service}, driven by {@code liveSlots} -
-     * the role/count editor's current (possibly unsaved) values, not just
-     * whatever's in the current plan - so the list updates the
-     * moment a slot count changes, before Save. A slot instance still backed
-     * by an {@link Assignment} in the current plan (matched by its stable id,
-     * {@code service:role:index}) gets an editable dropdown seeded with its
-     * current server; one that isn't - a count bumped up since the plan was
-     * last built - gets a disabled placeholder, since there's nothing to
-     * write a pick into until Save regenerates the plan for the new count.
-     * Decrementing then incrementing a count back before saving never drops
-     * an assignment: the underlying {@link Assignment} objects in the plan
-     * aren't touched by hiding their row, only by an actual rebuild (Save,
-     * tab reactivation, or a range change), so the previously assigned server
-     * reappears exactly as it was.
-     *
-     * <p>{@code assignmentSection} is threaded through so a manual pick can
-     * rebuild these rows in place: violations (and the warning icon) are
-     * computed fresh on every call, so without this a slot's violation
-     * status would only ever catch up on the next full editor rebuild
-     * (Save, a solve, reselecting the row) rather than the moment the pick
-     * is made. {@code altarServersTitle} gets the same left-border
-     * "unsaved change" accent as the other fields, recomputed on every call -
-     * this is the single choke point every assignment-affecting change
-     * (a pick, a slot count edit, a solve, an external plan rebuild) already
-     * goes through, so there is no separate call site to remember.
-     */
+    /// Open-slot fill rows for {@code service}, driven by {@code liveSlots} -
+    /// the role/count editor's current (possibly unsaved) values, not just
+    /// whatever's in the current plan - so the list updates the
+    /// moment a slot count changes, before Save. A slot instance still backed
+    /// by an {@link Assignment} in the current plan (matched by its stable id,
+    /// {@code service:role:index}) gets an editable dropdown seeded with its
+    /// current server; one that isn't - a count bumped up since the plan was
+    /// last built - gets a disabled placeholder, since there's nothing to
+    /// write a pick into until Save regenerates the plan for the new count.
+    /// Decrementing then incrementing a count back before saving never drops
+    /// an assignment: the underlying {@link Assignment} objects in the plan
+    /// aren't touched by hiding their row, only by an actual rebuild (Save,
+    /// tab reactivation, or a range change), so the previously assigned server
+    /// reappears exactly as it was.
+    ///
+    /// <p>{@code assignmentSection} is threaded through so a manual pick can
+    /// rebuild these rows in place: violations (and the warning icon) are
+    /// computed fresh on every call, so without this a slot's violation
+    /// status would only ever catch up on the next full editor rebuild
+    /// (Save, a solve, reselecting the row) rather than the moment the pick
+    /// is made. {@code altarServersTitle} gets the same left-border
+    /// "unsaved change" accent as the other fields, recomputed on every call -
+    /// this is the single choke point every assignment-affecting change
+    /// (a pick, a slot count edit, a solve, an external plan rebuild) already
+    /// goes through, so there is no separate call site to remember.
     private List<Node> buildAssignmentRows(LiturgicalService service, List<RoleSlot> liveSlots,
                                            VBox assignmentSection, Region altarServersTitle) {
         liveSlotsServiceId = service.id();
@@ -756,14 +746,12 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         return rows;
     }
 
-    /**
-     * Filled/total counts backing the "Assigned" column; {@code filled} is
-     * {@code -1} when no plan is loaded (nothing to be filled yet - the
-     * label falls back to just the total). For the service currently open
-     * in the editor, {@code total} is the live (possibly unsaved) slot
-     * count - otherwise a filled slot just added in the editor but not yet
-     * saved would show as e.g. "3/2" against the still-persisted total.
-     */
+    /// Filled/total counts backing the "Assigned" column; {@code filled} is
+    /// {@code -1} when no plan is loaded (nothing to be filled yet - the
+    /// label falls back to just the total). For the service currently open
+    /// in the editor, {@code total} is the live (possibly unsaved) slot
+    /// count - otherwise a filled slot just added in the editor but not yet
+    /// saved would show as e.g. "3/2" against the still-persisted total.
     private record AssignedCount(int filled, int total) {
         boolean underfilled() {
             return filled >= 0 && filled < total;
@@ -790,14 +778,12 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         return new AssignedCount((int) filled, total);
     }
 
-    /**
-     * The only path that may assign {@link #currentPlan} - keeps
-     * {@link #liveAssignments} and {@link #planPresent} in lockstep with it.
-     * {@code liveAssignments.setAll(...)} fires a change notification even
-     * when {@code plan}'s assignments are the exact object references already
-     * held (Timefold mutates them in place rather than cloning) - see the
-     * field's own docs for why that guarantee matters here.
-     */
+    /// The only path that may assign {@link #currentPlan} - keeps
+    /// {@link #liveAssignments} and {@link #planPresent} in lockstep with it.
+    /// {@code liveAssignments.setAll(...)} fires a change notification even
+    /// when {@code plan}'s assignments are the exact object references already
+    /// held (Timefold mutates them in place rather than cloning) - see the
+    /// field's own docs for why that guarantee matters here.
     private void publishPlan(@Nullable ServicePlan plan) {
         currentPlan = plan;
         liveAssignments.setAll(plan == null ? List.of() : plan.getAssignments());
@@ -811,22 +797,20 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         table().refresh();
     }
 
-    /**
-     * Discards every staged edit in the shared database (all modules, by
-     * design - there is one database) and unsaved assignment picks, reloading
-     * from disk. The plan is hard-reset before the reload so the
-     * store-refresh handler rebuilds it fresh against the reverted data.
-     * There is exactly one Load action app-wide (the global toolbar button in
-     * {@code MinDisApp}) - it calls this directly rather than going through
-     * {@link LiveDatabase} on its own, since the plan (unlike the four entity
-     * stores) isn't something {@code LiveDatabase} knows about.
-     */
+    /// Discards every staged edit in the shared database (all modules, by
+    /// design - there is one database) and unsaved assignment picks, reloading
+    /// from disk. The plan is hard-reset before the reload so the
+    /// store-refresh handler rebuilds it fresh against the reverted data.
+    /// There is exactly one Load action app-wide (the global toolbar button in
+    /// {@code MinDisApp}) - it calls this directly rather than going through
+    /// {@link LiveDatabase} on its own, since the plan (unlike the four entity
+    /// stores) isn't something {@code LiveDatabase} knows about.
     public void loadAll() {
         publishPlan(null);
         liveDatabase.loadAll();
     }
 
-    /** Same period, preserving the current plan's in-progress assignments while picking up service/roster edits. */
+    /// Same period, preserving the current plan's in-progress assignments while picking up service/roster edits.
     private void rebuildCurrentPlan() {
         LocalDate from = fromPicker.getValue();
         LocalDate to = toPicker.getValue();
@@ -846,7 +830,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         refreshScoreAndStatus();
     }
 
-    /** Reloads {@link #savedPlanSnapshot} for whatever horizon is currently picked (or clears it if none is saved for it). */
+    /// Reloads {@link #savedPlanSnapshot} for whatever horizon is currently picked (or clears it if none is saved for it).
     private void reloadSavedPlanSnapshot() {
         LocalDate from = fromPicker.getValue();
         LocalDate to = toPicker.getValue();
@@ -855,13 +839,11 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                 .orElse(null);
     }
 
-    /**
-     * Diffs the current plan against {@link #savedPlanSnapshot}, ignoring
-     * unassigned/unpinned slots on either side (an empty slot on disk and an
-     * empty slot in memory are the same "nothing to save" state regardless of
-     * assignment id bookkeeping) - so clearing a pick and then setting it back
-     * to its previous value reads clean again, not stuck dirty.
-     */
+    /// Diffs the current plan against {@link #savedPlanSnapshot}, ignoring
+    /// unassigned/unpinned slots on either side (an empty slot on disk and an
+    /// empty slot in memory are the same "nothing to save" state regardless of
+    /// assignment id bookkeeping) - so clearing a pick and then setting it back
+    /// to its previous value reads clean again, not stuck dirty.
     private void recomputePlanDirty() {
         ServicePlan plan = currentPlan;
         if (plan == null) {
@@ -886,18 +868,16 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         return byId;
     }
 
-    /**
-     * The pin state to apply after a manual combo-box pick. A plain
-     * {@code newServer != null} would mark *any* interaction as a manual pin
-     * - including reselecting the exact server this slot was last saved
-     * with - permanently diverging from {@link #savedPlanSnapshot} on the pin
-     * flag alone even though the server itself matches, so "picking the
-     * original value back" could never actually clear the dirty accent.
-     * Restoring the saved pin state specifically when the picked server
-     * matches what was saved makes reverting a pick genuinely equivalent to
-     * not having touched it; picking anything else is still a deliberate
-     * manual pin, same as before.
-     */
+    /// The pin state to apply after a manual combo-box pick. A plain
+    /// {@code newServer != null} would mark *any* interaction as a manual pin
+    /// - including reselecting the exact server this slot was last saved
+    /// with - permanently diverging from {@link #savedPlanSnapshot} on the pin
+    /// flag alone even though the server itself matches, so "picking the
+    /// original value back" could never actually clear the dirty accent.
+    /// Restoring the saved pin state specifically when the picked server
+    /// matches what was saved makes reverting a pick genuinely equivalent to
+    /// not having touched it; picking anything else is still a deliberate
+    /// manual pin, same as before.
     private boolean resolvePinnedAfterManualPick(Assignment assignment, @Nullable Server newServer) {
         AcceptedPlan saved = savedPlanSnapshot;
         if (saved != null) {
@@ -914,13 +894,11 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         return newServer != null;
     }
 
-    /**
-     * The Altar-servers-panel counterpart of {@link #recomputePlanDirty()}:
-     * whether {@code service}'s own picks differ from what's on disk, scoped
-     * to just this row (unlike {@link #planDirty}, which is true if *any*
-     * service in the horizon has an unsaved pick) - a per-row accent should
-     * only light up for the row that's actually different.
-     */
+    /// The Altar-servers-panel counterpart of {@link #recomputePlanDirty()}:
+    /// whether {@code service}'s own picks differ from what's on disk, scoped
+    /// to just this row (unlike {@link #planDirty}, which is true if *any*
+    /// service in the horizon has an unsaved pick) - a per-row accent should
+    /// only light up for the row that's actually different.
     private boolean isAssignmentsDirtyFor(LiturgicalService service) {
         ServicePlan plan = currentPlan;
         if (plan == null) {
@@ -983,13 +961,11 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                 }));
     }
 
-    /**
-     * Solves only {@code service}'s open slots: every other assignment is
-     * pinned for the duration of the solve (so it can't be shifted), then
-     * restored to its original pin state afterward - {@code service}'s own
-     * newly-filled slots become pinned instead, the same as a manual pick,
-     * since the planner asked for this fill just as deliberately.
-     */
+    /// Solves only {@code service}'s open slots: every other assignment is
+    /// pinned for the duration of the solve (so it can't be shifted), then
+    /// restored to its original pin state afterward - {@code service}'s own
+    /// newly-filled slots become pinned instead, the same as a manual pick,
+    /// since the planner asked for this fill just as deliberately.
     private void onAutoFillService(LiturgicalService service) {
         if (solving.get()) {
             return;
@@ -1060,21 +1036,19 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         }
     }
 
-    /**
-     * Persists both halves of the live state in one call: if
-     * {@link #planDirty} (an assignment was picked or a solve ran since the
-     * last save), the current plan; then the whole shared database - "Save
-     * all" always means "flush the database", so pending edits from every
-     * module land on disk together, not just this tab's. There is exactly
-     * one Save all action app-wide (the global toolbar button in
-     * {@code MinDisApp}) - it calls this directly rather than going through
-     * {@link LiveDatabase} on its own, since the plan (unlike the four entity
-     * stores) isn't something {@code LiveDatabase} knows about; a separate
-     * per-module button here would mean two places compute "is there
-     * anything to save", which is exactly the divergence (global button
-     * enabled/disabled independently of an Altar-servers pick) that made a
-     * single button necessary in the first place.
-     */
+    /// Persists both halves of the live state in one call: if
+    /// {@link #planDirty} (an assignment was picked or a solve ran since the
+    /// last save), the current plan; then the whole shared database - "Save
+    /// all" always means "flush the database", so pending edits from every
+    /// module land on disk together, not just this tab's. There is exactly
+    /// one Save all action app-wide (the global toolbar button in
+    /// {@code MinDisApp}) - it calls this directly rather than going through
+    /// {@link LiveDatabase} on its own, since the plan (unlike the four entity
+    /// stores) isn't something {@code LiveDatabase} knows about; a separate
+    /// per-module button here would mean two places compute "is there
+    /// anything to save", which is exactly the divergence (global button
+    /// enabled/disabled independently of an Altar-servers pick) that made a
+    /// single button necessary in the first place.
     public void saveAll() {
         ServicePlan plan = currentPlan;
         if (plan != null && planDirty.get()) {
@@ -1086,12 +1060,12 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         statusLabel.setText(Localization.lang("Saved"));
     }
 
-    /** Whether an assignment pick or a solve run differs from what's on disk - part of the global Save all's enablement. */
+    /// Whether an assignment pick or a solve run differs from what's on disk - part of the global Save all's enablement.
     public ReadOnlyBooleanProperty planDirtyProperty() {
         return planDirty;
     }
 
-    /** Whether the solver is currently running - the global Save all must stay disabled while true, same as this tab's own controls. */
+    /// Whether the solver is currently running - the global Save all must stay disabled while true, same as this tab's own controls.
     public ReadOnlyBooleanProperty solvingProperty() {
         return solving;
     }

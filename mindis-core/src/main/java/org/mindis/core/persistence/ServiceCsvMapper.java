@@ -10,11 +10,9 @@ import org.jspecify.annotations.Nullable;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.ServiceType;
 
-/**
- * CSV row mapping for {@link LiturgicalService}, shared by every consumer
- * that offers Services import/export (currently the GUI's Services module;
- * PLAN.md's future web module gets the same for free).
- */
+/// CSV row mapping for {@link LiturgicalService}, shared by every consumer
+/// that offers Services import/export (currently the GUI's Services module;
+/// PLAN.md's future web module gets the same for free).
 @NullMarked
 public final class ServiceCsvMapper {
 
@@ -42,7 +40,7 @@ public final class ServiceCsvMapper {
                 service.note());
     }
 
-    /** Rows with an unparsable date/time are skipped; a blank id gets a fresh one. */
+    /// Rows with an unparsable date/time are skipped; a blank id gets a fresh one.
     public @Nullable LiturgicalService fromRow(List<String> row) {
         LocalDate date = CsvFields.parseDate(CsvFields.at(row, 1));
         LocalTime time = CsvFields.parseTime(CsvFields.at(row, 2));

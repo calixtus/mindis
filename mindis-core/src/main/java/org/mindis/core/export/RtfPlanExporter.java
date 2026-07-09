@@ -6,10 +6,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/**
- * Hand-rolled minimal RTF writer (title/heading bold text plus tab-separated
- * rows) - no external RTF library is pulled in for this.
- */
+/// Hand-rolled minimal RTF writer (title/heading bold text plus tab-separated
+/// rows) - no external RTF library is pulled in for this.
 final class RtfPlanExporter implements PlanExporter {
 
     @Override

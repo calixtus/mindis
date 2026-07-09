@@ -4,11 +4,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-/**
- * How many servers of a given role a service requires. {@code role} is the
- * {@link Role#id()} (the JSON field name stays {@code role} so pre-existing
- * data written with the former enum names still deserializes).
- */
+/// How many servers of a given role a service requires. {@code role} is the
+/// {@link Role#id()} (the JSON field name stays {@code role} so pre-existing
+/// data written with the former enum names still deserializes).
 public record RoleSlot(String role, int count) {
 
     public RoleSlot {
@@ -17,11 +15,9 @@ public record RoleSlot(String role, int count) {
         }
     }
 
-    /**
-     * True if {@code a} and {@code b} carry the same (role, count) pairs,
-     * ignoring list order and zero-count entries - the "unchanged" notion for
-     * dirty-tracking slot lists, where order isn't semantically significant.
-     */
+    /// True if {@code a} and {@code b} carry the same (role, count) pairs,
+    /// ignoring list order and zero-count entries - the "unchanged" notion for
+    /// dirty-tracking slot lists, where order isn't semantically significant.
     public static boolean sameSlots(List<RoleSlot> a, List<RoleSlot> b) {
         return normalized(a).equals(normalized(b));
     }

@@ -7,11 +7,9 @@ import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.model.Role;
 
-/**
- * CSV row mapping for {@link Role}, shared by every consumer that offers
- * Roles import/export (currently the GUI's Roles module; PLAN.md's future
- * web module gets the same for free).
- */
+/// CSV row mapping for {@link Role}, shared by every consumer that offers
+/// Roles import/export (currently the GUI's Roles module; PLAN.md's future
+/// web module gets the same for free).
 @NullMarked
 public final class RoleCsvMapper {
 
@@ -34,7 +32,7 @@ public final class RoleCsvMapper {
                 String.valueOf(role.sortOrder()));
     }
 
-    /** Blank name rows are skipped; a blank id gets a fresh one. */
+    /// Blank name rows are skipped; a blank id gets a fresh one.
     public @Nullable Role fromRow(List<String> row) {
         String name = CsvFields.at(row, 1);
         if (name.isEmpty()) {

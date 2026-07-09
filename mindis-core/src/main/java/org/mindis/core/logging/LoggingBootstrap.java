@@ -16,12 +16,10 @@ import java.util.logging.Logger;
 
 import org.mindis.core.preferences.AppDirectories;
 
-/**
- * Wires the root {@link Logger} to log to both the console and a rotating
- * file under the per-user data directory. Call once, as early as possible in
- * application startup (PLAN.md litmus test: a future CLI against {@code
- * mindis-core} alone gets the same console+file logging for free).
- */
+/// Wires the root {@link Logger} to log to both the console and a rotating
+/// file under the per-user data directory. Call once, as early as possible in
+/// application startup (PLAN.md litmus test: a future CLI against {@code
+/// mindis-core} alone gets the same console+file logging for free).
 public final class LoggingBootstrap {
 
     private static final int MAX_FILE_BYTES = 5 * 1024 * 1024;

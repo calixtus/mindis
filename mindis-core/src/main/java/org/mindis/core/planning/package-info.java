@@ -1,4 +1,4 @@
-/** Timefold planning entities/solution, constraints, and plan mapping. */
+/// Timefold planning entities/solution, constraints, and plan mapping.
 @NullMarked
 package org.mindis.core.planning;
 

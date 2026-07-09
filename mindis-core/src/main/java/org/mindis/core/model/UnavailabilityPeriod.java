@@ -2,10 +2,8 @@ package org.mindis.core.model;
 
 import java.time.LocalDate;
 
-/**
- * A date range (inclusive on both ends) during which a server cannot be
- * assigned (vacation, exams, ...).
- */
+/// A date range (inclusive on both ends) during which a server cannot be
+/// assigned (vacation, exams, ...).
 public record UnavailabilityPeriod(LocalDate start, LocalDate end) {
 
     public UnavailabilityPeriod {

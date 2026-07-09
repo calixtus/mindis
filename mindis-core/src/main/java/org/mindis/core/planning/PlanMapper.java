@@ -7,11 +7,9 @@ import java.util.Map;
 
 import org.mindis.core.model.Server;
 
-/**
- * Pure conversions between the live {@link ServicePlan} and the persisted
- * {@link AcceptedPlan}. Dependency-free by design (SOLID/DIP): callers do not
- * need a solver-backed service for plain mapping.
- */
+/// Pure conversions between the live {@link ServicePlan} and the persisted
+/// {@link AcceptedPlan}. Dependency-free by design (SOLID/DIP): callers do not
+/// need a solver-backed service for plain mapping.
 public final class PlanMapper {
 
     private PlanMapper() {
@@ -32,11 +30,9 @@ public final class PlanMapper {
         return new AcceptedPlan(from, toInclusive, planned, null);
     }
 
-    /**
-     * Re-applies a persisted plan onto a freshly built problem: assigned
-     * servers and pin flags are restored where the assignment ids still match
-     * (deleted servers or services degrade gracefully to empty slots).
-     */
+    /// Re-applies a persisted plan onto a freshly built problem: assigned
+    /// servers and pin flags are restored where the assignment ids still match
+    /// (deleted servers or services degrade gracefully to empty slots).
     public static void applyAcceptedPlan(ServicePlan problem, AcceptedPlan acceptedPlan) {
         Map<String, Server> serversById = new HashMap<>();
         problem.getServers().forEach(server -> serversById.put(server.id(), server));

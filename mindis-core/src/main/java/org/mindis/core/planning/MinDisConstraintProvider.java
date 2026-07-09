@@ -16,17 +16,15 @@ import java.util.Objects;
 
 import org.mindis.core.model.Role;
 
-/**
- * Scoring rules for altar server planning (PLAN.md section 3).
- *
- * <p>Score levels: hard = rule violations (never acceptable), medium =
- * unassigned slots (allowed but strongly discouraged, so an over-constrained
- * month still yields the best partial plan), soft = plan quality.
- *
- * <p>Soft constraint weights are tunable via preferences
- * ({@link #defaultSoftWeights()} names the knobs); overrides are applied per
- * solve through {@code ConstraintWeightOverrides} on the solution.
- */
+/// Scoring rules for altar server planning (PLAN.md section 3).
+///
+/// <p>Score levels: hard = rule violations (never acceptable), medium =
+/// unassigned slots (allowed but strongly discouraged, so an over-constrained
+/// month still yields the best partial plan), soft = plan quality.
+///
+/// <p>Soft constraint weights are tunable via preferences
+/// ({@link #defaultSoftWeights()} names the knobs); overrides are applied per
+/// solve through {@code ConstraintWeightOverrides} on the solution.
 public class MinDisConstraintProvider implements ConstraintProvider {
 
     static final int FAIRNESS_WEIGHT = 2;
@@ -59,10 +57,8 @@ public class MinDisConstraintProvider implements ConstraintProvider {
     public static final String EXPERIENCED_PRESENT = "Experienced server present";
     public static final String AGE_REQUIREMENT = "Server age outside role range";
 
-    /**
-     * The tunable soft constraints in display order - single source for the
-     * preferences UI and the default weight map.
-     */
+    /// The tunable soft constraints in display order - single source for the
+    /// preferences UI and the default weight map.
     public static java.util.List<String> tunableSoftConstraints() {
         return List.of(
                 UNBALANCED_WORKLOAD,
@@ -74,10 +70,8 @@ public class MinDisConstraintProvider implements ConstraintProvider {
                 AGE_REQUIREMENT);
     }
 
-    /**
-     * Default weights of the tunable soft constraints, keyed by constraint
-     * name; the preferences UI edits these (PLAN.md M4/M5 deferred item).
-     */
+    /// Default weights of the tunable soft constraints, keyed by constraint
+    /// name; the preferences UI edits these (PLAN.md M4/M5 deferred item).
     public static java.util.Map<String, Integer> defaultSoftWeights() {
         return java.util.Map.of(
                 UNBALANCED_WORKLOAD, FAIRNESS_WEIGHT,
@@ -181,22 +175,20 @@ public class MinDisConstraintProvider implements ConstraintProvider {
                 .asConstraint(TOO_CLOSE);
     }
 
-    /**
-     * The same "not too close together" intent as {@link
-     * #spacingBetweenAssignments}, but across a plan boundary: penalizes a
-     * server assigned within {@link #SPACING_THRESHOLD_DAYS} of a day they
-     * already served in the immediately preceding plan. A solve is confined
-     * to its own date range (PlanningService#buildProblem), so without this
-     * the solver has no way to know - and no way to be penalized for -
-     * scheduling the same server again the day after a previous plan ended.
-     * A separate constraint (not folded into spacingBetweenAssignments)
-     * because {@link PriorAssignment} isn't an {@link Assignment} - it's a
-     * read-only fact, never a planning entity - so it needs its own {@code
-     * join} rather than a {@code forEachUniquePair}; that in turn means its
-     * own constraint id, since Timefold requires those unique, which is why
-     * it has its own (separately tunable) weight rather than sharing {@link
-     * #SPACING_PENALTY}.
-     */
+    /// The same "not too close together" intent as {@link
+    /// #spacingBetweenAssignments}, but across a plan boundary: penalizes a
+    /// server assigned within {@link #SPACING_THRESHOLD_DAYS} of a day they
+    /// already served in the immediately preceding plan. A solve is confined
+    /// to its own date range (PlanningService#buildProblem), so without this
+    /// the solver has no way to know - and no way to be penalized for -
+    /// scheduling the same server again the day after a previous plan ended.
+    /// A separate constraint (not folded into spacingBetweenAssignments)
+    /// because {@link PriorAssignment} isn't an {@link Assignment} - it's a
+    /// read-only fact, never a planning entity - so it needs its own {@code
+    /// join} rather than a {@code forEachUniquePair}; that in turn means its
+    /// own constraint id, since Timefold requires those unique, which is why
+    /// it has its own (separately tunable) weight rather than sharing {@link
+    /// #SPACING_PENALTY}.
     @SuppressWarnings("NullAway")
     Constraint spacingFromPriorPlan(ConstraintFactory factory) {
         return factory.forEach(Assignment.class)

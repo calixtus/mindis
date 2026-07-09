@@ -4,25 +4,23 @@ import javafx.scene.Node;
 
 import org.jspecify.annotations.Nullable;
 
-/**
- * One functional area of the application (Dashboard, Servers, ...), reachable
- * through a permanent sidebar entry in the {@link Workbench}.
- *
- * <p>Lifecycle (modeled on WorkbenchFX's WorkbenchModule):
- * <ol>
- *   <li>{@link #activate()} - called every time the module is selected in the
- *       sidebar; returns the content node (fresh or cached, the module
- *       decides).
- *   <li>{@link #deactivate()} - called when another module is selected.
- *   <li>{@link #destroy()} - reserved for a closing hook (return {@code false}
- *       to veto); not called by the sidebar shell, which keeps all modules
- *       available.
- *   <li>{@link #dispose()} - called when the module instance is discarded for
- *       good (e.g. a full UI rebuild replaces every module); detach any
- *       listeners registered on objects that outlive the module (shared
- *       {@link LiveStore}s), or the discarded module graph stays reachable.
- * </ol>
- */
+/// One functional area of the application (Dashboard, Servers, ...), reachable
+/// through a permanent sidebar entry in the {@link Workbench}.
+///
+/// <p>Lifecycle (modeled on WorkbenchFX's WorkbenchModule):
+/// <ol>
+///   <li>{@link #activate()} - called every time the module is selected in the
+///       sidebar; returns the content node (fresh or cached, the module
+///       decides).
+///   <li>{@link #deactivate()} - called when another module is selected.
+///   <li>{@link #destroy()} - reserved for a closing hook (return {@code false}
+///       to veto); not called by the sidebar shell, which keeps all modules
+///       available.
+///   <li>{@link #dispose()} - called when the module instance is discarded for
+///       good (e.g. a full UI rebuild replaces every module); detach any
+///       listeners registered on objects that outlive the module (shared
+///       {@link LiveStore}s), or the discarded module graph stays reachable.
+/// </ol>
 public abstract class WorkbenchModule {
 
     private final String name;
@@ -32,10 +30,8 @@ public abstract class WorkbenchModule {
         this(name, null);
     }
 
-    /**
-     * @param iconLiteral Ikonli icon literal (e.g. {@code "mdi2v-view-dashboard"});
-     *                    {@code null} for a text-only sidebar entry
-     */
+    /// @param iconLiteral Ikonli icon literal (e.g. {@code "mdi2v-view-dashboard"});
+    ///                    {@code null} for a text-only sidebar entry
     protected WorkbenchModule(String name, @Nullable String iconLiteral) {
         this.name = name;
         this.iconLiteral = iconLiteral;
@@ -58,10 +54,8 @@ public abstract class WorkbenchModule {
         return true;
     }
 
-    /**
-     * Detaches everything this module registered on longer-lived objects;
-     * called once when the instance is discarded (never reactivated after).
-     */
+    /// Detaches everything this module registered on longer-lived objects;
+    /// called once when the instance is discarded (never reactivated after).
     public void dispose() {
     }
 }

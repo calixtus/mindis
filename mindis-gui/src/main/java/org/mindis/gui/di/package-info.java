@@ -1,4 +1,4 @@
-/** Bridges FxmlKit's DI hook to Avaje Inject. */
+/// Bridges FxmlKit's DI hook to Avaje Inject.
 @NullMarked
 package org.mindis.gui.di;
 

@@ -13,11 +13,9 @@ import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 
-/**
- * One role slot of one service; the solver assigns a {@link Server} to it.
- * Mutable by design - Timefold requires a settable planning variable
- * (PLAN.md section 3).
- */
+/// One role slot of one service; the solver assigns a {@link Server} to it.
+/// Mutable by design - Timefold requires a settable planning variable
+/// (PLAN.md section 3).
 @PlanningEntity
 public class Assignment {
 

@@ -20,23 +20,21 @@ import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
 
-/**
- * "Required servers" role/slot-count editor shared by {@link ServicesModule}
- * and {@link TemplatesModule}: one compact row per role (name left, a small
- * split-arrow count spinner right). Bound directly to the live (shared)
- * {@code ObservableList<Role>} rather than a caller-supplied snapshot: a role
- * added, renamed or removed anywhere - even unsaved - updates this editor's
- * rows on its own via an internal listener, with no rebuild call needed from
- * outside. Only the affected rows are rebuilt; already-entered counts for
- * roles unaffected by the change survive. Call {@link #dispose()} when the
- * owning editor is discarded (see {@code CrudModule.EditorBinding}) to detach
- * the listener from the shared list.
- */
+/// "Required servers" role/slot-count editor shared by {@link ServicesModule}
+/// and {@link TemplatesModule}: one compact row per role (name left, a small
+/// split-arrow count spinner right). Bound directly to the live (shared)
+/// {@code ObservableList<Role>} rather than a caller-supplied snapshot: a role
+/// added, renamed or removed anywhere - even unsaved - updates this editor's
+/// rows on its own via an internal listener, with no rebuild call needed from
+/// outside. Only the affected rows are rebuilt; already-entered counts for
+/// roles unaffected by the change survive. Call {@link #dispose()} when the
+/// owning editor is discarded (see {@code CrudModule.EditorBinding}) to detach
+/// the listener from the shared list.
 final class RoleSlotsEditor {
 
     private static final int MAX_SLOT_COUNT = 10;
 
-    /** Label for the editor's grid row; height-bound to the first slot row so its text centers. */
+    /// Label for the editor's grid row; height-bound to the first slot row so its text centers.
     final Label label = new Label(Localization.lang("Required servers"));
 
     private final ObservableList<Role> roles;
@@ -49,12 +47,10 @@ final class RoleSlotsEditor {
         this(roles, initialSlots, slots -> { });
     }
 
-    /**
-     * @param onChange called with {@link #collectSlots()}'s current result
-     *                 whenever any spinner's count changes - lets a caller
-     *                 (e.g. {@link ServicesModule}'s per-slot assignment
-     *                 rows) stay in sync with counts live, before Save.
-     */
+    /// @param onChange called with {@link #collectSlots()}'s current result
+    ///                 whenever any spinner's count changes - lets a caller
+    ///                 (e.g. {@link ServicesModule}'s per-slot assignment
+    ///                 rows) stay in sync with counts live, before Save.
     RoleSlotsEditor(ObservableList<Role> roles, List<RoleSlot> initialSlots, Consumer<List<RoleSlot>> onChange) {
         this.roles = roles;
         this.onChange = onChange;
@@ -66,27 +62,25 @@ final class RoleSlotsEditor {
         }
     }
 
-    /** Detaches this editor's listener from the shared role list; call when the editor is discarded. */
+    /// Detaches this editor's listener from the shared role list; call when the editor is discarded.
     void dispose() {
         roles.removeListener(rolesListener);
     }
 
-    /** The row list; place in the editor grid's field column, with {@code GridPane.setVgrow(ALWAYS)}. */
+    /// The row list; place in the editor grid's field column, with {@code GridPane.setVgrow(ALWAYS)}.
     VBox list() {
         return list;
     }
 
-    /**
-     * Reseeds every spinner from {@code slots} - for an {@code EditorBinding}
-     * refresh (the owning item's slots changed externally, e.g. a Save
-     * all/Load reverting an unflushed count), not for a role-list change
-     * (handled internally). Does not itself call {@code onChange}.
-     */
+    /// Reseeds every spinner from {@code slots} - for an {@code EditorBinding}
+    /// refresh (the owning item's slots changed externally, e.g. a Save
+    /// all/Load reverting an unflushed count), not for a role-list change
+    /// (handled internally). Does not itself call {@code onChange}.
     void setSlots(List<RoleSlot> slots) {
         rebuildRows(roleId -> slotCount(slots, roleId));
     }
 
-    /** Slot counts entered in the editor (zero-count roles omitted), for saving. */
+    /// Slot counts entered in the editor (zero-count roles omitted), for saving.
     List<RoleSlot> collectSlots() {
         List<RoleSlot> slots = new ArrayList<>();
         spinners.forEach((roleId, spinner) -> {
@@ -98,19 +92,17 @@ final class RoleSlotsEditor {
         return slots;
     }
 
-    /** This role's currently entered count, or 0 if it has no row yet (a role just added elsewhere). */
+    /// This role's currently entered count, or 0 if it has no row yet (a role just added elsewhere).
     private int currentOrZero(String roleId) {
         Spinner<Integer> spinner = spinners.get(roleId);
         return spinner == null ? 0 : spinner.getValue();
     }
 
-    /**
-     * Rebuilds every row from the current {@link #roles}; {@code seed}
-     * supplies each row's initial count (the constructor seeds from the
-     * item's persisted slots, a later role-list change seeds from whatever is
-     * already entered, so mid-edit counts survive a role being added or
-     * removed elsewhere).
-     */
+    /// Rebuilds every row from the current {@link #roles}; {@code seed}
+    /// supplies each row's initial count (the constructor seeds from the
+    /// item's persisted slots, a later role-list change seeds from whatever is
+    /// already entered, so mid-edit counts survive a role being added or
+    /// removed elsewhere).
     private void rebuildRows(ToIntFunction<String> seed) {
         spinners.clear();
         List<HBox> rows = new ArrayList<>();

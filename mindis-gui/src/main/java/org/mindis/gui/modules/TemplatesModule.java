@@ -38,13 +38,11 @@ import org.mindis.workbench.CrudModule;
 import org.mindis.workbench.CsvRowMapper;
 import org.mindis.workbench.LiveStore;
 
-/**
- * Weekly recurring service templates ("every Sunday 10:00 at St. Mary"),
- * expanded into concrete services from the Services module.
- *
- * <p>Weekly-only for now; month/year/feast-day template types are a planned
- * extension of this module (see PLAN.md).
- */
+/// Weekly recurring service templates ("every Sunday 10:00 at St. Mary"),
+/// expanded into concrete services from the Services module.
+///
+/// <p>Weekly-only for now; month/year/feast-day template types are a planned
+/// extension of this module (see PLAN.md).
 public class TemplatesModule extends CrudModule<ServiceTemplate> {
 
     private static final double EDITOR_MIN_HEIGHT = 420;

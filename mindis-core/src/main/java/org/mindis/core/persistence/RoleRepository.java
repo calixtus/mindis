@@ -16,18 +16,16 @@ import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
 import org.mindis.core.preferences.DataDirectory;
 
-/**
- * Role storage: roles.json in the user data directory. Upsert by id. When the
- * backing file does not exist yet (first run), the five built-in default roles
- * are seeded so the app is usable out of the box and legacy data referencing
- * the former enum ids ({@code ACOLYTE}, ...) still resolves.
- *
- * <p>Mutations ({@link #save} and {@link #delete} stage into
- * the in-memory cache only - the single source of truth every reader (GUI,
- * solver, CSV mappers) shares. Disk I/O happens exclusively through
- * {@link #flush()} and {@link #reload()}, driven by the global Save all/Load
- * actions (see {@link AppDatabase}).
- */
+/// Role storage: roles.json in the user data directory. Upsert by id. When the
+/// backing file does not exist yet (first run), the five built-in default roles
+/// are seeded so the app is usable out of the box and legacy data referencing
+/// the former enum ids ({@code ACOLYTE}, ...) still resolves.
+///
+/// <p>Mutations ({@link #save} and {@link #delete} stage into
+/// the in-memory cache only - the single source of truth every reader (GUI,
+/// solver, CSV mappers) shares. Disk I/O happens exclusively through
+/// {@link #flush()} and {@link #reload()}, driven by the global Save all/Load
+/// actions (see {@link AppDatabase}).
 @Singleton
 public class RoleRepository {
 
@@ -64,18 +62,18 @@ public class RoleRepository {
         cached().removeIf(existing -> existing.id().equals(id));
     }
 
-    /** Writes the staged state to disk - the only disk write path. */
+    /// Writes the staged state to disk - the only disk write path.
     public synchronized void flush() {
         store.save(cached());
     }
 
-    /** Discards staged (unflushed) mutations and reloads from disk. */
+    /// Discards staged (unflushed) mutations and reloads from disk.
     public synchronized void reload() {
         roles = null;
         cached();
     }
 
-    /** The next free sort order (current max + a step), for a role not yet in the store. */
+    /// The next free sort order (current max + a step), for a role not yet in the store.
     public synchronized int nextSortOrder() {
         return cached().stream()
                 .mapToInt(Role::sortOrder)
@@ -83,7 +81,7 @@ public class RoleRepository {
                 .orElse(-SORT_ORDER_STEP) + SORT_ORDER_STEP;
     }
 
-    /** The live (mutable) cache, loading and seeding/sorting it on first access. */
+    /// The live (mutable) cache, loading and seeding/sorting it on first access.
     private List<Role> cached() {
         if (roles == null) {
             roles = new ArrayList<>(store.load());
@@ -104,11 +102,9 @@ public class RoleRepository {
         list.sort(Comparator.comparingInt(Role::sortOrder).thenComparing(Role::name));
     }
 
-    /**
-     * Built-in roles seeded on first run. Ids match the former {@code Role}
-     * enum constants for backward compatibility; names are localized at seed
-     * time and remain user-editable afterwards.
-     */
+    /// Built-in roles seeded on first run. Ids match the former {@code Role}
+    /// enum constants for backward compatibility; names are localized at seed
+    /// time and remain user-editable afterwards.
     private static List<Role> defaults() {
         return List.of(
                 new Role(Role.ACOLYTE, Localization.lang("Acolyte"), null, null, 0),

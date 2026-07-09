@@ -2,9 +2,7 @@ package org.mindis.core.export;
 
 import java.util.Locale;
 
-/**
- * File formats {@link PlanExportService} can render an accepted plan into.
- */
+/// File formats {@link PlanExportService} can render an accepted plan into.
 public enum PlanExportFormat {
     PDF("pdf"),
     CSV("csv"),

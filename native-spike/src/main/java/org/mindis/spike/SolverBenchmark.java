@@ -20,12 +20,10 @@ import org.mindis.core.planning.Assignment;
 import org.mindis.core.planning.MinDisConstraintProvider;
 import org.mindis.core.planning.ServicePlan;
 
-/**
- * M7 spike benchmark (PLAN.md): solves the realistic month fixture with a
- * fixed time budget and prints the reached score plus wall time. Run once on
- * the JVM (JIT) and once as a GraalVM native image; Timefold's
- * "score calculation speed" log line is the comparison metric.
- */
+/// M7 spike benchmark (PLAN.md): solves the realistic month fixture with a
+/// fixed time budget and prints the reached score plus wall time. Run once on
+/// the JVM (JIT) and once as a GraalVM native image; Timefold's
+/// "score calculation speed" log line is the comparison metric.
 public final class SolverBenchmark {
 
     // Role entities keyed by id (roles are configurable; the solver needs the

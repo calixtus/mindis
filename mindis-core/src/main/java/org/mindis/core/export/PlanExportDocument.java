@@ -2,13 +2,11 @@ package org.mindis.core.export;
 
 import java.util.List;
 
-/**
- * Format-agnostic, fully-localized rendering of an {@link
- * org.mindis.core.planning.AcceptedPlan}. {@link PlanExportService} builds
- * this once from the plan and repositories; each {@link PlanExporter} only
- * has to lay it out, without knowing about localization, servers or
- * services.
- */
+/// Format-agnostic, fully-localized rendering of an {@link
+/// org.mindis.core.planning.AcceptedPlan}. {@link PlanExportService} builds
+/// this once from the plan and repositories; each {@link PlanExporter} only
+/// has to lay it out, without knowing about localization, servers or
+/// services.
 public record PlanExportDocument(
         String title,
         String subtitle,

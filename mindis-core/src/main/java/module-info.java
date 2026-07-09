@@ -1,8 +1,6 @@
-/**
- * UI-agnostic core of MinDis: domain model, services, persistence, localization.
- * Must never require any javafx module (PLAN.md section 2.5) - a future web
- * module builds on this one.
- */
+/// UI-agnostic core of MinDis: domain model, services, persistence, localization.
+/// Must never require any javafx module (PLAN.md section 2.5) - a future web
+/// module builds on this one.
 module org.mindis.core {
     exports org.mindis.core.export;
     exports org.mindis.core.l10n;

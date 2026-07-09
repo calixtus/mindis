@@ -4,15 +4,13 @@ import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.l10n.Localization;
 
-/**
- * Selectable UI accent color. {@link #DEFAULT} follows the operating system's
- * accent color (resolved by the GUI from JavaFX platform preferences); every
- * other value carries a base hex that the GUI derives the AtlantaFX
- * {@code -color-accent-*} tokens from (per light/dark theme).
- *
- * <p>Core stays UI-free: this holds only the hex string. The GUI turns it into
- * CSS. Display names are localized (color words translate cleanly).
- */
+/// Selectable UI accent color. {@link #DEFAULT} follows the operating system's
+/// accent color (resolved by the GUI from JavaFX platform preferences); every
+/// other value carries a base hex that the GUI derives the AtlantaFX
+/// {@code -color-accent-*} tokens from (per light/dark theme).
+///
+/// <p>Core stays UI-free: this holds only the hex string. The GUI turns it into
+/// CSS. Display names are localized (color words translate cleanly).
 public enum AccentColor implements PreferenceEnumValue {
     DEFAULT("Default", null),
     BLUE("Blue", "#3b82f6"),
@@ -30,10 +28,8 @@ public enum AccentColor implements PreferenceEnumValue {
         this.baseHex = baseHex;
     }
 
-    /**
-     * @return the base hex (e.g. {@code #3b82f6}), or {@code null} for
-     *         {@link #DEFAULT} (no override; theme decides).
-     */
+    /// @return the base hex (e.g. {@code #3b82f6}), or {@code null} for
+    ///         {@link #DEFAULT} (no override; theme decides).
     public @Nullable String baseHex() {
         return baseHex;
     }

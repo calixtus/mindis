@@ -12,9 +12,7 @@ import org.mindis.core.preferences.AppLanguage;
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.preferences.PreferencesService;
 
-/**
- * Registry behavior; runs headless - javafx.base properties need no toolkit.
- */
+/// Registry behavior; runs headless - javafx.base properties need no toolkit.
 class UiPreferencesTest {
 
     @TempDir
@@ -58,10 +56,8 @@ class UiPreferencesTest {
                 () -> uiPreferences.softWeightProperty("No such constraint"));
     }
 
-    /**
-     * Exposes the package-private path constructor for tests outside the
-     * core package.
-     */
+    /// Exposes the package-private path constructor for tests outside the
+    /// core package.
     private static final class TestablePreferencesService extends PreferencesService {
         TestablePreferencesService(Path file) {
             super(file);

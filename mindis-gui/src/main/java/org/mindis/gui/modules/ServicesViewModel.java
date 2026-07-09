@@ -14,13 +14,11 @@ import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServiceGenerator;
 import org.mindis.core.persistence.TemplateRepository;
 
-/**
- * ViewModel for {@link ServicesModule}: owns the repository reads and the
- * template-generation logic the module still needs directly (CRUD goes
- * through the shared {@link org.mindis.workbench.LiveStore}), so the module
- * only constructs UI and binds to this class. All reads see the live staged
- * state, unsaved edits included.
- */
+/// ViewModel for {@link ServicesModule}: owns the repository reads and the
+/// template-generation logic the module still needs directly (CRUD goes
+/// through the shared {@link org.mindis.workbench.LiveStore}), so the module
+/// only constructs UI and binds to this class. All reads see the live staged
+/// state, unsaved edits included.
 @NullMarked
 final class ServicesViewModel {
 
@@ -34,7 +32,7 @@ final class ServicesViewModel {
         this.roleRepository = roleRepository;
     }
 
-    /** A blank service at the next full hour, for the New action. */
+    /// A blank service at the next full hour, for the New action.
     LiturgicalService createStub() {
         LocalDateTime nextFullHour = LocalDateTime.now()
                 .withMinute(0).withSecond(0).withNano(0).plusHours(1);
@@ -42,25 +40,23 @@ final class ServicesViewModel {
                 "", ServiceType.OTHER, List.of(), "");
     }
 
-    /** Roles available for the "required servers" slot editor. */
+    /// Roles available for the "required servers" slot editor.
     List<Role> findAllRoles() {
         return roleRepository.findAll();
     }
 
-    /**
-     * Expands every weekly template into concrete services over
-     * {@code [from, toInclusive]} - pure computation, nothing is persisted;
-     * the caller merges the result into its live table state and it's
-     * written to disk on the next "Save all".
-     *
-     * @param existing services already in the live table (not the
-     *                 repository - a not-yet-saved live edit should count
-     *                 against duplicate generation just as much as a saved
-     *                 one), so generation doesn't re-propose a service that's
-     *                 only sitting unsaved in the table
-     * @return null if the range is invalid ({@code from}/{@code to} missing
-     *         or reversed)
-     */
+    /// Expands every weekly template into concrete services over
+    /// {@code [from, toInclusive]} - pure computation, nothing is persisted;
+    /// the caller merges the result into its live table state and it's
+    /// written to disk on the next "Save all".
+    ///
+    /// @param existing services already in the live table (not the
+    ///                 repository - a not-yet-saved live edit should count
+    ///                 against duplicate generation just as much as a saved
+    ///                 one), so generation doesn't re-propose a service that's
+    ///                 only sitting unsaved in the table
+    /// @return null if the range is invalid ({@code from}/{@code to} missing
+    ///         or reversed)
     @Nullable List<LiturgicalService> generateFromTemplates(LocalDate from, LocalDate to,
                                                              List<LiturgicalService> existing) {
         if (from == null || to == null || to.isBefore(from)) {

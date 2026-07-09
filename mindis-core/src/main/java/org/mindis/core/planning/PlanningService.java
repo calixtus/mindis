@@ -32,12 +32,10 @@ import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.preferences.PreferencesService;
 
-/**
- * Builds planning problems from the repositories and solves them
- * asynchronously. UI-agnostic API (PLAN.md section 2.5): callers receive best
- * solutions through a plain {@link Consumer}; the GUI adapts onto the FX
- * thread, a future web module onto HTTP.
- */
+/// Builds planning problems from the repositories and solves them
+/// asynchronously. UI-agnostic API (PLAN.md section 2.5): callers receive best
+/// solutions through a plain {@link Consumer}; the GUI adapts onto the FX
+/// thread, a future web module onto HTTP.
 @Singleton
 public class PlanningService implements AutoCloseable {
 
@@ -75,11 +73,9 @@ public class PlanningService implements AutoCloseable {
                         .withUnimprovedSecondsSpentLimit(UNIMPROVED_SECONDS));
     }
 
-    /**
-     * Creates the unsolved problem for a horizon: one {@link Assignment} per
-     * required role slot of every service in the range, all active servers as
-     * the value range.
-     */
+    /// Creates the unsolved problem for a horizon: one {@link Assignment} per
+    /// required role slot of every service in the range, all active servers as
+    /// the value range.
     public ServicePlan buildProblem(LocalDate from, LocalDate toInclusive) {
         List<Server> activeServers = serverRepository.findAll().stream()
                 .filter(Server::active)
@@ -110,14 +106,12 @@ public class PlanningService implements AutoCloseable {
         return plan;
     }
 
-    /**
-     * {@link PriorAssignment} facts from the plan immediately preceding
-     * {@code from}, if any, trimmed to the {@link
-     * MinDisConstraintProvider#SPACING_THRESHOLD_DAYS}-day tail that {@link
-     * MinDisConstraintProvider#spacingFromPriorPlan} actually looks at -
-     * loading the rest of a possibly month-long prior plan would just be
-     * dead weight in the solver's fact list.
-     */
+    /// {@link PriorAssignment} facts from the plan immediately preceding
+    /// {@code from}, if any, trimmed to the {@link
+    /// MinDisConstraintProvider#SPACING_THRESHOLD_DAYS}-day tail that {@link
+    /// MinDisConstraintProvider#spacingFromPriorPlan} actually looks at -
+    /// loading the rest of a possibly month-long prior plan would just be
+    /// dead weight in the solver's fact list.
     private List<PriorAssignment> buildPriorAssignments(LocalDate from) {
         return planRepository.mostRecentBefore(from)
                 .map(prior -> priorAssignmentsFrom(prior, from))
@@ -156,11 +150,9 @@ public class PlanningService implements AutoCloseable {
         return ConstraintWeightOverrides.of(overrides);
     }
 
-    /**
-     * Solves asynchronously; every improved solution is pushed to
-     * {@code bestSolutionConsumer} (solver thread!). Returns a job id for
-     * {@link #stopSolving}.
-     */
+    /// Solves asynchronously; every improved solution is pushed to
+    /// {@code bestSolutionConsumer} (solver thread!). Returns a job id for
+    /// {@link #stopSolving}.
     public UUID solveAsync(ServicePlan problem,
                            Duration timeBudget,
                            Consumer<ServicePlan> bestSolutionConsumer,
@@ -182,21 +174,17 @@ public class PlanningService implements AutoCloseable {
         solverManager.terminateEarly(jobId);
     }
 
-    /**
-     * Current score of a (possibly manually edited) plan. Uses
-     * {@code SolutionManager.update} - Timefold's {@code analyze()} is an
-     * enterprise-only feature (see PLAN.md risk table).
-     */
+    /// Current score of a (possibly manually edited) plan. Uses
+    /// {@code SolutionManager.update} - Timefold's {@code analyze()} is an
+    /// enterprise-only feature (see PLAN.md risk table).
     public @Nullable HardMediumSoftScore scoreOf(ServicePlan plan) {
         return solutionManager.update(plan);
     }
 
-    /**
-     * Per-assignment violation summary: assignment id to the names of the
-     * violated hard/medium constraints. Constraint names are full-text
-     * localization keys (PLAN.md section 2.3). Computed by
-     * {@link ViolationChecker} - Timefold's {@code analyze()} is enterprise-only.
-     */
+    /// Per-assignment violation summary: assignment id to the names of the
+    /// violated hard/medium constraints. Constraint names are full-text
+    /// localization keys (PLAN.md section 2.3). Computed by
+    /// {@link ViolationChecker} - Timefold's {@code analyze()} is enterprise-only.
     public Map<String, List<String>> violationsByAssignment(ServicePlan plan) {
         return ViolationChecker.violationsByAssignment(plan);
     }

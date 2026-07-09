@@ -20,14 +20,12 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Loads and stores {@link MinDisPreferences} as JSON in the user data
- * directory (PLAN.md section 2.6). Writes are atomic (temp file + move).
- * A corrupt or missing file yields defaults, never a crash.
- *
- * <p>Change listeners use a plain {@link Consumer} - no JavaFX types in core
- * (PLAN.md section 2.5). UI adapters bridge to observable properties.
- */
+/// Loads and stores {@link MinDisPreferences} as JSON in the user data
+/// directory (PLAN.md section 2.6). Writes are atomic (temp file + move).
+/// A corrupt or missing file yields defaults, never a crash.
+///
+/// <p>Change listeners use a plain {@link Consumer} - no JavaFX types in core
+/// (PLAN.md section 2.5). UI adapters bridge to observable properties.
 @Singleton
 public class PreferencesService {
 
@@ -57,10 +55,8 @@ public class PreferencesService {
         return current;
     }
 
-    /**
-     * Applies the change to the current preferences, persists the result
-     * atomically and notifies listeners.
-     */
+    /// Applies the change to the current preferences, persists the result
+    /// atomically and notifies listeners.
     public synchronized MinDisPreferences update(UnaryOperator<MinDisPreferences> change) {
         MinDisPreferences before = get();
         MinDisPreferences updated = change.apply(before);

@@ -1,4 +1,4 @@
-/** JSON-file repositories for the domain model. */
+/// JSON-file repositories for the domain model.
 @NullMarked
 package org.mindis.core.persistence;
 

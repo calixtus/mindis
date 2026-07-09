@@ -1,4 +1,4 @@
-/** Domain model records: {@link org.mindis.core.model.Role}, {@link org.mindis.core.model.Server}, etc. */
+/// Domain model records: {@link org.mindis.core.model.Role}, {@link org.mindis.core.model.Server}, etc.
 @NullMarked
 package org.mindis.core.model;
 

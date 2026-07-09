@@ -15,11 +15,9 @@ import org.jspecify.annotations.Nullable;
 import org.mindis.core.model.Server;
 import org.mindis.core.preferences.DataDirectory;
 
-/**
- * Roster storage: servers.json in the user data directory. Upsert by id.
- * Mutations stage into the in-memory cache only; disk I/O happens exclusively
- * through {@link #flush()} / {@link #reload()} (see {@link AppDatabase}).
- */
+/// Roster storage: servers.json in the user data directory. Upsert by id.
+/// Mutations stage into the in-memory cache only; disk I/O happens exclusively
+/// through {@link #flush()} / {@link #reload()} (see {@link AppDatabase}).
 @Singleton
 public class ServerRepository {
 
@@ -54,18 +52,18 @@ public class ServerRepository {
         cached().removeIf(existing -> existing.id().equals(id));
     }
 
-    /** Writes the staged state to disk - the only disk write path. */
+    /// Writes the staged state to disk - the only disk write path.
     public synchronized void flush() {
         store.save(cached());
     }
 
-    /** Discards staged (unflushed) mutations and reloads from disk. */
+    /// Discards staged (unflushed) mutations and reloads from disk.
     public synchronized void reload() {
         servers = null;
         cached();
     }
 
-    /** The live (mutable) cache, loading and sorting it from disk on first access. */
+    /// The live (mutable) cache, loading and sorting it from disk on first access.
     private List<Server> cached() {
         if (servers == null) {
             servers = new ArrayList<>(store.load());

@@ -21,11 +21,9 @@ import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
 
-/**
- * PLAN.md M3 done-when: a realistic month (~20 servers, ~15 services) must
- * yield a feasible plan (0 hard violations) headlessly - proving core solves
- * without any UI module.
- */
+/// PLAN.md M3 done-when: a realistic month (~20 servers, ~15 services) must
+/// yield a feasible plan (0 hard violations) headlessly - proving core solves
+/// without any UI module.
 class PlanningEndToEndTest {
 
     private static final Map<String, Role> ROLES = Map.of(

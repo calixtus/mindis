@@ -5,11 +5,9 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * Recurring weekly service ("every Sunday 10:00 at St. Mary"). Concrete
- * services are generated from templates for a date range
- * (see ServiceGenerator).
- */
+/// Recurring weekly service ("every Sunday 10:00 at St. Mary"). Concrete
+/// services are generated from templates for a date range
+/// (see ServiceGenerator).
 public record ServiceTemplate(
         String id,
         DayOfWeek dayOfWeek,

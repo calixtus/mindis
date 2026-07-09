@@ -7,7 +7,7 @@ import java.util.logging.LogRecord;
 
 import org.jspecify.annotations.Nullable;
 
-/** {@link LogRecord} formatting shared by {@link AlertOnErrorHandler} and {@link LogConsoleHandler}. */
+/// {@link LogRecord} formatting shared by {@link AlertOnErrorHandler} and {@link LogConsoleHandler}.
 final class LogMessages {
 
     private LogMessages() {

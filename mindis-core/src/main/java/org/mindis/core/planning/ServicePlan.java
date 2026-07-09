@@ -14,10 +14,8 @@ import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.model.Server;
 
-/**
- * Planning solution: all assignments of a horizon plus the servers available
- * to fill them.
- */
+/// Planning solution: all assignments of a horizon plus the servers available
+/// to fill them.
 @PlanningSolution
 public class ServicePlan {
 

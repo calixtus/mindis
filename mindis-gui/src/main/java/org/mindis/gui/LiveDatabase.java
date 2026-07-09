@@ -18,13 +18,11 @@ import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.persistence.TemplateRepository;
 import org.mindis.workbench.LiveStore;
 
-/**
- * The GUI's view of the shared in-memory database: one long-lived
- * {@link LiveStore} per entity type (write-through mirrors of the {@link
- * AppDatabase} repositories), plus the two global actions. Constructed once
- * in {@code MinDisApp.start()} and reused across UI rebuilds, so unsaved
- * cross-module edits and dirty counts survive a language switch.
- */
+/// The GUI's view of the shared in-memory database: one long-lived
+/// {@link LiveStore} per entity type (write-through mirrors of the {@link
+/// AppDatabase} repositories), plus the two global actions. Constructed once
+/// in {@code MinDisApp.start()} and reused across UI rebuilds, so unsaved
+/// cross-module edits and dirty counts survive a language switch.
 public final class LiveDatabase {
 
     private final AppDatabase database;
@@ -67,22 +65,20 @@ public final class LiveDatabase {
         return services;
     }
 
-    /**
-     * Flushes every staged edit to disk and re-baselines all stores (dirty
-     * counts clear, refresh listeners fire).
-     */
+    /// Flushes every staged edit to disk and re-baselines all stores (dirty
+    /// counts clear, refresh listeners fire).
     public void saveAll() {
         database.saveAll();
         stores().forEach(LiveStore::refresh);
     }
 
-    /** Discards every staged edit, reloading all repositories and stores from disk. */
+    /// Discards every staged edit, reloading all repositories and stores from disk.
     public void loadAll() {
         database.loadAll();
         stores().forEach(LiveStore::refresh);
     }
 
-    /** Sum of all stores' dirty counts; bind a global Save-all button's disable to {@code isEqualTo(0)}. */
+    /// Sum of all stores' dirty counts; bind a global Save-all button's disable to {@code isEqualTo(0)}.
     public NumberBinding totalDirtyCount() {
         return IntegerExpression.integerExpression(roles.dirtyCountProperty())
                 .add(servers.dirtyCountProperty())

@@ -5,11 +5,9 @@ import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Minimal RFC 4180 CSV read/write: comma-separated, double-quote escaping,
- * CRLF line endings on write. No external dependency - {@link CrudModule}'s
- * only consumer, and the format is simple enough not to need one.
- */
+/// Minimal RFC 4180 CSV read/write: comma-separated, double-quote escaping,
+/// CRLF line endings on write. No external dependency - {@link CrudModule}'s
+/// only consumer, and the format is simple enough not to need one.
 final class CsvIO {
 
     private CsvIO() {
@@ -45,7 +43,7 @@ final class CsvIO {
         return "\"" + field.replace("\"", "\"\"") + "\"";
     }
 
-    /** Parses full CSV file content into rows of fields; unterminated trailing rows are included. */
+    /// Parses full CSV file content into rows of fields; unterminated trailing rows are included.
     static List<List<String>> parse(String content) {
         List<List<String>> rows = new ArrayList<>();
         List<String> row = new ArrayList<>();

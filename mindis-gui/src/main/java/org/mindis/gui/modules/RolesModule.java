@@ -30,10 +30,8 @@ import org.mindis.workbench.CrudModule;
 import org.mindis.workbench.CsvRowMapper;
 import org.mindis.workbench.LiveStore;
 
-/**
- * Liturgical role management module: name plus an optional minimum/maximum
- * age requirement (years). Reference implementation of {@link CrudModule}.
- */
+/// Liturgical role management module: name plus an optional minimum/maximum
+/// age requirement (years). Reference implementation of {@link CrudModule}.
 public class RolesModule extends CrudModule<Role> {
 
     private static final int MIN_AGE = 1;
@@ -135,11 +133,9 @@ public class RolesModule extends CrudModule<Role> {
         });
     }
 
-    /**
-     * Formats a role's age range for the table: {@code "min-max"}, or one-sided
-     * ({@code "min-"} / {@code "-max"}) when only one bound is set, or empty when
-     * neither is. Uses an en dash, the typographic range separator.
-     */
+    /// Formats a role's age range for the table: {@code "min-max"}, or one-sided
+    /// ({@code "min-"} / {@code "-max"}) when only one bound is set, or empty when
+    /// neither is. Uses an en dash, the typographic range separator.
     private static String ageRange(@Nullable Integer min, @Nullable Integer max) {
         if (min == null && max == null) {
             return "";
@@ -151,10 +147,8 @@ public class RolesModule extends CrudModule<Role> {
         return age == null ? "" : String.valueOf(age);
     }
 
-    /**
-     * Parses an age field: blank means "no bound"; a non-numeric or negative
-     * value is treated as no bound rather than an error (the field is free-form).
-     */
+    /// Parses an age field: blank means "no bound"; a non-numeric or negative
+    /// value is treated as no bound rather than an error (the field is free-form).
     private static @Nullable Integer parseAge(@Nullable String text) {
         String trimmed = text == null ? "" : text.strip();
         if (trimmed.isEmpty()) {
@@ -168,13 +162,11 @@ public class RolesModule extends CrudModule<Role> {
         }
     }
 
-    /**
-     * Editable integer spinner factory where a blank editor means {@code null}
-     * ("no age bound"). The converter maps blank &harr; null so committing an
-     * empty editor keeps it blank; the arrows step up to {@link #MAX_AGE} and
-     * collapse to blank below the (dynamic) {@code floor}. A dynamic floor
-     * supplier lets the max-age spinner track the current min age.
-     */
+    /// Editable integer spinner factory where a blank editor means {@code null}
+    /// ("no age bound"). The converter maps blank &harr; null so committing an
+    /// empty editor keeps it blank; the arrows step up to {@link #MAX_AGE} and
+    /// collapse to blank below the (dynamic) {@code floor}. A dynamic floor
+    /// supplier lets the max-age spinner track the current min age.
     private static final class NullableAgeSpinnerValueFactory extends SpinnerValueFactory<Integer> {
 
         private final IntSupplier floor;

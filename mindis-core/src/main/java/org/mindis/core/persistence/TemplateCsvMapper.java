@@ -10,11 +10,9 @@ import org.jspecify.annotations.Nullable;
 import org.mindis.core.model.ServiceTemplate;
 import org.mindis.core.model.ServiceType;
 
-/**
- * CSV row mapping for {@link ServiceTemplate}, shared by every consumer
- * that offers Templates import/export (currently the GUI's Templates
- * module; PLAN.md's future web module gets the same for free).
- */
+/// CSV row mapping for {@link ServiceTemplate}, shared by every consumer
+/// that offers Templates import/export (currently the GUI's Templates
+/// module; PLAN.md's future web module gets the same for free).
 @NullMarked
 public final class TemplateCsvMapper {
 
@@ -41,7 +39,7 @@ public final class TemplateCsvMapper {
                 RoleSlotCsv.format(template.slots(), roleRepository));
     }
 
-    /** Rows with an unparsable weekday/time are skipped; a blank id gets a fresh one. */
+    /// Rows with an unparsable weekday/time are skipped; a blank id gets a fresh one.
     public @Nullable ServiceTemplate fromRow(List<String> row) {
         DayOfWeek day = CsvFields.parseDayOfWeek(CsvFields.at(row, 1));
         LocalTime time = CsvFields.parseTime(CsvFields.at(row, 2));

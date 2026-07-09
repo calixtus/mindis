@@ -2,10 +2,8 @@ package org.mindis.core.preferences;
 
 import java.nio.file.Path;
 
-/**
- * Resolves the per-user data directory for MinDis (preferences, roster,
- * services, plans). Follows platform conventions.
- */
+/// Resolves the per-user data directory for MinDis (preferences, roster,
+/// services, plans). Follows platform conventions.
 public final class AppDirectories {
 
     private static final String APP_NAME = "MinDis";

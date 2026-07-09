@@ -14,12 +14,10 @@ import org.jspecify.annotations.Nullable;
 import org.mindis.core.model.ServiceTemplate;
 import org.mindis.core.preferences.DataDirectory;
 
-/**
- * Recurring-service template storage: templates.json in the user data
- * directory. Upsert by id. Mutations stage into the in-memory cache only;
- * disk I/O happens exclusively through {@link #flush()} / {@link #reload()}
- * (see {@link AppDatabase}).
- */
+/// Recurring-service template storage: templates.json in the user data
+/// directory. Upsert by id. Mutations stage into the in-memory cache only;
+/// disk I/O happens exclusively through {@link #flush()} / {@link #reload()}
+/// (see {@link AppDatabase}).
 @Singleton
 public class TemplateRepository {
 
@@ -50,18 +48,18 @@ public class TemplateRepository {
         cached().removeIf(existing -> existing.id().equals(id));
     }
 
-    /** Writes the staged state to disk - the only disk write path. */
+    /// Writes the staged state to disk - the only disk write path.
     public synchronized void flush() {
         store.save(cached());
     }
 
-    /** Discards staged (unflushed) mutations and reloads from disk. */
+    /// Discards staged (unflushed) mutations and reloads from disk.
     public synchronized void reload() {
         templates = null;
         cached();
     }
 
-    /** The live (mutable) cache, loading and sorting it from disk on first access. */
+    /// The live (mutable) cache, loading and sorting it from disk on first access.
     private List<ServiceTemplate> cached() {
         if (templates == null) {
             templates = new ArrayList<>(store.load());

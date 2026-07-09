@@ -1,4 +1,4 @@
-/** CRUD modules for Roles/Servers/Services/Templates, plus Settings/About. */
+/// CRUD modules for Roles/Servers/Services/Templates, plus Settings/About.
 @NullMarked
 package org.mindis.gui.modules;
 

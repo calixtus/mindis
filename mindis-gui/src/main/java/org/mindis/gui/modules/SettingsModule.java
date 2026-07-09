@@ -38,15 +38,13 @@ import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.gui.theme.AccentColorSelector;
 import org.mindis.workbench.WorkbenchModule;
 
-/**
- * Settings screen. Each preferences group is a {@link TitledPane} with a
- * "Reset to defaults" button in its header; inside, every setting is an
- * AtlantaFX {@link Tile} (title + description on the left, its control in
- * the action slot on the right, highlighted on hover), stacked into a
- * settings-list look. All controls bind bidirectionally to
- * {@link UiPreferences}, and stretch to use whatever width the module has
- * rather than sitting at a fixed narrow size.
- */
+/// Settings screen. Each preferences group is a {@link TitledPane} with a
+/// "Reset to defaults" button in its header; inside, every setting is an
+/// AtlantaFX {@link Tile} (title + description on the left, its control in
+/// the action slot on the right, highlighted on hover), stacked into a
+/// settings-list look. All controls bind bidirectionally to
+/// {@link UiPreferences}, and stretch to use whatever width the module has
+/// rather than sitting at a fixed narrow size.
 public class SettingsModule extends WorkbenchModule {
 
     // A fixed width, not one reactively bound to the pane's own width - that
@@ -91,7 +89,7 @@ public class SettingsModule extends WorkbenchModule {
         return scroll;
     }
 
-    /** UiPreferences group: language, theme, accent and font. */
+    /// UiPreferences group: language, theme, accent and font.
     private TitledPane appearancePane() {
         ComboBox<AppLanguage> languageBox =
                 PreferenceControls.choiceBox(AppLanguage.values(), uiPreferences.languageProperty());
@@ -143,7 +141,7 @@ public class SettingsModule extends WorkbenchModule {
         return groupPane(Localization.lang("Appearance"), tiles, this::resetAppearanceToDefaults);
     }
 
-    /** MinDisPreferences group: solver time budget and constraint weights. */
+    /// MinDisPreferences group: solver time budget and constraint weights.
     private TitledPane solverPane() {
         Slider solverSecondsSlider = PreferenceControls.intSlider(5, 600, uiPreferences.solverSecondsLimitProperty());
 
@@ -174,16 +172,14 @@ public class SettingsModule extends WorkbenchModule {
         }
     }
 
-    /**
-     * A slider paired with an editable numeric field - typing a value and
-     * pressing Enter (or clicking away) moves the slider to match, clamped
-     * to its range; dragging the slider updates the field back, unless the
-     * field currently has focus (so it doesn't fight a value the user is
-     * mid-typing). Sized as a row (not the slider alone) so the row's right
-     * edge lines up with every other control - same fix as the font row:
-     * setting the slider itself to CONTROL_WIDTH and adding the value field
-     * on top of that made the row wider than everything else.
-     */
+    /// A slider paired with an editable numeric field - typing a value and
+    /// pressing Enter (or clicking away) moves the slider to match, clamped
+    /// to its range; dragging the slider updates the field back, unless the
+    /// field currently has focus (so it doesn't fight a value the user is
+    /// mid-typing). Sized as a row (not the slider alone) so the row's right
+    /// edge lines up with every other control - same fix as the font row:
+    /// setting the slider itself to CONTROL_WIDTH and adding the value field
+    /// on top of that made the row wider than everything else.
     private HBox sliderWithValue(Slider slider) {
         TextField valueField = new TextField(String.valueOf(Math.round(slider.getValue())));
         valueField.setPrefColumnCount(4);
@@ -240,7 +236,7 @@ public class SettingsModule extends WorkbenchModule {
         return box;
     }
 
-    /** A Tile with a hover highlight - AtlantaFX's own styling doesn't distinguish a hovered settings row otherwise. */
+    /// A Tile with a hover highlight - AtlantaFX's own styling doesn't distinguish a hovered settings row otherwise.
     private Tile tile(String title, @Nullable String description, Node action) {
         Tile tile = new Tile(title, description);
         tile.setAction(action);
@@ -249,12 +245,10 @@ public class SettingsModule extends WorkbenchModule {
         return tile;
     }
 
-    /**
-     * A {@link TitledPane} with a "Reset to defaults" button at the top
-     * right of its header. {@code TitledPane} only reserves space for its
-     * title text by default, so the header is replaced entirely with a
-     * custom {@code graphic} (title label + spacer + button).
-     */
+    /// A {@link TitledPane} with a "Reset to defaults" button at the top
+    /// right of its header. {@code TitledPane} only reserves space for its
+    /// title text by default, so the header is replaced entirely with a
+    /// custom {@code graphic} (title label + spacer + button).
     private TitledPane groupPane(String title, VBox tiles, Runnable onReset) {
         Label titleLabel = new Label(title);
         titleLabel.getStyleClass().add(Styles.TITLE_4);

@@ -1,4 +1,4 @@
-/** Persisted user preferences and their JSON storage. */
+/// Persisted user preferences and their JSON storage.
 @NullMarked
 package org.mindis.core.preferences;
 

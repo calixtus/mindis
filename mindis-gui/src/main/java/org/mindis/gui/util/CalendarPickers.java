@@ -13,40 +13,36 @@ import javafx.util.StringConverter;
 
 import org.jspecify.annotations.Nullable;
 
-/**
- * ISO ({@code yyyy-MM-dd}) formatting for GemsFX {@link CalendarPicker}s,
- * shared by every date field in the app (see ADR: date pickers use GemsFX's
- * calendar popup instead of the stock JavaFX {@code DatePicker}).
- */
+/// ISO ({@code yyyy-MM-dd}) formatting for GemsFX {@link CalendarPicker}s,
+/// shared by every date field in the app (see ADR: date pickers use GemsFX's
+/// calendar popup instead of the stock JavaFX {@code DatePicker}).
 public final class CalendarPickers {
 
-    /** The date format every {@code CalendarPicker} in the app displays and parses. */
+    /// The date format every {@code CalendarPicker} in the app displays and parses.
     public static final DateTimeFormatter ISO = DateTimeFormatter.ISO_LOCAL_DATE;
 
-    /**
-     * GemsFX's bundled CSS (calendar-picker/calendar-view/year-view/
-     * year-month-view) is written against stock Modena: it looks up
-     * {@code -fx-base}, {@code -fx-mark-color}, {@code -fx-text-background-color}
-     * and similar Modena-only tokens that AtlantaFX (a from-scratch
-     * {@code -color-*} stylesheet, not a Modena derivative) never defines, and
-     * hardcodes a few literals ({@code rgb(230, 231, 233)}, {@code #eeeeee})
-     * that ignore the theme entirely. Both cause visible bugs: unresolved
-     * lookups make gemsfx's rule fail to convert and fall back to its own
-     * defaults (ClassCastException/"could not resolve" in the javafx.css log),
-     * and the literals render as a bright patch even in dark mode.
-     *
-     * <p>This stylesheet is attached directly to the picker/calendar-view nodes
-     * below (author origin) rather than folded into the app's user-agent
-     * stylesheet - author origin always outranks gemsfx's own default
-     * stylesheet (user-agent origin) regardless of selector specificity, so
-     * there's no cascade tie to fight and no need to mirror gemsfx's full
-     * ancestor chain in the selectors below - a descendant selector on the
-     * distinctive leaf class is enough. Variable definitions fix the
-     * unresolved lookups at the source (gemsfx's own rule ends up painting
-     * with a real color); the final block directly overrides the hardcoded
-     * literals gemsfx never routes through a lookup, and adds a hover state
-     * for ordinary (current-month) date cells - gemsfx defines none at all.
-     */
+    /// GemsFX's bundled CSS (calendar-picker/calendar-view/year-view/
+    /// year-month-view) is written against stock Modena: it looks up
+    /// {@code -fx-base}, {@code -fx-mark-color}, {@code -fx-text-background-color}
+    /// and similar Modena-only tokens that AtlantaFX (a from-scratch
+    /// {@code -color-*} stylesheet, not a Modena derivative) never defines, and
+    /// hardcodes a few literals ({@code rgb(230, 231, 233)}, {@code #eeeeee})
+    /// that ignore the theme entirely. Both cause visible bugs: unresolved
+    /// lookups make gemsfx's rule fail to convert and fall back to its own
+    /// defaults (ClassCastException/"could not resolve" in the javafx.css log),
+    /// and the literals render as a bright patch even in dark mode.
+    ///
+    /// <p>This stylesheet is attached directly to the picker/calendar-view nodes
+    /// below (author origin) rather than folded into the app's user-agent
+    /// stylesheet - author origin always outranks gemsfx's own default
+    /// stylesheet (user-agent origin) regardless of selector specificity, so
+    /// there's no cascade tie to fight and no need to mirror gemsfx's full
+    /// ancestor chain in the selectors below - a descendant selector on the
+    /// distinctive leaf class is enough. Variable definitions fix the
+    /// unresolved lookups at the source (gemsfx's own rule ends up painting
+    /// with a real color); the final block directly overrides the hardcoded
+    /// literals gemsfx never routes through a lookup, and adds a hover state
+    /// for ordinary (current-month) date cells - gemsfx defines none at all.
     private static final String CALENDAR_THEME_CSS = """
             .calendar-picker {
               -fx-outer-border: -color-border-default;
@@ -140,19 +136,17 @@ public final class CalendarPickers {
     private CalendarPickers() {
     }
 
-    /** A new {@link CalendarPicker} already set to {@link #ISO} format. */
+    /// A new {@link CalendarPicker} already set to {@link #ISO} format.
     public static CalendarPicker create() {
         CalendarPicker picker = new CalendarPicker();
         applyIsoFormat(picker);
         return picker;
     }
 
-    /**
-     * Applies {@link #ISO} format to an existing (e.g. FXML-instantiated) picker,
-     * hides its "Today" shortcut button - the app shows plain dates only, no
-     * shortcut text - and attaches {@link #CALENDAR_THEME_CSS} so the popup
-     * calendar actually follows the app's AtlantaFX theme.
-     */
+    /// Applies {@link #ISO} format to an existing (e.g. FXML-instantiated) picker,
+    /// hides its "Today" shortcut button - the app shows plain dates only, no
+    /// shortcut text - and attaches {@link #CALENDAR_THEME_CSS} so the popup
+    /// calendar actually follows the app's AtlantaFX theme.
     public static void applyIsoFormat(CalendarPicker picker) {
         CalendarView calendarView = picker.getCalendarView();
         calendarView.setShowTodayButton(false);

@@ -7,10 +7,8 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 
-/**
- * Overview: upcoming services with their staffing state from the accepted
- * plan, unassigned-slot count, and per-server load.
- */
+/// Overview: upcoming services with their staffing state from the accepted
+/// plan, unassigned-slot count, and per-server load.
 @Prototype
 public class DashboardController {
 

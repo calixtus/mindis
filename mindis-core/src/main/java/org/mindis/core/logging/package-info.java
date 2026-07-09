@@ -1,4 +1,4 @@
-/** Logging bootstrap shared by every entry point. */
+/// Logging bootstrap shared by every entry point.
 @NullMarked
 package org.mindis.core.logging;
 

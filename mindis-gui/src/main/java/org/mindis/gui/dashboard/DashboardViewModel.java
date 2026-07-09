@@ -18,11 +18,9 @@ import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.planning.AcceptedPlan;
 
-/**
- * ViewModel for {@link DashboardController}: owns every repository call and
- * the upcoming-services/server-load aggregation, so the controller only
- * constructs UI and binds to this class.
- */
+/// ViewModel for {@link DashboardController}: owns every repository call and
+/// the upcoming-services/server-load aggregation, so the controller only
+/// constructs UI and binds to this class.
 @Prototype
 public class DashboardViewModel {
 
@@ -40,7 +38,7 @@ public class DashboardViewModel {
         this.planRepository = planRepository;
     }
 
-    /** Summary text, upcoming services and per-server load, computed off one plan read. */
+    /// Summary text, upcoming services and per-server load, computed off one plan read.
     public record Snapshot(String summaryText, List<String> upcomingServices, List<String> serverLoad) {
     }
 

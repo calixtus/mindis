@@ -2,10 +2,8 @@ package org.mindis.core.l10n;
 
 import org.mindis.core.model.ServiceType;
 
-/**
- * Localized display names for domain enums (never show {@code name()}).
- * Roles are no longer an enum - they carry their own editable {@code name()}.
- */
+/// Localized display names for domain enums (never show {@code name()}).
+/// Roles are no longer an enum - they carry their own editable {@code name()}.
 public final class EnumDisplay {
 
     private EnumDisplay() {

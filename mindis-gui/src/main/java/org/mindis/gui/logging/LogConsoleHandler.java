@@ -4,14 +4,12 @@ import java.time.Instant;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
 
-/**
- * Feeds every log record the root logger receives (down to whatever level
- * {@code LoggingBootstrap} set there - INFO and up today) into a
- * {@link LogConsoleModel}, for the in-app error console. Registered directly
- * on the root logger (like {@link AlertOnErrorHandler}), not through DI - it
- * needs to be listening from the moment logging starts, for the life of the
- * process.
- */
+/// Feeds every log record the root logger receives (down to whatever level
+/// {@code LoggingBootstrap} set there - INFO and up today) into a
+/// {@link LogConsoleModel}, for the in-app error console. Registered directly
+/// on the root logger (like {@link AlertOnErrorHandler}), not through DI - it
+/// needs to be listening from the moment logging starts, for the life of the
+/// process.
 public final class LogConsoleHandler extends Handler {
 
     private final LogConsoleModel model;

@@ -12,19 +12,17 @@ import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.model.ServiceType;
 
-/**
- * Field access and value parsing shared by every entity's CSV row mapper.
- * Unparsable or absent fields resolve to {@code null} (or a caller-supplied
- * fallback) rather than throwing - CSV import is best-effort per PLAN.md's
- * "free-form field" convention used throughout the editors.
- */
+/// Field access and value parsing shared by every entity's CSV row mapper.
+/// Unparsable or absent fields resolve to {@code null} (or a caller-supplied
+/// fallback) rather than throwing - CSV import is best-effort per PLAN.md's
+/// "free-form field" convention used throughout the editors.
 @NullMarked
 final class CsvFields {
 
     private CsvFields() {
     }
 
-    /** The field at {@code index}, or {@code ""} if the row is shorter than expected. */
+    /// The field at {@code index}, or {@code ""} if the row is shorter than expected.
     static String at(List<String> row, int index) {
         return index < row.size() ? row.get(index).strip() : "";
     }

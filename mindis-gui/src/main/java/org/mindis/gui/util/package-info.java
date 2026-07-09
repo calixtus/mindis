@@ -1,4 +1,4 @@
-/** Small JavaFX helpers shared across modules. */
+/// Small JavaFX helpers shared across modules.
 @NullMarked
 package org.mindis.gui.util;
 

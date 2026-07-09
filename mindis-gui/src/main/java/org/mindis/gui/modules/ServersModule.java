@@ -69,12 +69,10 @@ import org.mindis.workbench.CrudModule;
 import org.mindis.workbench.CsvRowMapper;
 import org.mindis.workbench.LiveStore;
 
-/**
- * Altar server roster module: personal details, role qualifications and
- * unavailability periods (both part of the {@link Server} model). The
- * qualifications checklist binds to the shared live role list, so roles
- * created or edited (even unsaved) in the Roles module appear immediately.
- */
+/// Altar server roster module: personal details, role qualifications and
+/// unavailability periods (both part of the {@link Server} model). The
+/// qualifications checklist binds to the shared live role list, so roles
+/// created or edited (even unsaved) in the Roles module appear immediately.
 public class ServersModule extends CrudModule<Server> {
 
     // Checkbox list row height as a multiple of the app font size.
@@ -406,14 +404,12 @@ public class ServersModule extends CrudModule<Server> {
         });
     }
 
-    /**
-     * Rebuilds {@code flow} from {@code times} - one closable {@link ChipView}
-     * per entry, plus {@code inputGroup} (the time picker + add button) as the
-     * trailing entry, so both chips and the input group share one
-     * {@link FlowPane}. A {@code FlowPane} (not a {@code TilePane}) so each
-     * chip stays sized to its own text instead of stretching to match the
-     * wider input group's cell width.
-     */
+    /// Rebuilds {@code flow} from {@code times} - one closable {@link ChipView}
+    /// per entry, plus {@code inputGroup} (the time picker + add button) as the
+    /// trailing entry, so both chips and the input group share one
+    /// {@link FlowPane}. A {@code FlowPane} (not a {@code TilePane}) so each
+    /// chip stays sized to its own text instead of stretching to match the
+    /// wider input group's cell width.
     private void refreshPreferredTimeChips(FlowPane flow, ObservableList<LocalTime> times, Node inputGroup) {
         List<Node> children = new ArrayList<>(times.stream()
                 .map(time -> (Node) buildPreferredTimeChip(time, times, flow, inputGroup))
@@ -434,13 +430,11 @@ public class ServersModule extends CrudModule<Server> {
         return chip;
     }
 
-    /**
-     * Free-text field with autocomplete over family ids already used by other
-     * servers, so a sibling gets linked to an existing family instead of a
-     * typo'd new one. A brand-new id (no match) is still accepted as-is via
-     * {@link SearchField#setNewItemProducer} - otherwise {@code commit()}
-     * would silently clear whatever the user typed.
-     */
+    /// Free-text field with autocomplete over family ids already used by other
+    /// servers, so a sibling gets linked to an existing family instead of a
+    /// typo'd new one. A brand-new id (no match) is still accepted as-is via
+    /// {@link SearchField#setNewItemProducer} - otherwise {@code commit()}
+    /// would silently clear whatever the user typed.
     private SearchField<String> buildFamilyIdField(@Nullable String familyId) {
         SearchField<String> field = new SearchField<>();
         SearchFields.applyTheme(field);

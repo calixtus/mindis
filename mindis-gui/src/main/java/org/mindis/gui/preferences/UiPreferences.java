@@ -17,16 +17,14 @@ import org.mindis.core.preferences.AppLanguage;
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.preferences.PreferencesService;
 
-/**
- * JavaFX property view over {@link PreferencesService} (PLAN.md section 2.6):
- * UI code binds to these properties; changes write through to the persisted
- * preferences. Core stays free of UI concerns; this adapter is the bridge.
- *
- * <p>Registry style (docs/adr/006-preferences-architecture.md): each setting
- * is defined exactly once via {@link #register}, which wires initial load,
- * write-through and external re-sync generically. No update loops: property
- * setters and {@code PreferencesService.update} are no-ops for equal values.
- */
+/// JavaFX property view over {@link PreferencesService} (PLAN.md section 2.6):
+/// UI code binds to these properties; changes write through to the persisted
+/// preferences. Core stays free of UI concerns; this adapter is the bridge.
+///
+/// <p>Registry style (docs/adr/006-preferences-architecture.md): each setting
+/// is defined exactly once via {@link #register}, which wires initial load,
+/// write-through and external re-sync generically. No update loops: property
+/// setters and {@code PreferencesService.update} are no-ops for equal values.
 @Singleton
 public final class UiPreferences {
 
@@ -113,10 +111,8 @@ public final class UiPreferences {
         return followSystemTheme.property();
     }
 
-    /**
-     * Editable weight of one tunable soft constraint
-     * ({@link MinDisConstraintProvider#tunableSoftConstraints()}).
-     */
+    /// Editable weight of one tunable soft constraint
+    /// ({@link MinDisConstraintProvider#tunableSoftConstraints()}).
     public ObjectProperty<Integer> softWeightProperty(String constraintName) {
         PreferenceValue<Integer> preferenceValue = softWeights.get(constraintName);
         if (preferenceValue == null) {

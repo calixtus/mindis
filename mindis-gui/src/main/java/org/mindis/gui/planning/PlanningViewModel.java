@@ -22,15 +22,13 @@ import org.mindis.core.planning.PlanningService;
 import org.mindis.core.planning.ServicePlan;
 import org.mindis.core.preferences.PreferencesService;
 
-/**
- * ViewModel for {@link org.mindis.gui.modules.ServicesModule}'s solve/save/
- * export/archive workflow: owns every call into {@link PlanningService},
- * {@link PlanRepository} and {@link PlanExportService}, plus the {@link
- * PlanMapper} snapshot/apply plumbing between them, so the module only
- * constructs UI, marshals async callbacks onto the FX thread, and binds to
- * this class. Plain-constructed and held as a field for the app's lifetime,
- * like {@code ServicesModule}'s other dependencies - not avaje-managed.
- */
+/// ViewModel for {@link org.mindis.gui.modules.ServicesModule}'s solve/save/
+/// export/archive workflow: owns every call into {@link PlanningService},
+/// {@link PlanRepository} and {@link PlanExportService}, plus the {@link
+/// PlanMapper} snapshot/apply plumbing between them, so the module only
+/// constructs UI, marshals async callbacks onto the FX thread, and binds to
+/// this class. Plain-constructed and held as a field for the app's lifetime,
+/// like {@code ServicesModule}'s other dependencies - not avaje-managed.
 public class PlanningViewModel {
 
     private final PlanningService planningService;
@@ -52,10 +50,8 @@ public class PlanningViewModel {
         return planRepository.load();
     }
 
-    /**
-     * Builds a fresh problem for the horizon and, if a saved plan exists for
-     * exactly this horizon, re-applies its assignments/pins onto it.
-     */
+    /// Builds a fresh problem for the horizon and, if a saved plan exists for
+    /// exactly this horizon, re-applies its assignments/pins onto it.
     public ServicePlan generateProblem(LocalDate from, LocalDate toInclusive) {
         ServicePlan plan = planningService.buildProblem(from, toInclusive);
         planRepository.load()
@@ -64,11 +60,9 @@ public class PlanningViewModel {
         return plan;
     }
 
-    /**
-     * Rebuilds the problem for the horizon from fresh repository data (picking
-     * up roster/service edits made elsewhere), re-applying {@code currentPlan}'s
-     * current - possibly unsaved - assignments and pins.
-     */
+    /// Rebuilds the problem for the horizon from fresh repository data (picking
+    /// up roster/service edits made elsewhere), re-applying {@code currentPlan}'s
+    /// current - possibly unsaved - assignments and pins.
     public ServicePlan rebuildPreservingAssignments(ServicePlan currentPlan, LocalDate from, LocalDate toInclusive) {
         AcceptedPlan snapshot = PlanMapper.toAcceptedPlan(currentPlan, from, toInclusive);
         ServicePlan plan = planningService.buildProblem(from, toInclusive);
@@ -76,7 +70,7 @@ public class PlanningViewModel {
         return plan;
     }
 
-    /** Starts solving with the solver time budget from preferences. Returns a job id for {@link #stopSolving}. */
+    /// Starts solving with the solver time budget from preferences. Returns a job id for {@link #stopSolving}.
     public UUID solveAsync(ServicePlan problem,
                            Consumer<ServicePlan> bestSolutionConsumer,
                            Consumer<ServicePlan> finalSolutionConsumer,
@@ -86,13 +80,11 @@ public class PlanningViewModel {
                 bestSolutionConsumer, finalSolutionConsumer, exceptionHandler);
     }
 
-    /**
-     * As {@link #solveAsync(ServicePlan, Consumer, Consumer, Consumer)}, but
-     * with an explicit time budget instead of the preferences-configured one
-     * - for a scoped solve (e.g. one service's open slots, everything else
-     * pinned) where the user's full-plan time budget would be a needlessly
-     * long wait for a problem with far fewer decision variables.
-     */
+    /// As {@link #solveAsync(ServicePlan, Consumer, Consumer, Consumer)}, but
+    /// with an explicit time budget instead of the preferences-configured one
+    /// - for a scoped solve (e.g. one service's open slots, everything else
+    /// pinned) where the user's full-plan time budget would be a needlessly
+    /// long wait for a problem with far fewer decision variables.
     public UUID solveAsync(ServicePlan problem, Duration timeBudget,
                            Consumer<ServicePlan> bestSolutionConsumer,
                            Consumer<ServicePlan> finalSolutionConsumer,
@@ -114,12 +106,12 @@ public class PlanningViewModel {
         planExportService.export(PlanMapper.toAcceptedPlan(plan, from, toInclusive), target, format);
     }
 
-    /** Every saved plan from a period the planner has since moved past, newest first. */
+    /// Every saved plan from a period the planner has since moved past, newest first.
     public List<AcceptedPlan> listArchivedPlans() {
         return planRepository.listArchived();
     }
 
-    /** Exports an already-accepted (typically archived) plan directly - no live {@link ServicePlan} needed. */
+    /// Exports an already-accepted (typically archived) plan directly - no live {@link ServicePlan} needed.
     public void exportAcceptedPlan(AcceptedPlan plan, Path target, PlanExportFormat format) {
         planExportService.export(plan, target, format);
     }
@@ -132,7 +124,7 @@ public class PlanningViewModel {
         return planningService.violationsByAssignment(plan);
     }
 
-    /** Directory the export {@code FileChooser} last saved into; empty until the first export. */
+    /// Directory the export {@code FileChooser} last saved into; empty until the first export.
     public Optional<Path> lastExportDirectory() {
         String directory = preferencesService.get().lastExportDirectory();
         return directory == null ? Optional.empty() : Optional.of(Path.of(directory));
@@ -142,11 +134,9 @@ public class PlanningViewModel {
         preferencesService.update(p -> p.withLastExportDirectory(directory.toString()));
     }
 
-    /**
-     * Infers the export format from {@code fileName}'s extension, falling back
-     * to the first of {@code fallbackExtensions} (e.g. a FileChooser filter's
-     * {@code "*.pdf"} style extensions) if the file name has none recognized.
-     */
+    /// Infers the export format from {@code fileName}'s extension, falling back
+    /// to the first of {@code fallbackExtensions} (e.g. a FileChooser filter's
+    /// {@code "*.pdf"} style extensions) if the file name has none recognized.
     public static PlanExportFormat resolveFormat(String fileName, List<String> fallbackExtensions) {
         int dot = fileName.lastIndexOf('.');
         if (dot >= 0 && dot < fileName.length() - 1) {

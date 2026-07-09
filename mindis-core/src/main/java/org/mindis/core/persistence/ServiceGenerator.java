@@ -10,11 +10,9 @@ import java.util.stream.Collectors;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.ServiceTemplate;
 
-/**
- * Expands recurring templates into concrete services for a date range.
- * Occurrences that collide with an existing service (same date-time and
- * location) are skipped, so re-generating a range is idempotent.
- */
+/// Expands recurring templates into concrete services for a date range.
+/// Occurrences that collide with an existing service (same date-time and
+/// location) are skipped, so re-generating a range is idempotent.
 public final class ServiceGenerator {
 
     private ServiceGenerator() {

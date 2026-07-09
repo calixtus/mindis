@@ -1,4 +1,4 @@
-/** Dashboard module: upcoming services, unassigned-slot count, server load. */
+/// Dashboard module: upcoming services, unassigned-slot count, server load.
 @NullMarked
 package org.mindis.gui.dashboard;
 

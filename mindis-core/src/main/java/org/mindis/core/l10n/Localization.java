@@ -8,18 +8,16 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Localization with full-text keys (JabRef style): the key IS the English text.
- * Missing translations fall back to the key itself, so the UI never shows raw keys.
- *
- * <p>Positional parameters use {@code %0}, {@code %1}, ... placeholders:
- * <pre>{@code Localization.lang("%0 of %1 slots assigned", assigned, total)}</pre>
- *
- * <p>Deliberate DIP exception (PLAN.md section 8): a global mutable static,
- * like JabRef's Localization. Fine for a single-user desktop process with one
- * locale; a future web module needs per-request locale resolution instead -
- * tracked as an open decision in ADR-003.
- */
+/// Localization with full-text keys (JabRef style): the key IS the English text.
+/// Missing translations fall back to the key itself, so the UI never shows raw keys.
+///
+/// <p>Positional parameters use {@code %0}, {@code %1}, ... placeholders:
+/// <pre>{@code Localization.lang("%0 of %1 slots assigned", assigned, total)}</pre>
+///
+/// <p>Deliberate DIP exception (PLAN.md section 8): a global mutable static,
+/// like JabRef's Localization. Fine for a single-user desktop process with one
+/// locale; a future web module needs per-request locale resolution instead -
+/// tracked as an open decision in ADR-003.
 public final class Localization {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Localization.class);

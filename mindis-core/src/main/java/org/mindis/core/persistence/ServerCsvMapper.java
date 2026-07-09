@@ -17,11 +17,9 @@ import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.UnavailabilityPeriod;
 
-/**
- * CSV row mapping for {@link Server}, shared by every consumer that offers
- * Servers import/export (currently the GUI's Servers module; PLAN.md's
- * future web module gets the same for free).
- */
+/// CSV row mapping for {@link Server}, shared by every consumer that offers
+/// Servers import/export (currently the GUI's Servers module; PLAN.md's
+/// future web module gets the same for free).
 @NullMarked
 public final class ServerCsvMapper {
 
@@ -52,7 +50,7 @@ public final class ServerCsvMapper {
                 String.valueOf(server.active()));
     }
 
-    /** Blank first+last name rows are skipped; a blank id gets a fresh one. */
+    /// Blank first+last name rows are skipped; a blank id gets a fresh one.
     public @Nullable Server fromRow(List<String> row) {
         String firstName = CsvFields.at(row, 1);
         String lastName = CsvFields.at(row, 2);
@@ -80,7 +78,7 @@ public final class ServerCsvMapper {
         return roleRepository.findById(roleId).map(Role::name).orElse(roleId);
     }
 
-    /** Role names, matched case-insensitively; unmatched names are dropped. */
+    /// Role names, matched case-insensitively; unmatched names are dropped.
     private Set<String> parseQualifications(String text) {
         Set<String> ids = new HashSet<>();
         if (text.isEmpty()) {
@@ -103,7 +101,7 @@ public final class ServerCsvMapper {
                 .collect(Collectors.joining(", "));
     }
 
-    /** {@code "2026-01-01/2026-01-10, ..."}; malformed or inverted entries are dropped. */
+    /// {@code "2026-01-01/2026-01-10, ..."}; malformed or inverted entries are dropped.
     private static List<UnavailabilityPeriod> parseUnavailabilities(String text) {
         List<UnavailabilityPeriod> periods = new ArrayList<>();
         if (text.isEmpty()) {
@@ -123,11 +121,9 @@ public final class ServerCsvMapper {
         return periods;
     }
 
-    /**
-     * Parses "10:00, 18:30" style input; unparsable entries are dropped.
-     * Also used directly by the GUI's free-text "Preferred times" editor
-     * field (same format on both sides, not CSV-specific).
-     */
+    /// Parses "10:00, 18:30" style input; unparsable entries are dropped.
+    /// Also used directly by the GUI's free-text "Preferred times" editor
+    /// field (same format on both sides, not CSV-specific).
     public static Set<LocalTime> parsePreferredTimes(String text) {
         Set<LocalTime> times = new HashSet<>();
         for (String part : text.split(",")) {

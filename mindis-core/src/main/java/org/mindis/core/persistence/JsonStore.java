@@ -17,11 +17,9 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Loads and saves a list of records as one pretty-printed JSON file.
- * Writes are atomic (temp file + move). A missing file yields an empty list;
- * a corrupt file logs a warning and yields an empty list rather than crashing.
- */
+/// Loads and saves a list of records as one pretty-printed JSON file.
+/// Writes are atomic (temp file + move). A missing file yields an empty list;
+/// a corrupt file logs a warning and yields an empty list rather than crashing.
 public final class JsonStore<T> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JsonStore.class);
@@ -40,7 +38,7 @@ public final class JsonStore<T> {
                 .configure(SerializationFeature.INDENT_OUTPUT, true);
     }
 
-    /** Whether the backing file exists on disk (i.e. a flush has ever happened, or data was shipped). */
+    /// Whether the backing file exists on disk (i.e. a flush has ever happened, or data was shipped).
     public boolean exists() {
         return Files.exists(file);
     }

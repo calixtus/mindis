@@ -4,10 +4,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * A single liturgical service (mass, wedding, funeral, ...) that needs altar
- * servers assigned.
- */
+/// A single liturgical service (mass, wedding, funeral, ...) that needs altar
+/// servers assigned.
 public record LiturgicalService(
         String id,
         LocalDateTime dateTime,

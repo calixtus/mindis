@@ -1,4 +1,4 @@
-/** AtlantaFX theme/accent-color stylesheet generation. */
+/// AtlantaFX theme/accent-color stylesheet generation.
 @NullMarked
 package org.mindis.gui.theme;
 
