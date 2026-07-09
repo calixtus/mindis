@@ -89,6 +89,10 @@ public final class TimePickers {
               -fx-border-color: -fx-outer-border;
               -fx-border-width: 0 0 0 1;
               -fx-border-insets: 0;
+              -fx-cursor: arrow;
+            }
+            .time-picker > .box > .edit-button:hover {
+              -fx-background-color: -color-bg-subtle;
             }
             """;
 

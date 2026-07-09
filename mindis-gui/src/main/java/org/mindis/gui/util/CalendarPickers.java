@@ -115,7 +115,10 @@ public final class CalendarPickers {
                to fake a miniature button border, independent of and inset
                from the picker's real outer border - visible as a doubled/
                inset line around the calendar icon. Flattened to a single
-               flat background with a plain 1px left divider. */
+               flat background with a plain 1px left divider. Also, unlike
+               TimePicker's edit-button, gemsfx never gives this button its
+               own -fx-cursor: arrow at all - it fell through to the
+               surrounding text field's I-beam cursor; set explicitly here. */
             .calendar-picker > .box > .arrow-button,
             .calendar-picker:focused > .box > .arrow-button {
               -fx-background-color: -fx-body-color;
@@ -124,6 +127,10 @@ public final class CalendarPickers {
               -fx-border-color: -fx-outer-border;
               -fx-border-width: 0 0 0 1;
               -fx-border-insets: 0;
+              -fx-cursor: arrow;
+            }
+            .calendar-picker > .box > .arrow-button:hover {
+              -fx-background-color: -color-bg-subtle;
             }
             """;
 

@@ -305,8 +305,22 @@ public class ServersModule extends CrudModule<Server> {
         GridPane.setValignment(unavailabilityLabel, VPos.TOP);
         unavailabilityLabel.setPadding(new Insets(4, 0, 0, 0));
         grid.add(unavailabilityLabel, 0, row);
-        VBox unavailabilityBox = new VBox(8, unavailabilityList,
-                new HBox(8, periodFromPicker, periodToPicker, addPeriodButton, removePeriodButton));
+        // FlowPane, not HBox - From/To/Add/Remove wrap onto a second line
+        // instead of forcing the whole editor pane to a wide minimum width
+        // when the window is narrow. Unlike Controls (ListView, TextField,
+        // ...), plain layout panes have no default "-fx-max-width: infinity"
+        // - without explicit max widths, neither the VBox nor the FlowPane
+        // grows past its own computed preferred width, so GridPane has
+        // nothing wider to give them and the FlowPane wraps at a narrow
+        // width regardless of how much column space is actually free.
+        // Growing both, then binding prefWrapLength to the now-genuinely-
+        // stretched VBox width, makes wrapping track the real available space.
+        FlowPane periodControls = new FlowPane(8, 8,
+                periodFromPicker, periodToPicker, addPeriodButton, removePeriodButton);
+        periodControls.setMaxWidth(Double.MAX_VALUE);
+        VBox unavailabilityBox = new VBox(8, unavailabilityList, periodControls);
+        unavailabilityBox.setMaxWidth(Double.MAX_VALUE);
+        periodControls.prefWrapLengthProperty().bind(unavailabilityBox.widthProperty());
         GridPane.setVgrow(unavailabilityBox, Priority.ALWAYS);
         grid.add(unavailabilityBox, 1, row++);
 
