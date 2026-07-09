@@ -172,6 +172,7 @@ public final class ThemeStyler {
               -fx-border-color: -color-accent-emphasis;
               -fx-border-width: 0 0 0 3;
               -fx-border-insets: 0;
+              -fx-padding: 0 0 0 6;
             }
             """;
 

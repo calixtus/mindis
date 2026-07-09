@@ -2,8 +2,6 @@ package org.mindis.gui.modules;
 
 import java.time.DayOfWeek;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.time.format.TextStyle;
 import java.util.List;
 import java.util.Locale;
@@ -27,6 +25,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
+import com.dlsc.gemsfx.TimePicker;
+
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.ServiceTemplate;
@@ -36,6 +36,7 @@ import org.mindis.core.model.ServiceType;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.TemplateCsvMapper;
 import org.mindis.core.persistence.TemplateRepository;
+import org.mindis.gui.util.TimePickers;
 import org.mindis.workbench.CrudModule;
 import org.mindis.workbench.CsvRowMapper;
 
@@ -137,8 +138,8 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         });
         dayBox.getSelectionModel().select(template.dayOfWeek());
 
-        TextField timeField = new TextField(template.time().toString());
-        timeField.setPromptText("10:00");
+        TimePicker timeField = TimePickers.create();
+        timeField.setTime(template.time());
 
         ComboBox<ServiceType> typeBox = new ComboBox<>(FXCollections.observableArrayList(ServiceType.values()));
         typeBox.setConverter(new StringConverter<>() {
@@ -186,7 +187,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         saveButton.setDefaultButton(true);
         saveButton.setOnAction(event -> {
             DayOfWeek day = dayBox.getValue();
-            LocalTime time = parseTime(timeField.getText());
+            LocalTime time = timeField.getTime();
             if (day == null || time == null) {
                 return;
             }
@@ -200,13 +201,5 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
         return content;
-    }
-
-    private static @Nullable LocalTime parseTime(String text) {
-        try {
-            return LocalTime.parse(text.strip(), DateTimeFormatter.ofPattern("H:mm"));
-        } catch (DateTimeParseException e) {
-            return null;
-        }
     }
 }

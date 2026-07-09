@@ -7,7 +7,6 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -47,6 +46,7 @@ import javafx.util.StringConverter;
 
 import atlantafx.base.theme.Styles;
 import com.dlsc.gemsfx.CalendarPicker;
+import com.dlsc.gemsfx.TimePicker;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import org.mindis.core.export.PlanExportFormat;
@@ -70,6 +70,7 @@ import org.slf4j.LoggerFactory;
 import org.mindis.gui.planning.ArchivedPlansDialog;
 import org.mindis.gui.planning.PlanningViewModel;
 import org.mindis.gui.util.CalendarPickers;
+import org.mindis.gui.util.TimePickers;
 import org.mindis.workbench.CrudModule;
 import org.mindis.workbench.CsvRowMapper;
 
@@ -236,8 +237,8 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     protected Node buildEditor(LiturgicalService service) {
         CalendarPicker dateField = CalendarPickers.create();
         dateField.setValue(service.dateTime().toLocalDate());
-        TextField timeField = new TextField(service.dateTime().toLocalTime().toString());
-        timeField.setPromptText("10:00");
+        TimePicker timeField = TimePickers.create();
+        timeField.setTime(service.dateTime().toLocalTime());
 
         ComboBox<ServiceType> typeBox = new ComboBox<>(FXCollections.observableArrayList(ServiceType.values()));
         typeBox.setConverter(new StringConverter<>() {
@@ -322,7 +323,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         saveButton.setDefaultButton(true);
         saveButton.setOnAction(event -> {
             LocalDate date = dateField.getValue();
-            LocalTime time = parseTime(timeField.getText());
+            LocalTime time = timeField.getTime();
             if (date == null || time == null) {
                 return;
             }
@@ -350,7 +351,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
         markDirtyOnChange(dateField.valueProperty(), service.dateTime().toLocalDate(), dateLabel);
-        markDirtyOnChange(timeField.textProperty(), service.dateTime().toLocalTime().toString(), timeLabel);
+        markDirtyOnChange(timeField.timeProperty(), service.dateTime().toLocalTime(), timeLabel);
         markDirtyOnChange(typeBox.valueProperty(), service.type(), typeLabel);
         markDirtyOnChange(locationField.textProperty(), service.location(), locationLabel);
         markDirtyOnChange(noteField.textProperty(), service.note(), noteLabel);
@@ -713,14 +714,6 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         LiturgicalService selected = table().getSelectionModel().getSelectedItem();
         if (selected != null) {
             editorProperty().set(buildEditor(selected));
-        }
-    }
-
-    private static @Nullable LocalTime parseTime(String text) {
-        try {
-            return LocalTime.parse(text.strip(), DateTimeFormatter.ofPattern("H:mm"));
-        } catch (DateTimeParseException e) {
-            return null;
         }
     }
 }
