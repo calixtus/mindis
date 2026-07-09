@@ -5,15 +5,11 @@ import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.function.BiFunction;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
-import javafx.beans.property.ReadOnlyIntegerWrapper;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -32,6 +28,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
+import javafx.util.Subscription;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -45,11 +42,19 @@ import org.slf4j.LoggerFactory;
  * workbench/core module boundary) - every button, its label and its wiring
  * belongs to the subclass.
  *
+ * <p><b>State lives in the {@link LiveStore}</b>, not here: the store is a
+ * long-lived shared mirror of one repository's staged in-memory state (see
+ * its class docs), passed in at construction; this class is a view shell
+ * that binds a {@code TableView} to {@code store.items()} and translates
+ * user actions into store calls. Several modules may share one store (an
+ * owning module edits it, consuming modules read it), and the store - with
+ * all unsaved edits and dirty counts - survives this module being rebuilt
+ * (e.g. on a language change).
+ *
  * <p><b>Wiring a subclass:</b>
  * <ul>
  *   <li>{@link #table()} - configure columns; do not call
- *       {@code setItems} on it, {@code CrudModule} owns the item list via
- *       {@link #loadAll()} / {@link #refresh()}.
+ *       {@code setItems} on it, it is bound to the store's live list.
  *   <li>{@link #toolbarExtras()} - build the toolbar's buttons (localized
  *       text, own {@code setOnAction}) and push them here, in display order;
  *       bind {@link #newItem()}/{@link #deleteSelected()}/
@@ -60,61 +65,66 @@ import org.slf4j.LoggerFactory;
  *       {@code Pane} of field controls) whenever {@link #buildEditor(Object)}
  *       is called; the editor container is automatically disabled while no
  *       row is selected.
+ *   <li>{@link #onActivate()} - optional per-activation hook (the module was
+ *       selected in the sidebar). Do <em>not</em> refresh the store from it:
+ *       re-baselining on a tab switch would wipe every module's dirty state.
+ *   <li>{@link #dispose()} - overriders must call {@code super.dispose()}.
  * </ul>
  *
- * <p><b>New/live-edit/save-all lifecycle:</b> {@link #newItem()} calls
+ * <p><b>New/live-edit lifecycle:</b> {@link #newItem()} calls
  * {@link #createStub()} and inserts+selects it as a live row - a normal row
  * from that point on, styled with the {@code :crud-new} CSS pseudo-class
  * (grey/italic by default, see {@code workbench.css}) only until it's first
- * persisted. The subclass's editor is a pure facade over the table's live
- * state: every control's change listener should call
- * {@link #updateLive(Object)} with a freshly rebuilt item (there is no
- * per-item Save button). {@link #dirtyCountProperty()} tracks how many rows
- * differ from their last-persisted snapshot (or have none yet - a new row),
- * plus any row queued for deletion; bind a "Save all" button's
- * {@code disableProperty} to it and call {@link #saveAll()} from its action.
- * A new row survives switching the table selection away and back, and
- * switching workbench tabs, exactly like an edited existing row.
+ * flushed. The subclass's editor is a pure facade over the live store state:
+ * every control's change listener should call {@link #updateLive(Object)}
+ * with a freshly rebuilt item (there is no per-item Save button). Every edit
+ * writes through to the repository cache immediately (visible to all other
+ * readers); nothing here writes to disk - flushing belongs to the global
+ * Save all, which re-baselines the store via {@link LiveStore#refresh()}.
+ * {@link #deleteSelected()} likewise stages the removal; {@link
+ * #importCsv(CsvRowMapper, BiFunction)} merges parsed rows as dirty live
+ * rows via {@link #mergeLive(List)}.
  *
- * <p><b>"Save all" is the only path to disk:</b> {@link #deleteSelected()}
- * removes a row from the live table immediately but only queues its actual
- * repository deletion for the next {@link #saveAll()} (a never-persisted row
- * is just dropped, nothing queued). {@link #importCsv(CsvRowMapper,
- * BiFunction)} merges parsed rows into the live table as new/updated dirty
- * rows rather than writing them straight to the repository. A subclass with
- * its own bulk-generate action (e.g. "generate services from templates")
- * should do the same via {@link #mergeLive(List)} instead of writing to its
- * repository directly. {@link #persist(Object)}/{@link #persistAll(List)}
- * and {@link #delete(Object)} are therefore only ever called from within
- * {@link #saveAll()} - no other method in this class writes to disk.
- *
- * @param <T> the item type; must have a stable identity accessible via
- *            {@link #identity(Object)} (e.g. a record's {@code id()}), used to
- *            re-select an item after {@link #refresh()} reloads the table from
- *            {@link #loadAll()}.
+ * @param <T> the item type; must have a stable identity (the store's
+ *            identity function, e.g. a record's {@code id()}), used to
+ *            re-select a row after the store re-baselines
  */
 public abstract class CrudModule<T> extends WorkbenchModule {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CrudModule.class);
     private static final PseudoClass CRUD_NEW = PseudoClass.getPseudoClass("crud-new");
 
+    private final LiveStore<T> store;
     private final TableView<T> table = new TableView<>();
-    private final ObservableList<T> items = FXCollections.observableArrayList();
     private final ObservableList<Node> toolbarExtras = FXCollections.observableArrayList();
     private final ObjectProperty<Node> editor = new SimpleObjectProperty<>();
     private final StackPane editorContainer = new StackPane();
-    private final Map<Object, T> savedSnapshots = new HashMap<>();
-    private final Map<Object, T> pendingDeletions = new HashMap<>();
-    private final ReadOnlyIntegerWrapper dirtyCount = new ReadOnlyIntegerWrapper(0);
+    private final Subscription refreshSubscription;
 
     private @Nullable Node view;
+    private @Nullable Object lastSelectedKey;
     private boolean suppressEditorRebuild;
 
-    protected CrudModule(String name, String iconLiteral) {
+    protected CrudModule(String name, String iconLiteral, LiveStore<T> store) {
         super(name, iconLiteral);
+        this.store = store;
+        // Remember the selection's identity while one exists (a store
+        // re-baseline replaces the whole list, which clears the selection
+        // before anything can capture it) so it can be restored afterward.
+        table.getSelectionModel().selectedItemProperty().subscribe(selected -> {
+            if (selected != null) {
+                lastSelectedKey = store.identityOf(selected);
+            }
+        });
+        refreshSubscription = store.onRefresh(this::restoreSelection);
     }
 
-    /** The table of items; configure columns here. Item list is owned by this class. */
+    /** The shared live store this module is a view over. */
+    protected final LiveStore<T> store() {
+        return store;
+    }
+
+    /** The table of items; configure columns here. The item list is the store's. */
     protected final TableView<T> table() {
         return table;
     }
@@ -129,33 +139,8 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         return editor;
     }
 
-    /** A blank/default item for the New action; not yet persisted. */
+    /** A blank/default item for the New action; staged but not yet flushed. */
     protected abstract T createStub();
-
-    /** Loads every item from the backing repository. */
-    protected abstract List<T> loadAll();
-
-    /** Saves (creates or updates) an item in the backing repository. */
-    protected abstract void persist(T item);
-
-    /**
-     * Saves every item in {@code items} (all dirty rows from a "Save all"
-     * click). Defaults to one {@link #persist(Object)} call per item;
-     * override when the backing repository has a batch write (e.g. a single
-     * whole-file rewrite instead of one rewrite per item).
-     */
-    protected void persistAll(List<T> items) {
-        items.forEach(this::persist);
-    }
-
-    /** Removes an item from the backing repository. */
-    protected abstract void delete(T item);
-
-    /**
-     * A stable key identifying the item across reloads (e.g. {@code item.id()}
-     * for a record), used to re-select it after {@link #refresh()}.
-     */
-    protected abstract Object identity(T item);
 
     /**
      * Builds (or refreshes and returns) the editor {@code Node} for the given
@@ -164,6 +149,10 @@ public abstract class CrudModule<T> extends WorkbenchModule {
      */
     protected abstract Node buildEditor(T item);
 
+    /** Per-activation hook (module selected in the sidebar); default no-op. */
+    protected void onActivate() {
+    }
+
     @Override
     public final Node activate() {
         Node content = view;
@@ -171,32 +160,26 @@ public abstract class CrudModule<T> extends WorkbenchModule {
             content = buildView();
             view = content;
         }
-        refresh();
+        onActivate();
         return content;
     }
 
+    @Override
+    public void dispose() {
+        refreshSubscription.unsubscribe();
+    }
+
     /**
-     * Number of rows whose live value differs from its last-persisted
-     * snapshot (or is a not-yet-saved new row). Bind a "Save all" button's
-     * {@code disableProperty} to {@code dirtyCountProperty().isEqualTo(0)}.
+     * Number of rows differing from their last-flushed snapshot (see
+     * {@link LiveStore#dirtyCountProperty()}).
      */
     protected final ReadOnlyIntegerProperty dirtyCountProperty() {
-        return dirtyCount.getReadOnlyProperty();
+        return store.dirtyCountProperty();
     }
 
     /**
-     * Whether {@code a} and {@code b} are equal for dirty-tracking purposes.
-     * Defaults to {@link Objects#equals}; override when a field's natural
-     * equality is too strict for what should count as "unchanged" (e.g. a
-     * nested list whose order isn't semantically significant).
-     */
-    protected boolean isEquivalent(T a, T b) {
-        return Objects.equals(a, b);
-    }
-
-    /**
-     * The last-persisted value for the row sharing {@code item}'s identity,
-     * or {@code null} if it has none yet (a not-yet-saved new row). Useful as
+     * The last-flushed value for the row sharing {@code item}'s identity, or
+     * {@code null} if it has none yet (a not-yet-flushed new row). Useful as
      * an editor's dirty-comparison baseline instead of the (possibly already
      * live-edited) {@code item} passed into {@link #buildEditor(Object)} -
      * comparing against {@code item} itself would always read "unchanged"
@@ -204,148 +187,77 @@ public abstract class CrudModule<T> extends WorkbenchModule {
      * disk.
      */
     protected final @Nullable T savedSnapshot(T item) {
-        return savedSnapshots.get(identity(item));
+        return store.savedSnapshot(item);
     }
 
     /**
-     * Pushes a freshly rebuilt value for the row identified by
-     * {@code identity(updated)} straight into the live table state - no disk
-     * write. Call from every control's change listener in
+     * Pushes a freshly rebuilt value for the row sharing {@code updated}'s
+     * identity into the live store (which stages it into the repository - no
+     * disk write). Call from every control's change listener in
      * {@link #buildEditor(Object)}. Does not rebuild the open editor (the
      * edit originated there).
      */
     protected final void updateLive(T updated) {
-        Object key = identity(updated);
-        int index = -1;
-        for (int i = 0; i < items.size(); i++) {
-            if (key.equals(identity(items.get(i)))) {
-                index = i;
-                break;
-            }
-        }
-        if (index < 0) {
-            return;
-        }
         suppressEditorRebuild = true;
         try {
-            items.set(index, updated);
+            int index = store.updateLive(updated);
             // TableView's selection model treats a list "set" as a
             // remove+add internally and drops the selection - reselect by
             // index (still guarded by suppressEditorRebuild, so this
             // doesn't trigger another editor rebuild) so the row stays
             // selected and the editor stays enabled mid-edit.
-            if (table.getSelectionModel().getSelectedIndex() != index) {
+            if (index >= 0 && table.getSelectionModel().getSelectedIndex() != index) {
                 table.getSelectionModel().select(index);
             }
         } finally {
             suppressEditorRebuild = false;
         }
-        recomputeDirtyCount();
     }
 
     /**
-     * Persists every row whose live value differs from its last-persisted
-     * snapshot (or has no snapshot yet - a pending-new row), deletes every
-     * row queued by {@link #deleteSelected()}, then reloads. The only method
-     * in this class that writes to disk - bind to a "Save all" button's
-     * action.
-     */
-    protected final void saveAll() {
-        List<T> dirty = new ArrayList<>();
-        for (T item : items) {
-            if (isDirty(item)) {
-                dirty.add(item);
-            }
-        }
-        persistAll(dirty);
-        pendingDeletions.values().forEach(this::delete);
-        pendingDeletions.clear();
-        refresh();
-    }
-
-    /**
-     * Merges {@code items} into the live table: an item sharing an existing
-     * row's identity replaces it in place, everything else is appended - both
-     * as ordinary (dirty, unsaved) live rows, same as a manual edit or
-     * {@link #newItem()}. For a subclass's own bulk-generate/import action
-     * that produces several items at once; does not touch disk.
+     * Merges {@code items} into the live store (see
+     * {@link LiveStore#mergeLive(List)}) - ordinary dirty live rows, same as
+     * a manual edit or {@link #newItem()}, preserving the table selection.
+     * For a subclass's own bulk-generate/import action; does not touch disk.
      */
     protected final void mergeLive(List<T> items) {
         T selected = table.getSelectionModel().getSelectedItem();
-        Object selectedKey = selected == null ? null : identity(selected);
+        Object selectedKey = selected == null ? null : store.identityOf(selected);
         suppressEditorRebuild = true;
         try {
-            for (T item : items) {
-                Object key = identity(item);
-                int index = -1;
-                for (int i = 0; i < this.items.size(); i++) {
-                    if (key.equals(identity(this.items.get(i)))) {
-                        index = i;
-                        break;
-                    }
-                }
-                if (index >= 0) {
-                    this.items.set(index, item);
-                } else {
-                    this.items.add(item);
-                }
-            }
-            if (selectedKey != null && !selectedKey.equals(
-                    table.getSelectionModel().getSelectedItem() == null
-                            ? null : identity(table.getSelectionModel().getSelectedItem()))) {
-                for (int i = 0; i < this.items.size(); i++) {
-                    if (selectedKey.equals(identity(this.items.get(i)))) {
-                        table.getSelectionModel().select(i);
-                        break;
-                    }
-                }
+            store.mergeLive(items);
+            if (selectedKey != null) {
+                selectByKey(selectedKey);
             }
         } finally {
             suppressEditorRebuild = false;
         }
-        recomputeDirtyCount();
     }
 
-    private boolean isDirty(T item) {
-        T snapshot = savedSnapshots.get(identity(item));
-        return snapshot == null || !isEquivalent(item, snapshot);
+    private void restoreSelection() {
+        if (lastSelectedKey != null) {
+            selectByKey(lastSelectedKey);
+        }
     }
 
-    private void recomputeDirtyCount() {
-        int count = pendingDeletions.size();
-        for (T item : items) {
-            if (isDirty(item)) {
-                count++;
-            }
+    private void selectByKey(Object key) {
+        T current = table.getSelectionModel().getSelectedItem();
+        if (current != null && key.equals(store.identityOf(current))) {
+            return;
         }
-        dirtyCount.set(count);
-    }
-
-    /** Reloads the table from {@link #loadAll()}, preserving the selection by identity. */
-    protected final void refresh() {
-        T selected = table.getSelectionModel().getSelectedItem();
-        Object key = selected == null ? null : identity(selected);
-        items.setAll(loadAll());
-        savedSnapshots.clear();
-        for (T item : items) {
-            savedSnapshots.put(identity(item), item);
-        }
-        recomputeDirtyCount();
-        if (key != null) {
-            items.stream()
-                    .filter(candidate -> key.equals(identity(candidate)))
-                    .findFirst()
-                    .ifPresent(table.getSelectionModel()::select);
-        }
+        store.items().stream()
+                .filter(candidate -> key.equals(store.identityOf(candidate)))
+                .findFirst()
+                .ifPresent(table.getSelectionModel()::select);
     }
 
     private Node buildView() {
-        table.setItems(items);
+        table.setItems(store.items());
         table.setRowFactory(tableView -> {
             TableRow<T> row = new TableRow<>();
             row.itemProperty().subscribe(rowItem ->
                     row.pseudoClassStateChanged(CRUD_NEW,
-                            rowItem != null && !savedSnapshots.containsKey(identity(rowItem))));
+                            rowItem != null && store.savedSnapshot(rowItem) == null));
             return row;
         });
 
@@ -378,32 +290,25 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     /**
      * Inserts and selects a new {@link #createStub()} row - a normal live row
      * from this point on (see class docs), immediately editable and included
-     * in the next {@link #saveAll()}. Bind to the New button's action.
+     * in the next flush. Bind to the New button's action.
      */
     protected final void newItem() {
         T stub = createStub();
-        items.addFirst(stub);
+        store.insertFirst(stub);
         table.getSelectionModel().select(stub);
-        recomputeDirtyCount();
     }
 
     /**
-     * Removes the selected row from the live table immediately. A row with a
-     * persisted snapshot (was ever saved) is queued for repository deletion
-     * on the next {@link #saveAll()}; a never-persisted row is just dropped,
-     * nothing queued. Bind to the Delete button's action.
+     * Removes the selected row from the live store, staging the repository
+     * removal (flushed to disk by the next global Save all; restored by a
+     * Load). Bind to the Delete button's action.
      */
     protected final void deleteSelected() {
         T selected = table.getSelectionModel().getSelectedItem();
         if (selected == null) {
             return;
         }
-        Object key = identity(selected);
-        items.remove(selected);
-        if (savedSnapshots.containsKey(key)) {
-            pendingDeletions.put(key, selected);
-        }
-        recomputeDirtyCount();
+        store.remove(selected);
     }
 
     /** Prompts for a file and writes every row via {@code mapper}. Bind to the Export button's action. */
@@ -417,7 +322,7 @@ public abstract class CrudModule<T> extends WorkbenchModule {
             return;
         }
         List<List<String>> rows = new ArrayList<>();
-        for (T item : items) {
+        for (T item : store.items()) {
             rows.add(mapper.toRow(item));
         }
         try (Writer writer = Files.newBufferedWriter(target.toPath())) {
@@ -429,9 +334,9 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     }
 
     /**
-     * Prompts for a file and merges every parsed row into the live table (via
-     * {@link #mergeLive(List)} - not written to disk until the next
-     * {@link #saveAll()}), then shows {@code summaryMessage.apply(imported,
+     * Prompts for a file and merges every parsed row into the live store (via
+     * {@link #mergeLive(List)} - staged, not written to disk until the next
+     * global Save all), then shows {@code summaryMessage.apply(imported,
      * total)} (e.g. localized "12 of 14 rows imported" text - this class has
      * no localized text of its own). Bind to the Import button's action.
      */

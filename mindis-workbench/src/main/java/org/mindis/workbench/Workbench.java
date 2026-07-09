@@ -63,13 +63,15 @@ public final class Workbench extends BorderPane {
     private double currentWidth;
 
     private Workbench(Builder builder) {
-        this.modules = List.copyOf(builder.modules);
+        List<WorkbenchModule> all = new ArrayList<>(builder.modules);
+        all.addAll(builder.bottomModules);
+        this.modules = List.copyOf(all);
         getStyleClass().add("workbench");
         getStylesheets().add(Workbench.class.getResource("workbench.css").toExternalForm());
 
         sidebar.getStyleClass().add("workbench-sidebar");
         sidebar.getChildren().add(createToggleButton());
-        for (WorkbenchModule module : modules) {
+        for (WorkbenchModule module : builder.modules) {
             sidebar.getChildren().add(createNavButton(module));
         }
         if (!builder.bottomModules.isEmpty()) {
@@ -104,6 +106,7 @@ public final class Workbench extends BorderPane {
         return new Builder(modules);
     }
 
+    /** Every module, top and bottom-pinned alike (e.g. for disposing them all on a UI rebuild). */
     public List<WorkbenchModule> getModules() {
         return modules;
     }

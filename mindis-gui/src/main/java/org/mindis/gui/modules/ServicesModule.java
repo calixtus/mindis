@@ -23,6 +23,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -47,6 +48,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
+import javafx.util.Subscription;
 
 import atlantafx.base.theme.Styles;
 import com.dlsc.gemsfx.CalendarPicker;
@@ -63,7 +65,6 @@ import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServiceCsvMapper;
-import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.persistence.TemplateRepository;
 import org.mindis.core.planning.AcceptedPlan;
 import org.mindis.core.planning.Assignment;
@@ -73,12 +74,14 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.mindis.gui.LiveDatabase;
 import org.mindis.gui.planning.ArchivedPlansDialog;
 import org.mindis.gui.planning.PlanningViewModel;
 import org.mindis.gui.util.CalendarPickers;
 import org.mindis.gui.util.TimePickers;
 import org.mindis.workbench.CrudModule;
 import org.mindis.workbench.CsvRowMapper;
+import org.mindis.workbench.LiveStore;
 
 /**
  * Liturgical services module: individual date/time services (plus generation
@@ -104,6 +107,14 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
     private final ServicesViewModel viewModel;
     private final PlanningViewModel planningViewModel;
+    private final LiveDatabase liveDatabase;
+    private final LiveStore<Role> roleStore;
+    // Rebuilds the open editor when the shared role list changes, so a role
+    // created or renamed (even unsaved) in the Roles module gets its spinner
+    // row immediately. A field so dispose() can detach it from the
+    // module-outliving store list.
+    private final ListChangeListener<Role> roleChangeListener = change -> refreshSelectedEditor();
+    private final Subscription storeRefreshSubscription;
 
     private final CalendarPicker fromPicker = CalendarPickers.create();
     private final CalendarPicker toPicker = CalendarPickers.create();
@@ -135,11 +146,27 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     private @Nullable String liveSlotsServiceId;
     private List<RoleSlot> liveSlotsForEditor = List.of();
 
-    public ServicesModule(String name, ServiceRepository serviceRepository, TemplateRepository templateRepository,
-                          RoleRepository roleRepository, PlanningViewModel planningViewModel) {
-        super(name, "mdi2c-church");
-        this.viewModel = new ServicesViewModel(serviceRepository, templateRepository, roleRepository);
+    public ServicesModule(String name, LiveStore<LiturgicalService> serviceStore, LiveStore<Role> roleStore,
+                          TemplateRepository templateRepository, RoleRepository roleRepository,
+                          PlanningViewModel planningViewModel, LiveDatabase liveDatabase) {
+        super(name, "mdi2c-church", serviceStore);
+        this.viewModel = new ServicesViewModel(templateRepository, roleRepository);
         this.planningViewModel = planningViewModel;
+        this.liveDatabase = liveDatabase;
+        this.roleStore = roleStore;
+        roleStore.items().addListener(roleChangeListener);
+        // A store re-baseline (global Save all or Load - including this
+        // module's own buttons, which delegate to the same actions) may have
+        // changed the services/roster underneath the plan: re-resolve which
+        // saved plan applies and rebuild, preserving in-progress assignments
+        // (after a save that's a cheap no-op; after a load it re-anchors the
+        // plan to the reverted data).
+        storeRefreshSubscription = serviceStore.onRefresh(() -> {
+            reloadSavedPlanSnapshot();
+            rebuildCurrentPlan();
+            refreshSelectedEditor();
+            table().refresh();
+        });
 
         TableColumn<LiturgicalService, String> dateColumn = new TableColumn<>(Localization.lang("Date"));
         dateColumn.setPrefWidth(140);
@@ -267,40 +294,19 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     }
 
     @Override
-    protected List<LiturgicalService> loadAll() {
-        List<LiturgicalService> services = viewModel.findAll();
+    protected void onActivate() {
+        // Reactivating the tab rebuilds the same plan preserving in-progress
+        // assignments, picking up service/roster edits made in other modules
+        // since the last visit (the former loadAll() side effect).
         rebuildCurrentPlan();
-        return services;
+        table().refresh();
     }
 
     @Override
-    protected void persist(LiturgicalService service) {
-        viewModel.save(service);
-    }
-
-    @Override
-    protected void persistAll(List<LiturgicalService> services) {
-        viewModel.saveAll(services);
-    }
-
-    @Override
-    protected void delete(LiturgicalService service) {
-        viewModel.delete(service);
-    }
-
-    @Override
-    protected Object identity(LiturgicalService service) {
-        return service.id();
-    }
-
-    @Override
-    protected boolean isEquivalent(LiturgicalService a, LiturgicalService b) {
-        return a.dateTime().equals(b.dateTime())
-                && a.durationMinutes() == b.durationMinutes()
-                && a.location().equals(b.location())
-                && a.type() == b.type()
-                && a.note().equals(b.note())
-                && RoleSlotsEditor.sameSlots(a.slots(), b.slots());
+    public void dispose() {
+        roleStore.items().removeListener(roleChangeListener);
+        storeRefreshSubscription.unsubscribe();
+        super.dispose();
     }
 
     @Override
@@ -659,17 +665,15 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     }
 
     /**
-     * Discards any unsaved service edits/deletions and unsaved assignment
-     * picks, reloading both from disk - the plan-side counterpart to
-     * {@link #refresh()} (which only reloads {@link LiturgicalService}
-     * records). Bind to the Load button's action.
+     * Discards every staged edit in the shared database (all modules, by
+     * design - there is one database) and unsaved assignment picks, reloading
+     * from disk. The plan is hard-reset ({@code currentPlan = null}) before
+     * the reload so the store-refresh handler rebuilds it fresh against the
+     * reverted data. Bind to the Load button's action.
      */
     private void onLoad() {
-        refresh();
         currentPlan = null;
-        reloadSavedPlanSnapshot();
-        rebuildCurrentPlan();
-        table().refresh();
+        liveDatabase.loadAll();
     }
 
     /** Same period, preserving {@link #currentPlan}'s in-progress assignments while picking up service/roster edits. */
@@ -813,19 +817,20 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     }
 
     /**
-     * "Save all" persists both halves of this module's live state in one
-     * click: dirty {@link LiturgicalService} records (via the inherited
-     * {@link #saveAll()}) and, if {@link #planDirty} (an assignment was
-     * picked or a solve ran since the last save), the current plan.
+     * "Save all" persists both halves of the live state in one click: if
+     * {@link #planDirty} (an assignment was picked or a solve ran since the
+     * last save), the current plan; then the whole shared database - "Save
+     * all" always means "flush the database", so pending edits from every
+     * module land on disk together, not just this tab's.
      */
     private void onSaveAll() {
-        saveAll();
         ServicePlan plan = currentPlan;
         if (plan != null && planDirty.get()) {
             planningViewModel.savePlan(plan, fromPicker.getValue(), toPicker.getValue());
             savedPlanSnapshot = PlanMapper.toAcceptedPlan(plan, fromPicker.getValue(), toPicker.getValue());
             recomputePlanDirty();
         }
+        liveDatabase.saveAll();
         statusLabel.setText(Localization.lang("Saved"));
     }
 

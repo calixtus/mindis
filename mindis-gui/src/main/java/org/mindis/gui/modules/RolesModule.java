@@ -2,7 +2,6 @@ package org.mindis.gui.modules;
 
 import atlantafx.base.layout.InputGroup;
 
-import java.util.List;
 import java.util.function.IntSupplier;
 
 import javafx.beans.property.SimpleStringProperty;
@@ -30,6 +29,7 @@ import org.mindis.core.persistence.RoleCsvMapper;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.workbench.CrudModule;
 import org.mindis.workbench.CsvRowMapper;
+import org.mindis.workbench.LiveStore;
 
 /**
  * Liturgical role management module: name plus an optional minimum/maximum
@@ -42,8 +42,8 @@ public class RolesModule extends CrudModule<Role> {
 
     private final RolesViewModel viewModel;
 
-    public RolesModule(String name, RoleRepository roleRepository) {
-        super(name, "mdi2t-tag-multiple");
+    public RolesModule(String name, LiveStore<Role> roleStore, RoleRepository roleRepository) {
+        super(name, "mdi2t-tag-multiple", roleStore);
         this.viewModel = new RolesViewModel(roleRepository);
 
         TableColumn<Role, String> nameColumn = new TableColumn<>(Localization.lang("Name"));
@@ -63,11 +63,6 @@ public class RolesModule extends CrudModule<Role> {
         Button deleteButton = new Button(Localization.lang("Delete"));
         deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelected());
-        Button loadButton = new Button(Localization.lang("Load"));
-        loadButton.setOnAction(event -> refresh());
-        Button saveAllButton = new Button(Localization.lang("Save all"));
-        saveAllButton.disableProperty().bind(dirtyCountProperty().isEqualTo(0));
-        saveAllButton.setOnAction(event -> saveAll());
 
         RoleCsvMapper roleCsvMapper = new RoleCsvMapper(roleRepository);
         CsvRowMapper<Role> csvMapper = CsvRowMapper.of(roleCsvMapper::header, roleCsvMapper::toRow, roleCsvMapper::fromRow);
@@ -77,32 +72,12 @@ public class RolesModule extends CrudModule<Role> {
         importButton.setOnAction(event -> importCsv(csvMapper,
                 (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
 
-        toolbarExtras().addAll(newButton, deleteButton, loadButton, saveAllButton, new Separator(Orientation.VERTICAL), exportButton, importButton);
+        toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL), exportButton, importButton);
     }
 
     @Override
     protected Role createStub() {
         return viewModel.createStub();
-    }
-
-    @Override
-    protected List<Role> loadAll() {
-        return viewModel.findAll();
-    }
-
-    @Override
-    protected void persist(Role role) {
-        viewModel.save(role);
-    }
-
-    @Override
-    protected void delete(Role role) {
-        viewModel.delete(role);
-    }
-
-    @Override
-    protected Object identity(Role role) {
-        return role.id();
     }
 
     @Override

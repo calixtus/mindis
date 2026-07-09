@@ -3,11 +3,11 @@ package org.mindis.gui.modules;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.time.format.TextStyle;
-import java.util.List;
 import java.util.Locale;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.VPos;
@@ -28,16 +28,17 @@ import com.dlsc.gemsfx.TimePicker;
 
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
+import org.mindis.core.model.Role;
 import org.mindis.core.model.ServiceTemplate;
 import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.TemplateCsvMapper;
-import org.mindis.core.persistence.TemplateRepository;
 import org.mindis.gui.util.TimePickers;
 import org.mindis.workbench.CrudModule;
 import org.mindis.workbench.CsvRowMapper;
+import org.mindis.workbench.LiveStore;
 
 /**
  * Weekly recurring service templates ("every Sunday 10:00 at St. Mary"),
@@ -51,10 +52,19 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
     private static final double EDITOR_MIN_HEIGHT = 420;
 
     private final TemplatesViewModel viewModel;
+    private final LiveStore<Role> roleStore;
+    // Rebuilds the open editor when the shared role list changes, so a role
+    // created or renamed (even unsaved) in the Roles module gets its spinner
+    // row immediately. A field so dispose() can detach it from the
+    // module-outliving store list.
+    private final ListChangeListener<Role> roleChangeListener = change -> refreshSelectedEditor();
 
-    public TemplatesModule(String name, TemplateRepository templateRepository, RoleRepository roleRepository) {
-        super(name, "mdi2c-calendar-sync");
-        this.viewModel = new TemplatesViewModel(templateRepository, roleRepository);
+    public TemplatesModule(String name, LiveStore<ServiceTemplate> templateStore, LiveStore<Role> roleStore,
+                           RoleRepository roleRepository) {
+        super(name, "mdi2c-calendar-sync", templateStore);
+        this.viewModel = new TemplatesViewModel(roleRepository);
+        this.roleStore = roleStore;
+        roleStore.items().addListener(roleChangeListener);
 
         TableColumn<ServiceTemplate, String> dayColumn = new TableColumn<>(Localization.lang("Weekday"));
         dayColumn.setPrefWidth(110);
@@ -83,11 +93,6 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         Button deleteButton = new Button(Localization.lang("Delete"));
         deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelected());
-        Button loadButton = new Button(Localization.lang("Load"));
-        loadButton.setOnAction(event -> refresh());
-        Button saveAllButton = new Button(Localization.lang("Save all"));
-        saveAllButton.disableProperty().bind(dirtyCountProperty().isEqualTo(0));
-        saveAllButton.setOnAction(event -> saveAll());
 
         TemplateCsvMapper templateCsvMapper = new TemplateCsvMapper(roleRepository);
         CsvRowMapper<ServiceTemplate> csvMapper =
@@ -98,7 +103,13 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         importButton.setOnAction(event -> importCsv(csvMapper,
                 (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
 
-        toolbarExtras().addAll(newButton, deleteButton, loadButton, saveAllButton, new Separator(Orientation.VERTICAL), exportButton, importButton);
+        toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL), exportButton, importButton);
+    }
+
+    @Override
+    public void dispose() {
+        roleStore.items().removeListener(roleChangeListener);
+        super.dispose();
     }
 
     @Override
@@ -106,34 +117,12 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         return viewModel.createStub();
     }
 
-    @Override
-    protected List<ServiceTemplate> loadAll() {
-        return viewModel.findAll();
-    }
-
-    @Override
-    protected void persist(ServiceTemplate template) {
-        viewModel.save(template);
-    }
-
-    @Override
-    protected void delete(ServiceTemplate template) {
-        viewModel.delete(template);
-    }
-
-    @Override
-    protected Object identity(ServiceTemplate template) {
-        return template.id();
-    }
-
-    @Override
-    protected boolean isEquivalent(ServiceTemplate a, ServiceTemplate b) {
-        return a.dayOfWeek().equals(b.dayOfWeek())
-                && a.time().equals(b.time())
-                && a.durationMinutes() == b.durationMinutes()
-                && a.location().equals(b.location())
-                && a.type() == b.type()
-                && RoleSlotsEditor.sameSlots(a.slots(), b.slots());
+    /** Rebuilds the editor for the currently selected row, if any - e.g. after the shared role list changed. */
+    private void refreshSelectedEditor() {
+        ServiceTemplate selected = table().getSelectionModel().getSelectedItem();
+        if (selected != null) {
+            editorProperty().set(buildEditor(selected));
+        }
     }
 
     @Override

@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.function.Consumer;
 
 import javafx.geometry.Pos;
@@ -93,20 +92,5 @@ final class RoleSlotsEditor {
                 .mapToInt(RoleSlot::count)
                 .findFirst()
                 .orElse(0);
-    }
-
-    /** True if {@code a} and {@code b} carry the same (role, count) pairs, ignoring list order. */
-    static boolean sameSlots(List<RoleSlot> a, List<RoleSlot> b) {
-        return normalized(a).equals(normalized(b));
-    }
-
-    private static Map<String, Integer> normalized(List<RoleSlot> slots) {
-        Map<String, Integer> byRole = new TreeMap<>();
-        for (RoleSlot slot : slots) {
-            if (slot.count() > 0) {
-                byRole.put(slot.role(), slot.count());
-            }
-        }
-        return byRole;
     }
 }

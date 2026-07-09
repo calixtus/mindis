@@ -13,6 +13,8 @@ import javafx.application.Application;
 import javafx.application.ColorScheme;
 import javafx.application.Platform;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ToolBar;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
@@ -21,6 +23,7 @@ import org.jspecify.annotations.Nullable;
 import org.mindis.core.export.PlanExportService;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.logging.LoggingBootstrap;
+import org.mindis.core.persistence.AppDatabase;
 import org.mindis.core.persistence.PlanRepository;
 import org.mindis.core.preferences.AccentColor;
 import org.mindis.core.preferences.MinDisPreferences;
@@ -45,6 +48,7 @@ import org.mindis.gui.planning.PlanningViewModel;
 import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.gui.theme.ThemeStyler;
 import org.mindis.workbench.Workbench;
+import org.mindis.workbench.WorkbenchModule;
 
 /**
  * Application entry point. Owns the Avaje {@link BeanScope} (single scope per
@@ -62,6 +66,7 @@ public class MinDisApp extends Application {
     private BeanScope beanScope;
     private PreferencesService preferencesService;
     private UiPreferences uiPreferences;
+    private LiveDatabase liveDatabase;
     private Stage stage;
     private Workbench workbench;
     private final LogConsoleModel logConsole = new LogConsoleModel();
@@ -80,6 +85,13 @@ public class MinDisApp extends Application {
         beanScope = BeanScope.builder().build();
         preferencesService = beanScope.get(PreferencesService.class);
         uiPreferences = beanScope.get(UiPreferences.class);
+        // Built exactly once: the stores (and any unsaved edits in them)
+        // survive UI rebuilds - buildWorkbench() only rewires views to them.
+        liveDatabase = new LiveDatabase(beanScope.get(AppDatabase.class),
+                beanScope.get(RoleRepository.class),
+                beanScope.get(ServerRepository.class),
+                beanScope.get(TemplateRepository.class),
+                beanScope.get(ServiceRepository.class));
 
         MinDisPreferences preferences = preferencesService.get();
         Localization.setLocale(preferences.locale());
@@ -152,28 +164,52 @@ public class MinDisApp extends Application {
                 : Double.valueOf(workbench.getSidebarWidth());
         Workbench.Builder builder = Workbench.builder(
                                 new DashboardModule(Localization.lang("Dashboard")),
-                                new RolesModule(Localization.lang("Roles"), beanScope.get(RoleRepository.class)),
+                                new RolesModule(Localization.lang("Roles"),
+                                        liveDatabase.roles(),
+                                        beanScope.get(RoleRepository.class)),
                                 new ServersModule(Localization.lang("Servers"),
+                                        liveDatabase.servers(), liveDatabase.roles(),
                                         beanScope.get(ServerRepository.class),
                                         beanScope.get(RoleRepository.class), uiPreferences),
                                 new TemplatesModule(Localization.lang("Templates"),
-                                        beanScope.get(TemplateRepository.class),
+                                        liveDatabase.templates(), liveDatabase.roles(),
                                         beanScope.get(RoleRepository.class)),
                                 new ServicesModule(Localization.lang("Services"),
-                                        beanScope.get(ServiceRepository.class),
+                                        liveDatabase.services(), liveDatabase.roles(),
                                         beanScope.get(TemplateRepository.class),
                                         beanScope.get(RoleRepository.class),
                                         new PlanningViewModel(
                                                 beanScope.get(PlanningService.class),
                                                 beanScope.get(PlanRepository.class),
                                                 preferencesService,
-                                                beanScope.get(PlanExportService.class))))
+                                                beanScope.get(PlanExportService.class)),
+                                        liveDatabase))
                         .bottomModule(new AboutModule(Localization.lang("About"), getHostServices(), logConsole))
                         .bottomModule(new SettingsModule(Localization.lang("Settings"), uiPreferences));
         if (sidebarWidth != null) {
             builder.initialSidebarWidth(sidebarWidth);
         }
-        return builder.build();
+        Workbench built = builder.build();
+        built.setTop(buildGlobalToolbar());
+        return built;
+    }
+
+    /**
+     * The application-wide Save all/Load toolbar, spanning the top of the
+     * workbench: the only flush and reload points for the shared database
+     * (plus Services' plan-coupled pair, which delegates to the same
+     * actions). Rebuilt with each workbench (labels are localized); the
+     * stores it binds to are the long-lived ones.
+     */
+    private ToolBar buildGlobalToolbar() {
+        Button saveAllButton = new Button(Localization.lang("Save all"));
+        saveAllButton.disableProperty().bind(liveDatabase.totalDirtyCount().isEqualTo(0));
+        saveAllButton.setOnAction(event -> liveDatabase.saveAll());
+        Button loadButton = new Button(Localization.lang("Load"));
+        loadButton.setOnAction(event -> liveDatabase.loadAll());
+        ToolBar toolbar = new ToolBar(saveAllButton, loadButton);
+        toolbar.setStyle("-fx-padding: 8 12 8 12; -fx-spacing: 8;");
+        return toolbar;
     }
 
     /**
@@ -186,7 +222,13 @@ public class MinDisApp extends Application {
         // Preserve the active module across the rebuild instead of snapping back
         // to Dashboard; by module class, since names change with the locale.
         String activeModuleClass = workbench == null ? null : workbench.getActiveModuleClassName();
+        Workbench oldWorkbench = workbench;
         workbench = buildWorkbench();
+        // The discarded modules registered listeners on the long-lived
+        // stores; detach them or every rebuild leaks a full module graph.
+        if (oldWorkbench != null) {
+            oldWorkbench.getModules().forEach(WorkbenchModule::dispose);
+        }
         stage.getScene().setRoot(workbench);
         workbench.openModule(activeModuleClass);
         stage.setTitle(Localization.lang("MinDis - Minister Dispatcher"));

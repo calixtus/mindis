@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import javafx.beans.binding.Bindings;
@@ -66,10 +67,13 @@ import org.mindis.gui.util.SearchFields;
 import org.mindis.gui.util.TimePickers;
 import org.mindis.workbench.CrudModule;
 import org.mindis.workbench.CsvRowMapper;
+import org.mindis.workbench.LiveStore;
 
 /**
  * Altar server roster module: personal details, role qualifications and
- * unavailability periods (both part of the {@link Server} model).
+ * unavailability periods (both part of the {@link Server} model). The
+ * qualifications checklist binds to the shared live role list, so roles
+ * created or edited (even unsaved) in the Roles module appear immediately.
  */
 public class ServersModule extends CrudModule<Server> {
 
@@ -80,12 +84,20 @@ public class ServersModule extends CrudModule<Server> {
 
     private final ServersViewModel viewModel;
     private final UiPreferences uiPreferences;
+    private final LiveStore<Role> roleStore;
+    // Repaints the table when the shared role list changes, so an unsaved
+    // role rename shows in the Qualifications column immediately. A field so
+    // dispose() can detach it from the module-outliving store list.
+    private final ListChangeListener<Role> roleChangeListener = change -> table().refresh();
 
-    public ServersModule(String name, ServerRepository serverRepository, RoleRepository roleRepository,
+    public ServersModule(String name, LiveStore<Server> serverStore, LiveStore<Role> roleStore,
+                         ServerRepository serverRepository, RoleRepository roleRepository,
                          UiPreferences uiPreferences) {
-        super(name, "mdi2a-account-group");
+        super(name, "mdi2a-account-group", serverStore);
         this.viewModel = new ServersViewModel(serverRepository, roleRepository);
         this.uiPreferences = uiPreferences;
+        this.roleStore = roleStore;
+        roleStore.items().addListener(roleChangeListener);
 
         TableColumn<Server, String> nameColumn = new TableColumn<>(Localization.lang("Name"));
         nameColumn.setPrefWidth(180);
@@ -113,11 +125,6 @@ public class ServersModule extends CrudModule<Server> {
         Button deleteButton = new Button(Localization.lang("Delete"));
         deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelected());
-        Button loadButton = new Button(Localization.lang("Load"));
-        loadButton.setOnAction(event -> refresh());
-        Button saveAllButton = new Button(Localization.lang("Save all"));
-        saveAllButton.disableProperty().bind(dirtyCountProperty().isEqualTo(0));
-        saveAllButton.setOnAction(event -> saveAll());
 
         ServerCsvMapper serverCsvMapper = new ServerCsvMapper(roleRepository);
         CsvRowMapper<Server> csvMapper =
@@ -128,32 +135,18 @@ public class ServersModule extends CrudModule<Server> {
         importButton.setOnAction(event -> importCsv(csvMapper,
                 (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
 
-        toolbarExtras().addAll(newButton, deleteButton, loadButton, saveAllButton, new Separator(Orientation.VERTICAL), exportButton, importButton);
+        toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL), exportButton, importButton);
+    }
+
+    @Override
+    public void dispose() {
+        roleStore.items().removeListener(roleChangeListener);
+        super.dispose();
     }
 
     @Override
     protected Server createStub() {
         return viewModel.createStub();
-    }
-
-    @Override
-    protected List<Server> loadAll() {
-        return viewModel.findAll();
-    }
-
-    @Override
-    protected void persist(Server server) {
-        viewModel.save(server);
-    }
-
-    @Override
-    protected void delete(Server server) {
-        viewModel.delete(server);
-    }
-
-    @Override
-    protected Object identity(Server server) {
-        return server.id();
     }
 
     @Override
@@ -222,17 +215,31 @@ public class ServersModule extends CrudModule<Server> {
                 () -> uiPreferences.fontSizeProperty().get() * CELL_SIZE_FONT_FACTOR,
                 uiPreferences.fontSizeProperty());
 
+        // Deferred pushLive reference: the checkbox properties (and their
+        // listeners) are created before pushLive itself can exist, and the
+        // cell factory keeps creating properties lazily for roles added
+        // while this editor is open - each must push edits live too, so the
+        // listener attaches inside the shared factory function.
+        Runnable[] pushLiveHolder = new Runnable[1];
         Map<String, BooleanProperty> qualificationSelected = new HashMap<>();
-        ObservableList<Role> roles = FXCollections.observableArrayList(viewModel.findAllRoles());
-        for (Role role : roles) {
-            qualificationSelected.put(role.id(),
-                    new SimpleBooleanProperty(server.qualifications().contains(role.id())));
+        Function<String, BooleanProperty> qualificationProperty = roleId -> {
+            SimpleBooleanProperty ticked = new SimpleBooleanProperty(server.qualifications().contains(roleId));
+            ticked.addListener((obs, oldValue, newValue) -> pushLiveHolder[0].run());
+            return ticked;
+        };
+        // Seed eagerly for every current role: pushLive rebuilds the
+        // qualification set from this map, so a checked role whose cell was
+        // never rendered (scrolled out of view) must still be represented.
+        for (Role role : roleStore.items()) {
+            qualificationSelected.computeIfAbsent(role.id(), qualificationProperty);
         }
-        ListView<Role> qualificationsList = new ListView<>(roles);
+        // The store's own live list - not a copy - so roles created, renamed
+        // or deleted anywhere (even unsaved) appear here immediately.
+        ListView<Role> qualificationsList = new ListView<>(roleStore.items());
         qualificationsList.fixedCellSizeProperty().bind(cellSize);
         qualificationsList.setPrefHeight(150);
         qualificationsList.setCellFactory(CheckBoxListCell.forListView(
-                role -> qualificationSelected.computeIfAbsent(role.id(), id -> new SimpleBooleanProperty()),
+                role -> qualificationSelected.computeIfAbsent(role.id(), qualificationProperty),
                 new StringConverter<>() {
                     @Override
                     public String toString(@Nullable Role role) {
@@ -303,6 +310,7 @@ public class ServersModule extends CrudModule<Server> {
                     experiencedCheck.isSelected(),
                     activeCheck.isSelected()));
         };
+        pushLiveHolder[0] = pushLive;
         firstNameField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
         lastNameField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
         contactField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
@@ -313,8 +321,6 @@ public class ServersModule extends CrudModule<Server> {
         preferredTimesItems.addListener((ListChangeListener<LocalTime>) change -> pushLive.run());
         unavailabilityList.getItems().addListener(
                 (ListChangeListener<UnavailabilityPeriod>) change -> pushLive.run());
-        qualificationSelected.values().forEach(
-                ticked -> ticked.addListener((obs, oldValue, newValue) -> pushLive.run()));
 
         GridPane grid = new GridPane();
         grid.setHgap(8);

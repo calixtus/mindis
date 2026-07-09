@@ -18,9 +18,15 @@ import org.mindis.core.preferences.DataDirectory;
 
 /**
  * Role storage: roles.json in the user data directory. Upsert by id. When the
- * store is empty (first run), the five built-in default roles are seeded so the
- * app is usable out of the box and legacy data referencing the former enum ids
- * ({@code ACOLYTE}, ...) still resolves.
+ * backing file does not exist yet (first run), the five built-in default roles
+ * are seeded so the app is usable out of the box and legacy data referencing
+ * the former enum ids ({@code ACOLYTE}, ...) still resolves.
+ *
+ * <p>Mutations ({@link #save} and {@link #delete} stage into
+ * the in-memory cache only - the single source of truth every reader (GUI,
+ * solver, CSV mappers) shares. Disk I/O happens exclusively through
+ * {@link #flush()} and {@link #reload()}, driven by the global Save all/Load
+ * actions (see {@link AppDatabase}).
  */
 @Singleton
 public class RoleRepository {
@@ -52,13 +58,21 @@ public class RoleRepository {
         list.removeIf(existing -> existing.id().equals(role.id()));
         list.add(role);
         sort(list);
-        store.save(list);
     }
 
     public synchronized void delete(String id) {
-        List<Role> list = cached();
-        list.removeIf(existing -> existing.id().equals(id));
-        store.save(list);
+        cached().removeIf(existing -> existing.id().equals(id));
+    }
+
+    /** Writes the staged state to disk - the only disk write path. */
+    public synchronized void flush() {
+        store.save(cached());
+    }
+
+    /** Discards staged (unflushed) mutations and reloads from disk. */
+    public synchronized void reload() {
+        roles = null;
+        cached();
     }
 
     /** The next free sort order (current max + a step), for a role not yet in the store. */
@@ -73,7 +87,11 @@ public class RoleRepository {
     private List<Role> cached() {
         if (roles == null) {
             roles = new ArrayList<>(store.load());
-            if (roles.isEmpty()) {
+            // Seed only when the file has never been written - not whenever the
+            // list is empty, or a reload() of a deliberately emptied roster
+            // would silently resurrect the defaults. The one-time bootstrap
+            // write below is a first-run convenience, not a staged mutation.
+            if (!store.exists()) {
                 roles.addAll(defaults());
                 store.save(roles);
             }

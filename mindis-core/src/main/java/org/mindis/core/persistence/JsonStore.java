@@ -40,6 +40,11 @@ public final class JsonStore<T> {
                 .configure(SerializationFeature.INDENT_OUTPUT, true);
     }
 
+    /** Whether the backing file exists on disk (i.e. a flush has ever happened, or data was shipped). */
+    public boolean exists() {
+        return Files.exists(file);
+    }
+
     public List<T> load() {
         if (!Files.exists(file)) {
             return List.of();

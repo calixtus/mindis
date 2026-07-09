@@ -36,7 +36,9 @@ class RepositoryRoundTripTest {
                 Set.of(LocalTime.of(10, 0)), true, true);
         Path file = tempDir.resolve("servers.json");
 
-        new ServerRepository(file).save(server);
+        ServerRepository repository = new ServerRepository(file);
+        repository.save(server);
+        repository.flush();
         List<Server> reloaded = new ServerRepository(file).findAll();
 
         assertEquals(List.of(server), reloaded);
@@ -52,10 +54,31 @@ class RepositoryRoundTripTest {
                 "First communion");
         Path file = tempDir.resolve("services.json");
 
-        new ServiceRepository(file).save(service);
+        ServiceRepository repository = new ServiceRepository(file);
+        repository.save(service);
+        repository.flush();
         List<LiturgicalService> reloaded = new ServiceRepository(file).findAll();
 
         assertEquals(List.of(service), reloaded);
+    }
+
+    @Test
+    void saveStagesOnlyAndReloadDiscardsStagedMutations() {
+        Path file = tempDir.resolve("servers.json");
+        ServerRepository repository = new ServerRepository(file);
+        Server flushed = new Server("id-1", "Anna", "Muster", "", null, null, Set.of(), List.of(), Set.of(), false, true);
+        repository.save(flushed);
+        repository.flush();
+
+        repository.save(new Server("id-2", "Ben", "Muster", "", null, null, Set.of(), List.of(), Set.of(), false, true));
+        repository.delete("id-1");
+
+        // Staged only: a fresh repository over the same file sees the flushed state.
+        assertEquals(List.of(flushed), new ServerRepository(file).findAll());
+
+        repository.reload();
+
+        assertEquals(List.of(flushed), repository.findAll());
     }
 
     @Test

@@ -31,10 +31,26 @@ class RoleRepositoryRoundTripTest {
         Role thurifer = new Role(Role.newId(), "Thurifer", 14, 99, 50);
 
         repository.save(thurifer);
+        repository.flush();
         Role reloaded = new RoleRepository(file).findById(thurifer.id()).orElseThrow();
 
         assertEquals(thurifer, reloaded);
         assertEquals(14, reloaded.minAge());
         assertEquals(99, reloaded.maxAge());
+    }
+
+    @Test
+    void emptiedRosterDoesNotReseedOnReload() {
+        Path file = tempDir.resolve("roles.json");
+        RoleRepository repository = new RoleRepository(file);
+        for (Role role : repository.findAll()) {
+            repository.delete(role.id());
+        }
+        repository.flush();
+
+        repository.reload();
+
+        assertTrue(repository.findAll().isEmpty(), "flushed-empty roster must stay empty, not reseed defaults");
+        assertTrue(new RoleRepository(file).findAll().isEmpty());
     }
 }

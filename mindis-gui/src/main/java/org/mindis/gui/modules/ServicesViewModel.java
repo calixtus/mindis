@@ -12,45 +12,26 @@ import org.mindis.core.model.Role;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServiceGenerator;
-import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.persistence.TemplateRepository;
 
 /**
- * ViewModel for {@link ServicesModule}: owns every repository call and the
- * template-generation logic, so the module only constructs UI and binds to
- * this class.
+ * ViewModel for {@link ServicesModule}: owns the repository reads and the
+ * template-generation logic the module still needs directly (CRUD goes
+ * through the shared {@link org.mindis.workbench.LiveStore}), so the module
+ * only constructs UI and binds to this class. All reads see the live staged
+ * state, unsaved edits included.
  */
 @NullMarked
 final class ServicesViewModel {
 
     private static final int DEFAULT_DURATION_MINUTES = 60;
 
-    private final ServiceRepository serviceRepository;
     private final TemplateRepository templateRepository;
     private final RoleRepository roleRepository;
 
-    ServicesViewModel(ServiceRepository serviceRepository, TemplateRepository templateRepository,
-                      RoleRepository roleRepository) {
-        this.serviceRepository = serviceRepository;
+    ServicesViewModel(TemplateRepository templateRepository, RoleRepository roleRepository) {
         this.templateRepository = templateRepository;
         this.roleRepository = roleRepository;
-    }
-
-    List<LiturgicalService> findAll() {
-        return serviceRepository.findAll();
-    }
-
-    void save(LiturgicalService service) {
-        serviceRepository.save(service);
-    }
-
-    /** One whole-file rewrite for every dirty row, instead of one rewrite per row. */
-    void saveAll(List<LiturgicalService> services) {
-        serviceRepository.saveAll(services);
-    }
-
-    void delete(LiturgicalService service) {
-        serviceRepository.delete(service.id());
     }
 
     /** A blank service at the next full hour, for the New action. */

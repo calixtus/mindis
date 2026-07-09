@@ -17,6 +17,10 @@ import org.jspecify.annotations.Nullable;
  *   <li>{@link #destroy()} - reserved for a closing hook (return {@code false}
  *       to veto); not called by the sidebar shell, which keeps all modules
  *       available.
+ *   <li>{@link #dispose()} - called when the module instance is discarded for
+ *       good (e.g. a full UI rebuild replaces every module); detach any
+ *       listeners registered on objects that outlive the module (shared
+ *       {@link LiveStore}s), or the discarded module graph stays reachable.
  * </ol>
  */
 public abstract class WorkbenchModule {
@@ -52,5 +56,12 @@ public abstract class WorkbenchModule {
 
     public boolean destroy() {
         return true;
+    }
+
+    /**
+     * Detaches everything this module registered on longer-lived objects;
+     * called once when the instance is discarded (never reactivated after).
+     */
+    public void dispose() {
     }
 }

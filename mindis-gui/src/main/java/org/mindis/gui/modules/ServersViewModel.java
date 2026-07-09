@@ -11,8 +11,11 @@ import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 
 /**
- * ViewModel for {@link ServersModule}: owns every repository call, so the
- * module only constructs UI and binds to this class.
+ * ViewModel for {@link ServersModule}: owns the repository reads the module
+ * still needs directly (CRUD goes through the shared
+ * {@link org.mindis.workbench.LiveStore}), so the module only constructs UI
+ * and binds to this class. All reads see the live staged state, unsaved
+ * edits included.
  */
 @NullMarked
 final class ServersViewModel {
@@ -25,27 +28,10 @@ final class ServersViewModel {
         this.roleRepository = roleRepository;
     }
 
-    List<Server> findAll() {
-        return serverRepository.findAll();
-    }
-
-    void save(Server server) {
-        serverRepository.save(server);
-    }
-
-    void delete(Server server) {
-        serverRepository.delete(server.id());
-    }
-
     /** A blank, active, inexperienced server, for the New action. */
     Server createStub() {
         return new Server(Server.newId(), "", "", "", null, null,
                 Set.of(), List.of(), Set.of(), false, true);
-    }
-
-    /** Roles available for the qualifications checklist. */
-    List<Role> findAllRoles() {
-        return roleRepository.findAll();
     }
 
     /** Display name for a role id, falling back to the id if the role was deleted. */

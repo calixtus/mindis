@@ -17,6 +17,8 @@ import org.mindis.core.preferences.DataDirectory;
 
 /**
  * Service storage: services.json in the user data directory. Upsert by id.
+ * Mutations stage into the in-memory cache only; disk I/O happens exclusively
+ * through {@link #flush()} / {@link #reload()} (see {@link AppDatabase}).
  */
 @Singleton
 public class ServiceRepository {
@@ -46,23 +48,21 @@ public class ServiceRepository {
         list.removeIf(existing -> existing.id().equals(service.id()));
         list.add(service);
         sort(list);
-        store.save(list);
-    }
-
-    public synchronized void saveAll(List<LiturgicalService> newServices) {
-        List<LiturgicalService> list = cached();
-        for (LiturgicalService service : newServices) {
-            list.removeIf(existing -> existing.id().equals(service.id()));
-            list.add(service);
-        }
-        sort(list);
-        store.save(list);
     }
 
     public synchronized void delete(String id) {
-        List<LiturgicalService> list = cached();
-        list.removeIf(existing -> existing.id().equals(id));
-        store.save(list);
+        cached().removeIf(existing -> existing.id().equals(id));
+    }
+
+    /** Writes the staged state to disk - the only disk write path. */
+    public synchronized void flush() {
+        store.save(cached());
+    }
+
+    /** Discards staged (unflushed) mutations and reloads from disk. */
+    public synchronized void reload() {
+        services = null;
+        cached();
     }
 
     /** The live (mutable) cache, loading and sorting it from disk on first access. */
