@@ -100,6 +100,16 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     private @Nullable ServicePlan currentPlan;
     private @Nullable UUID jobId;
 
+    // The editor's own live (possibly unsaved) slot counts for whichever
+    // service is currently selected - assignedLabel() needs this so the
+    // "Assigned" column's denominator matches a slot just added in the
+    // editor, not just what's actually persisted. Self-correcting: opening
+    // a different service's editor overwrites these, so a row that isn't
+    // the one currently open naturally falls back to its own persisted
+    // totalSlots() below.
+    private @Nullable String liveSlotsServiceId;
+    private List<RoleSlot> liveSlotsForEditor = List.of();
+
     public ServicesModule(String name, ServiceRepository serviceRepository, TemplateRepository templateRepository,
                           RoleRepository roleRepository, PlanningViewModel planningViewModel) {
         super(name, "mdi2c-church");
@@ -325,6 +335,8 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
      * is made.
      */
     private List<Node> buildAssignmentRows(LiturgicalService service, List<RoleSlot> liveSlots, VBox assignmentSection) {
+        liveSlotsServiceId = service.id();
+        liveSlotsForEditor = liveSlots;
         ServicePlan plan = currentPlan;
         if (plan == null || liveSlots.isEmpty()) {
             return List.of();
@@ -416,7 +428,12 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     warningIcon.getStyleClass().add("altar-warning-icon");
                     Tooltip.install(warningIcon, new Tooltip(
                             String.join(", ", names.stream().map(Localization::lang).toList())));
-                    row.getChildren().add(1, warningIcon);
+                    // Index 2, after the spacer (not 1, right after the
+                    // label) - the spacer's Hgrow pushes everything after it
+                    // to the right as one unit, so the icon needs to be on
+                    // the combo box's side of it to sit directly beside the
+                    // combo box rather than floating in the middle of the row.
+                    row.getChildren().add(2, warningIcon);
                 }
                 rows.add(row);
             }
@@ -424,9 +441,17 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         return rows;
     }
 
-    /** Filled/total count shown in the "Assigned" column; falls back to just the total when no plan is loaded. */
+    /**
+     * Filled/total count shown in the "Assigned" column; falls back to just
+     * the total when no plan is loaded. For the service currently open in
+     * the editor, {@code total} is the live (possibly unsaved) slot count -
+     * otherwise a filled slot just added in the editor but not yet saved
+     * would show as e.g. "3/2" against the still-persisted total.
+     */
     private String assignedLabel(LiturgicalService service) {
-        int total = service.totalSlots();
+        int total = service.id().equals(liveSlotsServiceId)
+                ? liveSlotsForEditor.stream().mapToInt(RoleSlot::count).sum()
+                : service.totalSlots();
         ServicePlan plan = currentPlan;
         if (plan == null) {
             return String.valueOf(total);
