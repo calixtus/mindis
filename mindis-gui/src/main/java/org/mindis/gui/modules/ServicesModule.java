@@ -38,6 +38,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
@@ -254,8 +255,17 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
         VBox assignmentSection = new VBox(6);
         RoleSlotsEditor slotsEditor = new RoleSlotsEditor(viewModel.findAllRoles(), service.slots(),
-                liveSlots -> assignmentSection.getChildren().setAll(
-                        buildAssignmentRows(service, liveSlots, assignmentSection)));
+                liveSlots -> {
+                    assignmentSection.getChildren().setAll(buildAssignmentRows(service, liveSlots, assignmentSection));
+                    // The row-rebuild above already updates liveSlotsForEditor
+                    // (assignedLabel()'s source for this row's live total),
+                    // but the table's own "Assigned" cell only re-reads it
+                    // once the table actually refreshes - a decremented
+                    // count otherwise left the column showing the old,
+                    // now-stale ratio until something else (a solve, a
+                    // manual pick) happened to trigger a refresh.
+                    table().refresh();
+                });
         assignmentSection.getChildren().setAll(buildAssignmentRows(service, slotsEditor.collectSlots(), assignmentSection));
 
         GridPane grid = new GridPane();
@@ -426,14 +436,20 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     // glyph. A style class routes -fx-icon-color through the
                     // stylesheet cascade instead, which doesn't touch it.
                     warningIcon.getStyleClass().add("altar-warning-icon");
-                    Tooltip.install(warningIcon, new Tooltip(
+                    // Tooltip.install()'d directly on the FontIcon rendered
+                    // the tooltip's own text in the icon's glyph font - a
+                    // plain StackPane wrapper as the actual tooltip owner
+                    // keeps the tooltip out of whatever font-family scoping
+                    // FontIcon applies to itself.
+                    StackPane iconSlot = new StackPane(warningIcon);
+                    Tooltip.install(iconSlot, new Tooltip(
                             String.join(", ", names.stream().map(Localization::lang).toList())));
                     // Index 2, after the spacer (not 1, right after the
                     // label) - the spacer's Hgrow pushes everything after it
                     // to the right as one unit, so the icon needs to be on
                     // the combo box's side of it to sit directly beside the
                     // combo box rather than floating in the middle of the row.
-                    row.getChildren().add(2, warningIcon);
+                    row.getChildren().add(2, iconSlot);
                 }
                 rows.add(row);
             }
