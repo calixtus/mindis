@@ -162,6 +162,18 @@ public class MinDisApp extends Application {
         Double sidebarWidth = workbench == null
                 ? preferencesService.get().sidebarWidth()
                 : Double.valueOf(workbench.getSidebarWidth());
+        // Built before the Workbench (not inline in the varargs list below) so
+        // buildGlobalToolbar(...) can bind to this exact instance afterward.
+        ServicesModule servicesModule = new ServicesModule(Localization.lang("Services"),
+                liveDatabase.services(), liveDatabase.roles(),
+                beanScope.get(TemplateRepository.class),
+                beanScope.get(RoleRepository.class),
+                new PlanningViewModel(
+                        beanScope.get(PlanningService.class),
+                        beanScope.get(PlanRepository.class),
+                        preferencesService,
+                        beanScope.get(PlanExportService.class)),
+                liveDatabase);
         Workbench.Builder builder = Workbench.builder(
                                 new DashboardModule(Localization.lang("Dashboard")),
                                 new RolesModule(Localization.lang("Roles"),
@@ -174,39 +186,38 @@ public class MinDisApp extends Application {
                                 new TemplatesModule(Localization.lang("Templates"),
                                         liveDatabase.templates(), liveDatabase.roles(),
                                         beanScope.get(RoleRepository.class)),
-                                new ServicesModule(Localization.lang("Services"),
-                                        liveDatabase.services(), liveDatabase.roles(),
-                                        beanScope.get(TemplateRepository.class),
-                                        beanScope.get(RoleRepository.class),
-                                        new PlanningViewModel(
-                                                beanScope.get(PlanningService.class),
-                                                beanScope.get(PlanRepository.class),
-                                                preferencesService,
-                                                beanScope.get(PlanExportService.class)),
-                                        liveDatabase))
+                                servicesModule)
                         .bottomModule(new AboutModule(Localization.lang("About"), getHostServices(), logConsole))
                         .bottomModule(new SettingsModule(Localization.lang("Settings"), uiPreferences));
         if (sidebarWidth != null) {
             builder.initialSidebarWidth(sidebarWidth);
         }
         Workbench built = builder.build();
-        built.setTop(buildGlobalToolbar());
+        built.setTop(buildGlobalToolbar(servicesModule));
         return built;
     }
 
     /**
      * The application-wide Save all/Load toolbar, spanning the top of the
-     * workbench: the only flush and reload points for the shared database
-     * (plus Services' plan-coupled pair, which delegates to the same
-     * actions). Rebuilt with each workbench (labels are localized); the
-     * stores it binds to are the long-lived ones.
+     * workbench - the only Save all/Load action app-wide. Delegates straight
+     * to {@link ServicesModule#saveAll()}/{@link ServicesModule#loadAll()}
+     * (which themselves flush/reload {@link #liveDatabase} plus the plan)
+     * rather than calling {@code liveDatabase} directly: a second "is there
+     * anything to save" calculation here - independent of
+     * {@link ServicesModule#planDirtyProperty()} - is exactly how this button
+     * used to go enabled/disabled out of step with an Altar-servers pick.
+     * Rebuilt with each workbench (labels are localized); the state it binds
+     * to is the long-lived {@code liveDatabase} plus the freshly built
+     * {@code servicesModule} (a new instance each rebuild, like every module).
      */
-    private ToolBar buildGlobalToolbar() {
+    private ToolBar buildGlobalToolbar(ServicesModule servicesModule) {
         Button saveAllButton = new Button(Localization.lang("Save all"));
-        saveAllButton.disableProperty().bind(liveDatabase.totalDirtyCount().isEqualTo(0));
-        saveAllButton.setOnAction(event -> liveDatabase.saveAll());
+        saveAllButton.disableProperty().bind(liveDatabase.totalDirtyCount().isEqualTo(0)
+                .and(servicesModule.planDirtyProperty().not())
+                .or(servicesModule.solvingProperty()));
+        saveAllButton.setOnAction(event -> servicesModule.saveAll());
         Button loadButton = new Button(Localization.lang("Load"));
-        loadButton.setOnAction(event -> liveDatabase.loadAll());
+        loadButton.setOnAction(event -> servicesModule.loadAll());
         ToolBar toolbar = new ToolBar(saveAllButton, loadButton);
         toolbar.setStyle("-fx-padding: 8 12 8 12; -fx-spacing: 8;");
         return toolbar;

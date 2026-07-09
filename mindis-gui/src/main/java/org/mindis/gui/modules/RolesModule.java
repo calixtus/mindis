@@ -7,7 +7,6 @@ import java.util.function.IntSupplier;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
-import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
@@ -81,7 +80,7 @@ public class RolesModule extends CrudModule<Role> {
     }
 
     @Override
-    protected Node buildEditor(Role role) {
+    protected EditorBinding<Role> buildEditor(Role role) {
         TextField nameField = new TextField(role.name());
 
         Spinner<Integer> minAgeSpinner = new Spinner<>();
@@ -126,7 +125,14 @@ public class RolesModule extends CrudModule<Role> {
 
         VBox content = new VBox(12, grid);
         content.setPadding(new Insets(12));
-        return content;
+
+        // refresh: the row's value changed externally (e.g. a Load reverted
+        // this role) - push the new value into every control in place.
+        return EditorBinding.of(content, updated -> {
+            nameField.setText(updated.name());
+            minAgeSpinner.getValueFactory().setValue(updated.minAge());
+            maxAgeSpinner.getValueFactory().setValue(updated.maxAge());
+        });
     }
 
     /**

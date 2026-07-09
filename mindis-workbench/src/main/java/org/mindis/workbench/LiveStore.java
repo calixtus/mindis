@@ -1,6 +1,5 @@
 package org.mindis.workbench;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,7 +12,6 @@ import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.ReadOnlyIntegerWrapper;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.util.Subscription;
 
 import org.jspecify.annotations.Nullable;
 
@@ -48,7 +46,12 @@ public final class LiveStore<T> {
     private final Map<Object, T> savedSnapshots = new HashMap<>();
     private final Map<Object, T> pendingDeletions = new HashMap<>();
     private final ReadOnlyIntegerWrapper dirtyCount = new ReadOnlyIntegerWrapper(0);
-    private final List<Runnable> refreshListeners = new ArrayList<>();
+    // A plain monotonically-increasing counter, not a Runnable listener list:
+    // every refresh() bumps it by exactly 1, so it never repeats a value and
+    // a standard JavaFX property invalidation always fires - no bespoke
+    // "always notify" event plumbing needed, just an ordinary
+    // ReadOnlyIntegerProperty subscribers observe the normal way.
+    private final ReadOnlyIntegerWrapper refreshTick = new ReadOnlyIntegerWrapper(0);
 
     private final Supplier<List<T>> loader;
     private final Consumer<T> stage;
@@ -183,10 +186,10 @@ public final class LiveStore<T> {
 
     /**
      * Re-mirrors the repository's current staged state and re-baselines the
-     * dirty tracking against it, then notifies {@link #onRefresh(Runnable)}
-     * listeners. Only meaningful right after a repository-level flush or
-     * reload (when staged state and disk agree) - calling it at any other
-     * moment would wrongly re-baseline unflushed edits as clean.
+     * dirty tracking against it, then bumps {@link #refreshTickProperty()}.
+     * Only meaningful right after a repository-level flush or reload (when
+     * staged state and disk agree) - calling it at any other moment would
+     * wrongly re-baseline unflushed edits as clean.
      */
     public void refresh() {
         List<T> loaded = loader.get();
@@ -197,20 +200,22 @@ public final class LiveStore<T> {
         }
         pendingDeletions.clear();
         recomputeDirtyCount();
-        for (Runnable listener : List.copyOf(refreshListeners)) {
-            listener.run();
-        }
+        refreshTick.set(refreshTick.get() + 1);
     }
 
     /**
-     * Registers a listener invoked at the end of every {@link #refresh()}
-     * (i.e. after a global Save all or Load re-baselined this store). The
-     * store outlives UI rebuilds - a subscriber that is itself rebuilt (e.g.
-     * a workbench module) must unsubscribe when discarded or it leaks.
+     * Increments by 1 at the end of every {@link #refresh()} (i.e. after a
+     * global Save all or Load re-baselined this store) - subscribe with a
+     * plain {@code refreshTickProperty().subscribe(...)} or
+     * {@code addListener(...)}. A counter, not the re-baselined value itself,
+     * so a standard JavaFX property change is guaranteed to fire every time
+     * (a monotonic increment is never equal to its previous value); the store
+     * outlives UI rebuilds - a subscriber that is itself rebuilt (e.g. a
+     * workbench module) must unsubscribe (the {@link javafx.util.Subscription}
+     * returned by {@code subscribe(...)}) when discarded, or it leaks.
      */
-    public Subscription onRefresh(Runnable listener) {
-        refreshListeners.add(listener);
-        return () -> refreshListeners.remove(listener);
+    public ReadOnlyIntegerProperty refreshTickProperty() {
+        return refreshTick.getReadOnlyProperty();
     }
 
     private boolean isDirty(T item) {

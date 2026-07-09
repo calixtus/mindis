@@ -69,7 +69,7 @@ public final class LiveDatabase {
 
     /**
      * Flushes every staged edit to disk and re-baselines all stores (dirty
-     * counts clear, {@code :crud-new} styling drops, refresh listeners fire).
+     * counts clear, refresh listeners fire).
      */
     public void saveAll() {
         database.saveAll();

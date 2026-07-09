@@ -7,11 +7,9 @@ import java.util.Locale;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.VPos;
-import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -53,18 +51,12 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
 
     private final TemplatesViewModel viewModel;
     private final LiveStore<Role> roleStore;
-    // Rebuilds the open editor when the shared role list changes, so a role
-    // created or renamed (even unsaved) in the Roles module gets its spinner
-    // row immediately. A field so dispose() can detach it from the
-    // module-outliving store list.
-    private final ListChangeListener<Role> roleChangeListener = change -> refreshSelectedEditor();
 
     public TemplatesModule(String name, LiveStore<ServiceTemplate> templateStore, LiveStore<Role> roleStore,
                            RoleRepository roleRepository) {
         super(name, "mdi2c-calendar-sync", templateStore);
         this.viewModel = new TemplatesViewModel(roleRepository);
         this.roleStore = roleStore;
-        roleStore.items().addListener(roleChangeListener);
 
         TableColumn<ServiceTemplate, String> dayColumn = new TableColumn<>(Localization.lang("Weekday"));
         dayColumn.setPrefWidth(110);
@@ -107,26 +99,12 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
     }
 
     @Override
-    public void dispose() {
-        roleStore.items().removeListener(roleChangeListener);
-        super.dispose();
-    }
-
-    @Override
     protected ServiceTemplate createStub() {
         return viewModel.createStub();
     }
 
-    /** Rebuilds the editor for the currently selected row, if any - e.g. after the shared role list changed. */
-    private void refreshSelectedEditor() {
-        ServiceTemplate selected = table().getSelectionModel().getSelectedItem();
-        if (selected != null) {
-            editorProperty().set(buildEditor(selected));
-        }
-    }
-
     @Override
-    protected Node buildEditor(ServiceTemplate template) {
+    protected EditorBinding<ServiceTemplate> buildEditor(ServiceTemplate template) {
         ComboBox<DayOfWeek> dayBox = new ComboBox<>(FXCollections.observableArrayList(DayOfWeek.values()));
         dayBox.setConverter(new StringConverter<>() {
             @Override
@@ -161,7 +139,10 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         TextField locationField = new TextField(template.location());
 
         Runnable[] pushLiveHolder = new Runnable[1];
-        RoleSlotsEditor slotsEditor = new RoleSlotsEditor(viewModel.findAllRoles(), template.slots(),
+        // Bound directly to the shared live role list - a role added,
+        // renamed or removed anywhere shows up in this editor's slot rows on
+        // its own, no rebuild call from here needed.
+        RoleSlotsEditor slotsEditor = new RoleSlotsEditor(roleStore.items(), template.slots(),
                 slots -> pushLiveHolder[0].run());
 
         Runnable pushLive = () -> {
@@ -208,6 +189,16 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         VBox content = new VBox(10, grid);
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
-        return content;
+
+        // refresh: the row's value changed externally (e.g. a Load reverted
+        // this template) - push the new value into every control in place,
+        // no rebuild, so the row survives without losing focus/scroll state.
+        return new EditorBinding<>(content, updated -> {
+            dayBox.getSelectionModel().select(updated.dayOfWeek());
+            timeField.setTime(updated.time());
+            typeBox.getSelectionModel().select(updated.type());
+            locationField.setText(updated.location());
+            slotsEditor.setSlots(updated.slots());
+        }, slotsEditor::dispose);
     }
 }

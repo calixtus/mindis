@@ -14,10 +14,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -94,6 +98,28 @@ import org.mindis.workbench.LiveStore;
  * plan preserving in-progress (possibly unsaved) assignments - the same
  * "Load assignments" vs. "refresh preserving assignments" distinction the
  * old Planning controller made, just triggered by different UI events now.
+ * There is exactly one Save all/Load action app-wide - the global toolbar
+ * built in {@code MinDisApp} - which drives {@link #saveAll()}/
+ * {@link #loadAll()} directly (this module keeps no Save all/Load buttons of
+ * its own): a second, module-local button computing its own "is there
+ * anything to save" independently of the global one is exactly how the
+ * global button ended up enabled/disabled out of step with an Altar-servers
+ * pick in practice.
+ *
+ * <p>There is deliberately no separate "plan" concept distinct from the
+ * services list: {@link #liveAssignments} is a plain {@code ObservableList},
+ * the same reactive idiom every {@code LiveStore} already uses - not a
+ * bespoke property wrapper. Every place that used to need an explicit
+ * "please rebuild the editor" call (a tab reactivation, a range change, a
+ * Save all/Load, a solve finishing) now just calls
+ * {@link #publishPlan(ServicePlan)}, which replaces {@link
+ * #liveAssignments}' contents via {@code setAll(...)}; the open editor's
+ * Altar-servers panel listens to that list directly (see {@link
+ * #buildEditor}). {@code setAll(...)} always fires a change notification even
+ * when the elements are the exact same object references already held -
+ * unlike a plain {@code ObjectProperty<ServicePlan>}, which would silently
+ * suppress the notification once Timefold's solver started mutating those
+ * objects in place instead of replacing them.
  */
 public class ServicesModule extends CrudModule<LiturgicalService> {
 
@@ -109,11 +135,6 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     private final PlanningViewModel planningViewModel;
     private final LiveDatabase liveDatabase;
     private final LiveStore<Role> roleStore;
-    // Rebuilds the open editor when the shared role list changes, so a role
-    // created or renamed (even unsaved) in the Roles module gets its spinner
-    // row immediately. A field so dispose() can detach it from the
-    // module-outliving store list.
-    private final ListChangeListener<Role> roleChangeListener = change -> refreshSelectedEditor();
     private final Subscription storeRefreshSubscription;
 
     private final CalendarPicker fromPicker = CalendarPickers.create();
@@ -122,8 +143,8 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     private final Label statusLabel = new Label();
     private final BooleanProperty solving = new SimpleBooleanProperty(false);
     private final BooleanProperty hasPlan = new SimpleBooleanProperty(false);
-    // Whether currentPlan's assignments differ from what's on disk - the
-    // plan-side half of "Save all"'s dirty state (the other half is
+    // Whether the current plan's assignments differ from what's on disk -
+    // the plan-side half of "Save all"'s dirty state (the other half is
     // CrudModule's own dirtyCountProperty(), tracking LiturgicalService
     // record edits). Recomputed (not just set true) after every assignment
     // pick and solver run, by diffing against savedPlanSnapshot - so
@@ -133,7 +154,24 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     private final BooleanProperty planDirty = new SimpleBooleanProperty(false);
     private @Nullable AcceptedPlan savedPlanSnapshot;
 
+    // Plain field, not a property - the plan object itself is an
+    // implementation detail (needed for scoreOf()/violationsByAssignment()/
+    // PlanMapper, which operate on the whole ServicePlan, not just its
+    // assignments). Every read goes through this field directly; every write
+    // goes through publishPlan(...), which is also what keeps
+    // liveAssignments/planPresent in sync - never assign this field itself.
     private @Nullable ServicePlan currentPlan;
+    /**
+     * The reactive surface for "what's currently assigned" - the open
+     * editor's Altar-servers panel and the table's "Assigned" column both
+     * ultimately read this (the table indirectly, via {@link #assignedCount}
+     * reading {@link #currentPlan} - {@link #publishPlan} always calls {@code
+     * table().refresh()}'s callers immediately afterward). See class docs for
+     * why this is a plain {@code ObservableList}, not a property.
+     */
+    private final ObservableList<Assignment> liveAssignments = FXCollections.observableArrayList();
+    /** Whether a plan object currently exists (regardless of whether it has any assignments yet). */
+    private final ReadOnlyBooleanWrapper planPresent = new ReadOnlyBooleanWrapper(false);
     private @Nullable UUID jobId;
 
     // The editor's own live (possibly unsaved) slot counts for whichever
@@ -154,17 +192,14 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         this.planningViewModel = planningViewModel;
         this.liveDatabase = liveDatabase;
         this.roleStore = roleStore;
-        roleStore.items().addListener(roleChangeListener);
-        // A store re-baseline (global Save all or Load - including this
-        // module's own buttons, which delegate to the same actions) may have
-        // changed the services/roster underneath the plan: re-resolve which
-        // saved plan applies and rebuild, preserving in-progress assignments
-        // (after a save that's a cheap no-op; after a load it re-anchors the
-        // plan to the reverted data).
-        storeRefreshSubscription = serviceStore.onRefresh(() -> {
+        // A store re-baseline (the global Save all/Load - see saveAll()/
+        // loadAll() below) may have changed the services/roster underneath
+        // the plan: re-resolve which saved plan applies and rebuild
+        // (publishPlan(...) inside rebuildCurrentPlan() reactively updates
+        // any open editor on its own).
+        storeRefreshSubscription = serviceStore.refreshTickProperty().subscribe(() -> {
             reloadSavedPlanSnapshot();
             rebuildCurrentPlan();
-            refreshSelectedEditor();
             table().refresh();
         });
 
@@ -243,11 +278,6 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         Button deleteButton = new Button(Localization.lang("Delete"));
         deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelected());
-        Button loadButton = new Button(Localization.lang("Load"));
-        loadButton.setOnAction(event -> onLoad());
-        Button saveAllButton = new Button(Localization.lang("Save all"));
-        saveAllButton.disableProperty().bind(dirtyCountProperty().isEqualTo(0).and(planDirty.not()).or(solving));
-        saveAllButton.setOnAction(event -> onSaveAll());
 
         ServiceCsvMapper serviceCsvMapper = new ServiceCsvMapper(roleRepository);
         CsvRowMapper<LiturgicalService> csvMapper =
@@ -279,7 +309,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         Button archiveButton = new Button(Localization.lang("Archived plans"));
         archiveButton.setOnAction(event -> ArchivedPlansDialog.show(planningViewModel, table().getScene().getWindow()));
 
-        toolbarExtras().addAll(newButton, deleteButton, loadButton, saveAllButton, new Separator(Orientation.VERTICAL),
+        toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL),
                 new Label(Localization.lang("From")), fromPicker,
                 new Label(Localization.lang("To")), toPicker, generateButton,
                 new Separator(Orientation.VERTICAL), exportButton, importButton,
@@ -298,26 +328,34 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         // Reactivating the tab rebuilds the same plan preserving in-progress
         // assignments, picking up service/roster edits made in other modules
         // since the last visit (the former loadAll() side effect).
+        // publishPlan(...) inside rebuildCurrentPlan() already reactively
+        // refreshes any open editor's Altar-servers panel - no explicit
+        // "refresh the editor" call needed here or anywhere else.
         rebuildCurrentPlan();
         table().refresh();
     }
 
     @Override
     public void dispose() {
-        roleStore.items().removeListener(roleChangeListener);
         storeRefreshSubscription.unsubscribe();
         super.dispose();
     }
 
     @Override
-    protected Node buildEditor(LiturgicalService service) {
+    protected EditorBinding<LiturgicalService> buildEditor(LiturgicalService service) {
         // The field-changed accents below compare each control against the
         // last-persisted value, not against service itself - service may
         // already be a live (unsaved) edit pushed in by a previous visit to
         // this row's editor, and comparing against itself would always read
         // "unchanged" even though it still differs from disk. Falls back to
         // service for a not-yet-saved new row (no persisted snapshot exists).
-        LiturgicalService baseline = Objects.requireNonNullElse(savedSnapshot(service), service);
+        // A supplier, not a one-time snapshot: savedSnapshot(service) looks
+        // the row up by identity, so calling it again after a Save all
+        // returns the newly-flushed value - re-evaluating field-changed
+        // accents against a fixed baseline captured only at editor-open time
+        // was exactly why they used to stay stuck "dirty" after saving.
+        Supplier<LiturgicalService> baselineSupplier =
+                () -> Objects.requireNonNullElse(savedSnapshot(service), service);
 
         CalendarPicker dateField = CalendarPickers.create();
         dateField.setValue(service.dateTime().toLocalDate());
@@ -341,8 +379,36 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         TextField locationField = new TextField(service.location());
         TextField noteField = new TextField(service.note());
 
-        Map<String, Integer> originalSlotCounts = new HashMap<>();
-        baseline.slots().forEach(slot -> originalSlotCounts.put(slot.role(), slot.count()));
+        // The Altar-servers panel is always structurally present - not added
+        // conditionally on "is there a plan right now" - and its visibility
+        // (plus the assignment rows) tracks planPresent reactively. This is
+        // what makes it impossible for the panel to go permanently missing:
+        // there is no "was it ever attached" state to get stuck in, only a
+        // binding that re-evaluates whenever the property changes. Built
+        // before assignmentSection below (not after) - every
+        // buildAssignmentRows(...) call, including the first, needs this
+        // label to set its own dirty accent.
+        Label altarServersTitle = new Label(Localization.lang("Altar servers"));
+        Button autoFillButton = new Button(null, new FontIcon("mdi2a-auto-fix"));
+        autoFillButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
+        autoFillButton.disableProperty().bind(solving);
+        autoFillButton.setOnAction(event -> onAutoFillService(service));
+        Tooltip.install(autoFillButton, new Tooltip(Localization.lang("Auto-fill")));
+        // A solve can run for several seconds with the button just greyed out
+        // otherwise - no visible sign it's doing anything. Swapped for a
+        // small spinner (shared "solving" flag, so this also lights up during
+        // a whole-plan "Solve all" run - correct, the solver really is busy
+        // either way).
+        ProgressIndicator autoFillIndicator = new ProgressIndicator();
+        autoFillIndicator.setPrefSize(16, 16);
+        solving.addListener((obs, wasSolving, isSolving) ->
+                autoFillButton.setGraphic(isSolving ? autoFillIndicator : new FontIcon("mdi2a-auto-fix")));
+        Region titleSpacer = new Region();
+        HBox.setHgrow(titleSpacer, Priority.ALWAYS);
+        HBox altarServersHeader = new HBox(8, altarServersTitle, titleSpacer, autoFillButton);
+        altarServersHeader.setAlignment(Pos.CENTER_LEFT);
+        Separator altarSeparator = new Separator();
+
         // RoleSlotsEditor's onChange callback needs to mark its own label
         // dirty, but that label (slotsEditor.label) doesn't exist until the
         // RoleSlotsEditor constructor - which is where the callback itself
@@ -351,12 +417,27 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         // spinner change, well after the array's single slot is filled in
         // right below the constructor call.
         Region[] slotsListHolder = new Region[1];
+        // Recomputed from baselineSupplier on every call (not captured once)
+        // for the same reason baselineSupplier itself is a supplier - it must
+        // reflect the post-Save baseline, not whatever was last flushed when
+        // this editor was built.
+        Function<List<RoleSlot>, Boolean> slotsChanged = liveSlots -> {
+            Map<String, Integer> baselineCounts = new HashMap<>();
+            baselineSupplier.get().slots().forEach(slot -> baselineCounts.put(slot.role(), slot.count()));
+            Map<String, Integer> liveCounts = new HashMap<>();
+            liveSlots.forEach(slot -> liveCounts.put(slot.role(), slot.count()));
+            return !liveCounts.equals(baselineCounts);
+        };
 
         Runnable[] pushLiveHolder = new Runnable[1];
         VBox assignmentSection = new VBox(6);
-        RoleSlotsEditor slotsEditor = new RoleSlotsEditor(viewModel.findAllRoles(), service.slots(),
+        // Bound directly to the shared live role list - a role added,
+        // renamed or removed anywhere shows up in this editor's slot rows on
+        // its own, no rebuild call from here needed.
+        RoleSlotsEditor slotsEditor = new RoleSlotsEditor(roleStore.items(), service.slots(),
                 liveSlots -> {
-                    assignmentSection.getChildren().setAll(buildAssignmentRows(service, liveSlots, assignmentSection));
+                    assignmentSection.getChildren().setAll(
+                            buildAssignmentRows(service, liveSlots, assignmentSection, altarServersTitle));
                     // The row-rebuild above already updates liveSlotsForEditor
                     // (assignedLabel()'s source for this row's live total),
                     // but the table's own "Assigned" cell only re-reads it
@@ -365,13 +446,13 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     // now-stale ratio until something else (a solve, a
                     // manual pick) happened to trigger a refresh.
                     table().refresh();
-                    Map<String, Integer> liveCounts = new HashMap<>();
-                    liveSlots.forEach(slot -> liveCounts.put(slot.role(), slot.count()));
-                    setFieldChanged(slotsListHolder[0], !liveCounts.equals(originalSlotCounts));
+                    setFieldChanged(slotsListHolder[0], slotsChanged.apply(liveSlots));
                     pushLiveHolder[0].run();
                 });
         slotsListHolder[0] = slotsEditor.label;
-        assignmentSection.getChildren().setAll(buildAssignmentRows(service, slotsEditor.collectSlots(), assignmentSection));
+        setFieldChanged(slotsEditor.label, slotsChanged.apply(slotsEditor.collectSlots()));
+        assignmentSection.getChildren().setAll(
+                buildAssignmentRows(service, slotsEditor.collectSlots(), assignmentSection, altarServersTitle));
 
         GridPane grid = new GridPane();
         grid.setHgap(8);
@@ -423,56 +504,101 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         locationField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
         noteField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
 
-        VBox content = new VBox(10, grid);
-        if (currentPlan != null) {
-            Label altarServersTitle = new Label(Localization.lang("Altar servers"));
-            Button autoFillButton = new Button(null, new FontIcon("mdi2a-auto-fix"));
-            autoFillButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
-            autoFillButton.disableProperty().bind(solving);
-            autoFillButton.setOnAction(event -> onAutoFillService(service));
-            Tooltip.install(autoFillButton, new Tooltip(Localization.lang("Auto-fill")));
-            // A solve can run for several seconds with the button just
-            // greyed out otherwise - no visible sign it's doing anything.
-            // Swapped for a small spinner (shared "solving" flag, so this
-            // also lights up during a whole-plan "Solve all" run - correct,
-            // the solver really is busy either way).
-            ProgressIndicator autoFillIndicator = new ProgressIndicator();
-            autoFillIndicator.setPrefSize(16, 16);
-            solving.addListener((obs, wasSolving, isSolving) ->
-                    autoFillButton.setGraphic(isSolving ? autoFillIndicator : new FontIcon("mdi2a-auto-fix")));
-            Region titleSpacer = new Region();
-            HBox.setHgrow(titleSpacer, Priority.ALWAYS);
-            HBox altarServersHeader = new HBox(8, altarServersTitle, titleSpacer, autoFillButton);
-            altarServersHeader.setAlignment(Pos.CENTER_LEFT);
+        ReadOnlyBooleanProperty hasPlanBinding = planPresent.getReadOnlyProperty();
+        altarSeparator.visibleProperty().bind(hasPlanBinding);
+        altarSeparator.managedProperty().bind(hasPlanBinding);
+        altarServersHeader.visibleProperty().bind(hasPlanBinding);
+        altarServersHeader.managedProperty().bind(hasPlanBinding);
+        assignmentSection.visibleProperty().bind(hasPlanBinding);
+        assignmentSection.managedProperty().bind(hasPlanBinding);
 
-            content.getChildren().addAll(new Separator(), altarServersHeader, assignmentSection);
-        }
+        VBox content = new VBox(10, grid, altarSeparator, altarServersHeader, assignmentSection);
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
-        markDirtyOnChange(dateField.valueProperty(), baseline.dateTime().toLocalDate(), dateLabel);
-        markDirtyOnChange(timeField.timeProperty(), baseline.dateTime().toLocalTime(), timeLabel);
-        markDirtyOnChange(typeBox.valueProperty(), baseline.type(), typeLabel);
-        markDirtyOnChange(locationField.textProperty(), baseline.location(), locationLabel);
-        markDirtyOnChange(noteField.textProperty(), baseline.note(), noteLabel);
-        return content;
+        markDirtyOnChange(dateField.valueProperty(), () -> baselineSupplier.get().dateTime().toLocalDate(), dateLabel);
+        markDirtyOnChange(timeField.timeProperty(), () -> baselineSupplier.get().dateTime().toLocalTime(), timeLabel);
+        markDirtyOnChange(typeBox.valueProperty(), () -> baselineSupplier.get().type(), typeLabel);
+        markDirtyOnChange(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
+        markDirtyOnChange(noteField.textProperty(), () -> baselineSupplier.get().note(), noteLabel);
+
+        // Rebuilds the assignment rows on every liveAssignments change for a
+        // reason other than this row's own manual picks (a solve finishing, a
+        // tab reactivation, a range change, a Save all/Load) - skipped while
+        // solving, so the solver's several-times-a-second "best so far" ticks
+        // don't tear down combo boxes mid-solve; the finalBest callback
+        // always sets solving false *before* publishing the plan, so that
+        // last update always gets through. liveAssignments.setAll(...) fires
+        // this listener unconditionally, even when publishPlan() passed the
+        // exact same (in-place mutated) Assignment instances - see the
+        // field's docs for why that matters.
+        ListChangeListener<Assignment> assignmentsListener = change -> {
+            if (!solving.get()) {
+                assignmentSection.getChildren().setAll(
+                        buildAssignmentRows(service, slotsEditor.collectSlots(), assignmentSection, altarServersTitle));
+                table().refresh();
+            }
+        };
+        liveAssignments.addListener(assignmentsListener);
+
+        return new EditorBinding<>(content, updated -> {
+            dateField.setValue(updated.dateTime().toLocalDate());
+            timeField.setTime(updated.dateTime().toLocalTime());
+            typeBox.getSelectionModel().select(updated.type());
+            locationField.setText(updated.location());
+            noteField.setText(updated.note());
+            slotsEditor.setSlots(updated.slots());
+            // None of the sets above necessarily changed what a control
+            // displays (a Save all moves the baseline, not the live value),
+            // so their own listeners may not have fired - recompute every
+            // accent explicitly rather than relying on one.
+            recomputeFieldChanged(dateField.valueProperty(), () -> baselineSupplier.get().dateTime().toLocalDate(), dateLabel);
+            recomputeFieldChanged(timeField.timeProperty(), () -> baselineSupplier.get().dateTime().toLocalTime(), timeLabel);
+            recomputeFieldChanged(typeBox.valueProperty(), () -> baselineSupplier.get().type(), typeLabel);
+            recomputeFieldChanged(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
+            recomputeFieldChanged(noteField.textProperty(), () -> baselineSupplier.get().note(), noteLabel);
+            setFieldChanged(slotsEditor.label, slotsChanged.apply(updated.slots()));
+            setFieldChanged(altarServersTitle, isAssignmentsDirtyFor(service));
+        }, () -> {
+            liveAssignments.removeListener(assignmentsListener);
+            slotsEditor.dispose();
+        });
     }
 
     /**
      * Left border accent on {@code label} while {@code property}'s current
-     * value differs from {@code original} (the just-loaded, on-disk value) -
-     * a lightweight "you have unsaved changes here" cue that needs no
+     * value differs from {@code original.get()} (the last-flushed value) - a
+     * lightweight "you have unsaved changes here" cue that needs no
      * field-by-field "was this the one that changed" bookkeeping: each field
      * just watches its own drift from where it started, and clears itself
      * the moment the value round-trips back to the original (e.g. undoing a
      * typo). On the field's own label, not the field itself - keeps the
      * accent out of the way of a field's own focus/validation styling.
-     * Saving rebuilds the whole editor against the freshly-saved service as
-     * the new baseline, so every field naturally reports clean again with no
-     * extra reset step.
+     *
+     * <p>{@code original} is a supplier, not a fixed value: a Save all moves
+     * "the last-flushed value" without necessarily changing what the control
+     * displays (the row was already showing its own just-saved content), so
+     * no property change fires to re-evaluate the accent on its own - a fixed
+     * snapshot captured once at editor-build time would leave the accent
+     * stuck "dirty" forever after the first save. Re-reading the supplier on
+     * every future control edit keeps the listener correct going forward;
+     * {@link CrudModule.EditorBinding}'s {@code refresh} callback additionally
+     * re-invokes this method's initial check after a Save all/Load, since
+     * that path changes no control value and so triggers no listener at all.
      */
-    private static <T> void markDirtyOnChange(ObservableValue<T> property, T original, Region label) {
-        property.addListener((obs, oldValue, newValue) -> setFieldChanged(label, !Objects.equals(newValue, original)));
-        setFieldChanged(label, !Objects.equals(property.getValue(), original));
+    private static <T> void markDirtyOnChange(ObservableValue<T> property, Supplier<T> original, Region label) {
+        property.addListener((obs, oldValue, newValue) -> recomputeFieldChanged(property, original, label));
+        recomputeFieldChanged(property, original, label);
+    }
+
+    /**
+     * The comparison {@link #markDirtyOnChange} reruns on every control
+     * change - factored out so an {@code EditorBinding.refresh} (a Save
+     * all/Load, which moves {@code original} without necessarily changing
+     * what the control displays, so no listener fires on its own) can
+     * re-invoke just the comparison without registering a second listener.
+     */
+    private static <T> void recomputeFieldChanged(ObservableValue<T> property, Supplier<T> original, Region label) {
+        setFieldChanged(label, !Objects.equals(property.getValue(), original.get()));
     }
 
     /** Toggles the left-border "unsaved change" accent (see {@code .field-changed} in ThemeStyler) on or off. */
@@ -489,29 +615,35 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     /**
      * Open-slot fill rows for {@code service}, driven by {@code liveSlots} -
      * the role/count editor's current (possibly unsaved) values, not just
-     * whatever's in {@link #currentPlan} - so the list updates the moment a
-     * slot count changes, before Save. A slot instance still backed by an
-     * {@link Assignment} in {@link #currentPlan} (matched by its stable id,
+     * whatever's in the current plan - so the list updates the
+     * moment a slot count changes, before Save. A slot instance still backed
+     * by an {@link Assignment} in the current plan (matched by its stable id,
      * {@code service:role:index}) gets an editable dropdown seeded with its
      * current server; one that isn't - a count bumped up since the plan was
      * last built - gets a disabled placeholder, since there's nothing to
      * write a pick into until Save regenerates the plan for the new count.
      * Decrementing then incrementing a count back before saving never drops
-     * an assignment: the underlying {@link Assignment} objects in {@code
-     * currentPlan} aren't touched by hiding their row, only by an actual
-     * rebuild (Save, tab reactivation, or a range change), so the previously
-     * assigned server reappears exactly as it was.
+     * an assignment: the underlying {@link Assignment} objects in the plan
+     * aren't touched by hiding their row, only by an actual rebuild (Save,
+     * tab reactivation, or a range change), so the previously assigned server
+     * reappears exactly as it was.
      *
      * <p>{@code assignmentSection} is threaded through so a manual pick can
      * rebuild these rows in place: violations (and the warning icon) are
      * computed fresh on every call, so without this a slot's violation
      * status would only ever catch up on the next full editor rebuild
      * (Save, a solve, reselecting the row) rather than the moment the pick
-     * is made.
+     * is made. {@code altarServersTitle} gets the same left-border
+     * "unsaved change" accent as the other fields, recomputed on every call -
+     * this is the single choke point every assignment-affecting change
+     * (a pick, a slot count edit, a solve, an external plan rebuild) already
+     * goes through, so there is no separate call site to remember.
      */
-    private List<Node> buildAssignmentRows(LiturgicalService service, List<RoleSlot> liveSlots, VBox assignmentSection) {
+    private List<Node> buildAssignmentRows(LiturgicalService service, List<RoleSlot> liveSlots,
+                                           VBox assignmentSection, Region altarServersTitle) {
         liveSlotsServiceId = service.id();
         liveSlotsForEditor = liveSlots;
+        setFieldChanged(altarServersTitle, isAssignmentsDirtyFor(service));
         ServicePlan plan = currentPlan;
         if (plan == null || liveSlots.isEmpty()) {
             return List.of();
@@ -566,9 +698,10 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     serverBox.setValue(assignment.getServer());
                     serverBox.valueProperty().addListener((obs, oldServer, newServer) -> {
                         finalAssignment.setServer(newServer);
-                        finalAssignment.setPinned(newServer != null);
+                        finalAssignment.setPinned(resolvePinnedAfterManualPick(finalAssignment, newServer));
                         recomputePlanDirty();
-                        assignmentSection.getChildren().setAll(buildAssignmentRows(service, liveSlots, assignmentSection));
+                        assignmentSection.getChildren().setAll(
+                                buildAssignmentRows(service, liveSlots, assignmentSection, altarServersTitle));
                         refreshScoreAndStatus();
                         table().refresh();
                     });
@@ -657,8 +790,22 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         return new AssignedCount((int) filled, total);
     }
 
+    /**
+     * The only path that may assign {@link #currentPlan} - keeps
+     * {@link #liveAssignments} and {@link #planPresent} in lockstep with it.
+     * {@code liveAssignments.setAll(...)} fires a change notification even
+     * when {@code plan}'s assignments are the exact object references already
+     * held (Timefold mutates them in place rather than cloning) - see the
+     * field's own docs for why that guarantee matters here.
+     */
+    private void publishPlan(@Nullable ServicePlan plan) {
+        currentPlan = plan;
+        liveAssignments.setAll(plan == null ? List.of() : plan.getAssignments());
+        planPresent.set(plan != null);
+    }
+
     private void onRangeChanged() {
-        currentPlan = null;
+        publishPlan(null);
         reloadSavedPlanSnapshot();
         rebuildCurrentPlan();
         table().refresh();
@@ -667,29 +814,34 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     /**
      * Discards every staged edit in the shared database (all modules, by
      * design - there is one database) and unsaved assignment picks, reloading
-     * from disk. The plan is hard-reset ({@code currentPlan = null}) before
-     * the reload so the store-refresh handler rebuilds it fresh against the
-     * reverted data. Bind to the Load button's action.
+     * from disk. The plan is hard-reset before the reload so the
+     * store-refresh handler rebuilds it fresh against the reverted data.
+     * There is exactly one Load action app-wide (the global toolbar button in
+     * {@code MinDisApp}) - it calls this directly rather than going through
+     * {@link LiveDatabase} on its own, since the plan (unlike the four entity
+     * stores) isn't something {@code LiveDatabase} knows about.
      */
-    private void onLoad() {
-        currentPlan = null;
+    public void loadAll() {
+        publishPlan(null);
         liveDatabase.loadAll();
     }
 
-    /** Same period, preserving {@link #currentPlan}'s in-progress assignments while picking up service/roster edits. */
+    /** Same period, preserving the current plan's in-progress assignments while picking up service/roster edits. */
     private void rebuildCurrentPlan() {
         LocalDate from = fromPicker.getValue();
         LocalDate to = toPicker.getValue();
         if (from == null || to == null || to.isBefore(from)) {
-            currentPlan = null;
+            publishPlan(null);
             hasPlan.set(false);
             refreshScoreAndStatus();
             return;
         }
-        currentPlan = currentPlan == null
+        ServicePlan existing = currentPlan;
+        ServicePlan rebuilt = existing == null
                 ? planningViewModel.generateProblem(from, to)
-                : planningViewModel.rebuildPreservingAssignments(currentPlan, from, to);
-        hasPlan.set(!currentPlan.getAssignments().isEmpty());
+                : planningViewModel.rebuildPreservingAssignments(existing, from, to);
+        publishPlan(rebuilt);
+        hasPlan.set(!rebuilt.getAssignments().isEmpty());
         recomputePlanDirty();
         refreshScoreAndStatus();
     }
@@ -704,7 +856,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     }
 
     /**
-     * Diffs {@link #currentPlan} against {@link #savedPlanSnapshot}, ignoring
+     * Diffs the current plan against {@link #savedPlanSnapshot}, ignoring
      * unassigned/unpinned slots on either side (an empty slot on disk and an
      * empty slot in memory are the same "nothing to save" state regardless of
      * assignment id bookkeeping) - so clearing a pick and then setting it back
@@ -734,7 +886,73 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         return byId;
     }
 
+    /**
+     * The pin state to apply after a manual combo-box pick. A plain
+     * {@code newServer != null} would mark *any* interaction as a manual pin
+     * - including reselecting the exact server this slot was last saved
+     * with - permanently diverging from {@link #savedPlanSnapshot} on the pin
+     * flag alone even though the server itself matches, so "picking the
+     * original value back" could never actually clear the dirty accent.
+     * Restoring the saved pin state specifically when the picked server
+     * matches what was saved makes reverting a pick genuinely equivalent to
+     * not having touched it; picking anything else is still a deliberate
+     * manual pin, same as before.
+     */
+    private boolean resolvePinnedAfterManualPick(Assignment assignment, @Nullable Server newServer) {
+        AcceptedPlan saved = savedPlanSnapshot;
+        if (saved != null) {
+            String newServerId = newServer == null ? null : newServer.id();
+            for (AcceptedPlan.PlannedAssignment planned : saved.assignments()) {
+                if (planned.assignmentId().equals(assignment.getId())) {
+                    if (Objects.equals(planned.serverId(), newServerId)) {
+                        return planned.pinned();
+                    }
+                    break;
+                }
+            }
+        }
+        return newServer != null;
+    }
+
+    /**
+     * The Altar-servers-panel counterpart of {@link #recomputePlanDirty()}:
+     * whether {@code service}'s own picks differ from what's on disk, scoped
+     * to just this row (unlike {@link #planDirty}, which is true if *any*
+     * service in the horizon has an unsaved pick) - a per-row accent should
+     * only light up for the row that's actually different.
+     */
+    private boolean isAssignmentsDirtyFor(LiturgicalService service) {
+        ServicePlan plan = currentPlan;
+        if (plan == null) {
+            return false;
+        }
+        String prefix = service.id() + ":";
+        AcceptedPlan current = PlanMapper.toAcceptedPlan(plan, fromPicker.getValue(), toPicker.getValue());
+        Map<String, AcceptedPlan.PlannedAssignment> currentForService = filterByService(meaningfulAssignments(current), prefix);
+        Map<String, AcceptedPlan.PlannedAssignment> savedForService = savedPlanSnapshot == null
+                ? Map.of()
+                : filterByService(meaningfulAssignments(savedPlanSnapshot), prefix);
+        return !currentForService.equals(savedForService);
+    }
+
+    private static Map<String, AcceptedPlan.PlannedAssignment> filterByService(
+            Map<String, AcceptedPlan.PlannedAssignment> assignments, String assignmentIdPrefix) {
+        Map<String, AcceptedPlan.PlannedAssignment> filtered = new HashMap<>();
+        assignments.forEach((id, assignment) -> {
+            if (id.startsWith(assignmentIdPrefix)) {
+                filtered.put(id, assignment);
+            }
+        });
+        return filtered;
+    }
+
     private void onSolveAll() {
+        // Rebuild against the live (possibly unsaved) database right before
+        // solving - preserving in-progress picks - so a roster/service edit
+        // made without revisiting this tab (or without Save all) is still
+        // reflected. The solver must never require a save first: repositories
+        // are already the shared in-memory source of truth.
+        rebuildCurrentPlan();
         ServicePlan plan = currentPlan;
         if (plan == null || plan.getAssignments().isEmpty()) {
             return;
@@ -743,16 +961,18 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         statusLabel.setText(Localization.lang("Solving..."));
         jobId = planningViewModel.solveAsync(plan,
                 best -> Platform.runLater(() -> {
-                    currentPlan = best;
+                    publishPlan(best);
                     refreshScoreAndStatus();
                     table().refresh();
                 }),
                 finalBest -> Platform.runLater(() -> {
-                    currentPlan = finalBest;
+                    // solving false *before* publishing the plan, so the open
+                    // editor's onPlanChange listener (which skips while
+                    // solving) lets this final rebuild through.
                     solving.set(false);
+                    publishPlan(finalBest);
                     recomputePlanDirty();
                     refreshScoreAndStatus();
-                    refreshSelectedEditor();
                     table().refresh();
                     statusLabel.setText(Localization.lang("Solving finished"));
                 }),
@@ -771,8 +991,22 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
      * since the planner asked for this fill just as deliberately.
      */
     private void onAutoFillService(LiturgicalService service) {
+        if (solving.get()) {
+            return;
+        }
+        // Rebuild first, same reason as onSolveAll(): a slot count shrunk (or
+        // zeroed) in the editor since the plan was last built leaves stale
+        // Assignment objects sitting in the old plan - not pruned on a
+        // shrink, only on a rebuild, so that growing the count back before
+        // saving can still restore the previous pick (see
+        // buildAssignmentRows' docs). Solving against the stale plan directly
+        // would fill those hidden assignments: the table (which reads the
+        // plan directly) would then count them as assigned while this
+        // service's own editor - which hides rows for slots that no longer
+        // exist - shows nothing, exactly the mismatch a rebuild here avoids.
+        rebuildCurrentPlan();
         ServicePlan plan = currentPlan;
-        if (plan == null || solving.get()) {
+        if (plan == null) {
             return;
         }
         Map<String, Boolean> pinSnapshot = new HashMap<>();
@@ -785,21 +1019,31 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         solving.set(true);
         statusLabel.setText(Localization.lang("Solving..."));
         jobId = planningViewModel.solveAsync(plan, AUTO_FILL_TIME_BUDGET,
-                best -> Platform.runLater(() -> currentPlan = best),
+                best -> Platform.runLater(() -> publishPlan(best)),
                 finalBest -> Platform.runLater(() -> {
-                    currentPlan = finalBest;
                     for (Assignment assignment : finalBest.getAssignments()) {
                         if (assignment.getService().id().equals(service.id())) {
-                            assignment.setPinned(assignment.getServer() != null);
+                            // Same resolver as a manual combo-box pick, not a
+                            // blind "pinned = server != null": the solver
+                            // reproducing the exact server this slot already
+                            // had saved on disk must not force a pin that
+                            // wasn't there before, or Save all stays
+                            // permanently enabled despite nothing actually
+                            // differing from disk - the auto-fill equivalent
+                            // of picking the original value back by hand.
+                            assignment.setPinned(resolvePinnedAfterManualPick(assignment, assignment.getServer()));
                         } else {
                             Boolean wasPinned = pinSnapshot.get(assignment.getId());
                             assignment.setPinned(wasPinned != null && wasPinned);
                         }
                     }
+                    // solving false *before* publishing the plan, so the open
+                    // editor's onPlanChange listener (which skips while
+                    // solving) lets this final rebuild through.
                     solving.set(false);
+                    publishPlan(finalBest);
                     recomputePlanDirty();
                     refreshScoreAndStatus();
-                    refreshSelectedEditor();
                     table().refresh();
                     statusLabel.setText(Localization.lang("Solving finished"));
                 }),
@@ -817,13 +1061,21 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     }
 
     /**
-     * "Save all" persists both halves of the live state in one click: if
+     * Persists both halves of the live state in one call: if
      * {@link #planDirty} (an assignment was picked or a solve ran since the
      * last save), the current plan; then the whole shared database - "Save
      * all" always means "flush the database", so pending edits from every
-     * module land on disk together, not just this tab's.
+     * module land on disk together, not just this tab's. There is exactly
+     * one Save all action app-wide (the global toolbar button in
+     * {@code MinDisApp}) - it calls this directly rather than going through
+     * {@link LiveDatabase} on its own, since the plan (unlike the four entity
+     * stores) isn't something {@code LiveDatabase} knows about; a separate
+     * per-module button here would mean two places compute "is there
+     * anything to save", which is exactly the divergence (global button
+     * enabled/disabled independently of an Altar-servers pick) that made a
+     * single button necessary in the first place.
      */
-    private void onSaveAll() {
+    public void saveAll() {
         ServicePlan plan = currentPlan;
         if (plan != null && planDirty.get()) {
             planningViewModel.savePlan(plan, fromPicker.getValue(), toPicker.getValue());
@@ -832,6 +1084,16 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         }
         liveDatabase.saveAll();
         statusLabel.setText(Localization.lang("Saved"));
+    }
+
+    /** Whether an assignment pick or a solve run differs from what's on disk - part of the global Save all's enablement. */
+    public ReadOnlyBooleanProperty planDirtyProperty() {
+        return planDirty;
+    }
+
+    /** Whether the solver is currently running - the global Save all must stay disabled while true, same as this tab's own controls. */
+    public ReadOnlyBooleanProperty solvingProperty() {
+        return solving;
     }
 
     private void onExportPlan() {
@@ -885,13 +1147,5 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                 ? Localization.lang("Feasible")
                 : Localization.lang("Has violations");
         scoreLabel.setText(Localization.lang("Score") + ": " + score + " (" + feasibility + ")");
-    }
-
-    /** Rebuilds the editor for the currently selected row, if any - assignment objects may be stale after a solve. */
-    private void refreshSelectedEditor() {
-        LiturgicalService selected = table().getSelectionModel().getSelectedItem();
-        if (selected != null) {
-            editorProperty().set(buildEditor(selected));
-        }
     }
 }

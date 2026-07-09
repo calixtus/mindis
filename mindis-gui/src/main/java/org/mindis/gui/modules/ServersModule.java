@@ -150,7 +150,7 @@ public class ServersModule extends CrudModule<Server> {
     }
 
     @Override
-    protected Node buildEditor(Server server) {
+    protected EditorBinding<Server> buildEditor(Server server) {
         TextField firstNameField = new TextField(server.firstName());
         TextField lastNameField = new TextField(server.lastName());
         TextField contactField = new TextField(server.contact());
@@ -387,7 +387,23 @@ public class ServersModule extends CrudModule<Server> {
         VBox content = new VBox(10, grid);
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
-        return content;
+
+        // refresh: the row's value changed externally (e.g. a Load reverted
+        // this server) - push every field back to the new value in place.
+        return EditorBinding.of(content, updated -> {
+            firstNameField.setText(updated.firstName());
+            lastNameField.setText(updated.lastName());
+            contactField.setText(updated.contact());
+            birthDatePicker.setValue(updated.birthDate());
+            String updatedFamilyId = updated.familyId();
+            familyIdField.setSelectedItem(updatedFamilyId == null ? "" : updatedFamilyId);
+            qualificationSelected.forEach((roleId, ticked) -> ticked.set(updated.qualifications().contains(roleId)));
+            preferredTimesItems.setAll(updated.preferredTimes().stream().sorted().toList());
+            refreshPreferredTimeChips(preferredTimesTiles, preferredTimesItems, preferredTimeInputGroup);
+            unavailabilityList.getItems().setAll(updated.unavailabilities());
+            experiencedCheck.setSelected(updated.experienced());
+            activeCheck.setSelected(updated.active());
+        });
     }
 
     /**

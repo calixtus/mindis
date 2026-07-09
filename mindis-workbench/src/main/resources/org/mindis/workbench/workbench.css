@@ -73,8 +73,3 @@
     -fx-border-width: 0 2 0 0;
 }
 
-/* CrudModule: unsaved placeholder row inserted by "New", before the first Save. */
-.table-row-cell:crud-new {
-    -fx-text-fill: -color-fg-muted;
-    -fx-font-style: italic;
-}

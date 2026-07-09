@@ -7,20 +7,20 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
-import javafx.css.PseudoClass;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SplitPane;
-import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.ToolBar;
 import javafx.scene.layout.Priority;
@@ -61,26 +61,42 @@ import org.slf4j.LoggerFactory;
  *       {@link #exportCsv(CsvRowMapper)}/{@link #importCsv(CsvRowMapper,
  *       BiFunction)} as their actions. Push them in the subclass constructor,
  *       since the toolbar is built once on first {@link #activate()}.
- *   <li>{@link #editorProperty()} - set the editor {@link Node} (a
- *       {@code Pane} of field controls) whenever {@link #buildEditor(Object)}
- *       is called; the editor container is automatically disabled while no
- *       row is selected.
+ *   <li>{@link #editorProperty()} - the editor {@link Node} currently shown,
+ *       set automatically from {@link #buildEditor(Object)}'s result; the
+ *       editor container is disabled while no row is selected.
  *   <li>{@link #onActivate()} - optional per-activation hook (the module was
  *       selected in the sidebar). Do <em>not</em> refresh the store from it:
  *       re-baselining on a tab switch would wipe every module's dirty state.
  *   <li>{@link #dispose()} - overriders must call {@code super.dispose()}.
  * </ul>
  *
+ * <p><b>The editor is a facade, not a snapshot render.</b>
+ * {@link #buildEditor(Object)} runs once per row selection - it wires each
+ * control's change listener to call {@link #updateLive(Object)} (writing
+ * through to the repository immediately, visible to every other reader), and
+ * returns an {@link EditorBinding} bundling the built {@link Node} with a
+ * {@code refresh} callback and a {@code dispose} callback. This class calls
+ * {@code refresh} - not {@code buildEditor} again - whenever the selected
+ * row's value changes for a reason other than the editor's own edit (e.g. a
+ * Save all/Load re-baselining the store, or another module editing the same
+ * row): the subclass updates its controls' values in place instead of losing
+ * focus/cursor position to a full teardown-and-rebuild. {@code dispose} runs
+ * when the editor is replaced (a different row selected) or the module itself
+ * is discarded - detach any subscription the editor set up on a longer-lived
+ * object here (an entity-level equivalent of a control's own listener).
+ * Subclasses whose editor depends on external reactive state (another
+ * module's live store, a plan object) should subscribe directly to that state
+ * inside {@link #buildEditor(Object)} and rebuild just the affected part of
+ * the editor when it fires - never require a caller elsewhere to remember to
+ * "refresh" this editor; that class of bug is exactly what this contract
+ * exists to rule out structurally.
+ *
  * <p><b>New/live-edit lifecycle:</b> {@link #newItem()} calls
- * {@link #createStub()} and inserts+selects it as a live row - a normal row
- * from that point on, styled with the {@code :crud-new} CSS pseudo-class
- * (grey/italic by default, see {@code workbench.css}) only until it's first
- * flushed. The subclass's editor is a pure facade over the live store state:
- * every control's change listener should call {@link #updateLive(Object)}
- * with a freshly rebuilt item (there is no per-item Save button). Every edit
- * writes through to the repository cache immediately (visible to all other
- * readers); nothing here writes to disk - flushing belongs to the global
- * Save all, which re-baselines the store via {@link LiveStore#refresh()}.
+ * {@link #createStub()} and inserts+selects it as a live row - an ordinary
+ * row from that point on, displayed exactly like any other (no "unsaved" row
+ * styling - the table always just shows the live store's current values).
+ * Nothing here writes to disk - flushing belongs to the global Save all,
+ * which re-baselines the store via {@link LiveStore#refresh()}.
  * {@link #deleteSelected()} likewise stages the removal; {@link
  * #importCsv(CsvRowMapper, BiFunction)} merges parsed rows as dirty live
  * rows via {@link #mergeLive(List)}.
@@ -92,7 +108,6 @@ import org.slf4j.LoggerFactory;
 public abstract class CrudModule<T> extends WorkbenchModule {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CrudModule.class);
-    private static final PseudoClass CRUD_NEW = PseudoClass.getPseudoClass("crud-new");
 
     private final LiveStore<T> store;
     private final TableView<T> table = new TableView<>();
@@ -103,6 +118,7 @@ public abstract class CrudModule<T> extends WorkbenchModule {
 
     private @Nullable Node view;
     private @Nullable Object lastSelectedKey;
+    private @Nullable EditorBinding<T> currentBinding;
     private boolean suppressEditorRebuild;
 
     protected CrudModule(String name, String iconLiteral, LiveStore<T> store) {
@@ -116,7 +132,24 @@ public abstract class CrudModule<T> extends WorkbenchModule {
                 lastSelectedKey = store.identityOf(selected);
             }
         });
-        refreshSubscription = store.onRefresh(this::restoreSelection);
+        refreshSubscription = store.refreshTickProperty().subscribe(this::restoreSelection);
+        // The one generic mechanism replacing every ad hoc "please remember
+        // to refresh the editor" call site: whenever the store's list changes
+        // for a reason other than this editor's own edit (Save all/Load
+        // re-baselining, a cross-module write to the same row), and that
+        // change touches the currently open row, push the fresh value into
+        // the open editor via refresh() instead of requiring a caller
+        // elsewhere to notice and rebuild it.
+        store.items().addListener((ListChangeListener<T>) change -> {
+            if (suppressEditorRebuild || currentBinding == null || lastSelectedKey == null) {
+                return;
+            }
+            Object key = lastSelectedKey;
+            store.items().stream()
+                    .filter(candidate -> key.equals(store.identityOf(candidate)))
+                    .findFirst()
+                    .ifPresent(currentBinding.refresh());
+        });
     }
 
     /** The shared live store this module is a view over. */
@@ -143,11 +176,28 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     protected abstract T createStub();
 
     /**
-     * Builds (or refreshes and returns) the editor {@code Node} for the given
-     * item; called whenever the table selection changes to a non-null item,
-     * including a freshly created stub.
+     * Builds the editor for {@code item}: called once whenever the table
+     * selection changes to a non-null item (including a freshly created
+     * stub) - not on every value change afterward, see {@link EditorBinding}.
      */
-    protected abstract Node buildEditor(T item);
+    protected abstract EditorBinding<T> buildEditor(T item);
+
+    /**
+     * An editor built for one row selection: the {@link Node} shown, a
+     * {@code refresh} callback this class invokes in place of rebuilding
+     * (see class docs) when the row's value changes for a reason other than
+     * the editor's own edit, and a {@code dispose} callback run when the
+     * editor is discarded (row deselected, or the module itself torn down) -
+     * detach any subscription {@code buildEditor} set up on longer-lived
+     * state (another store, a plan property) here.
+     */
+    public record EditorBinding<T>(Node node, Consumer<T> refresh, Runnable dispose) {
+
+        /** For an editor with nothing to detach on disposal. */
+        public static <T> EditorBinding<T> of(Node node, Consumer<T> refresh) {
+            return new EditorBinding<>(node, refresh, () -> { });
+        }
+    }
 
     /** Per-activation hook (module selected in the sidebar); default no-op. */
     protected void onActivate() {
@@ -167,6 +217,9 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     @Override
     public void dispose() {
         refreshSubscription.unsubscribe();
+        if (currentBinding != null) {
+            currentBinding.dispose().run();
+        }
     }
 
     /**
@@ -253,19 +306,22 @@ public abstract class CrudModule<T> extends WorkbenchModule {
 
     private Node buildView() {
         table.setItems(store.items());
-        table.setRowFactory(tableView -> {
-            TableRow<T> row = new TableRow<>();
-            row.itemProperty().subscribe(rowItem ->
-                    row.pseudoClassStateChanged(CRUD_NEW,
-                            rowItem != null && store.savedSnapshot(rowItem) == null));
-            return row;
-        });
 
         table.getSelectionModel().selectedItemProperty().subscribe((previous, current) -> {
             if (suppressEditorRebuild) {
                 return;
             }
-            editor.set(current == null ? null : buildEditor(current));
+            if (currentBinding != null) {
+                currentBinding.dispose().run();
+                currentBinding = null;
+            }
+            if (current == null) {
+                editor.set(null);
+            } else {
+                EditorBinding<T> binding = buildEditor(current);
+                currentBinding = binding;
+                editor.set(binding.node());
+            }
         });
         editor.subscribe(node -> editorContainer.getChildren().setAll(node == null ? List.of() : List.of(node)));
         editorContainer.disableProperty().bind(table.getSelectionModel().selectedItemProperty().isNull());
