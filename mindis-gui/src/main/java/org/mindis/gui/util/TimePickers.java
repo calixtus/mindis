@@ -23,20 +23,20 @@ public final class TimePickers {
      * always outranks gemsfx's own stylesheet regardless of specificity, no
      * cascade tie to fight.
      *
-     * <p>The clock-face popup ({@code TimePickerPopup}, a plain {@code HBox}
-     * shown by {@code CustomComboBox}'s standard popup mechanism - not a
-     * separate {@code CustomPopupControl} scene the way SearchField's popup
-     * is) crashed the same way: its {@code -fx-background-color: -fx-box-border, white}
-     * left {@code -fx-box-border} unresolved. Fixed at the source in
-     * {@link org.mindis.gui.theme.ThemeStyler} - the same token, same value,
-     * {@code CalendarPickers} already defines for {@code .calendar-view}, just
-     * global here since {@code TimePicker} exposes no popup-content accessor
-     * to attach an author-origin stylesheet to directly the way
-     * {@code CalendarPickers} does via {@code getCalendarView()}. The popup's
-     * other rules use hardcoded literals (white/gray/black), not lookups, so
-     * they don't crash - just don't follow the theme, and can't be fixed the
-     * same way: see {@link org.mindis.gui.theme.ThemeStyler}'s javadoc for why
-     * a direct-rule override attempt didn't work either.
+     * <p>The clock-face popup ({@code TimePickerPopup}) needs the same
+     * treatment for its own rules, including the ones gemsfx writes as
+     * hardcoded literals (white/gray/lightgray/black, not token lookups) for
+     * the idle/hover/selected list cells - a direct rule override of those
+     * previously failed when attached to the app's global scene-level UA
+     * stylesheet ({@link org.mindis.gui.theme.ThemeStyler}), since the popup
+     * is a separate {@code PopupControl} window with its own node-scoped UA
+     * stylesheet, and two same-origin (UA) rules of equal specificity resolve
+     * by declaration order, not simply "app always wins". Attached here
+     * instead, directly on the {@code TimePicker} itself (author origin, like
+     * {@code CalendarPickers} does via {@code getCalendarView()}) - the
+     * popup's {@code PopupControl} declares the {@code TimePicker} as its
+     * {@code getStyleableParent()}, and author-origin rules do cross that
+     * boundary, unlike the UA-origin ones tried before.
      */
     private static final String TIME_PICKER_THEME_CSS = """
             .time-picker {
@@ -48,6 +48,27 @@ public final class TimePickers {
               -fx-mark-color: -color-fg-default;
               -fx-control-inner-background: -color-bg-default;
             }
+            .time-picker-popup {
+              -fx-background-color: -color-border-default, -color-bg-default;
+            }
+            .time-picker-popup .time-list-view .list-cell,
+            .time-picker-popup .time-list-view .list-cell:focus-within,
+            .time-picker-popup .time-list-view .list-cell:selected,
+            .time-picker-popup .time-list-view .list-cell:focused {
+              -fx-background-color: -color-bg-default;
+            }
+            .time-picker-popup .time-list-view .list-cell .time-label {
+              -fx-background-color: -color-bg-subtle;
+              -fx-text-fill: -color-fg-default;
+            }
+            .time-picker-popup .time-list-view .list-cell:hover .time-label {
+              -fx-background-color: -color-accent-subtle;
+              -fx-text-fill: -color-fg-default;
+            }
+            .time-picker-popup .time-list-view .list-cell:selected .time-label {
+              -fx-background-color: -color-accent-emphasis;
+              -fx-text-fill: white;
+            }
             """;
 
     private static final String TIME_PICKER_THEME_STYLESHEET = "data:text/css;base64,"
@@ -57,18 +78,14 @@ public final class TimePickers {
     }
 
     /**
-     * A new {@link TimePicker} restricted to hours and minutes, themed. The
-     * clock icon trigger button is hidden - typing the hour:minute fields
-     * directly is the primary path everywhere this is used, and dropping it
-     * keeps the control compact for a future touch/mobile client too - but
-     * the popup itself stays reachable via Enter/F4 (unchanged gemsfx
-     * behavior) since it no longer crashes, even though its idle/hover rows
-     * still show gemsfx's own unthemed colors (see the class javadoc).
+     * A new {@link TimePicker} restricted to hours and minutes, themed
+     * (including its clock popup - see the class javadoc). The clock icon
+     * trigger button is shown, so a time can be picked without touching the
+     * keyboard; typing the hour:minute fields directly still works too.
      */
     public static TimePicker create() {
         TimePicker picker = new TimePicker();
         picker.setFormat(TimePicker.Format.HOURS_MINUTES);
-        picker.setShowPopupTriggerButton(false);
         picker.getStylesheets().add(TIME_PICKER_THEME_STYLESHEET);
         picker.setTime(LocalTime.of(10, 0));
         return picker;
