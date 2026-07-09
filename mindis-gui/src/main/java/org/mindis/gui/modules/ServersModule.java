@@ -44,7 +44,6 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
-import atlantafx.base.theme.Styles;
 import com.dlsc.gemsfx.CalendarPicker;
 import com.dlsc.gemsfx.ChipView;
 import com.dlsc.gemsfx.SearchField;
@@ -163,16 +162,14 @@ public class ServersModule extends CrudModule<Server> {
                 server.preferredTimes().stream().sorted().toList());
         FlowPane preferredTimesTiles = new FlowPane(6, 6);
         TimePicker preferredTimePicker = TimePickers.create();
-        preferredTimePicker.getStyleClass().add(Styles.LEFT_PILL);
         Button addPreferredTimeButton = new Button(null, new FontIcon("mdi2p-plus"));
-        addPreferredTimeButton.getStyleClass().add(Styles.RIGHT_PILL);
         // A plain Button's own default padding computes a taller natural height
         // than the TimePicker's - binding prefHeight to the picker's height alone
         // (tried first) didn't fix it because minHeight, left at its own larger
         // computed default, is what actually floors the final layout height
         // (JavaFX clamps to at least minHeight). Pinning minHeight to track
-        // prefHeight lets it actually shrink to match, flushing the shared pill
-        // border top and bottom.
+        // prefHeight lets it actually shrink to match, keeping the two controls
+        // visually aligned despite sitting as separate controls, not a pill.
         addPreferredTimeButton.setMinHeight(Region.USE_PREF_SIZE);
         addPreferredTimeButton.setMaxHeight(Region.USE_PREF_SIZE);
         addPreferredTimeButton.prefHeightProperty().bind(preferredTimePicker.heightProperty());
