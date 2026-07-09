@@ -69,6 +69,27 @@ public final class TimePickers {
               -fx-background-color: -color-accent-emphasis;
               -fx-text-fill: white;
             }
+            /*
+             * gemsfx's own edit-button rule (time-picker.css) paints a
+             * 3-layer background (outer-border/inner-border/body-color,
+             * insets 1 1 1 0 / 1 / 2) to fake its own miniature button
+             * border - independent of, and inset from, the picker's own
+             * outer border. The two borders sit 1-2px apart, reading as a
+             * doubled/inset border around the clock icon specifically, most
+             * visible once a control follows it (Servers' "Preferred times"
+             * input group). Flattened to a single layer, matching the rest
+             * of the control - a plain divider (the left border) is enough
+             * to mark it as its own clickable segment.
+             */
+            .time-picker > .box > .edit-button,
+            .time-picker:focused > .box > .edit-button {
+              -fx-background-color: -fx-body-color;
+              -fx-background-insets: 0;
+              -fx-background-radius: 0;
+              -fx-border-color: -fx-outer-border;
+              -fx-border-width: 0 0 0 1;
+              -fx-border-insets: 0;
+            }
             """;
 
     private static final String TIME_PICKER_THEME_STYLESHEET = "data:text/css;base64,"
@@ -79,27 +100,14 @@ public final class TimePickers {
 
     /**
      * A new {@link TimePicker} restricted to hours and minutes, themed
-     * (including its clock popup - see the class javadoc), with the clock
-     * icon trigger button shown - a time can be picked without touching the
-     * keyboard; typing the hour:minute fields directly still works too.
+     * (including its clock popup and, when pill-joined, its trigger button -
+     * see the class javadoc). The clock icon trigger button is shown, so a
+     * time can be picked without touching the keyboard; typing the
+     * hour:minute fields directly still works too.
      */
     public static TimePicker create() {
-        return create(true);
-    }
-
-    /**
-     * As {@link #create()}, but lets the trigger button be left off - for a
-     * picker that's pill-joined with an adjacent button (e.g. Servers'
-     * "Preferred times" input group), where the button adds width the seam
-     * wasn't sized for and its own border reads as a stray inset gap against
-     * the neighboring pill button. Enter/F4 still opens the popup either way
-     * (unchanged gemsfx behavior), so this only removes the pointer-driven
-     * path, not the picker's own keyboard one.
-     */
-    public static TimePicker create(boolean showTriggerButton) {
         TimePicker picker = new TimePicker();
         picker.setFormat(TimePicker.Format.HOURS_MINUTES);
-        picker.setShowPopupTriggerButton(showTriggerButton);
         picker.getStylesheets().add(TIME_PICKER_THEME_STYLESHEET);
         picker.setTime(LocalTime.of(10, 0));
         return picker;
