@@ -243,8 +243,9 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
         VBox assignmentSection = new VBox(6);
         RoleSlotsEditor slotsEditor = new RoleSlotsEditor(viewModel.findAllRoles(), service.slots(),
-                liveSlots -> assignmentSection.getChildren().setAll(buildAssignmentRows(service, liveSlots)));
-        assignmentSection.getChildren().setAll(buildAssignmentRows(service, slotsEditor.collectSlots()));
+                liveSlots -> assignmentSection.getChildren().setAll(
+                        buildAssignmentRows(service, liveSlots, assignmentSection)));
+        assignmentSection.getChildren().setAll(buildAssignmentRows(service, slotsEditor.collectSlots(), assignmentSection));
 
         GridPane grid = new GridPane();
         grid.setHgap(8);
@@ -314,8 +315,15 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
      * currentPlan} aren't touched by hiding their row, only by an actual
      * rebuild (Save, tab reactivation, or a range change), so the previously
      * assigned server reappears exactly as it was.
+     *
+     * <p>{@code assignmentSection} is threaded through so a manual pick can
+     * rebuild these rows in place: violations (and the warning icon) are
+     * computed fresh on every call, so without this a slot's violation
+     * status would only ever catch up on the next full editor rebuild
+     * (Save, a solve, reselecting the row) rather than the moment the pick
+     * is made.
      */
-    private List<Node> buildAssignmentRows(LiturgicalService service, List<RoleSlot> liveSlots) {
+    private List<Node> buildAssignmentRows(LiturgicalService service, List<RoleSlot> liveSlots, VBox assignmentSection) {
         ServicePlan plan = currentPlan;
         if (plan == null || liveSlots.isEmpty()) {
             return List.of();
@@ -355,6 +363,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     serverBox.valueProperty().addListener((obs, oldServer, newServer) -> {
                         assignment.setServer(newServer);
                         assignment.setPinned(newServer != null);
+                        assignmentSection.getChildren().setAll(buildAssignmentRows(service, liveSlots, assignmentSection));
                         refreshScoreAndStatus();
                         table().refresh();
                     });
