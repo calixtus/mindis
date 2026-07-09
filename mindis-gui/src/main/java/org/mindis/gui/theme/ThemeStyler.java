@@ -165,6 +165,9 @@ public final class ThemeStyler {
               -fx-wrap-text: false;
               -fx-text-overrun: ellipsis;
             }
+            .altar-warning-icon {
+              -fx-icon-color: -color-danger-fg;
+            }
             """;
 
     static String buildCss(MinDisPreferences.Theme theme, String accentHex,

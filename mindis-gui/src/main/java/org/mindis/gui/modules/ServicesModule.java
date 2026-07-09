@@ -37,6 +37,7 @@ import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
@@ -345,6 +346,21 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             for (int i = 0; i < slot.count(); i++) {
                 String assignmentId = service.id() + ":" + slot.role() + ":" + i;
                 Assignment assignment = byId.get(assignmentId);
+                // A count bumped up since the plan was last built has no
+                // backing Assignment yet - synthesize one into the live plan
+                // right away (matching PlanningService's own id scheme) so
+                // the row is immediately editable, not just a disabled
+                // "save first" placeholder. Skipped while solving: the
+                // solver thread is actively iterating this same
+                // plan.getAssignments() list on a background thread, and
+                // mutating it concurrently isn't safe - Save (which is
+                // disabled during a solve anyway) still picks the new count
+                // up normally once solving finishes.
+                if (assignment == null && role != null && !solving.get()) {
+                    assignment = new Assignment(assignmentId, service, role);
+                    plan.getAssignments().add(assignment);
+                    byId.put(assignmentId, assignment);
+                }
 
                 ComboBox<Server> serverBox = new ComboBox<>(choices);
                 serverBox.setConverter(new StringConverter<>() {
@@ -359,10 +375,11 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     }
                 });
                 if (assignment != null) {
+                    Assignment finalAssignment = assignment;
                     serverBox.setValue(assignment.getServer());
                     serverBox.valueProperty().addListener((obs, oldServer, newServer) -> {
-                        assignment.setServer(newServer);
-                        assignment.setPinned(newServer != null);
+                        finalAssignment.setServer(newServer);
+                        finalAssignment.setPinned(newServer != null);
                         assignmentSection.getChildren().setAll(buildAssignmentRows(service, liveSlots, assignmentSection));
                         refreshScoreAndStatus();
                         table().refresh();
@@ -374,19 +391,29 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
                 Label roleLabel = new Label(roleName);
                 roleLabel.setMinWidth(110);
-                HBox row = new HBox(8, roleLabel, serverBox);
+                Region spacer = new Region();
+                HBox.setHgrow(spacer, Priority.ALWAYS);
+                HBox row = new HBox(8, roleLabel, spacer, serverBox);
                 row.setAlignment(Pos.CENTER_LEFT);
                 // A fixed fraction of the row's own width (not Hgrow.ALWAYS,
                 // which used to let the combo box eat the entire remaining
-                // row) - bound rather than a flat pixel value so it still
-                // scales with the editor pane's width.
+                // row), right-aligned via the spacer above so every row's
+                // combo box lines up at the same right edge regardless of
+                // its role label's length.
                 serverBox.prefWidthProperty().bind(row.widthProperty().multiply(0.6));
 
                 List<String> names = assignment == null
                         ? List.of() : violations.getOrDefault(assignment.getId(), List.of());
                 if (!names.isEmpty()) {
                     FontIcon warningIcon = new FontIcon("mdi2a-alert-circle");
-                    warningIcon.setStyle("-fx-icon-color: -color-danger-fg;");
+                    // Not setStyle(...): FontIcon applies its own glyph font
+                    // via setStyle(...) internally when constructed, and
+                    // Node.setStyle(...) replaces the whole inline style
+                    // string rather than merging into it - overwriting that
+                    // font-family here left the icon a fallback tofu box, no
+                    // glyph. A style class routes -fx-icon-color through the
+                    // stylesheet cascade instead, which doesn't touch it.
+                    warningIcon.getStyleClass().add("altar-warning-icon");
                     Tooltip.install(warningIcon, new Tooltip(
                             String.join(", ", names.stream().map(Localization::lang).toList())));
                     row.getChildren().add(1, warningIcon);
