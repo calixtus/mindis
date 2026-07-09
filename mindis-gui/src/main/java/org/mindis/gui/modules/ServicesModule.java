@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -31,6 +32,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
@@ -134,9 +136,30 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         locationColumn.setPrefWidth(120);
         locationColumn.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().location()));
 
-        TableColumn<LiturgicalService, String> assignedColumn = new TableColumn<>(Localization.lang("Assigned"));
+        TableColumn<LiturgicalService, LiturgicalService> assignedColumn =
+                new TableColumn<>(Localization.lang("Assigned"));
         assignedColumn.setPrefWidth(90);
-        assignedColumn.setCellValueFactory(data -> new SimpleStringProperty(assignedLabel(data.getValue())));
+        assignedColumn.setCellValueFactory(data -> new SimpleObjectProperty<>(data.getValue()));
+        assignedColumn.setCellFactory(column -> new TableCell<>() {
+            @Override
+            protected void updateItem(LiturgicalService service, boolean empty) {
+                super.updateItem(service, empty);
+                if (empty || service == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+                AssignedCount count = assignedCount(service);
+                setText(count.toString());
+                if (count.underfilled()) {
+                    FontIcon warningIcon = new FontIcon("mdi2a-alert-circle");
+                    warningIcon.getStyleClass().add("altar-warning-icon");
+                    setGraphic(warningIcon);
+                } else {
+                    setGraphic(null);
+                }
+            }
+        });
 
         table().getColumns().add(dateColumn);
         table().getColumns().add(typeColumn);
@@ -333,7 +356,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     slotsEditor.collectSlots(), noteField.getText().strip()));
         });
 
-        VBox content = new VBox(10, grid, new HBox(saveButton));
+        VBox content = new VBox(10, grid);
         if (currentPlan != null) {
             Label altarServersTitle = new Label(Localization.lang("Altar servers"));
             Button autoFillButton = new Button(null, new FontIcon("mdi2a-auto-fix"));
@@ -348,6 +371,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
             content.getChildren().addAll(new Separator(), altarServersHeader, assignmentSection);
         }
+        content.getChildren().add(new HBox(saveButton));
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
         markDirtyOnChange(dateField.valueProperty(), service.dateTime().toLocalDate(), dateLabel);
@@ -524,25 +548,37 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     }
 
     /**
-     * Filled/total count shown in the "Assigned" column; falls back to just
-     * the total when no plan is loaded. For the service currently open in
-     * the editor, {@code total} is the live (possibly unsaved) slot count -
-     * otherwise a filled slot just added in the editor but not yet saved
-     * would show as e.g. "3/2" against the still-persisted total.
+     * Filled/total counts backing the "Assigned" column; {@code filled} is
+     * {@code -1} when no plan is loaded (nothing to be filled yet - the
+     * label falls back to just the total). For the service currently open
+     * in the editor, {@code total} is the live (possibly unsaved) slot
+     * count - otherwise a filled slot just added in the editor but not yet
+     * saved would show as e.g. "3/2" against the still-persisted total.
      */
-    private String assignedLabel(LiturgicalService service) {
+    private record AssignedCount(int filled, int total) {
+        boolean underfilled() {
+            return filled >= 0 && filled < total;
+        }
+
+        @Override
+        public String toString() {
+            return filled < 0 ? String.valueOf(total) : filled + "/" + total;
+        }
+    }
+
+    private AssignedCount assignedCount(LiturgicalService service) {
         int total = service.id().equals(liveSlotsServiceId)
                 ? liveSlotsForEditor.stream().mapToInt(RoleSlot::count).sum()
                 : service.totalSlots();
         ServicePlan plan = currentPlan;
         if (plan == null) {
-            return String.valueOf(total);
+            return new AssignedCount(-1, total);
         }
         long filled = plan.getAssignments().stream()
                 .filter(a -> a.getService().id().equals(service.id()))
                 .filter(a -> a.getServer() != null)
                 .count();
-        return filled + "/" + total;
+        return new AssignedCount((int) filled, total);
     }
 
     private void onRangeChanged() {

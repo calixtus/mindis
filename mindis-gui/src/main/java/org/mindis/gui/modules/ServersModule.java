@@ -161,6 +161,17 @@ public class ServersModule extends CrudModule<Server> {
         ObservableList<LocalTime> preferredTimesItems = FXCollections.observableArrayList(
                 server.preferredTimes().stream().sorted().toList());
         FlowPane preferredTimesTiles = new FlowPane(6, 6);
+        // Same fix as the "Unavailable periods" row below: a FlowPane has no
+        // default "grow to fill" the way Controls do, so without an explicit
+        // max width it can't be stretched to the field column's real width
+        // and wraps/squeezes its chips + picker at a narrow fixed size
+        // regardless of how much room is actually free. Bound to
+        // firstNameField rather than this FlowPane's own parent (there's no
+        // intermediate wrapper here to bind to, unlike unavailabilityBox) -
+        // firstNameField sits in the same grid column and, being a Control,
+        // is already reliably stretched to that column's actual width.
+        preferredTimesTiles.setMaxWidth(Double.MAX_VALUE);
+        preferredTimesTiles.prefWrapLengthProperty().bind(firstNameField.widthProperty());
         TimePicker preferredTimePicker = TimePickers.create();
         Button addPreferredTimeButton = new Button(null, new FontIcon("mdi2p-plus"));
         // A plain Button's own default padding computes a taller natural height
