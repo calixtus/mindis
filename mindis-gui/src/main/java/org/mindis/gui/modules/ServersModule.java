@@ -162,7 +162,7 @@ public class ServersModule extends CrudModule<Server> {
         ObservableList<LocalTime> preferredTimesItems = FXCollections.observableArrayList(
                 server.preferredTimes().stream().sorted().toList());
         FlowPane preferredTimesTiles = new FlowPane(6, 6);
-        TimePicker preferredTimePicker = TimePickers.create();
+        TimePicker preferredTimePicker = TimePickers.create(false);
         preferredTimePicker.getStyleClass().add(Styles.LEFT_PILL);
         Button addPreferredTimeButton = new Button(null, new FontIcon("mdi2p-plus"));
         addPreferredTimeButton.getStyleClass().add(Styles.RIGHT_PILL);
