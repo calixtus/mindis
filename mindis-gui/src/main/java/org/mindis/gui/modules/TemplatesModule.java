@@ -20,7 +20,6 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
@@ -84,6 +83,9 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         Button deleteButton = new Button(Localization.lang("Delete"));
         deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelected());
+        Button saveAllButton = new Button(Localization.lang("Save all"));
+        saveAllButton.disableProperty().bind(dirtyCountProperty().isEqualTo(0));
+        saveAllButton.setOnAction(event -> saveAll());
 
         TemplateCsvMapper templateCsvMapper = new TemplateCsvMapper(roleRepository);
         CsvRowMapper<ServiceTemplate> csvMapper =
@@ -94,7 +96,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         importButton.setOnAction(event -> importCsv(csvMapper,
                 (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
 
-        toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL), exportButton, importButton);
+        toolbarExtras().addAll(newButton, deleteButton, saveAllButton, new Separator(Orientation.VERTICAL), exportButton, importButton);
     }
 
     @Override
@@ -120,6 +122,16 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
     @Override
     protected Object identity(ServiceTemplate template) {
         return template.id();
+    }
+
+    @Override
+    protected boolean isEquivalent(ServiceTemplate a, ServiceTemplate b) {
+        return a.dayOfWeek().equals(b.dayOfWeek())
+                && a.time().equals(b.time())
+                && a.durationMinutes() == b.durationMinutes()
+                && a.location().equals(b.location())
+                && a.type() == b.type()
+                && RoleSlotsEditor.sameSlots(a.slots(), b.slots());
     }
 
     @Override
@@ -157,7 +169,26 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
 
         TextField locationField = new TextField(template.location());
 
-        RoleSlotsEditor slotsEditor = new RoleSlotsEditor(viewModel.findAllRoles(), template.slots());
+        Runnable[] pushLiveHolder = new Runnable[1];
+        RoleSlotsEditor slotsEditor = new RoleSlotsEditor(viewModel.findAllRoles(), template.slots(),
+                slots -> pushLiveHolder[0].run());
+
+        Runnable pushLive = () -> {
+            DayOfWeek day = dayBox.getValue();
+            LocalTime time = timeField.getTime();
+            if (day == null || time == null) {
+                return;
+            }
+            updateLive(new ServiceTemplate(template.id(), day, time, template.durationMinutes(),
+                    locationField.getText().strip(),
+                    typeBox.getValue() == null ? ServiceType.SUNDAY_MASS : typeBox.getValue(),
+                    slotsEditor.collectSlots()));
+        };
+        pushLiveHolder[0] = pushLive;
+        dayBox.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        timeField.timeProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        typeBox.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        locationField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
 
         GridPane grid = new GridPane();
         grid.setHgap(8);
@@ -183,21 +214,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         GridPane.setVgrow(slotsEditor.list(), Priority.ALWAYS);
         grid.add(slotsEditor.list(), 1, row++);
 
-        Button saveButton = new Button(Localization.lang("Save"));
-        saveButton.setDefaultButton(true);
-        saveButton.setOnAction(event -> {
-            DayOfWeek day = dayBox.getValue();
-            LocalTime time = timeField.getTime();
-            if (day == null || time == null) {
-                return;
-            }
-            save(new ServiceTemplate(template.id(), day, time, template.durationMinutes(),
-                    locationField.getText().strip(),
-                    typeBox.getValue() == null ? ServiceType.SUNDAY_MASS : typeBox.getValue(),
-                    slotsEditor.collectSlots()));
-        });
-
-        VBox content = new VBox(10, grid, new HBox(saveButton));
+        VBox content = new VBox(10, grid);
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
         return content;

@@ -18,7 +18,6 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
@@ -64,6 +63,9 @@ public class RolesModule extends CrudModule<Role> {
         Button deleteButton = new Button(Localization.lang("Delete"));
         deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelected());
+        Button saveAllButton = new Button(Localization.lang("Save all"));
+        saveAllButton.disableProperty().bind(dirtyCountProperty().isEqualTo(0));
+        saveAllButton.setOnAction(event -> saveAll());
 
         RoleCsvMapper roleCsvMapper = new RoleCsvMapper(roleRepository);
         CsvRowMapper<Role> csvMapper = CsvRowMapper.of(roleCsvMapper::header, roleCsvMapper::toRow, roleCsvMapper::fromRow);
@@ -73,7 +75,7 @@ public class RolesModule extends CrudModule<Role> {
         importButton.setOnAction(event -> importCsv(csvMapper,
                 (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
 
-        toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL), exportButton, importButton);
+        toolbarExtras().addAll(newButton, deleteButton, saveAllButton, new Separator(Orientation.VERTICAL), exportButton, importButton);
     }
 
     @Override
@@ -116,13 +118,20 @@ public class RolesModule extends CrudModule<Role> {
                 () -> minAgeSpinner.getValue() == null ? MIN_AGE : minAgeSpinner.getValue()));
         minAgeSpinner.getValueFactory().setValue(role.minAge());
         maxAgeSpinner.getValueFactory().setValue(role.maxAge());
+
+        Runnable pushLive = () -> updateLive(new Role(role.id(), nameField.getText().strip(),
+                minAgeSpinner.getValue(), maxAgeSpinner.getValue(), role.sortOrder()));
+
         // Raising the min age above the max age drags the max age up with it.
         minAgeSpinner.valueProperty().subscribe(newMin -> {
             Integer max = maxAgeSpinner.getValue();
             if (newMin != null && max != null && max < newMin) {
                 maxAgeSpinner.getValueFactory().setValue(newMin);
             }
+            pushLive.run();
         });
+        maxAgeSpinner.valueProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        nameField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
 
         GridPane grid = new GridPane();
         grid.setHgap(8);
@@ -138,18 +147,7 @@ public class RolesModule extends CrudModule<Role> {
         grid.add(new Label(Localization.lang("Age range")), 0, 1);
         grid.add(new InputGroup(minAgeSpinner, new Label("–"), maxAgeSpinner), 1, 1);
 
-        Button saveButton = new Button(Localization.lang("Save"));
-        saveButton.setDefaultButton(true);
-        saveButton.setOnAction(event -> {
-            String name = nameField.getText().strip();
-            if (name.isEmpty()) {
-                return;
-            }
-            save(new Role(role.id(), name,
-                    minAgeSpinner.getValue(), maxAgeSpinner.getValue(), role.sortOrder()));
-        });
-
-        VBox content = new VBox(12, grid, new HBox(saveButton));
+        VBox content = new VBox(12, grid);
         content.setPadding(new Insets(12));
         return content;
     }

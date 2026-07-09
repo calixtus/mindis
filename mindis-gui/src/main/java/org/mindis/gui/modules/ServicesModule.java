@@ -65,7 +65,9 @@ import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServiceCsvMapper;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.persistence.TemplateRepository;
+import org.mindis.core.planning.AcceptedPlan;
 import org.mindis.core.planning.Assignment;
+import org.mindis.core.planning.PlanMapper;
 import org.mindis.core.planning.ServicePlan;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -109,6 +111,16 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     private final Label statusLabel = new Label();
     private final BooleanProperty solving = new SimpleBooleanProperty(false);
     private final BooleanProperty hasPlan = new SimpleBooleanProperty(false);
+    // Whether currentPlan's assignments differ from what's on disk - the
+    // plan-side half of "Save all"'s dirty state (the other half is
+    // CrudModule's own dirtyCountProperty(), tracking LiturgicalService
+    // record edits). Recomputed (not just set true) after every assignment
+    // pick and solver run, by diffing against savedPlanSnapshot - so
+    // clearing a pick and then setting it back to its previous value reads
+    // clean again, the same "diff against last-saved state" rule the
+    // CrudModule dirty tracking uses.
+    private final BooleanProperty planDirty = new SimpleBooleanProperty(false);
+    private @Nullable AcceptedPlan savedPlanSnapshot;
 
     private @Nullable ServicePlan currentPlan;
     private @Nullable UUID jobId;
@@ -182,6 +194,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         planningViewModel.loadSavedPlan().ifPresent(saved -> {
             fromPicker.setValue(saved.from());
             toPicker.setValue(saved.toInclusive());
+            savedPlanSnapshot = saved;
         });
         // A range edit means the planner picked a different period - start
         // that period's plan fresh (reapplying whatever's saved for it, if
@@ -201,6 +214,9 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         Button deleteButton = new Button(Localization.lang("Delete"));
         deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelected());
+        Button saveAllButton = new Button(Localization.lang("Save all"));
+        saveAllButton.disableProperty().bind(dirtyCountProperty().isEqualTo(0).and(planDirty.not()).or(solving));
+        saveAllButton.setOnAction(event -> onSaveAll());
 
         ServiceCsvMapper serviceCsvMapper = new ServiceCsvMapper(roleRepository);
         CsvRowMapper<LiturgicalService> csvMapper =
@@ -226,21 +242,18 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         Button stopButton = new Button(Localization.lang("Stop"));
         stopButton.disableProperty().bind(solving.not());
         stopButton.setOnAction(event -> onStop());
-        Button savePlanButton = new Button(Localization.lang("Save plan"));
-        savePlanButton.disableProperty().bind(solving.or(hasPlan.not()));
-        savePlanButton.setOnAction(event -> onSavePlan());
         Button exportPlanButton = new Button(Localization.lang("Export plan"));
         exportPlanButton.disableProperty().bind(solving.or(hasPlan.not()));
         exportPlanButton.setOnAction(event -> onExportPlan());
         Button archiveButton = new Button(Localization.lang("Archived plans"));
         archiveButton.setOnAction(event -> ArchivedPlansDialog.show(planningViewModel, table().getScene().getWindow()));
 
-        toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL),
+        toolbarExtras().addAll(newButton, deleteButton, saveAllButton, new Separator(Orientation.VERTICAL),
                 new Label(Localization.lang("From")), fromPicker,
                 new Label(Localization.lang("To")), toPicker, generateButton,
                 new Separator(Orientation.VERTICAL), exportButton, importButton,
                 new Separator(Orientation.VERTICAL),
-                solveAllButton, solvingIndicator, stopButton, savePlanButton, exportPlanButton, archiveButton,
+                solveAllButton, solvingIndicator, stopButton, exportPlanButton, archiveButton,
                 new Separator(Orientation.VERTICAL), scoreLabel, statusLabel);
     }
 
@@ -269,6 +282,16 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     @Override
     protected Object identity(LiturgicalService service) {
         return service.id();
+    }
+
+    @Override
+    protected boolean isEquivalent(LiturgicalService a, LiturgicalService b) {
+        return a.dateTime().equals(b.dateTime())
+                && a.durationMinutes() == b.durationMinutes()
+                && a.location().equals(b.location())
+                && a.type() == b.type()
+                && a.note().equals(b.note())
+                && RoleSlotsEditor.sameSlots(a.slots(), b.slots());
     }
 
     @Override
@@ -306,6 +329,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         // right below the constructor call.
         Region[] slotsListHolder = new Region[1];
 
+        Runnable[] pushLiveHolder = new Runnable[1];
         VBox assignmentSection = new VBox(6);
         RoleSlotsEditor slotsEditor = new RoleSlotsEditor(viewModel.findAllRoles(), service.slots(),
                 liveSlots -> {
@@ -321,6 +345,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     Map<String, Integer> liveCounts = new HashMap<>();
                     liveSlots.forEach(slot -> liveCounts.put(slot.role(), slot.count()));
                     setFieldChanged(slotsListHolder[0], !liveCounts.equals(originalSlotCounts));
+                    pushLiveHolder[0].run();
                 });
         slotsListHolder[0] = slotsEditor.label;
         assignmentSection.getChildren().setAll(buildAssignmentRows(service, slotsEditor.collectSlots(), assignmentSection));
@@ -357,19 +382,23 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         GridPane.setVgrow(slotsEditor.list(), Priority.ALWAYS);
         grid.add(slotsEditor.list(), 1, row++);
 
-        Button saveButton = new Button(Localization.lang("Save"));
-        saveButton.setDefaultButton(true);
-        saveButton.setOnAction(event -> {
+        Runnable pushLive = () -> {
             LocalDate date = dateField.getValue();
             LocalTime time = timeField.getTime();
             if (date == null || time == null) {
                 return;
             }
-            save(new LiturgicalService(service.id(), date.atTime(time), service.durationMinutes(),
+            updateLive(new LiturgicalService(service.id(), date.atTime(time), service.durationMinutes(),
                     locationField.getText().strip(),
                     typeBox.getValue() == null ? ServiceType.OTHER : typeBox.getValue(),
                     slotsEditor.collectSlots(), noteField.getText().strip()));
-        });
+        };
+        pushLiveHolder[0] = pushLive;
+        dateField.valueProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        timeField.timeProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        typeBox.valueProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        locationField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        noteField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
 
         VBox content = new VBox(10, grid);
         if (currentPlan != null) {
@@ -395,7 +424,6 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
             content.getChildren().addAll(new Separator(), altarServersHeader, assignmentSection);
         }
-        content.getChildren().add(new HBox(saveButton));
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
         markDirtyOnChange(dateField.valueProperty(), service.dateTime().toLocalDate(), dateLabel);
@@ -516,6 +544,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     serverBox.valueProperty().addListener((obs, oldServer, newServer) -> {
                         finalAssignment.setServer(newServer);
                         finalAssignment.setPinned(newServer != null);
+                        recomputePlanDirty();
                         assignmentSection.getChildren().setAll(buildAssignmentRows(service, liveSlots, assignmentSection));
                         refreshScoreAndStatus();
                         table().refresh();
@@ -607,6 +636,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
     private void onRangeChanged() {
         currentPlan = null;
+        reloadSavedPlanSnapshot();
         rebuildCurrentPlan();
         table().refresh();
     }
@@ -625,7 +655,48 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                 ? planningViewModel.generateProblem(from, to)
                 : planningViewModel.rebuildPreservingAssignments(currentPlan, from, to);
         hasPlan.set(!currentPlan.getAssignments().isEmpty());
+        recomputePlanDirty();
         refreshScoreAndStatus();
+    }
+
+    /** Reloads {@link #savedPlanSnapshot} for whatever horizon is currently picked (or clears it if none is saved for it). */
+    private void reloadSavedPlanSnapshot() {
+        LocalDate from = fromPicker.getValue();
+        LocalDate to = toPicker.getValue();
+        savedPlanSnapshot = planningViewModel.loadSavedPlan()
+                .filter(saved -> saved.from().equals(from) && saved.toInclusive().equals(to))
+                .orElse(null);
+    }
+
+    /**
+     * Diffs {@link #currentPlan} against {@link #savedPlanSnapshot}, ignoring
+     * unassigned/unpinned slots on either side (an empty slot on disk and an
+     * empty slot in memory are the same "nothing to save" state regardless of
+     * assignment id bookkeeping) - so clearing a pick and then setting it back
+     * to its previous value reads clean again, not stuck dirty.
+     */
+    private void recomputePlanDirty() {
+        ServicePlan plan = currentPlan;
+        if (plan == null) {
+            planDirty.set(false);
+            return;
+        }
+        AcceptedPlan current = PlanMapper.toAcceptedPlan(plan, fromPicker.getValue(), toPicker.getValue());
+        Map<String, AcceptedPlan.PlannedAssignment> currentMeaningful = meaningfulAssignments(current);
+        Map<String, AcceptedPlan.PlannedAssignment> savedMeaningful = savedPlanSnapshot == null
+                ? Map.of()
+                : meaningfulAssignments(savedPlanSnapshot);
+        planDirty.set(!currentMeaningful.equals(savedMeaningful));
+    }
+
+    private static Map<String, AcceptedPlan.PlannedAssignment> meaningfulAssignments(AcceptedPlan plan) {
+        Map<String, AcceptedPlan.PlannedAssignment> byId = new HashMap<>();
+        for (AcceptedPlan.PlannedAssignment assignment : plan.assignments()) {
+            if (assignment.serverId() != null || assignment.pinned()) {
+                byId.put(assignment.assignmentId(), assignment);
+            }
+        }
+        return byId;
     }
 
     private void onSolveAll() {
@@ -644,6 +715,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                 finalBest -> Platform.runLater(() -> {
                     currentPlan = finalBest;
                     solving.set(false);
+                    recomputePlanDirty();
                     refreshScoreAndStatus();
                     refreshSelectedEditor();
                     table().refresh();
@@ -690,6 +762,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                         }
                     }
                     solving.set(false);
+                    recomputePlanDirty();
                     refreshScoreAndStatus();
                     refreshSelectedEditor();
                     table().refresh();
@@ -708,12 +781,21 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         }
     }
 
-    private void onSavePlan() {
-        if (currentPlan == null) {
-            return;
+    /**
+     * "Save all" persists both halves of this module's live state in one
+     * click: dirty {@link LiturgicalService} records (via the inherited
+     * {@link #saveAll()}) and, if {@link #planDirty} (an assignment was
+     * picked or a solve ran since the last save), the current plan.
+     */
+    private void onSaveAll() {
+        saveAll();
+        ServicePlan plan = currentPlan;
+        if (plan != null && planDirty.get()) {
+            planningViewModel.savePlan(plan, fromPicker.getValue(), toPicker.getValue());
+            savedPlanSnapshot = PlanMapper.toAcceptedPlan(plan, fromPicker.getValue(), toPicker.getValue());
+            recomputePlanDirty();
         }
-        planningViewModel.savePlan(currentPlan, fromPicker.getValue(), toPicker.getValue());
-        statusLabel.setText(Localization.lang("Plan saved"));
+        statusLabel.setText(Localization.lang("Saved"));
     }
 
     private void onExportPlan() {

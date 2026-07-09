@@ -5,10 +5,15 @@ import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.BiFunction;
 
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyIntegerProperty;
+import javafx.beans.property.ReadOnlyIntegerWrapper;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -57,13 +62,17 @@ import org.slf4j.LoggerFactory;
  *       row is selected.
  * </ul>
  *
- * <p><b>New/save lifecycle:</b> {@link #newItem()} calls {@link #createStub()}
- * and inserts+selects it as an unsaved placeholder row (styled with the
- * {@code :crud-new} CSS pseudo-class - grey/italic by default, see
- * {@code workbench.css}). The subclass's editor is expected to call
- * {@link #save(Object)} with the filled-in item when the user confirms (e.g.
- * from a Save button inside the editor {@code Node}). Switching the table
- * selection away from an unsaved placeholder discards it.
+ * <p><b>New/live-edit/save-all lifecycle:</b> {@link #newItem()} calls
+ * {@link #createStub()} and inserts+selects it as an unsaved placeholder row
+ * (styled with the {@code :crud-new} CSS pseudo-class - grey/italic by
+ * default, see {@code workbench.css}). The subclass's editor is a pure facade
+ * over the table's live state: every control's change listener should call
+ * {@link #updateLive(Object)} with a freshly rebuilt item (there is no
+ * per-item Save button). {@link #dirtyCountProperty()} tracks how many rows
+ * differ from their last-persisted snapshot (or are new); bind a "Save all"
+ * button's {@code disableProperty} to it and call {@link #saveAll()} from its
+ * action. Switching the table selection away from an unsaved placeholder
+ * discards it.
  *
  * @param <T> the item type; must have a stable identity accessible via
  *            {@link #identity(Object)} (e.g. a record's {@code id()}), used to
@@ -80,9 +89,12 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     private final ObservableList<Node> toolbarExtras = FXCollections.observableArrayList();
     private final ObjectProperty<Node> editor = new SimpleObjectProperty<>();
     private final StackPane editorContainer = new StackPane();
+    private final Map<Object, T> savedSnapshots = new HashMap<>();
+    private final ReadOnlyIntegerWrapper dirtyCount = new ReadOnlyIntegerWrapper(0);
 
     private @Nullable Node view;
-    private @Nullable T pendingNew;
+    private @Nullable Object pendingNewId;
+    private boolean suppressEditorRebuild;
 
     protected CrudModule(String name, String iconLiteral) {
         super(name, iconLiteral);
@@ -141,27 +153,113 @@ public abstract class CrudModule<T> extends WorkbenchModule {
 
     @Override
     public void deactivate() {
-        if (pendingNew != null) {
-            items.remove(pendingNew);
-            pendingNew = null;
+        if (pendingNewId != null) {
+            items.stream()
+                    .filter(item -> pendingNewId.equals(identity(item)))
+                    .findFirst()
+                    .ifPresent(items::remove);
+            pendingNewId = null;
+            recomputeDirtyCount();
         }
     }
 
     /**
-     * Persists {@code item}, then reloads the table and re-selects it by
-     * {@link #identity(Object)}. Call from the editor's Save action.
+     * Number of rows whose live value differs from its last-persisted
+     * snapshot (or is a not-yet-saved new row). Bind a "Save all" button's
+     * {@code disableProperty} to {@code dirtyCountProperty().isEqualTo(0)}.
      */
-    protected final void save(T item) {
-        persist(item);
-        pendingNew = null;
+    protected final ReadOnlyIntegerProperty dirtyCountProperty() {
+        return dirtyCount.getReadOnlyProperty();
+    }
+
+    /**
+     * Whether {@code a} and {@code b} are equal for dirty-tracking purposes.
+     * Defaults to {@link Objects#equals}; override when a field's natural
+     * equality is too strict for what should count as "unchanged" (e.g. a
+     * nested list whose order isn't semantically significant).
+     */
+    protected boolean isEquivalent(T a, T b) {
+        return Objects.equals(a, b);
+    }
+
+    /**
+     * Pushes a freshly rebuilt value for the row identified by
+     * {@code identity(updated)} straight into the live table state - no disk
+     * write. Call from every control's change listener in
+     * {@link #buildEditor(Object)}. Does not rebuild the open editor (the
+     * edit originated there).
+     */
+    protected final void updateLive(T updated) {
+        Object key = identity(updated);
+        int index = -1;
+        for (int i = 0; i < items.size(); i++) {
+            if (key.equals(identity(items.get(i)))) {
+                index = i;
+                break;
+            }
+        }
+        if (index < 0) {
+            return;
+        }
+        suppressEditorRebuild = true;
+        try {
+            items.set(index, updated);
+            // TableView's selection model treats a list "set" as a
+            // remove+add internally and drops the selection - reselect by
+            // index (still guarded by suppressEditorRebuild, so this
+            // doesn't trigger another editor rebuild) so the row stays
+            // selected and the editor stays enabled mid-edit.
+            if (table.getSelectionModel().getSelectedIndex() != index) {
+                table.getSelectionModel().select(index);
+            }
+        } finally {
+            suppressEditorRebuild = false;
+        }
+        recomputeDirtyCount();
+    }
+
+    /**
+     * Persists every row whose live value differs from its last-persisted
+     * snapshot (or has no snapshot yet - a pending-new row), then reloads.
+     * Bind to a "Save all" button's action.
+     */
+    protected final void saveAll() {
+        for (T item : List.copyOf(items)) {
+            if (isDirty(item)) {
+                persist(item);
+            }
+        }
+        pendingNewId = null;
         refresh();
+    }
+
+    private boolean isDirty(T item) {
+        T snapshot = savedSnapshots.get(identity(item));
+        return snapshot == null || !isEquivalent(item, snapshot);
+    }
+
+    private void recomputeDirtyCount() {
+        int count = 0;
+        for (T item : items) {
+            if (isDirty(item)) {
+                count++;
+            }
+        }
+        dirtyCount.set(count);
     }
 
     /** Reloads the table from {@link #loadAll()}, preserving the selection by identity. */
     protected final void refresh() {
         T selected = table.getSelectionModel().getSelectedItem();
-        Object key = selected == null || selected == pendingNew ? null : identity(selected);
+        boolean selectedIsPendingNew = selected != null && pendingNewId != null
+                && pendingNewId.equals(identity(selected));
+        Object key = selected == null || selectedIsPendingNew ? null : identity(selected);
         items.setAll(loadAll());
+        savedSnapshots.clear();
+        for (T item : items) {
+            savedSnapshots.put(identity(item), item);
+        }
+        recomputeDirtyCount();
         if (key != null) {
             items.stream()
                     .filter(candidate -> key.equals(identity(candidate)))
@@ -175,14 +273,23 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         table.setRowFactory(tableView -> {
             TableRow<T> row = new TableRow<>();
             row.itemProperty().subscribe(rowItem ->
-                    row.pseudoClassStateChanged(CRUD_NEW, rowItem != null && rowItem == pendingNew));
+                    row.pseudoClassStateChanged(CRUD_NEW,
+                            rowItem != null && pendingNewId != null && pendingNewId.equals(identity(rowItem))));
             return row;
         });
 
         table.getSelectionModel().selectedItemProperty().subscribe((previous, current) -> {
-            if (previous != null && previous == pendingNew && current != previous) {
+            if (suppressEditorRebuild) {
+                return;
+            }
+            boolean previousWasPendingNew = previous != null && pendingNewId != null
+                    && pendingNewId.equals(identity(previous));
+            boolean currentIsSamePendingNew = current != null && pendingNewId != null
+                    && pendingNewId.equals(identity(current));
+            if (previousWasPendingNew && !currentIsSamePendingNew) {
                 items.remove(previous);
-                pendingNew = null;
+                pendingNewId = null;
+                recomputeDirtyCount();
             }
             editor.set(current == null ? null : buildEditor(current));
         });
@@ -209,9 +316,10 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     /** Inserts and selects an unsaved {@link #createStub()} placeholder row. Bind to the New button's action. */
     protected final void newItem() {
         T stub = createStub();
-        pendingNew = stub;
+        pendingNewId = identity(stub);
         items.addFirst(stub);
         table.getSelectionModel().select(stub);
+        recomputeDirtyCount();
     }
 
     /** Deletes the selected row (or discards it, if unsaved). Bind to the Delete button's action. */
@@ -220,9 +328,10 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         if (selected == null) {
             return;
         }
-        if (selected == pendingNew) {
+        if (pendingNewId != null && pendingNewId.equals(identity(selected))) {
             items.remove(selected);
-            pendingNew = null;
+            pendingNewId = null;
+            recomputeDirtyCount();
         } else {
             delete(selected);
             refresh();
@@ -276,7 +385,7 @@ public abstract class CrudModule<T> extends WorkbenchModule {
                     imported++;
                 }
             }
-            pendingNew = null;
+            pendingNewId = null;
             refresh();
             new Alert(AlertType.INFORMATION, summaryMessage.apply(imported, dataRows.size())).showAndWait();
         } catch (IOException e) {

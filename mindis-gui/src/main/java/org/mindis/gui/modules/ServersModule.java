@@ -18,6 +18,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -112,6 +113,9 @@ public class ServersModule extends CrudModule<Server> {
         Button deleteButton = new Button(Localization.lang("Delete"));
         deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelected());
+        Button saveAllButton = new Button(Localization.lang("Save all"));
+        saveAllButton.disableProperty().bind(dirtyCountProperty().isEqualTo(0));
+        saveAllButton.setOnAction(event -> saveAll());
 
         ServerCsvMapper serverCsvMapper = new ServerCsvMapper(roleRepository);
         CsvRowMapper<Server> csvMapper =
@@ -122,7 +126,7 @@ public class ServersModule extends CrudModule<Server> {
         importButton.setOnAction(event -> importCsv(csvMapper,
                 (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
 
-        toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL), exportButton, importButton);
+        toolbarExtras().addAll(newButton, deleteButton, saveAllButton, new Separator(Orientation.VERTICAL), exportButton, importButton);
     }
 
     @Override
@@ -273,6 +277,43 @@ public class ServersModule extends CrudModule<Server> {
             }
         });
 
+        // Facade write path: every control's change listener below rebuilds a
+        // fresh Server from current control values and pushes it straight into
+        // the table's live state (no editor-owned Save button).
+        Runnable pushLive = () -> {
+            Set<String> qualifications = new HashSet<>();
+            qualificationSelected.forEach((roleId, ticked) -> {
+                if (ticked.get()) {
+                    qualifications.add(roleId);
+                }
+            });
+            String familyId = familyIdField.getText().strip();
+            updateLive(new Server(
+                    server.id(),
+                    firstNameField.getText().strip(),
+                    lastNameField.getText().strip(),
+                    contactField.getText().strip(),
+                    birthDatePicker.getValue(),
+                    familyId.isEmpty() ? null : familyId,
+                    qualifications,
+                    new ArrayList<>(unavailabilityList.getItems()),
+                    new HashSet<>(preferredTimesItems),
+                    experiencedCheck.isSelected(),
+                    activeCheck.isSelected()));
+        };
+        firstNameField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        lastNameField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        contactField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        birthDatePicker.valueProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        familyIdField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        experiencedCheck.selectedProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        activeCheck.selectedProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        preferredTimesItems.addListener((ListChangeListener<LocalTime>) change -> pushLive.run());
+        unavailabilityList.getItems().addListener(
+                (ListChangeListener<UnavailabilityPeriod>) change -> pushLive.run());
+        qualificationSelected.values().forEach(
+                ticked -> ticked.addListener((obs, oldValue, newValue) -> pushLive.run()));
+
         GridPane grid = new GridPane();
         grid.setHgap(8);
         grid.setVgap(8);
@@ -335,36 +376,7 @@ public class ServersModule extends CrudModule<Server> {
         GridPane.setVgrow(unavailabilityBox, Priority.ALWAYS);
         grid.add(unavailabilityBox, 1, row++);
 
-        Button saveButton = new Button(Localization.lang("Save"));
-        saveButton.setDefaultButton(true);
-        saveButton.setOnAction(event -> {
-            String firstName = firstNameField.getText().strip();
-            String lastName = lastNameField.getText().strip();
-            if (firstName.isEmpty() && lastName.isEmpty()) {
-                return;
-            }
-            Set<String> qualifications = new HashSet<>();
-            qualificationSelected.forEach((roleId, ticked) -> {
-                if (ticked.get()) {
-                    qualifications.add(roleId);
-                }
-            });
-            String familyId = familyIdField.getText().strip();
-            save(new Server(
-                    server.id(),
-                    firstName,
-                    lastName,
-                    contactField.getText().strip(),
-                    birthDatePicker.getValue(),
-                    familyId.isEmpty() ? null : familyId,
-                    qualifications,
-                    new ArrayList<>(unavailabilityList.getItems()),
-                    new HashSet<>(preferredTimesItems),
-                    experiencedCheck.isSelected(),
-                    activeCheck.isSelected()));
-        });
-
-        VBox content = new VBox(10, grid, new HBox(saveButton));
+        VBox content = new VBox(10, grid);
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
         return content;
