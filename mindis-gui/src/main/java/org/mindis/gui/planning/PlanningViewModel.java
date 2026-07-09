@@ -82,7 +82,22 @@ public class PlanningViewModel {
                            Consumer<ServicePlan> finalSolutionConsumer,
                            Consumer<Throwable> exceptionHandler) {
         int seconds = preferencesService.get().solverSecondsLimit();
-        return planningService.solveAsync(problem, Duration.ofSeconds(seconds),
+        return solveAsync(problem, Duration.ofSeconds(seconds),
+                bestSolutionConsumer, finalSolutionConsumer, exceptionHandler);
+    }
+
+    /**
+     * As {@link #solveAsync(ServicePlan, Consumer, Consumer, Consumer)}, but
+     * with an explicit time budget instead of the preferences-configured one
+     * - for a scoped solve (e.g. one service's open slots, everything else
+     * pinned) where the user's full-plan time budget would be a needlessly
+     * long wait for a problem with far fewer decision variables.
+     */
+    public UUID solveAsync(ServicePlan problem, Duration timeBudget,
+                           Consumer<ServicePlan> bestSolutionConsumer,
+                           Consumer<ServicePlan> finalSolutionConsumer,
+                           Consumer<Throwable> exceptionHandler) {
+        return planningService.solveAsync(problem, timeBudget,
                 bestSolutionConsumer, finalSolutionConsumer, exceptionHandler);
     }
 

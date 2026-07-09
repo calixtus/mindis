@@ -4,6 +4,7 @@ import ai.timefold.solver.core.api.score.HardMediumSoftScore;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -35,6 +36,7 @@ import javafx.scene.control.Separator;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TextField;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -93,6 +95,10 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ServicesModule.class);
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
     private static final double EDITOR_MIN_HEIGHT = 520;
+    // Auto-fill only leaves one service's slots unpinned - a far smaller
+    // problem than a whole-plan solve, so it doesn't need the user's
+    // full solverSecondsLimit (often 30s+) to converge.
+    private static final Duration AUTO_FILL_TIME_BUDGET = Duration.ofSeconds(5);
 
     private final ServicesViewModel viewModel;
     private final PlanningViewModel planningViewModel;
@@ -208,6 +214,15 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         Button solveAllButton = new Button(Localization.lang("Solve all"));
         solveAllButton.disableProperty().bind(solving.or(hasPlan.not()));
         solveAllButton.setOnAction(event -> onSolveAll());
+        // The solver can legitimately run up to the configured time budget
+        // (default 30s) with no other visible sign of progress - a spinner
+        // here (shared by both "Solve all" and per-service auto-fill, since
+        // both flip the same solving flag) makes that wait readable instead
+        // of looking like the button silently did nothing.
+        ProgressIndicator solvingIndicator = new ProgressIndicator();
+        solvingIndicator.setPrefSize(20, 20);
+        solvingIndicator.visibleProperty().bind(solving);
+        solvingIndicator.managedProperty().bind(solving);
         Button stopButton = new Button(Localization.lang("Stop"));
         stopButton.disableProperty().bind(solving.not());
         stopButton.setOnAction(event -> onStop());
@@ -225,7 +240,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                 new Label(Localization.lang("To")), toPicker, generateButton,
                 new Separator(Orientation.VERTICAL), exportButton, importButton,
                 new Separator(Orientation.VERTICAL),
-                solveAllButton, stopButton, savePlanButton, exportPlanButton, archiveButton,
+                solveAllButton, solvingIndicator, stopButton, savePlanButton, exportPlanButton, archiveButton,
                 new Separator(Orientation.VERTICAL), scoreLabel, statusLabel);
     }
 
@@ -364,6 +379,15 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             autoFillButton.disableProperty().bind(solving);
             autoFillButton.setOnAction(event -> onAutoFillService(service));
             Tooltip.install(autoFillButton, new Tooltip(Localization.lang("Auto-fill")));
+            // A solve can run for several seconds with the button just
+            // greyed out otherwise - no visible sign it's doing anything.
+            // Swapped for a small spinner (shared "solving" flag, so this
+            // also lights up during a whole-plan "Solve all" run - correct,
+            // the solver really is busy either way).
+            ProgressIndicator autoFillIndicator = new ProgressIndicator();
+            autoFillIndicator.setPrefSize(16, 16);
+            solving.addListener((obs, wasSolving, isSolving) ->
+                    autoFillButton.setGraphic(isSolving ? autoFillIndicator : new FontIcon("mdi2a-auto-fix")));
             Region titleSpacer = new Region();
             HBox.setHgrow(titleSpacer, Priority.ALWAYS);
             HBox altarServersHeader = new HBox(8, altarServersTitle, titleSpacer, autoFillButton);
@@ -653,7 +677,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         }
         solving.set(true);
         statusLabel.setText(Localization.lang("Solving..."));
-        jobId = planningViewModel.solveAsync(plan,
+        jobId = planningViewModel.solveAsync(plan, AUTO_FILL_TIME_BUDGET,
                 best -> Platform.runLater(() -> currentPlan = best),
                 finalBest -> Platform.runLater(() -> {
                     currentPlan = finalBest;
