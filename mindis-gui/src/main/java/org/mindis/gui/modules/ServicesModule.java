@@ -313,12 +313,19 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     /// {@code anchor} (the toolbar button) rather than a separate modal
     /// dialog window - its own From/To pickers (seeded from the current
     /// period range) replace what used to be a permanent From/To/Generate
-    /// group sitting in the toolbar. Confirming applies the picked range to
-    /// {@link #fromPicker}/{@link #toPicker} - whose own listeners drive
-    /// {@link #onRangeChanged()} from there, same as if the planner had
-    /// edited them directly - then generates and merges services for that
-    /// range. Dismisses on Ok or on a click outside (auto-hide), same as any
-    /// other transient popup.
+    /// group sitting in the toolbar. Deliberately does *not* touch
+    /// {@link #fromPicker}/{@link #toPicker} - the generate range is
+    /// independent of whichever period's plan is currently active, and
+    /// pushing it into those pickers would fire {@link #onRangeChanged()},
+    /// which discards {@link #currentPlan} and rebuilds it from scratch
+    /// (wiping any not-yet-saved altar-server picks on already-existing
+    /// masses in the process). {@code ServiceGenerator} already only
+    /// proposes occurrences that aren't in {@code table().getItems()} yet
+    /// (matched by date-time + location), so {@link #mergeLive} - which
+    /// appends unmatched rows rather than ever removing one - only ever adds
+    /// missing masses; it never touches an existing row's slots or
+    /// assignments. Dismisses on Ok or on a click outside (auto-hide), same
+    /// as any other transient popup.
     private void showGenerateFromTemplatesPopup(Node anchor) {
         CalendarPicker popupFrom = CalendarPickers.create();
         popupFrom.setValue(fromPicker.getValue());
@@ -338,8 +345,6 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
         Button okButton = new Button(Localization.lang("OK"));
         okButton.setOnAction(event -> {
-            fromPicker.setValue(popupFrom.getValue());
-            toPicker.setValue(popupTo.getValue());
             List<LiturgicalService> generated = viewModel.generateFromTemplates(
                     popupFrom.getValue(), popupTo.getValue(), table().getItems());
             if (generated != null) {
