@@ -208,6 +208,11 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     /// Whether a plan object currently exists (regardless of whether it has any assignments yet).
     private final ReadOnlyBooleanWrapper planPresent = new ReadOnlyBooleanWrapper(false);
     private @Nullable UUID jobId;
+    /// Guards {@link #scheduleRebuild(boolean)} against coalescing two
+    /// same-pulse callers (the store refresh-tick subscription and the
+    /// service-count listener, both set up in the constructor) into a
+    /// double {@link #rebuildCurrentPlan()}.
+    private boolean rebuildScheduled;
 
     // The editor's own live (possibly unsaved) slot counts for whichever
     // service is currently selected - assignedLabel() needs this so the
@@ -231,12 +236,14 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         // loadAll() below) may have changed the services/roster underneath
         // the plan: re-resolve which saved plan applies and rebuild
         // (publishPlan(...) inside rebuildCurrentPlan() reactively updates
-        // any open editor on its own).
-        storeRefreshSubscription = serviceStore.refreshTickProperty().subscribe(() -> {
-            reloadSavedPlanSnapshot();
-            rebuildCurrentPlan();
-            table().refresh();
-        });
+        // any open editor on its own). Routed through scheduleRebuild(...),
+        // not called directly: LiveStore#refresh() calls items.setAll(...)
+        // (which the size listener below also observes) *before* bumping
+        // refreshTick, so a Save all/Load that also changes the item count
+        // would otherwise fire both this and the size listener back to
+        // back - scheduleRebuild(...) coalesces same-pulse callers into one
+        // rebuild instead of running it twice.
+        storeRefreshSubscription = serviceStore.refreshTickProperty().subscribe(() -> scheduleRebuild(true));
         // A service being added or removed (Generate from templates, CSV
         // import, New, Delete) changes whether there is anything to solve,
         // but none of those actions bump refreshTickProperty() above (that's
@@ -253,8 +260,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             int count = serviceStore.items().size();
             if (count != lastServiceCount[0]) {
                 lastServiceCount[0] = count;
-                rebuildCurrentPlan();
-                table().refresh();
+                scheduleRebuild(false);
             }
         });
 
@@ -1143,6 +1149,28 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     public void loadAll() {
         publishPlan(null);
         liveDatabase.loadAll();
+    }
+
+    /// Coalesces same-pulse rebuild requests - see {@link #rebuildScheduled}
+    /// - into a single {@link #rebuildCurrentPlan()} on the next pulse,
+    /// rather than each caller running it directly and possibly twice in a
+    /// row. {@code reloadSnapshot} runs eagerly, before coalescing, so a
+    /// second same-pulse caller that does need it (the refresh-tick path)
+    /// still gets it even when a first caller already claimed the pending
+    /// rebuild.
+    private void scheduleRebuild(boolean reloadSnapshot) {
+        if (reloadSnapshot) {
+            reloadSavedPlanSnapshot();
+        }
+        if (rebuildScheduled) {
+            return;
+        }
+        rebuildScheduled = true;
+        Platform.runLater(() -> {
+            rebuildScheduled = false;
+            rebuildCurrentPlan();
+            table().refresh();
+        });
     }
 
     /// Same period, preserving the current plan's in-progress assignments while picking up service/roster edits.
