@@ -155,9 +155,27 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         return store;
     }
 
-    /// The table of items; configure columns here. The item list is the store's.
+    /// The table of items; configure columns here. The item list is
+    /// {@link #tableItems()} (the store's full list by default).
     protected final TableView<T> table() {
         return table;
+    }
+
+    /// The list bound to {@link #table()} - the store's full live list by
+    /// default. Override to show a derived view instead, e.g. one page's
+    /// worth of a windowed/paginated list (see {@code ServicesModule}) - the
+    /// rest of this class (selection restore, {@link #newItem()}, {@link
+    /// #mergeLive(List)}) still reads the full list via {@link #store()},
+    /// only the table's own rendering is affected.
+    protected ObservableList<T> tableItems() {
+        return store.items();
+    }
+
+    /// An optional node shown directly below {@link #table()} - {@code null}
+    /// (nothing added) by default. Override to attach paging controls or
+    /// similar (see {@code ServicesModule}).
+    protected @Nullable Node belowTable() {
+        return null;
     }
 
     /// The toolbar's buttons (and any separators between them), in display order.
@@ -243,12 +261,14 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         try {
             int index = store.updateLive(updated);
             // TableView's selection model treats a list "set" as a
-            // remove+add internally and drops the selection - reselect by
-            // index (still guarded by suppressEditorRebuild, so this
-            // doesn't trigger another editor rebuild) so the row stays
-            // selected and the editor stays enabled mid-edit.
-            if (index >= 0 && table.getSelectionModel().getSelectedIndex() != index) {
-                table.getSelectionModel().select(index);
+            // remove+add internally and drops the selection - reselect
+            // (still guarded by suppressEditorRebuild, so this doesn't
+            // trigger another editor rebuild) so the row stays selected and
+            // the editor stays enabled mid-edit. By value, not index: for a
+            // windowed table() (see tableItems()) the table's own item
+            // indices don't line up with store.items()' indices.
+            if (index >= 0 && !updated.equals(table.getSelectionModel().getSelectedItem())) {
+                table.getSelectionModel().select(updated);
             }
         } finally {
             suppressEditorRebuild = false;
@@ -291,7 +311,7 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     }
 
     private Node buildView() {
-        table.setItems(store.items());
+        table.setItems(tableItems());
 
         table.getSelectionModel().selectedItemProperty().subscribe((previous, current) -> {
             if (suppressEditorRebuild) {
@@ -318,6 +338,10 @@ public abstract class CrudModule<T> extends WorkbenchModule {
 
         VBox.setVgrow(table, Priority.ALWAYS);
         VBox tableSide = new VBox(table);
+        Node footer = belowTable();
+        if (footer != null) {
+            tableSide.getChildren().add(footer);
+        }
         tableSide.setPadding(new Insets(12));
 
         ScrollPane editorScroll = new ScrollPane(editorContainer);

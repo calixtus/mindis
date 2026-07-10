@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.SortedList;
 import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -59,6 +61,7 @@ import javafx.util.Subscription;
 import atlantafx.base.theme.Styles;
 import com.dlsc.gemsfx.CalendarPicker;
 import com.dlsc.gemsfx.TimePicker;
+import com.dlsc.gemsfx.paging.PagingControls;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import org.mindis.core.export.PlanExportFormat;
@@ -145,12 +148,30 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             -fx-border-radius: 4;
             -fx-background-radius: 4;
             """;
+    /// How many masses {@link #table()} shows at once - the whole point of
+    /// paging this list (unlike Roles/Servers/Templates) is that it can grow
+    /// into the hundreds once a year or more has been generated.
+    private static final int PAGE_SIZE = 20;
 
     private final ServicesViewModel viewModel;
     private final PlanningViewModel planningViewModel;
     private final LiveDatabase liveDatabase;
     private final LiveStore<Role> roleStore;
     private final Subscription storeRefreshSubscription;
+
+    // Chronological, not the store's raw (insertion/import) order - a
+    // windowed table only reads sensibly page-to-page if each page is a
+    // contiguous date range. SortedList wraps store().items() directly (no
+    // copy), so it - and every page sliced from it - stays live as services
+    // are added, edited or removed.
+    private final SortedList<LiturgicalService> sortedServices =
+            new SortedList<>(store().items(), Comparator.comparing(LiturgicalService::dateTime));
+    /// The current page's slice of {@link #sortedServices} - what
+    /// {@link #tableItems()} actually hands {@link #table()}. Recomputed by
+    /// {@link #refreshPageItems()} whenever {@link #sortedServices} changes
+    /// or {@link #pagingControls}'s page/page size changes.
+    private final ObservableList<LiturgicalService> pageItems = FXCollections.observableArrayList();
+    private final PagingControls pagingControls = new PagingControls();
 
     private final CalendarPicker fromPicker = CalendarPickers.create();
     private final CalendarPicker toPicker = CalendarPickers.create();
@@ -241,6 +262,12 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         table().setTableMenuButtonVisible(false);
         table().getStyleClass().add("services-tile-table");
 
+        pagingControls.setPageSize(PAGE_SIZE);
+        pagingControls.setShowPageSizeSelector(false);
+        pagingControls.pageProperty().addListener((obs, oldPage, newPage) -> refreshPageItems());
+        sortedServices.addListener((ListChangeListener<LiturgicalService>) change -> refreshPageItems());
+        refreshPageItems();
+
         fromPicker.setPromptText(Localization.lang("From"));
         fromPicker.setPrefWidth(130);
         toPicker.setPromptText(Localization.lang("To"));
@@ -320,7 +347,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     /// which discards {@link #currentPlan} and rebuilds it from scratch
     /// (wiping any not-yet-saved altar-server picks on already-existing
     /// masses in the process). {@code ServiceGenerator} already only
-    /// proposes occurrences that aren't in {@code table().getItems()} yet
+    /// proposes occurrences that aren't in {@code store().items()} yet
     /// (matched by date-time + location), so {@link #mergeLive} - which
     /// appends unmatched rows rather than ever removing one - only ever adds
     /// missing masses; it never touches an existing row's slots or
@@ -346,7 +373,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         Button okButton = new Button(Localization.lang("OK"));
         okButton.setOnAction(event -> {
             List<LiturgicalService> generated = viewModel.generateFromTemplates(
-                    popupFrom.getValue(), popupTo.getValue(), table().getItems());
+                    popupFrom.getValue(), popupTo.getValue(), store().items());
             if (generated != null) {
                 mergeLive(generated);
             }
@@ -362,6 +389,38 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
         Bounds anchorBounds = anchor.localToScreen(anchor.getBoundsInLocal());
         popup.show(anchor, anchorBounds.getMinX(), anchorBounds.getMaxY() + 4);
+    }
+
+    @Override
+    protected ObservableList<LiturgicalService> tableItems() {
+        return pageItems;
+    }
+
+    @Override
+    protected Node belowTable() {
+        return pagingControls;
+    }
+
+    /// Recomputes {@link #pageItems} from {@link #sortedServices} for
+    /// whichever page {@link #pagingControls} is currently on, clamping the
+    /// page down if a deletion (or a period/store refresh shrinking the
+    /// list) left it past the new last page. The clamp re-invokes this
+    /// method once more via {@link #pagingControls}'s own page listener;
+    /// that second call finds the already-clamped page in range and returns
+    /// without clamping again, so this never recurses further than one level
+    /// deep.
+    private void refreshPageItems() {
+        int total = sortedServices.size();
+        pagingControls.setTotalItemCount(total);
+        int pageSize = pagingControls.getPageSize();
+        int lastPage = pageSize <= 0 ? 0 : Math.max(0, (total - 1) / pageSize);
+        if (pagingControls.getPage() > lastPage) {
+            pagingControls.setPage(lastPage);
+            return;
+        }
+        int from = Math.min(pagingControls.getPage() * pageSize, total);
+        int to = Math.min(from + pageSize, total);
+        pageItems.setAll(sortedServices.subList(from, to));
     }
 
     @Override
