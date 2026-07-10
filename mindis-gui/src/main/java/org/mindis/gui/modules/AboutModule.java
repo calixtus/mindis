@@ -42,7 +42,7 @@ import org.mindis.workbench.WorkbenchModule;
 
 /// About screen (modeled on JabRef's Help &gt; About dialog): logo, version,
 /// maintainers, links to the repository and license, a copyable version-info
-/// block for bug reports, and - at the bottom - an in-app error console
+/// block for bug reports, and - at the bottom - an in-app log messages panel
 /// (severity-colored log history, so a user can see and copy what went wrong
 /// without digging into the log file).
 public class AboutModule extends WorkbenchModule {
@@ -123,11 +123,11 @@ public class AboutModule extends WorkbenchModule {
         VBox aboutInfoWrapper = new VBox(aboutInfo);
         aboutInfoWrapper.setAlignment(Pos.CENTER);
 
-        Node errorConsole = buildErrorConsole();
+        Node logMessages = buildLogMessages();
 
-        VBox root = new VBox(12, aboutInfoWrapper, errorConsole);
+        VBox root = new VBox(12, aboutInfoWrapper, logMessages);
         root.setPadding(new Insets(12));
-        VBox.setVgrow(errorConsole, Priority.ALWAYS);
+        VBox.setVgrow(logMessages, Priority.ALWAYS);
         return root;
     }
 
@@ -209,8 +209,8 @@ public class AboutModule extends WorkbenchModule {
         Clipboard.getSystemClipboard().setContent(clipboardContent);
     }
 
-    private Node buildErrorConsole() {
-        Label header = new Label(Localization.lang("Error console"));
+    private Node buildLogMessages() {
+        Label header = new Label(Localization.lang("Log messages"));
         header.setStyle("-fx-font-weight: bold;");
 
         ListView<LogEntry> list = new ListView<>(logConsole.entries());
