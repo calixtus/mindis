@@ -27,6 +27,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -51,6 +52,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.Popup;
 import javafx.util.StringConverter;
 import javafx.util.Subscription;
 
@@ -137,6 +139,12 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     private static final double TILE_INFO_WIDTH = 180;
     private static final double ROLE_COLUMN_WIDTH = 100;
     private static final double SLOT_COLUMN_WIDTH = 90;
+    private static final String GENERATE_POPUP_STYLE = """
+            -fx-background-color: -color-bg-overlay;
+            -fx-border-color: -color-border-default;
+            -fx-border-radius: 4;
+            -fx-background-radius: 4;
+            """;
 
     private final ServicesViewModel viewModel;
     private final PlanningViewModel planningViewModel;
@@ -146,8 +154,6 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
     private final CalendarPicker fromPicker = CalendarPickers.create();
     private final CalendarPicker toPicker = CalendarPickers.create();
-    private final Label scoreLabel = new Label();
-    private final Label statusLabel = new Label();
     private final BooleanProperty solving = new SimpleBooleanProperty(false);
     private final BooleanProperty hasPlan = new SimpleBooleanProperty(false);
     // Whether the current plan's assignments differ from what's on disk -
@@ -254,13 +260,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         toPicker.valueProperty().addListener((obs, oldValue, newValue) -> onRangeChanged());
 
         Button generateButton = new Button(Localization.lang("Generate from templates"));
-        generateButton.setOnAction(event -> {
-            List<LiturgicalService> generated = viewModel.generateFromTemplates(
-                    fromPicker.getValue(), toPicker.getValue(), table().getItems());
-            if (generated != null) {
-                mergeLive(generated);
-            }
-        });
+        generateButton.setOnAction(event -> showGenerateFromTemplatesPopup(generateButton));
 
         Button newButton = new Button(Localization.lang("New"));
         newButton.setOnAction(event -> newItem());
@@ -291,7 +291,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         stopButton.disableProperty().bind(solving.not());
         stopButton.setOnAction(event -> onStop());
         SplitMenuButton exportPlanButton = new SplitMenuButton();
-        exportPlanButton.setText(Localization.lang("Export plan"));
+        exportPlanButton.setText(Localization.lang("Export"));
         exportPlanButton.disableProperty().bind(solving.or(hasPlan.not()));
         exportPlanButton.setOnAction(event -> onExportPlan(PlanExportFormat.PDF));
         for (PlanExportFormat format : PlanExportFormat.values()) {
@@ -303,12 +303,60 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         archiveButton.setOnAction(event -> ArchivedPlansDialog.show(planningViewModel, table().getScene().getWindow()));
 
         toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL),
-                new Label(Localization.lang("From")), fromPicker,
-                new Label(Localization.lang("To")), toPicker, generateButton,
-                new Separator(Orientation.VERTICAL), importButton,
+                generateButton,
+                new Separator(Orientation.VERTICAL), importButton, exportPlanButton,
                 new Separator(Orientation.VERTICAL),
-                solveAllButton, solvingIndicator, stopButton, exportPlanButton, archiveButton,
-                new Separator(Orientation.VERTICAL), scoreLabel, statusLabel);
+                solveAllButton, solvingIndicator, stopButton, archiveButton);
+    }
+
+    /// Lightweight popup for "Generate from templates", anchored under
+    /// {@code anchor} (the toolbar button) rather than a separate modal
+    /// dialog window - its own From/To pickers (seeded from the current
+    /// period range) replace what used to be a permanent From/To/Generate
+    /// group sitting in the toolbar. Confirming applies the picked range to
+    /// {@link #fromPicker}/{@link #toPicker} - whose own listeners drive
+    /// {@link #onRangeChanged()} from there, same as if the planner had
+    /// edited them directly - then generates and merges services for that
+    /// range. Dismisses on Ok or on a click outside (auto-hide), same as any
+    /// other transient popup.
+    private void showGenerateFromTemplatesPopup(Node anchor) {
+        CalendarPicker popupFrom = CalendarPickers.create();
+        popupFrom.setValue(fromPicker.getValue());
+        CalendarPicker popupTo = CalendarPickers.create();
+        popupTo.setValue(toPicker.getValue());
+
+        GridPane grid = new GridPane();
+        grid.setHgap(8);
+        grid.setVgap(8);
+        grid.add(new Label(Localization.lang("From")), 0, 0);
+        grid.add(popupFrom, 1, 0);
+        grid.add(new Label(Localization.lang("To")), 0, 1);
+        grid.add(popupTo, 1, 1);
+
+        Popup popup = new Popup();
+        popup.setAutoHide(true);
+
+        Button okButton = new Button(Localization.lang("OK"));
+        okButton.setOnAction(event -> {
+            fromPicker.setValue(popupFrom.getValue());
+            toPicker.setValue(popupTo.getValue());
+            List<LiturgicalService> generated = viewModel.generateFromTemplates(
+                    popupFrom.getValue(), popupTo.getValue(), table().getItems());
+            if (generated != null) {
+                mergeLive(generated);
+            }
+            popup.hide();
+        });
+        HBox buttonRow = new HBox(okButton);
+        buttonRow.setAlignment(Pos.CENTER_RIGHT);
+
+        VBox content = new VBox(10, grid, buttonRow);
+        content.setPadding(new Insets(12));
+        content.setStyle(GENERATE_POPUP_STYLE);
+        popup.getContent().add(content);
+
+        Bounds anchorBounds = anchor.localToScreen(anchor.getBoundsInLocal());
+        popup.show(anchor, anchorBounds.getMinX(), anchorBounds.getMaxY() + 4);
     }
 
     @Override
@@ -1057,7 +1105,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             return;
         }
         solving.set(true);
-        statusLabel.setText(Localization.lang("Solving..."));
+        LOGGER.info(Localization.lang("Solving..."));
         jobId = planningViewModel.solveAsync(plan,
                 best -> Platform.runLater(() -> {
                     publishPlan(best);
@@ -1073,12 +1121,11 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     recomputePlanDirty();
                     refreshScoreAndStatus();
                     table().refresh();
-                    statusLabel.setText(Localization.lang("Solving finished"));
+                    LOGGER.info(Localization.lang("Solving finished"));
                 }),
                 error -> Platform.runLater(() -> {
                     solving.set(false);
-                    LOGGER.error("Solving failed", error);
-                    statusLabel.setText(Localization.lang("Solving failed: %0", error.getMessage()));
+                    LOGGER.error(Localization.lang("Solving failed: %0", error.getMessage()), error);
                 }));
     }
 
@@ -1114,7 +1161,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             }
         }
         solving.set(true);
-        statusLabel.setText(Localization.lang("Solving..."));
+        LOGGER.info(Localization.lang("Solving..."));
         jobId = planningViewModel.solveAsync(plan, AUTO_FILL_TIME_BUDGET,
                 best -> Platform.runLater(() -> publishPlan(best)),
                 finalBest -> Platform.runLater(() -> {
@@ -1142,12 +1189,11 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     recomputePlanDirty();
                     refreshScoreAndStatus();
                     table().refresh();
-                    statusLabel.setText(Localization.lang("Solving finished"));
+                    LOGGER.info(Localization.lang("Solving finished"));
                 }),
                 error -> Platform.runLater(() -> {
                     solving.set(false);
-                    LOGGER.error("Solving failed", error);
-                    statusLabel.setText(Localization.lang("Solving failed: %0", error.getMessage()));
+                    LOGGER.error(Localization.lang("Solving failed: %0", error.getMessage()), error);
                 }));
     }
 
@@ -1178,7 +1224,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             recomputePlanDirty();
         }
         liveDatabase.saveAll();
-        statusLabel.setText(Localization.lang("Saved"));
+        LOGGER.info(Localization.lang("Saved"));
     }
 
     /// Whether an assignment pick or a solve run differs from what's on disk - part of the global Save all's enablement.
@@ -1204,29 +1250,31 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         PlanExportFormat format = target.get().format();
         try {
             planningViewModel.exportPlan(plan, fromPicker.getValue(), toPicker.getValue(), target.get().file(), format);
-            statusLabel.setText(Localization.lang("%0 saved to %1", format.name(), target.get().file().getFileName()));
+            LOGGER.info(Localization.lang("%0 saved to %1", format.name(), target.get().file().getFileName()));
         } catch (RuntimeException e) {
-            statusLabel.setText(Localization.lang("%0 export failed: %1", format.name(), e.getMessage()));
+            LOGGER.error(Localization.lang("%0 export failed: %1", format.name(), e.getMessage()), e);
         }
     }
 
     private void refreshScoreAndStatus() {
         ServicePlan plan = currentPlan;
         if (plan == null || plan.getAssignments().isEmpty()) {
-            scoreLabel.setText("");
             return;
         }
-        updateScoreLabel(planningViewModel.scoreOf(plan));
+        logScore(planningViewModel.scoreOf(plan));
     }
 
-    private void updateScoreLabel(@Nullable HardMediumSoftScore score) {
+    /// The score is solver-internal detail, not something an average user
+    /// (planning altar-server rosters, not tuning constraint weights) needs
+    /// permanently visible in the toolbar - logged instead, so it still
+    /// shows up in the in-app error/log console for anyone who does want it.
+    private void logScore(@Nullable HardMediumSoftScore score) {
         if (score == null) {
-            scoreLabel.setText("");
             return;
         }
         String feasibility = score.hardScore() == 0 && score.mediumScore() == 0
                 ? Localization.lang("Feasible")
                 : Localization.lang("Has violations");
-        scoreLabel.setText(Localization.lang("Score") + ": " + score + " (" + feasibility + ")");
+        LOGGER.info("{}: {} ({})", Localization.lang("Score"), score, feasibility);
     }
 }
