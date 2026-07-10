@@ -111,7 +111,15 @@ public class RolesModule extends CrudModule<Role> {
         };
 
         // Raising the min age above the max age drags the max age up with it.
-        minAgeSpinner.valueProperty().subscribe(newMin -> {
+        // addListener, not subscribe(): subscribe() fires immediately with
+        // the current value at registration - since buildEditor can run
+        // synchronously nested inside another mutation of the shared store
+        // list (e.g. TableView reselecting a row mid-delete), that immediate
+        // call would run pushLive() (via the nested maxAge set below) while
+        // the outer list change was still unwinding - the same reentrant
+        // items.set() corruption the suppressPushLive guard elsewhere in
+        // this file targets, but from construction rather than refresh().
+        minAgeSpinner.valueProperty().addListener((obs, oldMin, newMin) -> {
             Integer max = maxAgeSpinner.getValue();
             if (newMin != null && max != null && max < newMin) {
                 suppressPushLive[0] = true;
