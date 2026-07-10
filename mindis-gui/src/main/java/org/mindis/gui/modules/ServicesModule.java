@@ -237,6 +237,26 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             rebuildCurrentPlan();
             table().refresh();
         });
+        // A service being added or removed (Generate from templates, CSV
+        // import, New, Delete) changes whether there is anything to solve,
+        // but none of those actions bump refreshTickProperty() above (that's
+        // reserved for an actual Save all/Load re-baseline) - without this,
+        // hasPlan/currentPlan only caught up on the next tab reactivation or
+        // range change, leaving "Solve all" wrongly disabled right after a
+        // generate. Keyed on list *size*, not every change: an ordinary
+        // field edit (typing in a location field) also mutates this same
+        // list, via LiveStore#updateLive's in-place items.set(i, ...) - that
+        // must not re-rebuild the plan (and re-thrash the open editor's
+        // assignment combo boxes via publishPlan) on every keystroke.
+        int[] lastServiceCount = {serviceStore.items().size()};
+        serviceStore.items().addListener((ListChangeListener<LiturgicalService>) change -> {
+            int count = serviceStore.items().size();
+            if (count != lastServiceCount[0]) {
+                lastServiceCount[0] = count;
+                rebuildCurrentPlan();
+                table().refresh();
+            }
+        });
 
         // The table is used as a single-column tile list rather than a
         // classic multi-column grid: each row's cell renders the whole
