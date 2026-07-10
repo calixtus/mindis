@@ -16,6 +16,7 @@ import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
+import org.mindis.core.model.Slot;
 import org.mindis.core.planning.Assignment;
 import org.mindis.core.planning.MinDisConstraintProvider;
 import org.mindis.core.planning.ServicePlan;
@@ -89,16 +90,13 @@ public final class SolverBenchmark {
         for (int i = 0; i < 7; i++) {
             services.add(new LiturgicalService("weekday-" + i,
                     LocalDateTime.of(2026, 7, 7 + i * 3, 18, 30), 45, "St. Mary",
-                    ServiceType.WEEKDAY_MASS, List.of(new RoleSlot(Role.ACOLYTE, 2)), ""));
+                    ServiceType.WEEKDAY_MASS, Slot.expand(List.of(new RoleSlot(Role.ACOLYTE, 2))), ""));
         }
 
         List<Assignment> assignments = new ArrayList<>();
         for (LiturgicalService service : services) {
-            for (RoleSlot slot : service.slots()) {
-                for (int i = 0; i < slot.count(); i++) {
-                    assignments.add(new Assignment(service.id() + ":" + slot.role() + ":" + i,
-                            service, ROLES.get(slot.role())));
-                }
+            for (Slot slot : service.slots()) {
+                assignments.add(new Assignment(service.id() + ":" + slot.id(), service, ROLES.get(slot.role())));
             }
         }
         return new ServicePlan(servers, assignments);
@@ -106,10 +104,10 @@ public final class SolverBenchmark {
 
     private static LiturgicalService sundayMass(String id, LocalDateTime dateTime) {
         return new LiturgicalService(id, dateTime, 60, "St. Mary", ServiceType.SUNDAY_MASS,
-                List.of(
+                Slot.expand(List.of(
                         new RoleSlot(Role.ACOLYTE, 2),
                         new RoleSlot(Role.THURIFER, 1),
-                        new RoleSlot(Role.CROSS_BEARER, 1)),
+                        new RoleSlot(Role.CROSS_BEARER, 1))),
                 "");
     }
 }

@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.ServiceTemplate;
+import org.mindis.core.model.Slot;
 
 /// Expands recurring templates into concrete services for a date range.
 /// Occurrences that collide with an existing service (same date-time and
@@ -37,13 +38,17 @@ public final class ServiceGenerator {
                 if (!occupied.add(occurrenceKey(dateTime, template.location()))) {
                     continue;
                 }
+                // Fresh ids, not the template's own RoleSlot rows - a
+                // template's slots are a shape, not persisted instances,
+                // so there is nothing per-instance to carry over (see
+                // Slot#expand).
                 generated.add(new LiturgicalService(
                         LiturgicalService.newId(),
                         dateTime,
                         template.durationMinutes(),
                         template.location(),
                         template.type(),
-                        template.slots(),
+                        Slot.expand(template.slots()),
                         ""));
             }
         }

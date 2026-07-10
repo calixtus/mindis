@@ -19,6 +19,7 @@ import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceTemplate;
 import org.mindis.core.model.ServiceType;
+import org.mindis.core.model.Slot;
 import org.mindis.core.model.UnavailabilityPeriod;
 
 class RepositoryRoundTripTest {
@@ -50,7 +51,7 @@ class RepositoryRoundTripTest {
                 LiturgicalService.newId(),
                 LocalDateTime.of(2026, 7, 12, 10, 0), 60, "St. Mary",
                 ServiceType.SUNDAY_MASS,
-                List.of(new RoleSlot(Role.ACOLYTE, 2), new RoleSlot(Role.THURIFER, 1)),
+                Slot.expand(List.of(new RoleSlot(Role.ACOLYTE, 2), new RoleSlot(Role.THURIFER, 1))),
                 "First communion");
         Path file = tempDir.resolve("services.json");
 

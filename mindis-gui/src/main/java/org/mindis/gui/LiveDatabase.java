@@ -11,6 +11,7 @@ import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceTemplate;
+import org.mindis.core.model.Slot;
 import org.mindis.core.persistence.AppDatabase;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
@@ -105,6 +106,6 @@ public final class LiveDatabase {
                 && a.location().equals(b.location())
                 && a.type() == b.type()
                 && a.note().equals(b.note())
-                && RoleSlot.sameSlots(a.slots(), b.slots());
+                && Slot.sameSlots(a.slots(), b.slots());
     }
 }

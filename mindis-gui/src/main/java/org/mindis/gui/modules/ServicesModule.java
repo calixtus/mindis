@@ -9,10 +9,13 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -69,9 +72,9 @@ import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
-import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
+import org.mindis.core.model.Slot;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServiceCsvMapper;
 import org.mindis.core.persistence.TemplateRepository;
@@ -214,7 +217,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     // the one currently open naturally falls back to its own persisted
     // totalSlots() below.
     private @Nullable String liveSlotsServiceId;
-    private List<RoleSlot> liveSlotsForEditor = List.of();
+    private List<Slot> liveSlotsForEditor = List.of();
 
     public ServicesModule(String name, LiveStore<LiturgicalService> serviceStore, LiveStore<Role> roleStore,
                           TemplateRepository templateRepository, RoleRepository roleRepository,
@@ -514,9 +517,9 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         altarServersHeader.setAlignment(Pos.CENTER_LEFT);
         Separator altarSeparator = new Separator();
 
-        // RoleSlotsEditor's onChange callback needs to mark its own label
+        // SlotCountEditor's onChange callback needs to mark its own label
         // dirty, but that label (slotsEditor.label) doesn't exist until the
-        // RoleSlotsEditor constructor - which is where the callback itself
+        // SlotCountEditor constructor - which is where the callback itself
         // gets built - returns. A one-element array sidesteps the
         // chicken-and-egg: the callback only runs later, in response to a
         // spinner change, well after the array's single slot is filled in
@@ -526,21 +529,29 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         // for the same reason baselineSupplier itself is a supplier - it must
         // reflect the post-Save baseline, not whatever was last flushed when
         // this editor was built.
-        Function<List<RoleSlot>, Boolean> slotsChanged = liveSlots -> {
-            Map<String, Integer> baselineCounts = new HashMap<>();
-            baselineSupplier.get().slots().forEach(slot -> baselineCounts.put(slot.role(), slot.count()));
-            Map<String, Integer> liveCounts = new HashMap<>();
-            liveSlots.forEach(slot -> liveCounts.put(slot.role(), slot.count()));
-            return !liveCounts.equals(baselineCounts);
-        };
+        Function<Map<String, Integer>, Boolean> slotsChanged =
+                liveCounts -> !liveCounts.equals(countsByRole(baselineSupplier.get().slots()));
+
+        // The concrete slot instances backing the editor's counts -
+        // reconciled (see reconcileSlots), not rebuilt from scratch, on
+        // every count edit: a role's already-filled slots keep their ids
+        // (and therefore their assignments) across a resize, and a genuine
+        // shrink below the filled count prefers dropping an empty slot
+        // first (see reconcileSlots' docs) rather than whichever slot
+        // happens to sit at a now out-of-range position.
+        @SuppressWarnings("unchecked")
+        List<Slot>[] liveSlotsHolder = new List[1];
+        liveSlotsHolder[0] = service.slots();
 
         Runnable[] pushLiveHolder = new Runnable[1];
         VBox assignmentSection = new VBox(6);
         // Bound directly to the shared live role list - a role added,
         // renamed or removed anywhere shows up in this editor's slot rows on
         // its own, no rebuild call from here needed.
-        RoleSlotsEditor slotsEditor = new RoleSlotsEditor(roleStore.items(), service.slots(),
-                liveSlots -> {
+        SlotCountEditor slotsEditor = new SlotCountEditor(roleStore.items(), countsByRole(service.slots()),
+                liveCounts -> {
+                    List<Slot> liveSlots = reconcileSlots(service, liveSlotsHolder[0], liveCounts);
+                    liveSlotsHolder[0] = liveSlots;
                     assignmentSection.getChildren().setAll(
                             buildAssignmentRows(service, liveSlots, assignmentSection, altarServersTitle));
                     // The row-rebuild above already updates liveSlotsForEditor
@@ -551,13 +562,13 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     // now-stale ratio until something else (a solve, a
                     // manual pick) happened to trigger a refresh.
                     table().refresh();
-                    setFieldChanged(slotsListHolder[0], slotsChanged.apply(liveSlots));
+                    setFieldChanged(slotsListHolder[0], slotsChanged.apply(liveCounts));
                     pushLiveHolder[0].run();
                 });
         slotsListHolder[0] = slotsEditor.label;
-        setFieldChanged(slotsEditor.label, slotsChanged.apply(slotsEditor.collectSlots()));
+        setFieldChanged(slotsEditor.label, slotsChanged.apply(slotsEditor.collectCounts()));
         assignmentSection.getChildren().setAll(
-                buildAssignmentRows(service, slotsEditor.collectSlots(), assignmentSection, altarServersTitle));
+                buildAssignmentRows(service, liveSlotsHolder[0], assignmentSection, altarServersTitle));
 
         GridPane grid = new GridPane();
         grid.setHgap(8);
@@ -611,7 +622,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             updateLive(new LiturgicalService(service.id(), date.atTime(time), service.durationMinutes(),
                     locationField.getText().strip(),
                     typeBox.getValue() == null ? ServiceType.OTHER : typeBox.getValue(),
-                    slotsEditor.collectSlots(), noteField.getText().strip()));
+                    liveSlotsHolder[0], noteField.getText().strip()));
         };
         pushLiveHolder[0] = pushLive;
         dateField.valueProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
@@ -650,7 +661,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         ListChangeListener<Assignment> assignmentsListener = change -> {
             if (!solving.get()) {
                 assignmentSection.getChildren().setAll(
-                        buildAssignmentRows(service, slotsEditor.collectSlots(), assignmentSection, altarServersTitle));
+                        buildAssignmentRows(service, liveSlotsHolder[0], assignmentSection, altarServersTitle));
                 table().refresh();
             }
         };
@@ -664,7 +675,8 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                 typeBox.getSelectionModel().select(updated.type());
                 locationField.setText(updated.location());
                 noteField.setText(updated.note());
-                slotsEditor.setSlots(updated.slots());
+                liveSlotsHolder[0] = updated.slots();
+                slotsEditor.setCounts(countsByRole(updated.slots()));
             } finally {
                 suppressPushLive[0] = false;
             }
@@ -677,7 +689,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             recomputeFieldChanged(typeBox.valueProperty(), () -> baselineSupplier.get().type(), typeLabel);
             recomputeFieldChanged(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
             recomputeFieldChanged(noteField.textProperty(), () -> baselineSupplier.get().note(), noteLabel);
-            setFieldChanged(slotsEditor.label, slotsChanged.apply(updated.slots()));
+            setFieldChanged(slotsEditor.label, slotsChanged.apply(countsByRole(updated.slots())));
             setFieldChanged(altarServersTitle, isAssignmentsDirtyFor(service));
         }, () -> {
             liveAssignments.removeListener(assignmentsListener);
@@ -792,19 +804,17 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         viewModel.findAllRoles().forEach(role -> rolesById.put(role.id(), role));
 
         int gridRow = 0;
-        for (RoleSlot slot : service.slots()) {
-            if (slot.count() <= 0) {
-                continue;
-            }
-            Role role = rolesById.get(slot.role());
-            Label roleLabel = new Label(role == null ? slot.role() : role.name());
+        for (Map.Entry<String, List<Slot>> entry : slotsByRole(service.slots()).entrySet()) {
+            List<Slot> roleSlots = entry.getValue();
+            Role role = rolesById.get(entry.getKey());
+            Label roleLabel = new Label(role == null ? entry.getKey() : role.name());
             roleLabel.getStyleClass().add("service-tile-role");
             roleLabel.setMaxWidth(ROLE_COLUMN_WIDTH);
             roleLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
             grid.add(roleLabel, 0, gridRow);
 
-            for (int slotIndex = 0; slotIndex < slot.count(); slotIndex++) {
-                String assignmentId = service.id() + ":" + slot.role() + ":" + slotIndex;
+            for (int slotIndex = 0; slotIndex < roleSlots.size(); slotIndex++) {
+                String assignmentId = service.id() + ":" + roleSlots.get(slotIndex).id();
                 Assignment assignment = byId.get(assignmentId);
                 String text = assignment != null && assignment.getServer() != null
                         ? assignment.getServer().displayName() : "-";
@@ -818,11 +828,23 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     gridRow++;
                 }
             }
-            if (slot.count() % 2 != 0) {
+            if (roleSlots.size() % 2 != 0) {
                 gridRow++;
             }
         }
         return grid;
+    }
+
+    /// {@code service.slots()}, grouped by role in first-encountered order -
+    /// shared by {@link #buildRoleSlotGrid} (one row per role followed by
+    /// that role's own slot instances) and {@link #reconcileSlots} (which
+    /// slot instances a role currently has, before applying a count edit).
+    private static Map<String, List<Slot>> slotsByRole(List<Slot> slots) {
+        Map<String, List<Slot>> byRole = new LinkedHashMap<>();
+        for (Slot slot : slots) {
+            byRole.computeIfAbsent(slot.role(), roleId -> new ArrayList<>()).add(slot);
+        }
+        return byRole;
     }
 
     /// A fixed (min == pref == max), non-growing column - see
@@ -838,19 +860,20 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     }
 
     /// Open-slot fill rows for {@code service}, driven by {@code liveSlots} -
-    /// the role/count editor's current (possibly unsaved) values, not just
-    /// whatever's in the current plan - so the list updates the
-    /// moment a slot count changes, before Save. A slot instance still backed
-    /// by an {@link Assignment} in the current plan (matched by its stable id,
-    /// {@code service:role:index}) gets an editable dropdown seeded with its
-    /// current server; one that isn't - a count bumped up since the plan was
-    /// last built - gets a disabled placeholder, since there's nothing to
-    /// write a pick into until Save regenerates the plan for the new count.
-    /// Decrementing then incrementing a count back before saving never drops
-    /// an assignment: the underlying {@link Assignment} objects in the plan
-    /// aren't touched by hiding their row, only by an actual rebuild (Save,
-    /// tab reactivation, or a range change), so the previously assigned server
-    /// reappears exactly as it was.
+    /// the slot editor's current (possibly unsaved) instances, not just
+    /// whatever's in the current plan - so the list updates the moment a
+    /// slot count changes, before Save. A slot instance still backed by an
+    /// {@link Assignment} in the current plan (matched by its stable id,
+    /// {@code service:slot-id}) gets an editable dropdown seeded with its
+    /// current server; one that isn't - a slot just added by the editor -
+    /// gets a disabled placeholder, since there's nothing to write a pick
+    /// into until Save regenerates the plan for the new slot. Decrementing
+    /// then incrementing a count back before saving never drops an
+    /// assignment: {@link #reconcileSlots} preserves a role's existing slot
+    /// ids across a resize, and the underlying {@link Assignment} objects in
+    /// the plan aren't touched by hiding a row, only by an actual rebuild
+    /// (Save, tab reactivation, or a range change), so the previously
+    /// assigned server reappears exactly as it was.
     ///
     /// <p>{@code assignmentSection} is threaded through so a manual pick can
     /// rebuild these rows in place: violations (and the warning icon) are
@@ -862,7 +885,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     /// this is the single choke point every assignment-affecting change
     /// (a pick, a slot count edit, a solve, an external plan rebuild) already
     /// goes through, so there is no separate call site to remember.
-    private List<Node> buildAssignmentRows(LiturgicalService service, List<RoleSlot> liveSlots,
+    private List<Node> buildAssignmentRows(LiturgicalService service, List<Slot> liveSlots,
                                            VBox assignmentSection, Region altarServersTitle) {
         liveSlotsServiceId = service.id();
         liveSlotsForEditor = liveSlots;
@@ -882,101 +905,160 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         choices.addFirst(null);
 
         List<Node> rows = new ArrayList<>();
-        for (RoleSlot slot : liveSlots) {
+        for (Slot slot : liveSlots) {
             Role role = rolesById.get(slot.role());
             String roleName = role == null ? slot.role() : role.name();
-            for (int i = 0; i < slot.count(); i++) {
-                String assignmentId = service.id() + ":" + slot.role() + ":" + i;
-                Assignment assignment = byId.get(assignmentId);
-                // A count bumped up since the plan was last built has no
-                // backing Assignment yet - synthesize one into the live plan
-                // right away (matching PlanningService's own id scheme) so
-                // the row is immediately editable, not just a disabled
-                // "save first" placeholder. Skipped while solving: the
-                // solver thread is actively iterating this same
-                // plan.getAssignments() list on a background thread, and
-                // mutating it concurrently isn't safe - Save (which is
-                // disabled during a solve anyway) still picks the new count
-                // up normally once solving finishes.
-                if (assignment == null && role != null && !solving.get()) {
-                    assignment = new Assignment(assignmentId, service, role);
-                    plan.getAssignments().add(assignment);
-                    byId.put(assignmentId, assignment);
-                }
-
-                ComboBox<Server> serverBox = new ComboBox<>(choices);
-                serverBox.setConverter(new StringConverter<>() {
-                    @Override
-                    public String toString(@Nullable Server server) {
-                        return server == null ? "-" : server.displayName();
-                    }
-
-                    @Override
-                    public @Nullable Server fromString(String string) {
-                        return null;
-                    }
-                });
-                if (assignment != null) {
-                    Assignment finalAssignment = assignment;
-                    serverBox.setValue(assignment.getServer());
-                    serverBox.valueProperty().addListener((obs, oldServer, newServer) -> {
-                        finalAssignment.setServer(newServer);
-                        finalAssignment.setPinned(resolvePinnedAfterManualPick(finalAssignment, newServer));
-                        recomputePlanDirty();
-                        assignmentSection.getChildren().setAll(
-                                buildAssignmentRows(service, liveSlots, assignmentSection, altarServersTitle));
-                        refreshScoreAndStatus();
-                        table().refresh();
-                    });
-                } else {
-                    serverBox.setDisable(true);
-                    serverBox.setPromptText(Localization.lang("Save to assign"));
-                }
-
-                Label roleLabel = new Label(roleName);
-                roleLabel.setMinWidth(110);
-                Region spacer = new Region();
-                HBox.setHgrow(spacer, Priority.ALWAYS);
-                HBox row = new HBox(8, roleLabel, spacer, serverBox);
-                row.setAlignment(Pos.CENTER_LEFT);
-                // A fixed fraction of the row's own width (not Hgrow.ALWAYS,
-                // which used to let the combo box eat the entire remaining
-                // row), right-aligned via the spacer above so every row's
-                // combo box lines up at the same right edge regardless of
-                // its role label's length.
-                serverBox.prefWidthProperty().bind(row.widthProperty().multiply(0.6));
-
-                List<String> names = assignment == null
-                        ? List.of() : violations.getOrDefault(assignment.getId(), List.of());
-                if (!names.isEmpty()) {
-                    FontIcon warningIcon = new FontIcon("mdi2a-alert-circle");
-                    // Not setStyle(...): FontIcon applies its own glyph font
-                    // via setStyle(...) internally when constructed, and
-                    // Node.setStyle(...) replaces the whole inline style
-                    // string rather than merging into it - overwriting that
-                    // font-family here left the icon a fallback tofu box, no
-                    // glyph. A style class routes -fx-icon-color through the
-                    // stylesheet cascade instead, which doesn't touch it.
-                    warningIcon.getStyleClass().add("altar-warning-icon");
-                    // Tooltip.install()'d directly on the FontIcon rendered
-                    // the tooltip's own text in the icon's glyph font - a
-                    // plain StackPane wrapper as the actual tooltip owner
-                    // keeps the tooltip out of whatever font-family scoping
-                    // FontIcon applies to itself.
-                    StackPane iconSlot = new StackPane(warningIcon);
-                    Tooltip.install(iconSlot, new Tooltip(
-                            String.join(", ", names.stream().map(Localization::lang).toList())));
-                    // Index 2, after the spacer (not 1, right after the
-                    // label) - the spacer's Hgrow pushes everything after it
-                    // to the right as one unit, so the icon needs to be on
-                    // the combo box's side of it to sit directly beside the
-                    // combo box rather than floating in the middle of the row.
-                    row.getChildren().add(2, iconSlot);
-                }
-                rows.add(row);
+            String assignmentId = service.id() + ":" + slot.id();
+            Assignment assignment = byId.get(assignmentId);
+            // A slot just added by the editor has no backing Assignment yet -
+            // synthesize one into the live plan right away (matching
+            // PlanningService's own id scheme) so the row is immediately
+            // editable, not just a disabled "save first" placeholder.
+            // Skipped while solving: the solver thread is actively iterating
+            // this same plan.getAssignments() list on a background thread,
+            // and mutating it concurrently isn't safe - Save (which is
+            // disabled during a solve anyway) still picks the new slot up
+            // normally once solving finishes.
+            if (assignment == null && role != null && !solving.get()) {
+                assignment = new Assignment(assignmentId, service, role);
+                plan.getAssignments().add(assignment);
+                byId.put(assignmentId, assignment);
             }
+
+            ComboBox<Server> serverBox = new ComboBox<>(choices);
+            serverBox.setConverter(new StringConverter<>() {
+                @Override
+                public String toString(@Nullable Server server) {
+                    return server == null ? "-" : server.displayName();
+                }
+
+                @Override
+                public @Nullable Server fromString(String string) {
+                    return null;
+                }
+            });
+            if (assignment != null) {
+                Assignment finalAssignment = assignment;
+                serverBox.setValue(assignment.getServer());
+                serverBox.valueProperty().addListener((obs, oldServer, newServer) -> {
+                    finalAssignment.setServer(newServer);
+                    finalAssignment.setPinned(resolvePinnedAfterManualPick(finalAssignment, newServer));
+                    recomputePlanDirty();
+                    assignmentSection.getChildren().setAll(
+                            buildAssignmentRows(service, liveSlots, assignmentSection, altarServersTitle));
+                    refreshScoreAndStatus();
+                    table().refresh();
+                });
+            } else {
+                serverBox.setDisable(true);
+                serverBox.setPromptText(Localization.lang("Save to assign"));
+            }
+
+            Label roleLabel = new Label(roleName);
+            roleLabel.setMinWidth(110);
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+            HBox row = new HBox(8, roleLabel, spacer, serverBox);
+            row.setAlignment(Pos.CENTER_LEFT);
+            // A fixed fraction of the row's own width (not Hgrow.ALWAYS,
+            // which used to let the combo box eat the entire remaining
+            // row), right-aligned via the spacer above so every row's
+            // combo box lines up at the same right edge regardless of
+            // its role label's length.
+            serverBox.prefWidthProperty().bind(row.widthProperty().multiply(0.6));
+
+            List<String> names = assignment == null
+                    ? List.of() : violations.getOrDefault(assignment.getId(), List.of());
+            if (!names.isEmpty()) {
+                FontIcon warningIcon = new FontIcon("mdi2a-alert-circle");
+                // Not setStyle(...): FontIcon applies its own glyph font
+                // via setStyle(...) internally when constructed, and
+                // Node.setStyle(...) replaces the whole inline style
+                // string rather than merging into it - overwriting that
+                // font-family here left the icon a fallback tofu box, no
+                // glyph. A style class routes -fx-icon-color through the
+                // stylesheet cascade instead, which doesn't touch it.
+                warningIcon.getStyleClass().add("altar-warning-icon");
+                // Tooltip.install()'d directly on the FontIcon rendered
+                // the tooltip's own text in the icon's glyph font - a
+                // plain StackPane wrapper as the actual tooltip owner
+                // keeps the tooltip out of whatever font-family scoping
+                // FontIcon applies to itself.
+                StackPane iconSlot = new StackPane(warningIcon);
+                Tooltip.install(iconSlot, new Tooltip(
+                        String.join(", ", names.stream().map(Localization::lang).toList())));
+                // Index 2, after the spacer (not 1, right after the
+                // label) - the spacer's Hgrow pushes everything after it
+                // to the right as one unit, so the icon needs to be on
+                // the combo box's side of it to sit directly beside the
+                // combo box rather than floating in the middle of the row.
+                row.getChildren().add(2, iconSlot);
+            }
+            rows.add(row);
         }
         return rows;
+    }
+
+    /// Reconciles a role's slot count edit (from {@link SlotCountEditor})
+    /// into a concrete {@code List<Slot>}, preserving each surviving slot's
+    /// stable id - growing a role appends fresh ids; shrinking removes ids,
+    /// preferring whichever slots aren't currently backed by a filled or
+    /// pinned {@link Assignment} in {@link #currentPlan}, so a shrink never
+    /// silently drops an assigned server out from under an unrelated empty
+    /// slot just because it happened to occupy a now out-of-range position
+    /// (see {@link Slot}'s class docs on why identity matters here).
+    private List<Slot> reconcileSlots(LiturgicalService service, List<Slot> existing, Map<String, Integer> counts) {
+        Map<String, List<Slot>> byRole = slotsByRole(existing);
+        // Existing roles keep their current order; a role newly given a
+        // count by the editor (previously zero, no existing Slot instances)
+        // is appended after.
+        Set<String> roleIds = new LinkedHashSet<>(byRole.keySet());
+        roleIds.addAll(counts.keySet());
+
+        List<Slot> result = new ArrayList<>();
+        for (String roleId : roleIds) {
+            int wanted = counts.getOrDefault(roleId, 0);
+            List<Slot> current = byRole.getOrDefault(roleId, List.of());
+            if (current.size() <= wanted) {
+                result.addAll(current);
+                for (int i = current.size(); i < wanted; i++) {
+                    result.add(new Slot(Slot.newId(), roleId));
+                }
+            } else {
+                // Shrinking: unfilled slots first (removed first), filled/
+                // pinned ones last (kept as long as possible).
+                List<Slot> orderedByEmptyFirst = current.stream()
+                        .sorted(Comparator.comparing(slot -> isSlotFilled(service, slot)))
+                        .toList();
+                result.addAll(orderedByEmptyFirst.subList(0, wanted));
+            }
+        }
+        return result;
+    }
+
+    /// Whether {@code slot} is currently backed by an {@link Assignment}
+    /// with a server picked or a manual pin - the "don't drop this one"
+    /// signal {@link #reconcileSlots} uses to choose which slot a shrinking
+    /// role loses first.
+    private boolean isSlotFilled(LiturgicalService service, Slot slot) {
+        ServicePlan plan = currentPlan;
+        if (plan == null) {
+            return false;
+        }
+        String assignmentId = service.id() + ":" + slot.id();
+        return plan.getAssignments().stream()
+                .anyMatch(a -> a.getId().equals(assignmentId) && (a.getServer() != null || a.isPinned()));
+    }
+
+    /// Slot counts per role, for seeding/comparing against a
+    /// {@link SlotCountEditor} - the editor only ever deals in counts, never
+    /// individual slot ids (see {@link #reconcileSlots}).
+    private static Map<String, Integer> countsByRole(List<Slot> slots) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        for (Slot slot : slots) {
+            counts.merge(slot.role(), 1, Integer::sum);
+        }
+        return counts;
     }
 
     /// Filled/total counts backing the "Assigned" column; {@code filled} is
@@ -998,7 +1080,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
     private AssignedCount assignedCount(LiturgicalService service) {
         int total = service.id().equals(liveSlotsServiceId)
-                ? liveSlotsForEditor.stream().mapToInt(RoleSlot::count).sum()
+                ? liveSlotsForEditor.size()
                 : service.totalSlots();
         ServicePlan plan = currentPlan;
         if (plan == null) {

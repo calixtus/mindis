@@ -9,6 +9,7 @@ import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.ServiceType;
+import org.mindis.core.model.Slot;
 
 /// CSV row mapping for {@link LiturgicalService}, shared by every consumer
 /// that offers Services import/export (currently the GUI's Services module;
@@ -36,7 +37,7 @@ public final class ServiceCsvMapper {
                 String.valueOf(service.durationMinutes()),
                 service.location(),
                 service.type().name(),
-                RoleSlotCsv.format(service.slots(), roleRepository),
+                RoleSlotCsv.format(Slot.collapse(service.slots()), roleRepository),
                 service.note());
     }
 
@@ -55,7 +56,7 @@ public final class ServiceCsvMapper {
                 duration == null ? DEFAULT_DURATION_MINUTES : duration,
                 CsvFields.at(row, 4),
                 CsvFields.parseServiceType(CsvFields.at(row, 5), ServiceType.OTHER),
-                RoleSlotCsv.parse(CsvFields.at(row, 6), roleRepository),
+                Slot.expand(RoleSlotCsv.parse(CsvFields.at(row, 6), roleRepository)),
                 CsvFields.at(row, 7));
     }
 }

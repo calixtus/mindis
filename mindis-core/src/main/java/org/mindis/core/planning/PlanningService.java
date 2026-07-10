@@ -23,8 +23,8 @@ import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
-import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.Slot;
 import org.mindis.core.persistence.PlanRepository;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
@@ -88,16 +88,13 @@ public class PlanningService implements AutoCloseable {
             if (date.isBefore(from) || date.isAfter(toInclusive)) {
                 continue;
             }
-            for (RoleSlot slot : service.slots()) {
+            for (Slot slot : service.slots()) {
                 Role role = rolesById.get(slot.role());
                 if (role == null) {
                     // Slot references a deleted role; nothing to assign.
                     continue;
                 }
-                for (int i = 0; i < slot.count(); i++) {
-                    assignments.add(new Assignment(
-                            service.id() + ":" + slot.role() + ":" + i, service, role));
-                }
+                assignments.add(new Assignment(service.id() + ":" + slot.id(), service, role));
             }
         }
         ServicePlan plan = new ServicePlan(activeServers, assignments);

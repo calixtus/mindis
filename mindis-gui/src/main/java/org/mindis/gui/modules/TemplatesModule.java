@@ -3,7 +3,10 @@ package org.mindis.gui.modules;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.time.format.TextStyle;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -27,6 +30,7 @@ import com.dlsc.gemsfx.TimePicker;
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.ServiceTemplate;
 import org.jspecify.annotations.Nullable;
 
@@ -140,8 +144,8 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         // Bound directly to the shared live role list - a role added,
         // renamed or removed anywhere shows up in this editor's slot rows on
         // its own, no rebuild call from here needed.
-        RoleSlotsEditor slotsEditor = new RoleSlotsEditor(roleStore.items(), template.slots(),
-                slots -> pushLiveHolder[0].run());
+        SlotCountEditor slotsEditor = new SlotCountEditor(roleStore.items(), countsByRole(template.slots()),
+                counts -> pushLiveHolder[0].run());
 
         // Guards every control's change listener against firing while the
         // refresh callback below is pushing an externally-changed value into
@@ -163,7 +167,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
             updateLive(new ServiceTemplate(template.id(), day, time, template.durationMinutes(),
                     locationField.getText().strip(),
                     typeBox.getValue() == null ? ServiceType.SUNDAY_MASS : typeBox.getValue(),
-                    slotsEditor.collectSlots()));
+                    toRoleSlots(slotsEditor.collectCounts())));
         };
         pushLiveHolder[0] = pushLive;
         dayBox.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
@@ -209,10 +213,20 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
                 timeField.setTime(updated.time());
                 typeBox.getSelectionModel().select(updated.type());
                 locationField.setText(updated.location());
-                slotsEditor.setSlots(updated.slots());
+                slotsEditor.setCounts(countsByRole(updated.slots()));
             } finally {
                 suppressPushLive[0] = false;
             }
         }, slotsEditor::dispose);
+    }
+
+    private static Map<String, Integer> countsByRole(List<RoleSlot> slots) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        slots.forEach(slot -> counts.put(slot.role(), slot.count()));
+        return counts;
+    }
+
+    private static List<RoleSlot> toRoleSlots(Map<String, Integer> counts) {
+        return counts.entrySet().stream().map(entry -> new RoleSlot(entry.getKey(), entry.getValue())).toList();
     }
 }

@@ -12,7 +12,7 @@ public record LiturgicalService(
         int durationMinutes,
         String location,
         ServiceType type,
-        List<RoleSlot> slots,
+        List<Slot> slots,
         String note) {
 
     public LiturgicalService {
@@ -24,6 +24,6 @@ public record LiturgicalService(
     }
 
     public int totalSlots() {
-        return slots.stream().mapToInt(RoleSlot::count).sum();
+        return slots.size();
     }
 }
