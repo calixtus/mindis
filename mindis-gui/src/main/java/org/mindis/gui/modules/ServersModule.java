@@ -284,10 +284,23 @@ public class ServersModule extends CrudModule<Server> {
             }
         });
 
+        // Guards every control's change listener against firing while the
+        // refresh callback below is pushing an externally-changed value into
+        // the controls - without it, a refresh's programmatic set can
+        // trigger a *second*, reentrant items.set() on the shared store list
+        // while an outer one is still unwinding through its own listener
+        // chain, corrupting JavaFX's internal ListChangeBuilder (observed as
+        // an UnmodifiableList.add crash deep in ListChangeBuilder.nextRemove
+        // - see RolesModule for the same fix).
+        boolean[] suppressPushLive = new boolean[1];
+
         // Facade write path: every control's change listener below rebuilds a
         // fresh Server from current control values and pushes it straight into
         // the table's live state (no editor-owned Save button).
         Runnable pushLive = () -> {
+            if (suppressPushLive[0]) {
+                return;
+            }
             Set<String> qualifications = new HashSet<>();
             qualificationSelected.forEach((roleId, ticked) -> {
                 if (ticked.get()) {
@@ -389,18 +402,23 @@ public class ServersModule extends CrudModule<Server> {
         // refresh: the row's value changed externally (e.g. a Load reverted
         // this server) - push every field back to the new value in place.
         return EditorBinding.of(content, updated -> {
-            firstNameField.setText(updated.firstName());
-            lastNameField.setText(updated.lastName());
-            contactField.setText(updated.contact());
-            birthDatePicker.setValue(updated.birthDate());
-            String updatedFamilyId = updated.familyId();
-            familyIdField.setSelectedItem(updatedFamilyId == null ? "" : updatedFamilyId);
-            qualificationSelected.forEach((roleId, ticked) -> ticked.set(updated.qualifications().contains(roleId)));
-            preferredTimesItems.setAll(updated.preferredTimes().stream().sorted().toList());
-            refreshPreferredTimeChips(preferredTimesTiles, preferredTimesItems, preferredTimeInputGroup);
-            unavailabilityList.getItems().setAll(updated.unavailabilities());
-            experiencedCheck.setSelected(updated.experienced());
-            activeCheck.setSelected(updated.active());
+            suppressPushLive[0] = true;
+            try {
+                firstNameField.setText(updated.firstName());
+                lastNameField.setText(updated.lastName());
+                contactField.setText(updated.contact());
+                birthDatePicker.setValue(updated.birthDate());
+                String updatedFamilyId = updated.familyId();
+                familyIdField.setSelectedItem(updatedFamilyId == null ? "" : updatedFamilyId);
+                qualificationSelected.forEach((roleId, ticked) -> ticked.set(updated.qualifications().contains(roleId)));
+                preferredTimesItems.setAll(updated.preferredTimes().stream().sorted().toList());
+                refreshPreferredTimeChips(preferredTimesTiles, preferredTimesItems, preferredTimeInputGroup);
+                unavailabilityList.getItems().setAll(updated.unavailabilities());
+                experiencedCheck.setSelected(updated.experienced());
+                activeCheck.setSelected(updated.active());
+            } finally {
+                suppressPushLive[0] = false;
+            }
         });
     }
 

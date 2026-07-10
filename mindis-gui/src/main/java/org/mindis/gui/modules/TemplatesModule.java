@@ -143,7 +143,18 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         RoleSlotsEditor slotsEditor = new RoleSlotsEditor(roleStore.items(), template.slots(),
                 slots -> pushLiveHolder[0].run());
 
+        // Guards every control's change listener against firing while the
+        // refresh callback below is pushing an externally-changed value into
+        // the controls - without it, a refresh's programmatic set can
+        // trigger a *second*, reentrant items.set() on the shared store list
+        // while an outer one is still unwinding through its own listener
+        // chain, corrupting JavaFX's internal ListChangeBuilder (see
+        // RolesModule for the same fix).
+        boolean[] suppressPushLive = new boolean[1];
         Runnable pushLive = () -> {
+            if (suppressPushLive[0]) {
+                return;
+            }
             DayOfWeek day = dayBox.getValue();
             LocalTime time = timeField.getTime();
             if (day == null || time == null) {
@@ -192,11 +203,16 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         // this template) - push the new value into every control in place,
         // no rebuild, so the row survives without losing focus/scroll state.
         return new EditorBinding<>(content, updated -> {
-            dayBox.getSelectionModel().select(updated.dayOfWeek());
-            timeField.setTime(updated.time());
-            typeBox.getSelectionModel().select(updated.type());
-            locationField.setText(updated.location());
-            slotsEditor.setSlots(updated.slots());
+            suppressPushLive[0] = true;
+            try {
+                dayBox.getSelectionModel().select(updated.dayOfWeek());
+                timeField.setTime(updated.time());
+                typeBox.getSelectionModel().select(updated.type());
+                locationField.setText(updated.location());
+                slotsEditor.setSlots(updated.slots());
+            } finally {
+                suppressPushLive[0] = false;
+            }
         }, slotsEditor::dispose);
     }
 }

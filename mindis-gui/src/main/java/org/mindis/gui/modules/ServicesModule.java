@@ -479,7 +479,18 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         GridPane.setVgrow(slotsEditor.list(), Priority.ALWAYS);
         grid.add(slotsEditor.list(), 1, row++);
 
+        // Guards every control's change listener against firing while the
+        // EditorBinding refresh callback below is pushing an externally-
+        // changed value into the controls - without it, a refresh's
+        // programmatic set can trigger a *second*, reentrant items.set() on
+        // the shared store list while an outer one is still unwinding
+        // through its own listener chain, corrupting JavaFX's internal
+        // ListChangeBuilder (see RolesModule for the same fix).
+        boolean[] suppressPushLive = new boolean[1];
         Runnable pushLive = () -> {
+            if (suppressPushLive[0]) {
+                return;
+            }
             LocalDate date = dateField.getValue();
             LocalTime time = timeField.getTime();
             if (date == null || time == null) {
@@ -534,12 +545,17 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         liveAssignments.addListener(assignmentsListener);
 
         return new EditorBinding<>(content, updated -> {
-            dateField.setValue(updated.dateTime().toLocalDate());
-            timeField.setTime(updated.dateTime().toLocalTime());
-            typeBox.getSelectionModel().select(updated.type());
-            locationField.setText(updated.location());
-            noteField.setText(updated.note());
-            slotsEditor.setSlots(updated.slots());
+            suppressPushLive[0] = true;
+            try {
+                dateField.setValue(updated.dateTime().toLocalDate());
+                timeField.setTime(updated.dateTime().toLocalTime());
+                typeBox.getSelectionModel().select(updated.type());
+                locationField.setText(updated.location());
+                noteField.setText(updated.note());
+                slotsEditor.setSlots(updated.slots());
+            } finally {
+                suppressPushLive[0] = false;
+            }
             // None of the sets above necessarily changed what a control
             // displays (a Save all moves the baseline, not the live value),
             // so their own listeners may not have fired - recompute every

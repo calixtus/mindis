@@ -93,14 +93,33 @@ public class RolesModule extends CrudModule<Role> {
         minAgeSpinner.getValueFactory().setValue(role.minAge());
         maxAgeSpinner.getValueFactory().setValue(role.maxAge());
 
-        Runnable pushLive = () -> updateLive(new Role(role.id(), nameField.getText().strip(),
-                minAgeSpinner.getValue(), maxAgeSpinner.getValue(), role.sortOrder()));
+        // Guards every programmatic control set below (the refresh callback,
+        // and the min-age listener's own nested max-age bump) against
+        // re-firing pushLive - without it, a value push here can trigger a
+        // *second*, reentrant items.set() on the shared store list while an
+        // outer one (e.g. a sibling row's edit, or this same edit) is still
+        // unwinding through its own listener chain, which corrupts
+        // JavaFX's internal ListChangeBuilder (observed as an
+        // UnmodifiableList.add crash deep in ListChangeBuilder.nextRemove).
+        boolean[] suppressPushLive = new boolean[1];
+        Runnable pushLive = () -> {
+            if (suppressPushLive[0]) {
+                return;
+            }
+            updateLive(new Role(role.id(), nameField.getText().strip(),
+                    minAgeSpinner.getValue(), maxAgeSpinner.getValue(), role.sortOrder()));
+        };
 
         // Raising the min age above the max age drags the max age up with it.
         minAgeSpinner.valueProperty().subscribe(newMin -> {
             Integer max = maxAgeSpinner.getValue();
             if (newMin != null && max != null && max < newMin) {
-                maxAgeSpinner.getValueFactory().setValue(newMin);
+                suppressPushLive[0] = true;
+                try {
+                    maxAgeSpinner.getValueFactory().setValue(newMin);
+                } finally {
+                    suppressPushLive[0] = false;
+                }
             }
             pushLive.run();
         });
@@ -125,11 +144,21 @@ public class RolesModule extends CrudModule<Role> {
         content.setPadding(new Insets(12));
 
         // refresh: the row's value changed externally (e.g. a Load reverted
-        // this role) - push the new value into every control in place.
+        // this role, or an unrelated row's edit elsewhere ran CrudModule's
+        // generic re-sync - see line141 in CrudModule) - push the new value
+        // into every control in place. Suppressed the same way as above:
+        // these are programmatic sets, not a user edit, and Spinner's value
+        // property compares by reference - not equals() - so even
+        // "unchanged" Integer values can still fire the field's own listener.
         return EditorBinding.of(content, updated -> {
-            nameField.setText(updated.name());
-            minAgeSpinner.getValueFactory().setValue(updated.minAge());
-            maxAgeSpinner.getValueFactory().setValue(updated.maxAge());
+            suppressPushLive[0] = true;
+            try {
+                nameField.setText(updated.name());
+                minAgeSpinner.getValueFactory().setValue(updated.minAge());
+                maxAgeSpinner.getValueFactory().setValue(updated.maxAge());
+            } finally {
+                suppressPushLive[0] = false;
+            }
         });
     }
 
