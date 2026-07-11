@@ -45,6 +45,8 @@ Target property/method surface on `PlanningViewModel`:
 
 ## 2. Stringly-typed assignment id (Effective Java Item 62)
 
+**Status: done.**
+
 `service.id() + ":" + slot.id()` is hand-built independently in 4 places
 (`PlanningService.java:97`, `ServicesModule.java:843,937,1074`) and parsed by
 prefix elsewhere (`filterByService`'s `id.startsWith(service.id()+":")`). No

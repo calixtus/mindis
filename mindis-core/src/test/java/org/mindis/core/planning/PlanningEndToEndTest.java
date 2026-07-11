@@ -68,7 +68,8 @@ class PlanningEndToEndTest {
         }
         for (LiturgicalService service : services) {
             for (Slot slot : service.slots()) {
-                assignments.add(new Assignment(service.id() + ":" + slot.id(), service, ROLES.get(slot.role())));
+                assignments.add(new Assignment(
+                        new AssignmentKey(service.id(), slot.id()).toId(), service, ROLES.get(slot.role())));
             }
         }
 

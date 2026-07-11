@@ -18,6 +18,7 @@ import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
 import org.mindis.core.planning.Assignment;
+import org.mindis.core.planning.AssignmentKey;
 import org.mindis.core.planning.MinDisConstraintProvider;
 import org.mindis.core.planning.ServicePlan;
 
@@ -96,7 +97,8 @@ public final class SolverBenchmark {
         List<Assignment> assignments = new ArrayList<>();
         for (LiturgicalService service : services) {
             for (Slot slot : service.slots()) {
-                assignments.add(new Assignment(service.id() + ":" + slot.id(), service, ROLES.get(slot.role())));
+                assignments.add(new Assignment(
+                        new AssignmentKey(service.id(), slot.id()).toId(), service, ROLES.get(slot.role())));
             }
         }
         return new ServicePlan(servers, assignments);

@@ -94,7 +94,7 @@ public class PlanningService implements AutoCloseable {
                     // Slot references a deleted role; nothing to assign.
                     continue;
                 }
-                assignments.add(new Assignment(service.id() + ":" + slot.id(), service, role));
+                assignments.add(new Assignment(new AssignmentKey(service.id(), slot.id()).toId(), service, role));
             }
         }
         ServicePlan plan = new ServicePlan(activeServers, assignments);

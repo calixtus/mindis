@@ -76,6 +76,7 @@ import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServiceCsvMapper;
 import org.mindis.core.persistence.TemplateRepository;
 import org.mindis.core.planning.Assignment;
+import org.mindis.core.planning.AssignmentKey;
 import org.mindis.core.planning.ServicePlan;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -821,7 +822,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             grid.add(roleLabel, 0, gridRow);
 
             for (int slotIndex = 0; slotIndex < roleSlots.size(); slotIndex++) {
-                String assignmentId = service.id() + ":" + roleSlots.get(slotIndex).id();
+                String assignmentId = new AssignmentKey(service.id(), roleSlots.get(slotIndex).id()).toId();
                 Assignment assignment = byId.get(assignmentId);
                 String text = assignment != null && assignment.getServer() != null
                         ? assignment.getServer().displayName() : "-";
@@ -916,7 +917,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         for (Slot slot : liveSlots) {
             Role role = rolesById.get(slot.role());
             String roleName = role == null ? slot.role() : role.name();
-            String assignmentId = service.id() + ":" + slot.id();
+            String assignmentId = new AssignmentKey(service.id(), slot.id()).toId();
             Assignment assignment = byId.get(assignmentId);
             // A slot just added by the editor has no backing Assignment yet -
             // synthesize one into the live plan right away (matching
@@ -1051,7 +1052,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         if (plan == null) {
             return false;
         }
-        String assignmentId = service.id() + ":" + slot.id();
+        String assignmentId = new AssignmentKey(service.id(), slot.id()).toId();
         return plan.getAssignments().stream()
                 .anyMatch(a -> a.getId().equals(assignmentId) && (a.getServer() != null || a.isPinned()));
     }

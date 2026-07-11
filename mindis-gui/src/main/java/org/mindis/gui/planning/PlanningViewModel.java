@@ -30,6 +30,7 @@ import org.mindis.core.model.Server;
 import org.mindis.core.persistence.PlanRepository;
 import org.mindis.core.planning.AcceptedPlan;
 import org.mindis.core.planning.Assignment;
+import org.mindis.core.planning.AssignmentKey;
 import org.mindis.core.planning.PlanMapper;
 import org.mindis.core.planning.PlanningService;
 import org.mindis.core.planning.ServicePlan;
@@ -383,20 +384,20 @@ public class PlanningViewModel {
         if (plan == null) {
             return false;
         }
-        String prefix = service.id() + ":";
         AcceptedPlan current = PlanMapper.toAcceptedPlan(plan, from, to);
-        Map<String, AcceptedPlan.PlannedAssignment> currentForService = filterByService(meaningfulAssignments(current), prefix);
+        Map<String, AcceptedPlan.PlannedAssignment> currentForService =
+                filterByService(meaningfulAssignments(current), service.id());
         Map<String, AcceptedPlan.PlannedAssignment> savedForService = savedPlanSnapshot == null
                 ? Map.of()
-                : filterByService(meaningfulAssignments(savedPlanSnapshot), prefix);
+                : filterByService(meaningfulAssignments(savedPlanSnapshot), service.id());
         return !currentForService.equals(savedForService);
     }
 
     private static Map<String, AcceptedPlan.PlannedAssignment> filterByService(
-            Map<String, AcceptedPlan.PlannedAssignment> assignments, String assignmentIdPrefix) {
+            Map<String, AcceptedPlan.PlannedAssignment> assignments, String serviceId) {
         Map<String, AcceptedPlan.PlannedAssignment> filtered = new HashMap<>();
         assignments.forEach((id, assignment) -> {
-            if (id.startsWith(assignmentIdPrefix)) {
+            if (AssignmentKey.belongsToService(id, serviceId)) {
                 filtered.put(id, assignment);
             }
         });
