@@ -10,12 +10,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -844,9 +842,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     }
 
     /// {@code service.slots()}, grouped by role in first-encountered order -
-    /// shared by {@link #buildRoleSlotGrid} (one row per role followed by
-    /// that role's own slot instances) and {@link #reconcileSlots} (which
-    /// slot instances a role currently has, before applying a count edit).
+    /// one row per role followed by that role's own slot instances.
     private static Map<String, List<Slot>> slotsByRole(List<Slot> slots) {
         Map<String, List<Slot>> byRole = new LinkedHashMap<>();
         for (Slot slot : slots) {
@@ -1006,41 +1002,14 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         return rows;
     }
 
-    /// Reconciles a role's slot count edit (from {@link SlotCountEditor})
-    /// into a concrete {@code List<Slot>}, preserving each surviving slot's
-    /// stable id - growing a role appends fresh ids; shrinking removes ids,
-    /// preferring whichever slots aren't currently backed by a filled or
-    /// pinned {@link Assignment} in {@link PlanningViewModel#currentPlan()}, so a shrink never
-    /// silently drops an assigned server out from under an unrelated empty
-    /// slot just because it happened to occupy a now out-of-range position
-    /// (see {@link Slot}'s class docs on why identity matters here).
+    /// Reconciles a role's slot count edit against {@code service}'s current
+    /// plan state - the {@code isFilled} seam {@link SlotReconciler} needs
+    /// (whether a slot is backed by a filled/pinned {@link Assignment} in
+    /// {@link PlanningViewModel#currentPlan()}) is this module's own concern;
+    /// the reconciliation algorithm itself is pure and lives (and is tested)
+    /// separately.
     private List<Slot> reconcileSlots(LiturgicalService service, List<Slot> existing, Map<String, Integer> counts) {
-        Map<String, List<Slot>> byRole = slotsByRole(existing);
-        // Existing roles keep their current order; a role newly given a
-        // count by the editor (previously zero, no existing Slot instances)
-        // is appended after.
-        Set<String> roleIds = new LinkedHashSet<>(byRole.keySet());
-        roleIds.addAll(counts.keySet());
-
-        List<Slot> result = new ArrayList<>();
-        for (String roleId : roleIds) {
-            int wanted = counts.getOrDefault(roleId, 0);
-            List<Slot> current = byRole.getOrDefault(roleId, List.of());
-            if (current.size() <= wanted) {
-                result.addAll(current);
-                for (int i = current.size(); i < wanted; i++) {
-                    result.add(new Slot(Slot.newId(), roleId));
-                }
-            } else {
-                // Shrinking: unfilled slots first (removed first), filled/
-                // pinned ones last (kept as long as possible).
-                List<Slot> orderedByEmptyFirst = current.stream()
-                        .sorted(Comparator.comparing(slot -> isSlotFilled(service, slot)))
-                        .toList();
-                result.addAll(orderedByEmptyFirst.subList(0, wanted));
-            }
-        }
-        return result;
+        return SlotReconciler.reconcile(existing, counts, slot -> isSlotFilled(service, slot));
     }
 
     /// Whether {@code slot} is currently backed by an {@link Assignment}

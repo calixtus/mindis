@@ -63,6 +63,12 @@ Medium cost.
 
 ## 3. No test coverage for the shared engine or the recent slot-reconciliation fix
 
+**Status: done** (LiveStore + the reconciliation algorithm; PlanningViewModel's
+solve/save orchestration still untested - it needs a real `PlanningService`,
+which spins up a Timefold `SolverManager` in its constructor, so testing it
+means either a fake/seam for `PlanningService` or accepting integration-only
+coverage; deferred, not attempted here).
+
 `mindis-gui/src/test` has 3 files (locale/preferences only); `mindis-workbench`
 has none. `LiveStore<T>` is the shared write-through/dirty-tracking engine
 behind all four CRUD modules - a bug there silently corrupts every screen.
