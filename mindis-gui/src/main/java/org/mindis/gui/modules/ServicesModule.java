@@ -15,7 +15,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -456,165 +455,231 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
     @Override
     protected EditorBinding<LiturgicalService> buildEditor(LiturgicalService service) {
+        ServiceEditor editor = new ServiceEditor(service);
+        return new EditorBinding<>(editor.node(), editor::refresh, editor::dispose);
+    }
+
+    /// One service row's editor: date/time/type/location/note fields plus
+    /// the Altar-servers assignment panel. A real object with real fields,
+    /// not - as {@link #buildEditor} used to build it - a pile of closures
+    /// leaning on single-element-array "mutable capture" workarounds: those
+    /// arrays existed because a closure built early (e.g. {@link
+    /// SlotCountEditor}'s onChange, constructed before {@code
+    /// slotsEditor.label} exists) needed to read or reassign state that
+    /// wasn't ready yet, or that a *later* closure would need to read. A
+    /// real object has neither problem - method declaration order doesn't
+    /// gate what a method may reference, and every method sees the same live
+    /// fields regardless of when it happens to run.
+    private final class ServiceEditor {
+
+        private final LiturgicalService service;
         // The field-changed accents below compare each control against the
         // last-persisted value, not against service itself - service may
         // already be a live (unsaved) edit pushed in by a previous visit to
         // this row's editor, and comparing against itself would always read
         // "unchanged" even though it still differs from disk. Falls back to
-        // service for a not-yet-saved new row (no persisted snapshot exists).
-        // A supplier, not a one-time snapshot: savedSnapshot(service) looks
-        // the row up by identity, so calling it again after a Save all
+        // service for a not-yet-saved new row (no persisted snapshot
+        // exists). A supplier, not a one-time snapshot: savedSnapshot(service)
+        // looks the row up by identity, so calling it again after a Save all
         // returns the newly-flushed value - re-evaluating field-changed
         // accents against a fixed baseline captured only at editor-open time
         // was exactly why they used to stay stuck "dirty" after saving.
-        Supplier<LiturgicalService> baselineSupplier =
-                () -> Objects.requireNonNullElse(savedSnapshot(service), service);
+        private final Supplier<LiturgicalService> baselineSupplier;
 
-        CalendarPicker dateField = CalendarPickers.create();
-        dateField.setValue(service.dateTime().toLocalDate());
-        TimePicker timeField = TimePickers.create();
-        timeField.setTime(service.dateTime().toLocalTime());
+        private final CalendarPicker dateField = CalendarPickers.create();
+        private final TimePicker timeField = TimePickers.create();
+        private final ComboBox<ServiceType> typeBox =
+                new ComboBox<>(FXCollections.observableArrayList(ServiceType.values()));
+        private final TextField locationField;
+        private final TextField noteField;
 
-        ComboBox<ServiceType> typeBox = new ComboBox<>(FXCollections.observableArrayList(ServiceType.values()));
-        typeBox.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(@Nullable ServiceType type) {
-                return type == null ? "" : EnumDisplay.of(type);
-            }
-
-            @Override
-            public @Nullable ServiceType fromString(@Nullable String string) {
-                return null;
-            }
-        });
-        typeBox.getSelectionModel().select(service.type());
-
-        TextField locationField = new TextField(service.location());
-        TextField noteField = new TextField(service.note());
+        private final Label dateLabel = new Label(Localization.lang("Date"));
+        private final Label timeLabel = new Label(Localization.lang("Time"));
+        private final Label typeLabel = new Label(Localization.lang("Type"));
+        private final Label locationLabel = new Label(Localization.lang("Location"));
+        private final Label noteLabel = new Label(Localization.lang("Note"));
 
         // The Altar-servers panel is always structurally present - not added
         // conditionally on "is there a plan right now" - and its visibility
-        // (plus the assignment rows) tracks PlanningViewModel#planPresentProperty() reactively. This is
-        // what makes it impossible for the panel to go permanently missing:
-        // there is no "was it ever attached" state to get stuck in, only a
-        // binding that re-evaluates whenever the property changes. Built
-        // before assignmentSection below (not after) - every
-        // buildAssignmentRows(...) call, including the first, needs this
-        // label to set its own dirty accent.
-        Label altarServersTitle = new Label(Localization.lang("Altar servers"));
-        Button autoFillButton = new Button(null, new FontIcon("mdi2a-auto-fix"));
-        autoFillButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
-        autoFillButton.disableProperty().bind(planningViewModel.solvingProperty());
-        autoFillButton.setOnAction(event -> onAutoFillService(service));
-        Tooltip.install(autoFillButton, new Tooltip(Localization.lang("Auto-fill")));
-        // A solve can run for several seconds with the button just greyed out
-        // otherwise - no visible sign it's doing anything. Swapped for a
-        // small spinner (shared "solving" flag, so this also lights up during
-        // a whole-plan "Solve all" run - correct, the solver really is busy
-        // either way).
-        ProgressIndicator autoFillIndicator = new ProgressIndicator();
-        autoFillIndicator.setPrefSize(16, 16);
-        planningViewModel.solvingProperty().addListener((obs, wasSolving, isSolving) ->
-                autoFillButton.setGraphic(isSolving ? autoFillIndicator : new FontIcon("mdi2a-auto-fix")));
-        Region titleSpacer = new Region();
-        HBox.setHgrow(titleSpacer, Priority.ALWAYS);
-        HBox altarServersHeader = new HBox(8, altarServersTitle, titleSpacer, autoFillButton);
-        altarServersHeader.setAlignment(Pos.CENTER_LEFT);
-        Separator altarSeparator = new Separator();
+        // (plus the assignment rows) tracks
+        // PlanningViewModel#planPresentProperty() reactively. This is what
+        // makes it impossible for the panel to go permanently missing: there
+        // is no "was it ever attached" state to get stuck in, only a binding
+        // that re-evaluates whenever the property changes.
+        private final Label altarServersTitle = new Label(Localization.lang("Altar servers"));
+        private final VBox assignmentSection = new VBox(6);
+        private final SlotCountEditor slotsEditor;
+        private final VBox content;
 
-        // SlotCountEditor's onChange callback needs to mark its own label
-        // dirty, but that label (slotsEditor.label) doesn't exist until the
-        // SlotCountEditor constructor - which is where the callback itself
-        // gets built - returns. A one-element array sidesteps the
-        // chicken-and-egg: the callback only runs later, in response to a
-        // spinner change, well after the array's single slot is filled in
-        // right below the constructor call.
-        Region[] slotsListHolder = new Region[1];
-        // Recomputed from baselineSupplier on every call (not captured once)
-        // for the same reason baselineSupplier itself is a supplier - it must
-        // reflect the post-Save baseline, not whatever was last flushed when
-        // this editor was built.
-        Function<Map<String, Integer>, Boolean> slotsChanged =
-                liveCounts -> !liveCounts.equals(countsByRole(baselineSupplier.get().slots()));
-
+        // Guards every control's change listener against firing while
+        // refresh(...) is pushing an externally-changed value into the
+        // controls - without it, a refresh's programmatic set can trigger a
+        // *second*, reentrant items.set() on the shared store list while an
+        // outer one is still unwinding through its own listener chain,
+        // corrupting JavaFX's internal ListChangeBuilder (see RolesModule
+        // for the same fix).
+        private boolean suppressPushLive;
         // The concrete slot instances backing the editor's counts -
         // reconciled (see reconcileSlots), not rebuilt from scratch, on
         // every count edit: a role's already-filled slots keep their ids
         // (and therefore their assignments) across a resize, and a genuine
-        // shrink below the filled count prefers dropping an empty slot
-        // first (see reconcileSlots' docs) rather than whichever slot
-        // happens to sit at a now out-of-range position.
-        Mutable<List<Slot>> liveSlotsHolder = new Mutable<>(service.slots());
+        // shrink below the filled count prefers dropping an empty slot first
+        // (see reconcileSlots' docs) rather than whichever slot happens to
+        // sit at a now out-of-range position.
+        private List<Slot> liveSlots;
 
-        Runnable[] pushLiveHolder = new Runnable[1];
-        VBox assignmentSection = new VBox(6);
-        // Bound directly to the shared live role list - a role added,
-        // renamed or removed anywhere shows up in this editor's slot rows on
-        // its own, no rebuild call from here needed.
-        SlotCountEditor slotsEditor = new SlotCountEditor(roleStore.items(), countsByRole(service.slots()),
-                liveCounts -> {
-                    List<Slot> liveSlots = reconcileSlots(service, liveSlotsHolder.get(), liveCounts);
-                    liveSlotsHolder.set(liveSlots);
-                    assignmentSection.getChildren().setAll(
-                            buildAssignmentRows(service, liveSlots, assignmentSection, altarServersTitle));
-                    // The row-rebuild above already updates liveSlotsForEditor
-                    // (assignedLabel()'s source for this row's live total),
-                    // but the table's own "Assigned" cell only re-reads it
-                    // once the table actually refreshes - a decremented
-                    // count otherwise left the column showing the old,
-                    // now-stale ratio until something else (a solve, a
-                    // manual pick) happened to trigger a refresh.
-                    table().refresh();
-                    setFieldChanged(slotsListHolder[0], slotsChanged.apply(liveCounts));
-                    pushLiveHolder[0].run();
-                });
-        slotsListHolder[0] = slotsEditor.label;
-        setFieldChanged(slotsEditor.label, slotsChanged.apply(slotsEditor.collectCounts()));
-        assignmentSection.getChildren().setAll(
-                buildAssignmentRows(service, liveSlotsHolder.get(), assignmentSection, altarServersTitle));
+        // Rebuilds the assignment rows on every liveAssignments change for a
+        // reason other than this row's own manual picks (a solve finishing,
+        // a tab reactivation, a range change, a Save all/Load) - skipped
+        // while solving, so the solver's several-times-a-second "best so
+        // far" ticks don't tear down combo boxes mid-solve; the finalBest
+        // callback always sets solving false *before* publishing the plan,
+        // so that last update always gets through. liveAssignments.setAll(...)
+        // fires this listener unconditionally, even when publishPlan()
+        // passed the exact same (in-place mutated) Assignment instances -
+        // see PlanningViewModel#liveAssignments()'s docs for why that
+        // matters.
+        private final ListChangeListener<Assignment> assignmentsListener = change -> {
+            if (!planningViewModel.solvingProperty().get()) {
+                refreshAssignmentSection();
+                table().refresh();
+            }
+        };
 
-        GridPane grid = new GridPane();
-        grid.setHgap(8);
-        grid.setVgap(8);
-        ColumnConstraints labelColumn = new ColumnConstraints();
-        labelColumn.setMinWidth(110);
-        ColumnConstraints fieldColumn = new ColumnConstraints();
-        fieldColumn.setHgrow(Priority.ALWAYS);
-        grid.getColumnConstraints().addAll(labelColumn, fieldColumn);
+        ServiceEditor(LiturgicalService service) {
+            this.service = service;
+            this.baselineSupplier = () -> Objects.requireNonNullElse(savedSnapshot(service), service);
+            this.liveSlots = service.slots();
 
-        Label dateLabel = new Label(Localization.lang("Date"));
-        Label timeLabel = new Label(Localization.lang("Time"));
-        Label typeLabel = new Label(Localization.lang("Type"));
-        Label locationLabel = new Label(Localization.lang("Location"));
-        Label noteLabel = new Label(Localization.lang("Note"));
+            dateField.setValue(service.dateTime().toLocalDate());
+            timeField.setTime(service.dateTime().toLocalTime());
+            typeBox.setConverter(new StringConverter<>() {
+                @Override
+                public String toString(@Nullable ServiceType type) {
+                    return type == null ? "" : EnumDisplay.of(type);
+                }
 
-        int row = 0;
-        grid.add(dateLabel, 0, row);
-        grid.add(dateField, 1, row++);
-        grid.add(timeLabel, 0, row);
-        grid.add(timeField, 1, row++);
-        grid.add(typeLabel, 0, row);
-        grid.add(typeBox, 1, row++);
-        grid.add(locationLabel, 0, row);
-        grid.add(locationField, 1, row++);
-        grid.add(noteLabel, 0, row);
-        grid.add(noteField, 1, row++);
+                @Override
+                public @Nullable ServiceType fromString(@Nullable String string) {
+                    return null;
+                }
+            });
+            typeBox.getSelectionModel().select(service.type());
+            locationField = new TextField(service.location());
+            noteField = new TextField(service.note());
 
-        GridPane.setValignment(slotsEditor.label, VPos.TOP);
-        grid.add(slotsEditor.label, 0, row);
-        GridPane.setVgrow(slotsEditor.list(), Priority.ALWAYS);
-        grid.add(slotsEditor.list(), 1, row++);
+            Button autoFillButton = new Button(null, new FontIcon("mdi2a-auto-fix"));
+            autoFillButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
+            autoFillButton.disableProperty().bind(planningViewModel.solvingProperty());
+            autoFillButton.setOnAction(event -> onAutoFillService(service));
+            Tooltip.install(autoFillButton, new Tooltip(Localization.lang("Auto-fill")));
+            // A solve can run for several seconds with the button just
+            // greyed out otherwise - no visible sign it's doing anything.
+            // Swapped for a small spinner (shared "solving" flag, so this
+            // also lights up during a whole-plan "Solve all" run - correct,
+            // the solver really is busy either way).
+            ProgressIndicator autoFillIndicator = new ProgressIndicator();
+            autoFillIndicator.setPrefSize(16, 16);
+            planningViewModel.solvingProperty().addListener((obs, wasSolving, isSolving) ->
+                    autoFillButton.setGraphic(isSolving ? autoFillIndicator : new FontIcon("mdi2a-auto-fix")));
+            Region titleSpacer = new Region();
+            HBox.setHgrow(titleSpacer, Priority.ALWAYS);
+            HBox altarServersHeader = new HBox(8, altarServersTitle, titleSpacer, autoFillButton);
+            altarServersHeader.setAlignment(Pos.CENTER_LEFT);
+            Separator altarSeparator = new Separator();
 
-        // Guards every control's change listener against firing while the
-        // EditorBinding refresh callback below is pushing an externally-
-        // changed value into the controls - without it, a refresh's
-        // programmatic set can trigger a *second*, reentrant items.set() on
-        // the shared store list while an outer one is still unwinding
-        // through its own listener chain, corrupting JavaFX's internal
-        // ListChangeBuilder (see RolesModule for the same fix).
-        boolean[] suppressPushLive = new boolean[1];
-        Runnable pushLive = () -> {
-            if (suppressPushLive[0]) {
+            // Bound directly to the shared live role list - a role added,
+            // renamed or removed anywhere shows up in this editor's slot
+            // rows on its own, no rebuild call from here needed.
+            slotsEditor = new SlotCountEditor(roleStore.items(), countsByRole(service.slots()), this::onSlotCountsChanged);
+            setFieldChanged(slotsEditor.label, slotsChanged(slotsEditor.collectCounts()));
+            refreshAssignmentSection();
+
+            GridPane grid = new GridPane();
+            grid.setHgap(8);
+            grid.setVgap(8);
+            ColumnConstraints labelColumn = new ColumnConstraints();
+            labelColumn.setMinWidth(110);
+            ColumnConstraints fieldColumn = new ColumnConstraints();
+            fieldColumn.setHgrow(Priority.ALWAYS);
+            grid.getColumnConstraints().addAll(labelColumn, fieldColumn);
+
+            int row = 0;
+            grid.add(dateLabel, 0, row);
+            grid.add(dateField, 1, row++);
+            grid.add(timeLabel, 0, row);
+            grid.add(timeField, 1, row++);
+            grid.add(typeLabel, 0, row);
+            grid.add(typeBox, 1, row++);
+            grid.add(locationLabel, 0, row);
+            grid.add(locationField, 1, row++);
+            grid.add(noteLabel, 0, row);
+            grid.add(noteField, 1, row++);
+
+            GridPane.setValignment(slotsEditor.label, VPos.TOP);
+            grid.add(slotsEditor.label, 0, row);
+            GridPane.setVgrow(slotsEditor.list(), Priority.ALWAYS);
+            grid.add(slotsEditor.list(), 1, row++);
+
+            dateField.valueProperty().addListener((obs, oldValue, newValue) -> pushLive());
+            timeField.timeProperty().addListener((obs, oldValue, newValue) -> pushLive());
+            typeBox.valueProperty().addListener((obs, oldValue, newValue) -> pushLive());
+            locationField.textProperty().addListener((obs, oldValue, newValue) -> pushLive());
+            noteField.textProperty().addListener((obs, oldValue, newValue) -> pushLive());
+
+            ReadOnlyBooleanProperty hasPlanBinding = planningViewModel.planPresentProperty();
+            altarSeparator.visibleProperty().bind(hasPlanBinding);
+            altarSeparator.managedProperty().bind(hasPlanBinding);
+            altarServersHeader.visibleProperty().bind(hasPlanBinding);
+            altarServersHeader.managedProperty().bind(hasPlanBinding);
+            assignmentSection.visibleProperty().bind(hasPlanBinding);
+            assignmentSection.managedProperty().bind(hasPlanBinding);
+
+            content = new VBox(10, grid, altarSeparator, altarServersHeader, assignmentSection);
+            content.setPadding(new Insets(12));
+            content.setMinHeight(EDITOR_MIN_HEIGHT);
+            markDirtyOnChange(dateField.valueProperty(), () -> baselineSupplier.get().dateTime().toLocalDate(), dateLabel);
+            markDirtyOnChange(timeField.timeProperty(), () -> baselineSupplier.get().dateTime().toLocalTime(), timeLabel);
+            markDirtyOnChange(typeBox.valueProperty(), () -> baselineSupplier.get().type(), typeLabel);
+            markDirtyOnChange(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
+            markDirtyOnChange(noteField.textProperty(), () -> baselineSupplier.get().note(), noteLabel);
+
+            planningViewModel.liveAssignments().addListener(assignmentsListener);
+        }
+
+        Node node() {
+            return content;
+        }
+
+        /// Whether {@code liveCounts} differs from {@link #baselineSupplier}'s
+        /// slots - recomputed on every call (not captured once) for the same
+        /// reason baselineSupplier itself is a supplier: it must reflect the
+        /// post-Save baseline, not whatever was last flushed when this
+        /// editor was built.
+        private boolean slotsChanged(Map<String, Integer> liveCounts) {
+            return !liveCounts.equals(countsByRole(baselineSupplier.get().slots()));
+        }
+
+        private void onSlotCountsChanged(Map<String, Integer> liveCounts) {
+            liveSlots = reconcileSlots(service, liveSlots, liveCounts);
+            refreshAssignmentSection();
+            // The row-rebuild above already updates liveSlotsForEditor
+            // (assignedCount()'s source for this row's live total), but the
+            // table's own "Assigned" cell only re-reads it once the table
+            // actually refreshes - a decremented count otherwise left the
+            // column showing the old, now-stale ratio until something else
+            // (a solve, a manual pick) happened to trigger a refresh.
+            table().refresh();
+            setFieldChanged(slotsEditor.label, slotsChanged(liveCounts));
+            pushLive();
+        }
+
+        private void refreshAssignmentSection() {
+            assignmentSection.getChildren().setAll(buildAssignmentRows());
+        }
+
+        private void pushLive() {
+            if (suppressPushLive) {
                 return;
             }
             LocalDate date = dateField.getValue();
@@ -625,63 +690,160 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             updateLive(new LiturgicalService(service.id(), date.atTime(time), service.durationMinutes(),
                     locationField.getText().strip(),
                     typeBox.getValue() == null ? ServiceType.OTHER : typeBox.getValue(),
-                    liveSlotsHolder.get(), noteField.getText().strip()));
-        };
-        pushLiveHolder[0] = pushLive;
-        dateField.valueProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
-        timeField.timeProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
-        typeBox.valueProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
-        locationField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
-        noteField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+                    liveSlots, noteField.getText().strip()));
+        }
 
-        ReadOnlyBooleanProperty hasPlanBinding = planningViewModel.planPresentProperty();
-        altarSeparator.visibleProperty().bind(hasPlanBinding);
-        altarSeparator.managedProperty().bind(hasPlanBinding);
-        altarServersHeader.visibleProperty().bind(hasPlanBinding);
-        altarServersHeader.managedProperty().bind(hasPlanBinding);
-        assignmentSection.visibleProperty().bind(hasPlanBinding);
-        assignmentSection.managedProperty().bind(hasPlanBinding);
-
-        VBox content = new VBox(10, grid, altarSeparator, altarServersHeader, assignmentSection);
-        content.setPadding(new Insets(12));
-        content.setMinHeight(EDITOR_MIN_HEIGHT);
-        markDirtyOnChange(dateField.valueProperty(), () -> baselineSupplier.get().dateTime().toLocalDate(), dateLabel);
-        markDirtyOnChange(timeField.timeProperty(), () -> baselineSupplier.get().dateTime().toLocalTime(), timeLabel);
-        markDirtyOnChange(typeBox.valueProperty(), () -> baselineSupplier.get().type(), typeLabel);
-        markDirtyOnChange(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
-        markDirtyOnChange(noteField.textProperty(), () -> baselineSupplier.get().note(), noteLabel);
-
-        // Rebuilds the assignment rows on every liveAssignments change for a
-        // reason other than this row's own manual picks (a solve finishing, a
-        // tab reactivation, a range change, a Save all/Load) - skipped while
-        // solving, so the solver's several-times-a-second "best so far" ticks
-        // don't tear down combo boxes mid-solve; the finalBest callback
-        // always sets solving false *before* publishing the plan, so that
-        // last update always gets through. liveAssignments.setAll(...) fires
-        // this listener unconditionally, even when publishPlan() passed the
-        // exact same (in-place mutated) Assignment instances - see the
-        // field's docs for why that matters.
-        ListChangeListener<Assignment> assignmentsListener = change -> {
-            if (!planningViewModel.solvingProperty().get()) {
-                assignmentSection.getChildren().setAll(
-                        buildAssignmentRows(service, liveSlotsHolder.get(), assignmentSection, altarServersTitle));
-                table().refresh();
+        /// Open-slot fill rows for {@link #service}, driven by {@link
+        /// #liveSlots} - the slot editor's current (possibly unsaved)
+        /// instances, not just whatever's in the current plan - so the list
+        /// updates the moment a slot count changes, before Save. A slot
+        /// instance still backed by an {@link Assignment} in the current
+        /// plan (matched by its stable id, {@code service:slot-id}) gets an
+        /// editable dropdown seeded with its current server; one that isn't
+        /// - a slot just added by the editor - gets a disabled placeholder,
+        /// since there's nothing to write a pick into until Save regenerates
+        /// the plan for the new slot. Decrementing then incrementing a count
+        /// back before saving never drops an assignment: {@link
+        /// #reconcileSlots} preserves a role's existing slot ids across a
+        /// resize, and the underlying {@link Assignment} objects in the plan
+        /// aren't touched by hiding a row, only by an actual rebuild (Save,
+        /// tab reactivation, or a range change), so the previously assigned
+        /// server reappears exactly as it was.
+        ///
+        /// <p>Violations (and the warning icon) are computed fresh on every
+        /// call, so without this a slot's violation status would only ever
+        /// catch up on the next full editor rebuild (Save, a solve,
+        /// reselecting the row) rather than the moment the pick is made.
+        /// {@link #altarServersTitle} gets the same left-border "unsaved
+        /// change" accent as the other fields, recomputed on every call -
+        /// this is the single choke point every assignment-affecting change
+        /// (a pick, a slot count edit, a solve, an external plan rebuild)
+        /// already goes through, so there is no separate call site to
+        /// remember.
+        private List<Node> buildAssignmentRows() {
+            liveSlotsServiceId = service.id();
+            liveSlotsForEditor = liveSlots;
+            setFieldChanged(altarServersTitle,
+                    planningViewModel.isAssignmentsDirtyFor(service, fromPicker.getValue(), toPicker.getValue()));
+            ServicePlan plan = planningViewModel.currentPlan();
+            if (plan == null || liveSlots.isEmpty()) {
+                return List.of();
             }
-        };
-        planningViewModel.liveAssignments().addListener(assignmentsListener);
+            Map<String, Assignment> byId = plan.getAssignments().stream()
+                    .filter(a -> a.getService().id().equals(service.id()))
+                    .collect(Collectors.toMap(Assignment::getId, a -> a));
+            Map<String, Role> rolesById = new HashMap<>();
+            viewModel.findAllRoles().forEach(role -> rolesById.put(role.id(), role));
+            Map<String, List<String>> violations = planningViewModel.violationsByAssignment(plan);
 
-        return new EditorBinding<>(content, updated -> {
-            suppressPushLive[0] = true;
+            ObservableList<Server> choices = FXCollections.observableArrayList(plan.getServers());
+            choices.addFirst(null);
+
+            List<Node> rows = new ArrayList<>();
+            for (Slot slot : liveSlots) {
+                Role role = rolesById.get(slot.role());
+                String roleName = role == null ? slot.role() : role.name();
+                String assignmentId = new AssignmentKey(service.id(), slot.id()).toId();
+                Assignment assignment = byId.get(assignmentId);
+                // A slot just added by the editor has no backing Assignment
+                // yet - synthesize one into the live plan right away
+                // (matching PlanningService's own id scheme) so the row is
+                // immediately editable, not just a disabled "save first"
+                // placeholder. Skipped while solving: the solver thread is
+                // actively iterating this same plan.getAssignments() list on
+                // a background thread, and mutating it concurrently isn't
+                // safe - Save (which is disabled during a solve anyway)
+                // still picks the new slot up normally once solving
+                // finishes.
+                if (assignment == null && role != null && !planningViewModel.solvingProperty().get()) {
+                    assignment = new Assignment(assignmentId, service, role);
+                    plan.getAssignments().add(assignment);
+                    byId.put(assignmentId, assignment);
+                }
+
+                ComboBox<Server> serverBox = new ComboBox<>(choices);
+                serverBox.setConverter(new StringConverter<>() {
+                    @Override
+                    public String toString(@Nullable Server server) {
+                        return server == null ? "-" : server.displayName();
+                    }
+
+                    @Override
+                    public @Nullable Server fromString(String string) {
+                        return null;
+                    }
+                });
+                if (assignment != null) {
+                    Assignment finalAssignment = assignment;
+                    serverBox.setValue(assignment.getServer());
+                    serverBox.valueProperty().addListener((obs, oldServer, newServer) -> {
+                        planningViewModel.pick(finalAssignment, newServer, fromPicker.getValue(), toPicker.getValue());
+                        refreshAssignmentSection();
+                        refreshScoreAndStatus();
+                        table().refresh();
+                    });
+                } else {
+                    serverBox.setDisable(true);
+                    serverBox.setPromptText(Localization.lang("Save to assign"));
+                }
+
+                Label roleLabel = new Label(roleName);
+                roleLabel.setMinWidth(110);
+                Region spacer = new Region();
+                HBox.setHgrow(spacer, Priority.ALWAYS);
+                HBox row = new HBox(8, roleLabel, spacer, serverBox);
+                row.setAlignment(Pos.CENTER_LEFT);
+                // A fixed fraction of the row's own width (not Hgrow.ALWAYS,
+                // which used to let the combo box eat the entire remaining
+                // row), right-aligned via the spacer above so every row's
+                // combo box lines up at the same right edge regardless of
+                // its role label's length.
+                serverBox.prefWidthProperty().bind(row.widthProperty().multiply(0.6));
+
+                List<String> names = assignment == null
+                        ? List.of() : violations.getOrDefault(assignment.getId(), List.of());
+                if (!names.isEmpty()) {
+                    FontIcon warningIcon = new FontIcon("mdi2a-alert-circle");
+                    // Not setStyle(...): FontIcon applies its own glyph font
+                    // via setStyle(...) internally when constructed, and
+                    // Node.setStyle(...) replaces the whole inline style
+                    // string rather than merging into it - overwriting that
+                    // font-family here left the icon a fallback tofu box, no
+                    // glyph. A style class routes -fx-icon-color through the
+                    // stylesheet cascade instead, which doesn't touch it.
+                    warningIcon.getStyleClass().add("altar-warning-icon");
+                    // Tooltip.install()'d directly on the FontIcon rendered
+                    // the tooltip's own text in the icon's glyph font - a
+                    // plain StackPane wrapper as the actual tooltip owner
+                    // keeps the tooltip out of whatever font-family scoping
+                    // FontIcon applies to itself.
+                    StackPane iconSlot = new StackPane(warningIcon);
+                    Tooltip.install(iconSlot, new Tooltip(
+                            String.join(", ", names.stream().map(Localization::lang).toList())));
+                    // Index 2, after the spacer (not 1, right after the
+                    // label) - the spacer's Hgrow pushes everything after it
+                    // to the right as one unit, so the icon needs to be on
+                    // the combo box's side of it to sit directly beside the
+                    // combo box rather than floating in the middle of the row.
+                    row.getChildren().add(2, iconSlot);
+                }
+                rows.add(row);
+            }
+            return rows;
+        }
+
+        void refresh(LiturgicalService updated) {
+            suppressPushLive = true;
             try {
                 dateField.setValue(updated.dateTime().toLocalDate());
                 timeField.setTime(updated.dateTime().toLocalTime());
                 typeBox.getSelectionModel().select(updated.type());
                 locationField.setText(updated.location());
                 noteField.setText(updated.note());
-                liveSlotsHolder.set(updated.slots());
+                liveSlots = updated.slots();
                 slotsEditor.setCounts(countsByRole(updated.slots()));
             } finally {
-                suppressPushLive[0] = false;
+                suppressPushLive = false;
             }
             // None of the sets above necessarily changed what a control
             // displays (a Save all moves the baseline, not the live value),
@@ -692,13 +854,15 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             recomputeFieldChanged(typeBox.valueProperty(), () -> baselineSupplier.get().type(), typeLabel);
             recomputeFieldChanged(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
             recomputeFieldChanged(noteField.textProperty(), () -> baselineSupplier.get().note(), noteLabel);
-            setFieldChanged(slotsEditor.label, slotsChanged.apply(countsByRole(updated.slots())));
+            setFieldChanged(slotsEditor.label, slotsChanged(countsByRole(updated.slots())));
             setFieldChanged(altarServersTitle,
                     planningViewModel.isAssignmentsDirtyFor(service, fromPicker.getValue(), toPicker.getValue()));
-        }, () -> {
+        }
+
+        void dispose() {
             planningViewModel.liveAssignments().removeListener(assignmentsListener);
             slotsEditor.dispose();
-        });
+        }
     }
 
     /// Left border accent on {@code label} while {@code property}'s current
@@ -859,145 +1023,6 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         column.setMaxWidth(width);
         column.setHgrow(Priority.NEVER);
         return column;
-    }
-
-    /// Open-slot fill rows for {@code service}, driven by {@code liveSlots} -
-    /// the slot editor's current (possibly unsaved) instances, not just
-    /// whatever's in the current plan - so the list updates the moment a
-    /// slot count changes, before Save. A slot instance still backed by an
-    /// {@link Assignment} in the current plan (matched by its stable id,
-    /// {@code service:slot-id}) gets an editable dropdown seeded with its
-    /// current server; one that isn't - a slot just added by the editor -
-    /// gets a disabled placeholder, since there's nothing to write a pick
-    /// into until Save regenerates the plan for the new slot. Decrementing
-    /// then incrementing a count back before saving never drops an
-    /// assignment: {@link #reconcileSlots} preserves a role's existing slot
-    /// ids across a resize, and the underlying {@link Assignment} objects in
-    /// the plan aren't touched by hiding a row, only by an actual rebuild
-    /// (Save, tab reactivation, or a range change), so the previously
-    /// assigned server reappears exactly as it was.
-    ///
-    /// <p>{@code assignmentSection} is threaded through so a manual pick can
-    /// rebuild these rows in place: violations (and the warning icon) are
-    /// computed fresh on every call, so without this a slot's violation
-    /// status would only ever catch up on the next full editor rebuild
-    /// (Save, a solve, reselecting the row) rather than the moment the pick
-    /// is made. {@code altarServersTitle} gets the same left-border
-    /// "unsaved change" accent as the other fields, recomputed on every call -
-    /// this is the single choke point every assignment-affecting change
-    /// (a pick, a slot count edit, a solve, an external plan rebuild) already
-    /// goes through, so there is no separate call site to remember.
-    private List<Node> buildAssignmentRows(LiturgicalService service, List<Slot> liveSlots,
-                                           VBox assignmentSection, Region altarServersTitle) {
-        liveSlotsServiceId = service.id();
-        liveSlotsForEditor = liveSlots;
-        setFieldChanged(altarServersTitle,
-                planningViewModel.isAssignmentsDirtyFor(service, fromPicker.getValue(), toPicker.getValue()));
-        ServicePlan plan = planningViewModel.currentPlan();
-        if (plan == null || liveSlots.isEmpty()) {
-            return List.of();
-        }
-        Map<String, Assignment> byId = plan.getAssignments().stream()
-                .filter(a -> a.getService().id().equals(service.id()))
-                .collect(Collectors.toMap(Assignment::getId, a -> a));
-        Map<String, Role> rolesById = new HashMap<>();
-        viewModel.findAllRoles().forEach(role -> rolesById.put(role.id(), role));
-        Map<String, List<String>> violations = planningViewModel.violationsByAssignment(plan);
-
-        ObservableList<Server> choices = FXCollections.observableArrayList(plan.getServers());
-        choices.addFirst(null);
-
-        List<Node> rows = new ArrayList<>();
-        for (Slot slot : liveSlots) {
-            Role role = rolesById.get(slot.role());
-            String roleName = role == null ? slot.role() : role.name();
-            String assignmentId = new AssignmentKey(service.id(), slot.id()).toId();
-            Assignment assignment = byId.get(assignmentId);
-            // A slot just added by the editor has no backing Assignment yet -
-            // synthesize one into the live plan right away (matching
-            // PlanningService's own id scheme) so the row is immediately
-            // editable, not just a disabled "save first" placeholder.
-            // Skipped while solving: the solver thread is actively iterating
-            // this same plan.getAssignments() list on a background thread,
-            // and mutating it concurrently isn't safe - Save (which is
-            // disabled during a solve anyway) still picks the new slot up
-            // normally once solving finishes.
-            if (assignment == null && role != null && !planningViewModel.solvingProperty().get()) {
-                assignment = new Assignment(assignmentId, service, role);
-                plan.getAssignments().add(assignment);
-                byId.put(assignmentId, assignment);
-            }
-
-            ComboBox<Server> serverBox = new ComboBox<>(choices);
-            serverBox.setConverter(new StringConverter<>() {
-                @Override
-                public String toString(@Nullable Server server) {
-                    return server == null ? "-" : server.displayName();
-                }
-
-                @Override
-                public @Nullable Server fromString(String string) {
-                    return null;
-                }
-            });
-            if (assignment != null) {
-                Assignment finalAssignment = assignment;
-                serverBox.setValue(assignment.getServer());
-                serverBox.valueProperty().addListener((obs, oldServer, newServer) -> {
-                    planningViewModel.pick(finalAssignment, newServer, fromPicker.getValue(), toPicker.getValue());
-                    assignmentSection.getChildren().setAll(
-                            buildAssignmentRows(service, liveSlots, assignmentSection, altarServersTitle));
-                    refreshScoreAndStatus();
-                    table().refresh();
-                });
-            } else {
-                serverBox.setDisable(true);
-                serverBox.setPromptText(Localization.lang("Save to assign"));
-            }
-
-            Label roleLabel = new Label(roleName);
-            roleLabel.setMinWidth(110);
-            Region spacer = new Region();
-            HBox.setHgrow(spacer, Priority.ALWAYS);
-            HBox row = new HBox(8, roleLabel, spacer, serverBox);
-            row.setAlignment(Pos.CENTER_LEFT);
-            // A fixed fraction of the row's own width (not Hgrow.ALWAYS,
-            // which used to let the combo box eat the entire remaining
-            // row), right-aligned via the spacer above so every row's
-            // combo box lines up at the same right edge regardless of
-            // its role label's length.
-            serverBox.prefWidthProperty().bind(row.widthProperty().multiply(0.6));
-
-            List<String> names = assignment == null
-                    ? List.of() : violations.getOrDefault(assignment.getId(), List.of());
-            if (!names.isEmpty()) {
-                FontIcon warningIcon = new FontIcon("mdi2a-alert-circle");
-                // Not setStyle(...): FontIcon applies its own glyph font
-                // via setStyle(...) internally when constructed, and
-                // Node.setStyle(...) replaces the whole inline style
-                // string rather than merging into it - overwriting that
-                // font-family here left the icon a fallback tofu box, no
-                // glyph. A style class routes -fx-icon-color through the
-                // stylesheet cascade instead, which doesn't touch it.
-                warningIcon.getStyleClass().add("altar-warning-icon");
-                // Tooltip.install()'d directly on the FontIcon rendered
-                // the tooltip's own text in the icon's glyph font - a
-                // plain StackPane wrapper as the actual tooltip owner
-                // keeps the tooltip out of whatever font-family scoping
-                // FontIcon applies to itself.
-                StackPane iconSlot = new StackPane(warningIcon);
-                Tooltip.install(iconSlot, new Tooltip(
-                        String.join(", ", names.stream().map(Localization::lang).toList())));
-                // Index 2, after the spacer (not 1, right after the
-                // label) - the spacer's Hgrow pushes everything after it
-                // to the right as one unit, so the icon needs to be on
-                // the combo box's side of it to sit directly beside the
-                // combo box rather than floating in the middle of the row.
-                row.getChildren().add(2, iconSlot);
-            }
-            rows.add(row);
-        }
-        return rows;
     }
 
     /// Reconciles a role's slot count edit against {@code service}'s current
