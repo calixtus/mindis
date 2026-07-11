@@ -175,12 +175,17 @@ public final class LiveStore<T> {
     /// wrongly re-baseline unflushed edits as clean.
     public void refresh() {
         List<T> loaded = loader.get();
-        items.setAll(loaded);
+        // Baseline moves first: items.setAll below fires listeners (e.g.
+        // CrudModule's open-editor refresh) synchronously, mid-call - if
+        // savedSnapshots hadn't been updated yet, a dirty recompute
+        // triggered from within that listener would compare against the
+        // stale pre-save snapshot and read "still dirty".
         savedSnapshots.clear();
         for (T item : loaded) {
             savedSnapshots.put(identity.apply(item), item);
         }
         pendingDeletions.clear();
+        items.setAll(loaded);
         recomputeDirtyCount();
         refreshTick.set(refreshTick.get() + 1);
     }
