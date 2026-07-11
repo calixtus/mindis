@@ -152,14 +152,15 @@ public class ServersModule extends CrudModule<Server> {
     @Override
     protected EditorBinding<Server> buildEditor(Server server) {
         // Compares against the last-flushed value, not server itself - see
-        // CrudModule#markDirtyOnChange. Covers the scalar fields below
-        // (name/contact/birth date/family/experienced/active); the
-        // collection-backed ones (qualifications, preferred times,
-        // unavailable periods) aren't wired to the same accent - a single
-        // shared label spanning a whole list needs the same "diff against
-        // baseline on every list mutation" treatment ServicesModule's own
-        // slot-count editor uses, not markDirtyOnChange's single-property
-        // model, and isn't done here.
+        // CrudModule#markDirtyOnChange. The scalar fields below (name/
+        // contact/birth date/family/experienced/active) use markDirtyOnChange
+        // directly; the collection-backed ones (qualifications, preferred
+        // times, unavailable periods) each get their own recompute*Changed
+        // Runnable instead, re-diffing the *whole* live set/list against the
+        // baseline on every mutation - a single label spanning a whole list
+        // needs that, not markDirtyOnChange's single-property model (the
+        // same reasoning ServicesModule's own slot-count editor already
+        // follows for its one label).
         Supplier<Server> baselineSupplier = () -> Objects.requireNonNullElse(savedSnapshot(server), server);
 
         TextField firstNameField = new TextField(server.firstName());
@@ -220,6 +221,14 @@ public class ServersModule extends CrudModule<Server> {
         CheckBox activeCheck = new CheckBox();
         activeCheck.setSelected(server.active());
 
+        // Created here (not inline in the grid section below, where they
+        // used to be) so the dirty-recompute closures below - which run from
+        // listeners attached well before the grid is built - can already
+        // close over them.
+        Label qualificationsLabel = new Label(Localization.lang("Qualifications"));
+        Label preferredTimesLabel = new Label(Localization.lang("Preferred times"));
+        Label unavailabilityLabel = new Label(Localization.lang("Unavailable periods"));
+
         // Row height scales with the app font size (keeps rows compact and
         // legible when the user changes the font in Settings).
         DoubleBinding cellSize = Bindings.createDoubleBinding(
@@ -233,9 +242,26 @@ public class ServersModule extends CrudModule<Server> {
         // listener attaches inside the shared factory function.
         Runnable[] pushLiveHolder = new Runnable[1];
         Map<String, BooleanProperty> qualificationSelected = new HashMap<>();
+        // A single label covers the whole checklist - unlike markDirtyOnChange
+        // (one property, one label), this must re-diff the *entire* live
+        // qualification set against the baseline on every checkbox toggle,
+        // since any one of them flipping can change whether the set as a
+        // whole still matches what's on disk.
+        Runnable recomputeQualificationsChanged = () -> {
+            Set<String> liveQualifications = new HashSet<>();
+            qualificationSelected.forEach((roleId, ticked) -> {
+                if (ticked.get()) {
+                    liveQualifications.add(roleId);
+                }
+            });
+            setFieldChanged(qualificationsLabel, !liveQualifications.equals(baselineSupplier.get().qualifications()));
+        };
         Function<String, BooleanProperty> qualificationProperty = roleId -> {
             SimpleBooleanProperty ticked = new SimpleBooleanProperty(server.qualifications().contains(roleId));
-            ticked.addListener((obs, oldValue, newValue) -> pushLiveHolder[0].run());
+            ticked.addListener((obs, oldValue, newValue) -> {
+                pushLiveHolder[0].run();
+                recomputeQualificationsChanged.run();
+            });
             return ticked;
         };
         // Seed eagerly for every current role: pushLive rebuilds the
@@ -244,6 +270,7 @@ public class ServersModule extends CrudModule<Server> {
         for (Role role : roleStore.items()) {
             qualificationSelected.computeIfAbsent(role.id(), qualificationProperty);
         }
+        recomputeQualificationsChanged.run();
         // The store's own live list - not a copy - so roles created, renamed
         // or deleted anywhere (even unsaved) appear here immediately.
         ListView<Role> qualificationsList = new ListView<>(roleStore.items());
@@ -297,6 +324,16 @@ public class ServersModule extends CrudModule<Server> {
             }
         });
 
+        // Same "whole list vs baseline" reasoning as recomputeQualificationsChanged
+        // above - compared as sets, order isn't semantically significant for
+        // either field.
+        Runnable recomputePreferredTimesChanged = () -> setFieldChanged(preferredTimesLabel,
+                !new HashSet<>(preferredTimesItems).equals(baselineSupplier.get().preferredTimes()));
+        Runnable recomputeUnavailabilityChanged = () -> setFieldChanged(unavailabilityLabel,
+                !new HashSet<>(unavailabilityList.getItems()).equals(new HashSet<>(baselineSupplier.get().unavailabilities())));
+        recomputePreferredTimesChanged.run();
+        recomputeUnavailabilityChanged.run();
+
         // Guards every control's change listener against firing while the
         // refresh callback below is pushing an externally-changed value into
         // the controls - without it, a refresh's programmatic set can
@@ -342,9 +379,14 @@ public class ServersModule extends CrudModule<Server> {
         familyIdField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
         experiencedCheck.selectedProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
         activeCheck.selectedProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
-        preferredTimesItems.addListener((ListChangeListener<LocalTime>) change -> pushLive.run());
-        unavailabilityList.getItems().addListener(
-                (ListChangeListener<UnavailabilityPeriod>) change -> pushLive.run());
+        preferredTimesItems.addListener((ListChangeListener<LocalTime>) change -> {
+            pushLive.run();
+            recomputePreferredTimesChanged.run();
+        });
+        unavailabilityList.getItems().addListener((ListChangeListener<UnavailabilityPeriod>) change -> {
+            pushLive.run();
+            recomputeUnavailabilityChanged.run();
+        });
 
         GridPane grid = new GridPane();
         grid.setHgap(8);
@@ -374,7 +416,6 @@ public class ServersModule extends CrudModule<Server> {
         grid.add(birthDatePicker, 1, row++);
         grid.add(familyLabel, 0, row);
         grid.add(familyIdField, 1, row++);
-        Label preferredTimesLabel = new Label(Localization.lang("Preferred times"));
         GridPane.setValignment(preferredTimesLabel, VPos.TOP);
         grid.add(preferredTimesLabel, 0, row);
         grid.add(preferredTimesTiles, 1, row++);
@@ -383,7 +424,6 @@ public class ServersModule extends CrudModule<Server> {
         grid.add(activeLabel, 0, row);
         grid.add(activeCheck, 1, row++);
 
-        Label qualificationsLabel = new Label(Localization.lang("Qualifications"));
         GridPane.setValignment(qualificationsLabel, VPos.TOP);
         // The list's first row isn't flush with its own top edge (border +
         // cell padding), so a plain top-aligned label sits a few pixels
@@ -393,7 +433,6 @@ public class ServersModule extends CrudModule<Server> {
         GridPane.setVgrow(qualificationsList, Priority.ALWAYS);
         grid.add(qualificationsList, 1, row++);
 
-        Label unavailabilityLabel = new Label(Localization.lang("Unavailable periods"));
         GridPane.setValignment(unavailabilityLabel, VPos.TOP);
         unavailabilityLabel.setPadding(new Insets(4, 0, 0, 0));
         grid.add(unavailabilityLabel, 0, row);
@@ -460,6 +499,9 @@ public class ServersModule extends CrudModule<Server> {
                     () -> Objects.requireNonNullElse(baselineSupplier.get().familyId(), ""), familyLabel);
             recomputeFieldChanged(experiencedCheck.selectedProperty(), () -> baselineSupplier.get().experienced(), experiencedLabel);
             recomputeFieldChanged(activeCheck.selectedProperty(), () -> baselineSupplier.get().active(), activeLabel);
+            recomputeQualificationsChanged.run();
+            recomputePreferredTimesChanged.run();
+            recomputeUnavailabilityChanged.run();
         });
     }
 
