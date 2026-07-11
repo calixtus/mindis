@@ -2,7 +2,9 @@ package org.mindis.gui.modules;
 
 import atlantafx.base.layout.InputGroup;
 
+import java.util.Objects;
 import java.util.function.IntSupplier;
+import java.util.function.Supplier;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
@@ -79,6 +81,15 @@ public class RolesModule extends CrudModule<Role> {
 
     @Override
     protected EditorBinding<Role> buildEditor(Role role) {
+        // Compares against the last-flushed value, not role itself - role
+        // may already be a live (unsaved) edit from a previous visit to this
+        // row, and comparing against itself would always read "unchanged"
+        // even though it still differs from disk. A supplier, not a
+        // one-time snapshot, so it reflects the post-Save baseline on a
+        // later call, not whatever was last flushed when this editor was
+        // built (see CrudModule#markDirtyOnChange).
+        Supplier<Role> baselineSupplier = () -> Objects.requireNonNullElse(savedSnapshot(role), role);
+
         TextField nameField = new TextField(role.name());
 
         Spinner<Integer> minAgeSpinner = new Spinner<>();
@@ -143,13 +154,28 @@ public class RolesModule extends CrudModule<Role> {
         fieldColumn.setHgrow(Priority.ALWAYS);
         grid.getColumnConstraints().addAll(labelColumn, fieldColumn);
 
-        grid.add(new Label(Localization.lang("Name")), 0, 0);
+        Label nameLabel = new Label(Localization.lang("Name"));
+        Label ageRangeLabel = new Label(Localization.lang("Age range"));
+        grid.add(nameLabel, 0, 0);
         grid.add(nameField, 1, 0);
-        grid.add(new Label(Localization.lang("Age range")), 0, 1);
+        grid.add(ageRangeLabel, 0, 1);
         grid.add(new InputGroup(minAgeSpinner, new Label("–"), maxAgeSpinner), 1, 1);
 
         VBox content = new VBox(12, grid);
         content.setPadding(new Insets(12));
+
+        markDirtyOnChange(nameField.textProperty(), () -> baselineSupplier.get().name(), nameLabel);
+        // One label covers both spinners - dirty if either differs from the
+        // baseline, not just the one whose own listener last fired (two
+        // independent markDirtyOnChange calls sharing a label would let an
+        // unchanged spinner's own recompute clobber the accent set by the
+        // other one still differing).
+        Runnable recomputeAgeRangeChanged = () -> setFieldChanged(ageRangeLabel,
+                !Objects.equals(minAgeSpinner.getValue(), baselineSupplier.get().minAge())
+                        || !Objects.equals(maxAgeSpinner.getValue(), baselineSupplier.get().maxAge()));
+        minAgeSpinner.valueProperty().addListener((obs, oldValue, newValue) -> recomputeAgeRangeChanged.run());
+        maxAgeSpinner.valueProperty().addListener((obs, oldValue, newValue) -> recomputeAgeRangeChanged.run());
+        recomputeAgeRangeChanged.run();
 
         // refresh: the row's value changed externally (e.g. a Load reverted
         // this role, or an unrelated row's edit elsewhere ran CrudModule's
@@ -167,6 +193,12 @@ public class RolesModule extends CrudModule<Role> {
             } finally {
                 suppressPushLive[0] = false;
             }
+            // None of the sets above necessarily changed what a control
+            // displays (a Save all moves the baseline, not the live value),
+            // so their own listeners may not have fired - recompute
+            // explicitly rather than relying on one.
+            recomputeFieldChanged(nameField.textProperty(), () -> baselineSupplier.get().name(), nameLabel);
+            recomputeAgeRangeChanged.run();
         });
     }
 

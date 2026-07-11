@@ -9,8 +9,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import javafx.beans.binding.Bindings;
@@ -149,6 +151,17 @@ public class ServersModule extends CrudModule<Server> {
 
     @Override
     protected EditorBinding<Server> buildEditor(Server server) {
+        // Compares against the last-flushed value, not server itself - see
+        // CrudModule#markDirtyOnChange. Covers the scalar fields below
+        // (name/contact/birth date/family/experienced/active); the
+        // collection-backed ones (qualifications, preferred times,
+        // unavailable periods) aren't wired to the same accent - a single
+        // shared label spanning a whole list needs the same "diff against
+        // baseline on every list mutation" treatment ServicesModule's own
+        // slot-count editor uses, not markDirtyOnChange's single-property
+        // model, and isn't done here.
+        Supplier<Server> baselineSupplier = () -> Objects.requireNonNullElse(savedSnapshot(server), server);
+
         TextField firstNameField = new TextField(server.firstName());
         TextField lastNameField = new TextField(server.lastName());
         TextField contactField = new TextField(server.contact());
@@ -342,24 +355,32 @@ public class ServersModule extends CrudModule<Server> {
         fieldColumn.setHgrow(Priority.ALWAYS);
         grid.getColumnConstraints().addAll(labelColumn, fieldColumn);
 
+        Label firstNameLabel = new Label(Localization.lang("First name"));
+        Label lastNameLabel = new Label(Localization.lang("Last name"));
+        Label contactLabel = new Label(Localization.lang("Contact"));
+        Label birthDateLabel = new Label(Localization.lang("Birth date"));
+        Label familyLabel = new Label(Localization.lang("Family"));
+        Label experiencedLabel = new Label(Localization.lang("Experienced"));
+        Label activeLabel = new Label(Localization.lang("Active"));
+
         int row = 0;
-        grid.add(new Label(Localization.lang("First name")), 0, row);
+        grid.add(firstNameLabel, 0, row);
         grid.add(firstNameField, 1, row++);
-        grid.add(new Label(Localization.lang("Last name")), 0, row);
+        grid.add(lastNameLabel, 0, row);
         grid.add(lastNameField, 1, row++);
-        grid.add(new Label(Localization.lang("Contact")), 0, row);
+        grid.add(contactLabel, 0, row);
         grid.add(contactField, 1, row++);
-        grid.add(new Label(Localization.lang("Birth date")), 0, row);
+        grid.add(birthDateLabel, 0, row);
         grid.add(birthDatePicker, 1, row++);
-        grid.add(new Label(Localization.lang("Family")), 0, row);
+        grid.add(familyLabel, 0, row);
         grid.add(familyIdField, 1, row++);
         Label preferredTimesLabel = new Label(Localization.lang("Preferred times"));
         GridPane.setValignment(preferredTimesLabel, VPos.TOP);
         grid.add(preferredTimesLabel, 0, row);
         grid.add(preferredTimesTiles, 1, row++);
-        grid.add(new Label(Localization.lang("Experienced")), 0, row);
+        grid.add(experiencedLabel, 0, row);
         grid.add(experiencedCheck, 1, row++);
-        grid.add(new Label(Localization.lang("Active")), 0, row);
+        grid.add(activeLabel, 0, row);
         grid.add(activeCheck, 1, row++);
 
         Label qualificationsLabel = new Label(Localization.lang("Qualifications"));
@@ -398,6 +419,14 @@ public class ServersModule extends CrudModule<Server> {
         VBox content = new VBox(10, grid);
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
+        markDirtyOnChange(firstNameField.textProperty(), () -> baselineSupplier.get().firstName(), firstNameLabel);
+        markDirtyOnChange(lastNameField.textProperty(), () -> baselineSupplier.get().lastName(), lastNameLabel);
+        markDirtyOnChange(contactField.textProperty(), () -> baselineSupplier.get().contact(), contactLabel);
+        markDirtyOnChange(birthDatePicker.valueProperty(), () -> baselineSupplier.get().birthDate(), birthDateLabel);
+        markDirtyOnChange(familyIdField.textProperty(),
+                () -> Objects.requireNonNullElse(baselineSupplier.get().familyId(), ""), familyLabel);
+        markDirtyOnChange(experiencedCheck.selectedProperty(), () -> baselineSupplier.get().experienced(), experiencedLabel);
+        markDirtyOnChange(activeCheck.selectedProperty(), () -> baselineSupplier.get().active(), activeLabel);
 
         // refresh: the row's value changed externally (e.g. a Load reverted
         // this server) - push every field back to the new value in place.
@@ -419,6 +448,18 @@ public class ServersModule extends CrudModule<Server> {
             } finally {
                 suppressPushLive[0] = false;
             }
+            // None of the sets above necessarily changed what a control
+            // displays (a Save all moves the baseline, not the live value),
+            // so their own listeners may not have fired - recompute
+            // explicitly rather than relying on one.
+            recomputeFieldChanged(firstNameField.textProperty(), () -> baselineSupplier.get().firstName(), firstNameLabel);
+            recomputeFieldChanged(lastNameField.textProperty(), () -> baselineSupplier.get().lastName(), lastNameLabel);
+            recomputeFieldChanged(contactField.textProperty(), () -> baselineSupplier.get().contact(), contactLabel);
+            recomputeFieldChanged(birthDatePicker.valueProperty(), () -> baselineSupplier.get().birthDate(), birthDateLabel);
+            recomputeFieldChanged(familyIdField.textProperty(),
+                    () -> Objects.requireNonNullElse(baselineSupplier.get().familyId(), ""), familyLabel);
+            recomputeFieldChanged(experiencedCheck.selectedProperty(), () -> baselineSupplier.get().experienced(), experiencedLabel);
+            recomputeFieldChanged(activeCheck.selectedProperty(), () -> baselineSupplier.get().active(), activeLabel);
         });
     }
 

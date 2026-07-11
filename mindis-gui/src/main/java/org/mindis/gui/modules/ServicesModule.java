@@ -21,7 +21,6 @@ import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -865,49 +864,6 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         }
     }
 
-    /// Left border accent on {@code label} while {@code property}'s current
-    /// value differs from {@code original.get()} (the last-flushed value) - a
-    /// lightweight "you have unsaved changes here" cue that needs no
-    /// field-by-field "was this the one that changed" bookkeeping: each field
-    /// just watches its own drift from where it started, and clears itself
-    /// the moment the value round-trips back to the original (e.g. undoing a
-    /// typo). On the field's own label, not the field itself - keeps the
-    /// accent out of the way of a field's own focus/validation styling.
-    ///
-    /// <p>{@code original} is a supplier, not a fixed value: a Save all moves
-    /// "the last-flushed value" without necessarily changing what the control
-    /// displays (the row was already showing its own just-saved content), so
-    /// no property change fires to re-evaluate the accent on its own - a fixed
-    /// snapshot captured once at editor-build time would leave the accent
-    /// stuck "dirty" forever after the first save. Re-reading the supplier on
-    /// every future control edit keeps the listener correct going forward;
-    /// {@link CrudModule.EditorBinding}'s {@code refresh} callback additionally
-    /// re-invokes this method's initial check after a Save all/Load, since
-    /// that path changes no control value and so triggers no listener at all.
-    private static <T> void markDirtyOnChange(ObservableValue<T> property, Supplier<T> original, Region label) {
-        property.addListener((obs, oldValue, newValue) -> recomputeFieldChanged(property, original, label));
-        recomputeFieldChanged(property, original, label);
-    }
-
-    /// The comparison {@link #markDirtyOnChange} reruns on every control
-    /// change - factored out so an {@code EditorBinding.refresh} (a Save
-    /// all/Load, which moves {@code original} without necessarily changing
-    /// what the control displays, so no listener fires on its own) can
-    /// re-invoke just the comparison without registering a second listener.
-    private static <T> void recomputeFieldChanged(ObservableValue<T> property, Supplier<T> original, Region label) {
-        setFieldChanged(label, !Objects.equals(property.getValue(), original.get()));
-    }
-
-    /// Toggles the left-border "unsaved change" accent (see {@code .field-changed} in ThemeStyler) on or off.
-    private static void setFieldChanged(Region label, boolean changed) {
-        if (changed) {
-            if (!label.getStyleClass().contains("field-changed")) {
-                label.getStyleClass().add("field-changed");
-            }
-        } else {
-            label.getStyleClass().remove("field-changed");
-        }
-    }
 
     /// The table row's tile: big-font date/time on the left (with an
     /// underfilled warning icon, same rule the old "Assigned" column used),

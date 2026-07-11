@@ -7,6 +7,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -22,6 +25,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
@@ -107,6 +111,10 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
 
     @Override
     protected EditorBinding<ServiceTemplate> buildEditor(ServiceTemplate template) {
+        // Compares against the last-flushed value, not template itself - see
+        // CrudModule#markDirtyOnChange.
+        Supplier<ServiceTemplate> baselineSupplier = () -> Objects.requireNonNullElse(savedSnapshot(template), template);
+
         ComboBox<DayOfWeek> dayBox = new ComboBox<>(FXCollections.observableArrayList(DayOfWeek.values()));
         dayBox.setConverter(new StringConverter<>() {
             @Override
@@ -141,11 +149,30 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         TextField locationField = new TextField(template.location());
 
         Runnable[] pushLiveHolder = new Runnable[1];
+        // Recomputed from baselineSupplier on every call (not captured once)
+        // for the same reason baselineSupplier itself is a supplier - it
+        // must reflect the post-Save baseline, not whatever was last flushed
+        // when this editor was built.
+        Function<Map<String, Integer>, Boolean> slotsChanged =
+                liveCounts -> !liveCounts.equals(countsByRole(baselineSupplier.get().slots()));
+        // SlotCountEditor's onChange callback needs to mark its own label
+        // dirty, but that label (slotsEditor.label) doesn't exist until the
+        // SlotCountEditor constructor - which is where the callback itself
+        // gets built - returns. A one-element array sidesteps the
+        // chicken-and-egg: the callback only runs later, in response to a
+        // spinner change, well after the array's single slot is filled in
+        // right below the constructor call.
+        Region[] slotsLabelHolder = new Region[1];
         // Bound directly to the shared live role list - a role added,
         // renamed or removed anywhere shows up in this editor's slot rows on
         // its own, no rebuild call from here needed.
         SlotCountEditor slotsEditor = new SlotCountEditor(roleStore.items(), countsByRole(template.slots()),
-                counts -> pushLiveHolder[0].run());
+                counts -> {
+                    setFieldChanged(slotsLabelHolder[0], slotsChanged.apply(counts));
+                    pushLiveHolder[0].run();
+                });
+        slotsLabelHolder[0] = slotsEditor.label;
+        setFieldChanged(slotsEditor.label, slotsChanged.apply(slotsEditor.collectCounts()));
 
         // Guards every control's change listener against firing while the
         // refresh callback below is pushing an externally-changed value into
@@ -184,14 +211,19 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         fieldColumn.setHgrow(Priority.ALWAYS);
         grid.getColumnConstraints().addAll(labelColumn, fieldColumn);
 
+        Label dayLabel = new Label(Localization.lang("Weekday"));
+        Label timeLabel = new Label(Localization.lang("Time"));
+        Label typeLabel = new Label(Localization.lang("Type"));
+        Label locationLabel = new Label(Localization.lang("Location"));
+
         int row = 0;
-        grid.add(new Label(Localization.lang("Weekday")), 0, row);
+        grid.add(dayLabel, 0, row);
         grid.add(dayBox, 1, row++);
-        grid.add(new Label(Localization.lang("Time")), 0, row);
+        grid.add(timeLabel, 0, row);
         grid.add(timeField, 1, row++);
-        grid.add(new Label(Localization.lang("Type")), 0, row);
+        grid.add(typeLabel, 0, row);
         grid.add(typeBox, 1, row++);
-        grid.add(new Label(Localization.lang("Location")), 0, row);
+        grid.add(locationLabel, 0, row);
         grid.add(locationField, 1, row++);
 
         GridPane.setValignment(slotsEditor.label, VPos.TOP);
@@ -202,6 +234,10 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         VBox content = new VBox(10, grid);
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
+        markDirtyOnChange(dayBox.getSelectionModel().selectedItemProperty(), () -> baselineSupplier.get().dayOfWeek(), dayLabel);
+        markDirtyOnChange(timeField.timeProperty(), () -> baselineSupplier.get().time(), timeLabel);
+        markDirtyOnChange(typeBox.getSelectionModel().selectedItemProperty(), () -> baselineSupplier.get().type(), typeLabel);
+        markDirtyOnChange(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
 
         // refresh: the row's value changed externally (e.g. a Load reverted
         // this template) - push the new value into every control in place,
@@ -217,6 +253,15 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
             } finally {
                 suppressPushLive[0] = false;
             }
+            // None of the sets above necessarily changed what a control
+            // displays (a Save all moves the baseline, not the live value),
+            // so their own listeners may not have fired - recompute
+            // explicitly rather than relying on one.
+            recomputeFieldChanged(dayBox.getSelectionModel().selectedItemProperty(), () -> baselineSupplier.get().dayOfWeek(), dayLabel);
+            recomputeFieldChanged(timeField.timeProperty(), () -> baselineSupplier.get().time(), timeLabel);
+            recomputeFieldChanged(typeBox.getSelectionModel().selectedItemProperty(), () -> baselineSupplier.get().type(), typeLabel);
+            recomputeFieldChanged(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
+            setFieldChanged(slotsEditor.label, slotsChanged.apply(countsByRole(updated.slots())));
         }, slotsEditor::dispose);
     }
 
