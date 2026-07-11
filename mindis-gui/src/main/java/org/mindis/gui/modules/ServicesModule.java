@@ -544,9 +544,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         // shrink below the filled count prefers dropping an empty slot
         // first (see reconcileSlots' docs) rather than whichever slot
         // happens to sit at a now out-of-range position.
-        @SuppressWarnings("unchecked")
-        List<Slot>[] liveSlotsHolder = new List[1];
-        liveSlotsHolder[0] = service.slots();
+        Mutable<List<Slot>> liveSlotsHolder = new Mutable<>(service.slots());
 
         Runnable[] pushLiveHolder = new Runnable[1];
         VBox assignmentSection = new VBox(6);
@@ -555,8 +553,8 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         // its own, no rebuild call from here needed.
         SlotCountEditor slotsEditor = new SlotCountEditor(roleStore.items(), countsByRole(service.slots()),
                 liveCounts -> {
-                    List<Slot> liveSlots = reconcileSlots(service, liveSlotsHolder[0], liveCounts);
-                    liveSlotsHolder[0] = liveSlots;
+                    List<Slot> liveSlots = reconcileSlots(service, liveSlotsHolder.get(), liveCounts);
+                    liveSlotsHolder.set(liveSlots);
                     assignmentSection.getChildren().setAll(
                             buildAssignmentRows(service, liveSlots, assignmentSection, altarServersTitle));
                     // The row-rebuild above already updates liveSlotsForEditor
@@ -573,7 +571,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         slotsListHolder[0] = slotsEditor.label;
         setFieldChanged(slotsEditor.label, slotsChanged.apply(slotsEditor.collectCounts()));
         assignmentSection.getChildren().setAll(
-                buildAssignmentRows(service, liveSlotsHolder[0], assignmentSection, altarServersTitle));
+                buildAssignmentRows(service, liveSlotsHolder.get(), assignmentSection, altarServersTitle));
 
         GridPane grid = new GridPane();
         grid.setHgap(8);
@@ -627,7 +625,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             updateLive(new LiturgicalService(service.id(), date.atTime(time), service.durationMinutes(),
                     locationField.getText().strip(),
                     typeBox.getValue() == null ? ServiceType.OTHER : typeBox.getValue(),
-                    liveSlotsHolder[0], noteField.getText().strip()));
+                    liveSlotsHolder.get(), noteField.getText().strip()));
         };
         pushLiveHolder[0] = pushLive;
         dateField.valueProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
@@ -666,7 +664,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         ListChangeListener<Assignment> assignmentsListener = change -> {
             if (!planningViewModel.solvingProperty().get()) {
                 assignmentSection.getChildren().setAll(
-                        buildAssignmentRows(service, liveSlotsHolder[0], assignmentSection, altarServersTitle));
+                        buildAssignmentRows(service, liveSlotsHolder.get(), assignmentSection, altarServersTitle));
                 table().refresh();
             }
         };
@@ -680,7 +678,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                 typeBox.getSelectionModel().select(updated.type());
                 locationField.setText(updated.location());
                 noteField.setText(updated.note());
-                liveSlotsHolder[0] = updated.slots();
+                liveSlotsHolder.set(updated.slots());
                 slotsEditor.setCounts(countsByRole(updated.slots()));
             } finally {
                 suppressPushLive[0] = false;

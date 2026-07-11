@@ -84,6 +84,13 @@ a live `ServicesModule` instance). Medium cost.
 
 ## 4. Raw single-element arrays for lambda-captured mutable state
 
+**Status: done** (only the one problem site - `List<Slot>[] liveSlotsHolder`,
+which needed `@SuppressWarnings("unchecked")` - was converted to `Mutable<T>`.
+The non-generic holders (`Region[]`, `Runnable[]`, `boolean[]`, 8 sites across
+Roles/Servers/Templates/Services) were left as-is: they hit no compiler
+warning and are an established, harmless idiom repeated consistently: not
+worth the churn of converting call sites that have no actual problem.)
+
 `Region[] slotsListHolder`, `Runnable[] pushLiveHolder`,
 `List<Slot>[] liveSlotsHolder` (needs `@SuppressWarnings("unchecked")`),
 `boolean[] suppressPushLive` - four in `ServicesModule.buildEditor` alone,
