@@ -7,7 +7,7 @@ they'll be worked.
 
 ## 1. `ServicesModule` violates MVVM — state and business logic sit in the View
 
-**Status: in progress.**
+**Status: done.**
 
 `PlanningViewModel` (`mindis-gui/src/main/java/org/mindis/gui/planning/PlanningViewModel.java`)
 already exists and already owns every call into `PlanningService`/
