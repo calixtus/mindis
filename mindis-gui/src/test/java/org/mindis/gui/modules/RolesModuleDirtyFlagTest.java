@@ -17,7 +17,6 @@ import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.Test;
 
 import org.mindis.core.model.Role;
-import org.mindis.core.persistence.RoleCsvMapper;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.workbench.LiveStore;
 
