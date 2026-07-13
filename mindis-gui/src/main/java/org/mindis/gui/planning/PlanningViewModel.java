@@ -6,10 +6,12 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -190,7 +192,7 @@ public class PlanningViewModel {
     /// caller already claimed the pending rebuild. {@code afterRebuild} runs
     /// after the (single, deferred) {@link #rebuildForRange} call - the
     /// caller's own presentation refresh (e.g. {@code table().refresh()}).
-    public void scheduleRebuild(LocalDate from, LocalDate to, boolean reloadSnapshot, Runnable afterRebuild) {
+    public void scheduleRebuild(@Nullable LocalDate from, @Nullable LocalDate to, boolean reloadSnapshot, Runnable afterRebuild) {
         if (reloadSnapshot) {
             reloadSnapshot(from, to);
         }
@@ -206,7 +208,7 @@ public class PlanningViewModel {
     }
 
     /// Reloads {@link #savedPlanSnapshot} for {@code from}/{@code to} (or clears it if none is saved for that horizon).
-    public void reloadSnapshot(LocalDate from, LocalDate to) {
+    public void reloadSnapshot(@Nullable LocalDate from, @Nullable LocalDate to) {
         savedPlanSnapshot = loadSavedPlan()
                 .filter(saved -> saved.from().equals(from) && saved.toInclusive().equals(to))
                 .orElse(null);
@@ -297,6 +299,64 @@ public class PlanningViewModel {
                 assignment.setPinned(resolvePinnedAfterManualPick(assignment, assignment.getServer()));
             } else {
                 Boolean wasPinned = pinSnapshot.get(assignment.getId());
+                assignment.setPinned(wasPinned != null && wasPinned);
+            }
+        }
+        solving.set(false);
+        publishPlan(finalBest);
+        recomputeDirty(from, to);
+    }
+
+    /// Snapshot returned by {@link #beginAutofillWindow}: every assignment's
+    /// original pin state (for {@link #finishAutofillWindow} to restore on
+    /// the ones the solver was not allowed to touch), plus the ids left
+    /// eligible for the solver.
+    public record AutofillScope(Map<String, Boolean> pinSnapshot, Set<String> eligibleIds) {
+    }
+
+    /// Publishes {@code problem} as the live plan, then pins every assignment
+    /// outside {@code [from, to]}, every assignment belonging to an archived
+    /// service ({@code archivedServiceIds}), and - unless {@code overwrite} -
+    /// every already-assigned assignment inside the window too; only
+    /// genuinely eligible slots are left free for the solver. Generalizes
+    /// {@link #beginAutoFill} from "pin everything except one service" to
+    /// this wider window-based scope. Takes the freshly built problem
+    /// explicitly (unlike {@link #beginAutoFill}, which reads the already-live
+    /// {@code currentPlan}) since an Autofill run builds its own problem over
+    /// a possibly wider range than whatever was loaded. Returns the pin
+    /// snapshot and eligible-id set {@link #finishAutofillWindow} needs
+    /// afterward.
+    public AutofillScope beginAutofillWindow(ServicePlan problem, LocalDate from, LocalDate to,
+                                             boolean overwrite, Set<String> archivedServiceIds) {
+        publishPlan(problem);
+        Map<String, Boolean> pinSnapshot = new HashMap<>();
+        Set<String> eligible = new HashSet<>();
+        for (Assignment assignment : problem.getAssignments()) {
+            pinSnapshot.put(assignment.getId(), assignment.isPinned());
+            LocalDate date = assignment.getService().dateTime().toLocalDate();
+            boolean withinWindow = !date.isBefore(from) && !date.isAfter(to);
+            boolean archived = archivedServiceIds.contains(assignment.getService().id());
+            boolean isEligible = withinWindow && !archived && (overwrite || assignment.getServer() == null);
+            assignment.setPinned(!isEligible);
+            if (isEligible) {
+                eligible.add(assignment.getId());
+            }
+        }
+        solving.set(true);
+        return new AutofillScope(pinSnapshot, eligible);
+    }
+
+    /// Restores every non-eligible assignment's original pin state from
+    /// {@code scope} (see {@link #beginAutofillWindow}); eligible
+    /// assignments become pinned instead via {@link
+    /// #resolvePinnedAfterManualPick}, same as a manual pick - the planner
+    /// asked for this fill just as deliberately.
+    public void finishAutofillWindow(ServicePlan finalBest, AutofillScope scope, LocalDate from, LocalDate to) {
+        for (Assignment assignment : finalBest.getAssignments()) {
+            if (scope.eligibleIds().contains(assignment.getId())) {
+                assignment.setPinned(resolvePinnedAfterManualPick(assignment, assignment.getServer()));
+            } else {
+                Boolean wasPinned = scope.pinSnapshot().get(assignment.getId());
                 assignment.setPinned(wasPinned != null && wasPinned);
             }
         }
@@ -424,6 +484,35 @@ public class PlanningViewModel {
         ServicePlan plan = planningService.buildProblem(from, toInclusive);
         PlanMapper.applyAcceptedPlan(plan, snapshot);
         return plan;
+    }
+
+    /// Splits the open plan at {@code cutoff} - see {@link
+    /// org.mindis.core.planning.PlanArchiver}. Returns false if there is no
+    /// open plan, or the cutoff produces no archived portion at all.
+    public boolean archiveOpenPlan(LocalDate cutoff) {
+        return planningService.archiveOpenPlan(cutoff);
+    }
+
+    /// Resolves both the solve window and the plan range for an Autofill run
+    /// from the user's (possibly blank) bounds - see {@link
+    /// org.mindis.core.planning.PlanningService#planAutofill}.
+    public Optional<org.mindis.core.planning.PlanningService.AutofillPlan> planAutofill(
+            @Nullable LocalDate from, @Nullable LocalDate to) {
+        return planningService.planAutofill(from, to);
+    }
+
+    /// Builds an Autofill problem for {@code [from, toInclusive]}: the stored
+    /// plans (open + archived) overlapping the range are re-applied by {@link
+    /// org.mindis.core.planning.PlanningService#buildAutofillProblem}, then
+    /// the current in-memory plan's own (possibly unsaved, staged) picks are
+    /// re-applied on top so a second Autofill run - or one after other staged
+    /// edits - preserves them rather than reverting to what is on disk.
+    public ServicePlan buildAutofillProblem(LocalDate from, LocalDate toInclusive) {
+        ServicePlan problem = planningService.buildAutofillProblem(from, toInclusive);
+        if (currentPlan != null) {
+            PlanMapper.applyAcceptedPlan(problem, PlanMapper.toAcceptedPlan(currentPlan, from, toInclusive));
+        }
+        return problem;
     }
 
     /// Starts solving with the solver time budget from preferences. Returns a job id for {@link #stopSolving}.

@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -54,6 +55,7 @@ import javafx.stage.Popup;
 import javafx.util.StringConverter;
 import javafx.util.Subscription;
 
+import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
 import com.dlsc.gemsfx.CalendarPicker;
 import com.dlsc.gemsfx.TimePicker;
@@ -71,6 +73,7 @@ import org.mindis.core.model.Slot;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServiceCsvMapper;
 import org.mindis.core.persistence.TemplateRepository;
+import org.mindis.core.planning.AcceptedPlan;
 import org.mindis.core.planning.Assignment;
 import org.mindis.core.planning.AssignmentKey;
 import org.mindis.core.planning.ServicePlan;
@@ -180,6 +183,24 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     /// MVVM: a View shouldn't own state or the logic that mutates it).
     private @Nullable UUID jobId;
 
+    /// Archived periods, cached for {@link #buildTileNode} to style rows
+    /// falling in one - refreshed alongside the plan itself (see {@link
+    /// #rebuildOpenPlan}), not recomputed per-row/per-repaint: {@link
+    /// PlanningViewModel#listArchivedPlans} re-reads disk on every call, and
+    /// table().refresh() fires often (every pick, every solve tick).
+    private List<AcceptedPlan> archivedRangesCache = List.of();
+
+    // The open plan's current bounds - the span the Autofill/save/export
+    // logic treats as "the plan being worked on". In-memory, NOT re-read from
+    // disk per call: an Autofill run stages a plan that extends past whatever
+    // is saved (see onAutofill), and reading disk here would drop that staged
+    // extension on the next rebuild. Set from disk at construction and after a
+    // Load/Save all/Archive (refreshOpenBoundsFromDisk), and directly to the
+    // resolved plan range by an Autofill run. Both null until the first
+    // Autofill creates an open plan.
+    private @Nullable LocalDate openPlanFrom;
+    private @Nullable LocalDate openPlanTo;
+
     // The editor's own live (possibly unsaved) slot counts for whichever
     // service is currently selected - assignedLabel() needs this so the
     // "Assigned" column's denominator matches a slot just added in the
@@ -210,8 +231,12 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         // fire both this and the size listener back to back -
         // scheduleRebuild(...) coalesces same-pulse callers into one
         // rebuild instead of running it twice.
-        storeRefreshSubscription = serviceStore.refreshTickProperty().subscribe(() ->
-                planningViewModel.scheduleRebuild(fromPicker.getValue(), toPicker.getValue(), true, () -> table().refresh()));
+        storeRefreshSubscription = serviceStore.refreshTickProperty().subscribe(() -> {
+            // A Load/Save all changed what's on disk - re-read the open plan's
+            // bounds before rebuilding against them.
+            refreshOpenBoundsFromDisk();
+            planningViewModel.scheduleRebuild(openFrom(), openToInclusive(), true, () -> table().refresh());
+        });
         // A service being added or removed (Generate from templates, CSV
         // import, New, Delete) changes whether there is anything to solve,
         // but none of those actions bump refreshTickProperty() above (that's
@@ -228,7 +253,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             int count = serviceStore.items().size();
             if (count != lastServiceCount[0]) {
                 lastServiceCount[0] = count;
-                planningViewModel.scheduleRebuild(fromPicker.getValue(), toPicker.getValue(), false, () -> table().refresh());
+                planningViewModel.scheduleRebuild(openFrom(), openToInclusive(), false, () -> table().refresh());
             }
         });
 
@@ -269,19 +294,16 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         fromPicker.setPrefWidth(130);
         toPicker.setPromptText(Localization.lang("To"));
         toPicker.setPrefWidth(130);
+        // fromPicker/toPicker now only seed "Generate from templates"
+        // default range - the open plan is tracked independently (see
+        // openFrom()/openToInclusive()) and no longer follows these pickers.
         LocalDate firstOfNextMonth = LocalDate.now().plusMonths(1).withDayOfMonth(1);
         fromPicker.setValue(firstOfNextMonth);
         toPicker.setValue(firstOfNextMonth.plusMonths(1).minusDays(1));
-        planningViewModel.loadSavedPlan().ifPresent(saved -> {
-            fromPicker.setValue(saved.from());
-            toPicker.setValue(saved.toInclusive());
-        });
-        planningViewModel.reloadSnapshot(fromPicker.getValue(), toPicker.getValue());
-        // A range edit means the planner picked a different period - start
-        // that period's plan fresh (reapplying whatever's saved for it, if
-        // anything), not carry the previous period's in-memory edits into it.
-        fromPicker.valueProperty().addListener((obs, oldValue, newValue) -> onRangeChanged());
-        toPicker.valueProperty().addListener((obs, oldValue, newValue) -> onRangeChanged());
+        // Seed the open-plan bound caches from whatever is saved, before the
+        // first reloadSnapshot/rebuild reads them.
+        refreshOpenBoundsFromDisk();
+        planningViewModel.reloadSnapshot(openFrom(), openToInclusive());
 
         Button generateButton = new Button(Localization.lang("Generate from templates"));
         generateButton.setOnAction(event -> showGenerateFromTemplatesPopup(generateButton));
@@ -302,6 +324,9 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         Button solveAllButton = new Button(Localization.lang("Solve all"));
         solveAllButton.disableProperty().bind(planningViewModel.solvingProperty().or(planningViewModel.hasPlanProperty().not()));
         solveAllButton.setOnAction(event -> onSolveAll());
+        Button autofillButton = new Button(Localization.lang("Autofill..."));
+        autofillButton.disableProperty().bind(planningViewModel.solvingProperty());
+        autofillButton.setOnAction(event -> showAutofillPopup(autofillButton));
         // The solver can legitimately run up to the configured time budget
         // (default 30s) with no other visible sign of progress - a spinner
         // here (shared by both "Solve all" and per-service auto-fill, since
@@ -324,32 +349,36 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             exportPlanButton.getItems().add(formatItem);
         }
         Button archiveButton = new Button(Localization.lang("Archived plans"));
-        archiveButton.setOnAction(event -> ArchivedPlansDialog.show(planningViewModel, table().getScene().getWindow()));
+        archiveButton.setOnAction(event -> ArchivedPlansDialog.show(planningViewModel, table().getScene().getWindow(),
+                () -> {
+                    // A split changed the open plan on disk - discard any
+                    // staged plan, re-read the new bounds, rebuild.
+                    planningViewModel.discardPlan();
+                    refreshOpenBoundsFromDisk();
+                    rebuildOpenPlan();
+                    table().refresh();
+                }));
 
         toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL),
                 generateButton,
                 new Separator(Orientation.VERTICAL), importButton, exportPlanButton,
                 new Separator(Orientation.VERTICAL),
-                solveAllButton, solvingIndicator, stopButton, archiveButton);
+                autofillButton, solveAllButton, solvingIndicator, stopButton, archiveButton);
     }
 
     /// Lightweight popup for "Generate from templates", anchored under
     /// {@code anchor} (the toolbar button) rather than a separate modal
-    /// dialog window - its own From/To pickers (seeded from the current
-    /// period range) replace what used to be a permanent From/To/Generate
-    /// group sitting in the toolbar. Deliberately does *not* touch
-    /// {@link #fromPicker}/{@link #toPicker} - the generate range is
-    /// independent of whichever period's plan is currently active, and
-    /// pushing it into those pickers would fire {@link #onRangeChanged()},
-    /// which discards {@link PlanningViewModel#currentPlan()} and rebuilds it from scratch
-    /// (wiping any not-yet-saved altar-server picks on already-existing
-    /// masses in the process). {@code ServiceGenerator} already only
-    /// proposes occurrences that aren't in {@code store().items()} yet
+    /// dialog window - its own From/To pickers (seeded from {@link
+    /// #fromPicker}/{@link #toPicker}, the tab own default range for this
+    /// action) replace what used to be a permanent From/To/Generate group
+    /// sitting in the toolbar. {@code ServiceGenerator} already only
+    /// proposes occurrences that are not in {@code store().items()} yet
     /// (matched by date-time + location), so {@link #mergeLive} - which
     /// appends unmatched rows rather than ever removing one - only ever adds
-    /// missing masses; it never touches an existing row's slots or
-    /// assignments. Dismisses on Ok or on a click outside (auto-hide), same
-    /// as any other transient popup.
+    /// missing masses; it never touches an existing row own slots or
+    /// assignments, and never touches the open plan (see {@link
+    /// #openFrom()}/{@link #openToInclusive()}) either. Dismisses on Ok or
+    /// on a click outside (auto-hide), same as any other transient popup.
     private void showGenerateFromTemplatesPopup(Node anchor) {
         CalendarPicker popupFrom = CalendarPickers.create();
         popupFrom.setValue(fromPicker.getValue());
@@ -386,6 +415,104 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
         Bounds anchorBounds = anchor.localToScreen(anchor.getBoundsInLocal());
         popup.show(anchor, anchorBounds.getMinX(), anchorBounds.getMaxY() + 4);
+    }
+
+    /// Popup for the Autofill action, same shape as {@link
+    /// #showGenerateFromTemplatesPopup}: its own From/To pickers (independent
+    /// of the tab pickers) plus an "Overwrite already-assigned slots" toggle.
+    /// From defaults to the day after the open plan's end ("the new period,
+    /// after the last assigned"); To defaults blank ("all future services").
+    /// A blank From means "all previous unassigned services present" - see
+    /// {@link org.mindis.core.planning.PlanningService#planAutofill}.
+    private void showAutofillPopup(Node anchor) {
+        CalendarPicker popupFrom = CalendarPickers.create();
+        LocalDate openTo = openToInclusive();
+        if (openTo != null) {
+            popupFrom.setValue(openTo.plusDays(1));
+        }
+        CalendarPicker popupTo = CalendarPickers.create();
+
+        ToggleSwitch overwriteToggle = new ToggleSwitch(Localization.lang("Overwrite already-assigned slots"));
+
+        GridPane grid = new GridPane();
+        grid.setHgap(8);
+        grid.setVgap(8);
+        grid.add(new Label(Localization.lang("From")), 0, 0);
+        grid.add(popupFrom, 1, 0);
+        grid.add(new Label(Localization.lang("To")), 0, 1);
+        grid.add(popupTo, 1, 1);
+        grid.add(overwriteToggle, 0, 2, 2, 1);
+
+        Popup popup = new Popup();
+        popup.setAutoHide(true);
+
+        Button okButton = new Button(Localization.lang("Autofill"));
+        okButton.setOnAction(event -> {
+            popup.hide();
+            onAutofill(popupFrom.getValue(), popupTo.getValue(), overwriteToggle.isSelected());
+        });
+        HBox buttonRow = new HBox(okButton);
+        buttonRow.setAlignment(Pos.CENTER_RIGHT);
+
+        VBox content = new VBox(10, grid, buttonRow);
+        content.setPadding(new Insets(12));
+        content.setStyle(GENERATE_POPUP_STYLE);
+        popup.getContent().add(content);
+
+        Bounds anchorBounds = anchor.localToScreen(anchor.getBoundsInLocal());
+        popup.show(anchor, anchorBounds.getMinX(), anchorBounds.getMaxY() + 4);
+    }
+
+    /// Runs an Autofill: resolves the solve window and plan range (see {@link
+    /// org.mindis.core.planning.PlanningService#planAutofill}), builds a
+    /// problem spanning the whole plan range with every prior/archived
+    /// decision re-applied, leaves only the eligible slots unpinned (in the
+    /// window, not archived, and either empty or - if {@code overwrite} -
+    /// already assigned), solves, then stages the result: the open plan's
+    /// bounds grow to the plan range, the plan is marked dirty, and a Save all
+    /// persists it. Never writes to disk itself.
+    private void onAutofill(@Nullable LocalDate from, @Nullable LocalDate to, boolean overwrite) {
+        if (planningViewModel.solvingProperty().get()) {
+            return;
+        }
+        // Pick up roster/service edits made without revisiting this tab first,
+        // same as onSolveAll - the staged in-memory plan is preserved by
+        // buildAutofillProblem re-applying it on top of the rebuilt problem.
+        rebuildOpenPlan();
+        var planned = planningViewModel.planAutofill(from, to);
+        if (planned.isEmpty()) {
+            LOGGER.info(Localization.lang("Nothing to autofill"));
+            return;
+        }
+        LocalDate planFrom = planned.get().planRange().from();
+        LocalDate planTo = planned.get().planRange().toInclusive();
+        LocalDate solveFrom = planned.get().solveWindow().from();
+        LocalDate solveTo = planned.get().solveWindow().toInclusive();
+        Set<String> archivedServiceIds = archivedRangesCache.stream()
+                .flatMap(archived -> archived.assignments().stream())
+                .map(AcceptedPlan.PlannedAssignment::serviceId)
+                .collect(Collectors.toSet());
+
+        ServicePlan problem = planningViewModel.buildAutofillProblem(planFrom, planTo);
+        PlanningViewModel.AutofillScope scope = planningViewModel.beginAutofillWindow(
+                problem, solveFrom, solveTo, overwrite, archivedServiceIds);
+        LOGGER.info(Localization.lang("Solving..."));
+        jobId = planningViewModel.solveAsync(problem,
+                best -> Platform.runLater(() -> planningViewModel.applyBestSolution(best)),
+                finalBest -> Platform.runLater(() -> {
+                    planningViewModel.finishAutofillWindow(finalBest, scope, planFrom, planTo);
+                    // Stage the extended bounds (not saved yet - Save all
+                    // persists). Bounds only ever grow via Autofill.
+                    openPlanFrom = planFrom;
+                    openPlanTo = planTo;
+                    refreshScoreAndStatus();
+                    table().refresh();
+                    LOGGER.info(Localization.lang("Solving finished"));
+                }),
+                error -> Platform.runLater(() -> {
+                    planningViewModel.failSolve();
+                    LOGGER.error(Localization.lang("Solving failed: %0", error.getMessage()), error);
+                }));
     }
 
     @Override
@@ -433,17 +560,40 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         // PlanningViewModel#publishPlan already reactively refreshes any open
         // editor's Altar-servers panel (via liveAssignments()) - no explicit
         // "refresh the editor" call needed here or anywhere else.
-        rebuildPlanForCurrentRange();
+        rebuildOpenPlan();
         table().refresh();
     }
 
-    /// Rebuilds the plan for whichever horizon {@link #fromPicker}/{@link
-    /// #toPicker} currently hold, then logs the score - the pairing every
-    /// call site that used to call {@code rebuildCurrentPlan()} directly
-    /// needs, now that both halves live on {@link #planningViewModel}.
-    private void rebuildPlanForCurrentRange() {
-        planningViewModel.rebuildForRange(fromPicker.getValue(), toPicker.getValue());
+    /// Rebuilds the plan for the single open plan own bounds (see {@link
+    /// #openFrom()}/{@link #openToInclusive()}), then logs the score - the
+    /// pairing every call site that used to call rebuildCurrentPlan()
+    /// directly needs, now that both halves live on {@link #planningViewModel}.
+    private void rebuildOpenPlan() {
+        archivedRangesCache = planningViewModel.listArchivedPlans();
+        planningViewModel.rebuildForRange(openFrom(), openToInclusive());
         refreshScoreAndStatus();
+    }
+
+    /// The open plan's cached start bound (see {@link #openPlanFrom}), or null
+    /// if no open plan exists yet.
+    private @Nullable LocalDate openFrom() {
+        return openPlanFrom;
+    }
+
+    /// The open plan's cached end bound (inclusive), or null if none yet.
+    private @Nullable LocalDate openToInclusive() {
+        return openPlanTo;
+    }
+
+    /// Re-reads the open plan's bounds and the archived-period list from disk
+    /// into their caches. Call after a Load/Save all (disk changed) or an
+    /// Archive - NOT after an Autofill, which sets {@link #openPlanFrom}/
+    /// {@link #openPlanTo} directly to its staged, not-yet-saved plan range.
+    private void refreshOpenBoundsFromDisk() {
+        Optional<AcceptedPlan> open = planningViewModel.loadSavedPlan();
+        openPlanFrom = open.map(AcceptedPlan::from).orElse(null);
+        openPlanTo = open.map(AcceptedPlan::toInclusive).orElse(null);
+        archivedRangesCache = planningViewModel.listArchivedPlans();
     }
 
     @Override
@@ -722,8 +872,10 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         private List<Node> buildAssignmentRows() {
             liveSlotsServiceId = service.id();
             liveSlotsForEditor = liveSlots;
-            setFieldChanged(altarServersTitle,
-                    planningViewModel.isAssignmentsDirtyFor(service, fromPicker.getValue(), toPicker.getValue()));
+            LocalDate horizonFrom = openFrom();
+            LocalDate horizonTo = openToInclusive();
+            setFieldChanged(altarServersTitle, horizonFrom != null && horizonTo != null
+                    && planningViewModel.isAssignmentsDirtyFor(service, horizonFrom, horizonTo));
             ServicePlan plan = planningViewModel.currentPlan();
             if (plan == null || liveSlots.isEmpty()) {
                 return List.of();
@@ -776,7 +928,9 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     Assignment finalAssignment = assignment;
                     serverBox.setValue(assignment.getServer());
                     serverBox.valueProperty().addListener((obs, oldServer, newServer) -> {
-                        planningViewModel.pick(finalAssignment, newServer, fromPicker.getValue(), toPicker.getValue());
+                        if (horizonFrom != null && horizonTo != null) {
+                            planningViewModel.pick(finalAssignment, newServer, horizonFrom, horizonTo);
+                        }
                         refreshAssignmentSection();
                         refreshScoreAndStatus();
                         table().refresh();
@@ -854,8 +1008,10 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             recomputeFieldChanged(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
             recomputeFieldChanged(noteField.textProperty(), () -> baselineSupplier.get().note(), noteLabel);
             setFieldChanged(slotsEditor.label, slotsChanged(countsByRole(updated.slots())));
-            setFieldChanged(altarServersTitle,
-                    planningViewModel.isAssignmentsDirtyFor(service, fromPicker.getValue(), toPicker.getValue()));
+            LocalDate refreshHorizonFrom = openFrom();
+            LocalDate refreshHorizonTo = openToInclusive();
+            setFieldChanged(altarServersTitle, refreshHorizonFrom != null && refreshHorizonTo != null
+                    && planningViewModel.isAssignmentsDirtyFor(service, refreshHorizonFrom, refreshHorizonTo));
         }
 
         void dispose() {
@@ -901,7 +1057,23 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         HBox tile = new HBox(20, left, slotGrid);
         tile.setAlignment(Pos.CENTER_LEFT);
         tile.setPadding(new Insets(8, 4, 8, 4));
+        if (isArchived(service)) {
+            tile.getStyleClass().add("service-tile-archived");
+        }
         return tile;
+    }
+
+    /// Whether service falls within any cached archived period (see {@link
+    /// #archivedRangesCache}) - archived rows get a distinct style so it is
+    /// obvious at a glance which ones are frozen.
+    private boolean isArchived(LiturgicalService service) {
+        LocalDate date = service.dateTime().toLocalDate();
+        for (AcceptedPlan archived : archivedRangesCache) {
+            if (!date.isBefore(archived.from()) && !date.isAfter(archived.toInclusive())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// Per-service role-slot summary, read-only (picks happen in the row's
@@ -1048,13 +1220,6 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         return new AssignedCount((int) filled, total);
     }
 
-    private void onRangeChanged() {
-        planningViewModel.discardPlan();
-        planningViewModel.reloadSnapshot(fromPicker.getValue(), toPicker.getValue());
-        rebuildPlanForCurrentRange();
-        table().refresh();
-    }
-
     /// Discards every staged edit in the shared database (all modules, by
     /// design - there is one database) and unsaved assignment picks, reloading
     /// from disk. The plan is hard-reset before the reload so the
@@ -1074,9 +1239,14 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         // made without revisiting this tab (or without Save all) is still
         // reflected. The solver must never require a save first: repositories
         // are already the shared in-memory source of truth.
-        rebuildPlanForCurrentRange();
+        rebuildOpenPlan();
         ServicePlan plan = planningViewModel.currentPlan();
         if (plan == null || plan.getAssignments().isEmpty()) {
+            return;
+        }
+        LocalDate horizonFrom = openFrom();
+        LocalDate horizonTo = openToInclusive();
+        if (horizonFrom == null || horizonTo == null) {
             return;
         }
         planningViewModel.beginSolve();
@@ -1088,7 +1258,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     table().refresh();
                 }),
                 finalBest -> Platform.runLater(() -> {
-                    planningViewModel.finishSolve(finalBest, fromPicker.getValue(), toPicker.getValue());
+                    planningViewModel.finishSolve(finalBest, horizonFrom, horizonTo);
                     refreshScoreAndStatus();
                     table().refresh();
                     LOGGER.info(Localization.lang("Solving finished"));
@@ -1118,9 +1288,14 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         // plan directly) would then count them as assigned while this
         // service's own editor - which hides rows for slots that no longer
         // exist - shows nothing, exactly the mismatch a rebuild here avoids.
-        rebuildPlanForCurrentRange();
+        rebuildOpenPlan();
         ServicePlan plan = planningViewModel.currentPlan();
         if (plan == null) {
+            return;
+        }
+        LocalDate horizonFrom = openFrom();
+        LocalDate horizonTo = openToInclusive();
+        if (horizonFrom == null || horizonTo == null) {
             return;
         }
         Map<String, Boolean> pinSnapshot = planningViewModel.beginAutoFill(service);
@@ -1129,7 +1304,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                 best -> Platform.runLater(() -> planningViewModel.applyBestSolution(best)),
                 finalBest -> Platform.runLater(() -> {
                     planningViewModel.finishAutoFill(finalBest, service, pinSnapshot,
-                            fromPicker.getValue(), toPicker.getValue());
+                            horizonFrom, horizonTo);
                     refreshScoreAndStatus();
                     table().refresh();
                     LOGGER.info(Localization.lang("Solving finished"));
@@ -1159,7 +1334,11 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     /// (global button enabled/disabled independently of an Altar-servers
     /// pick) that made a single button necessary in the first place.
     public void saveAll() {
-        planningViewModel.save(planningViewModel.currentPlan(), fromPicker.getValue(), toPicker.getValue());
+        LocalDate horizonFrom = openFrom();
+        LocalDate horizonTo = openToInclusive();
+        if (horizonFrom != null && horizonTo != null) {
+            planningViewModel.save(planningViewModel.currentPlan(), horizonFrom, horizonTo);
+        }
         liveDatabase.saveAll();
         LOGGER.info(Localization.lang("Saved"));
     }
@@ -1179,14 +1358,19 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         if (plan == null || plan.getAssignments().isEmpty()) {
             return;
         }
+        LocalDate horizonFrom = openFrom();
+        LocalDate horizonTo = openToInclusive();
+        if (horizonFrom == null || horizonTo == null) {
+            return;
+        }
         Optional<PlanExportChooser.Target> target = PlanExportChooser.show(
-                table().getScene().getWindow(), planningViewModel, "MinDis-" + fromPicker.getValue(), preferredFormat);
+                table().getScene().getWindow(), planningViewModel, "MinDis-" + horizonFrom, preferredFormat);
         if (target.isEmpty()) {
             return;
         }
         PlanExportFormat format = target.get().format();
         try {
-            planningViewModel.exportPlan(plan, fromPicker.getValue(), toPicker.getValue(), target.get().file(), format);
+            planningViewModel.exportPlan(plan, horizonFrom, horizonTo, target.get().file(), format);
             LOGGER.info(Localization.lang("%0 saved to %1", format.name(), target.get().file().getFileName()));
         } catch (RuntimeException e) {
             LOGGER.error(Localization.lang("%0 export failed: %1", format.name(), e.getMessage()), e);

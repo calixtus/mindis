@@ -13,9 +13,11 @@ import jakarta.inject.Singleton;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -100,6 +102,105 @@ public class PlanningService implements AutoCloseable {
         ServicePlan plan = new ServicePlan(activeServers, assignments);
         plan.setPriorAssignments(buildPriorAssignments(from));
         plan.setConstraintWeightOverrides(weightOverridesFromPreferences());
+        return plan;
+    }
+
+    /// Splits the open plan at {@code cutoff}: the portion dated on or
+    /// before it is frozen into a new archived plan, the remainder (if any)
+    /// becomes the new open plan. No-op (returns false) if there is no open
+    /// plan, or if the split produces no archived portion at all (cutoff
+    /// before every known assignment date) - callers should disable the
+    /// archive action in that case rather than surface this as an error.
+    public boolean archiveOpenPlan(LocalDate cutoff) {
+        Optional<AcceptedPlan> openOpt = planRepository.load();
+        if (openOpt.isEmpty()) {
+            return false;
+        }
+        AcceptedPlan open = openOpt.get();
+        PlanArchiver.Split split = PlanArchiver.split(open, cutoff,
+                id -> serviceRepository.findById(id).map(service -> service.dateTime().toLocalDate()));
+        if (split.archived().isEmpty()) {
+            return false;
+        }
+        planRepository.applyArchiveSplit(split.archived().get(), split.remainder().orElse(null));
+        return true;
+    }
+
+    /// One end of an Autofill window, after resolving blank bounds against
+    /// the currently known service dates.
+    public record DateWindow(LocalDate from, LocalDate toInclusive) {
+    }
+
+    /// Resolves an Autofill window: a blank {@code from} defaults to the
+    /// earliest known service date ("fill all previous unassigned services
+    /// present"), a blank {@code to} defaults to the latest known service
+    /// date ("fill all future services"). Empty if there are no services at
+    /// all, or if the resolved bounds are reversed.
+    public Optional<DateWindow> resolveAutofillWindow(@Nullable LocalDate from, @Nullable LocalDate to) {
+        List<LocalDate> dates = serviceRepository.findAll().stream()
+                .map(service -> service.dateTime().toLocalDate())
+                .toList();
+        if (dates.isEmpty()) {
+            return Optional.empty();
+        }
+        LocalDate resolvedFrom = from != null ? from : dates.stream().min(LocalDate::compareTo).orElseThrow();
+        LocalDate resolvedTo = to != null ? to : dates.stream().max(LocalDate::compareTo).orElseThrow();
+        return resolvedTo.isBefore(resolvedFrom) ? Optional.empty() : Optional.of(new DateWindow(resolvedFrom, resolvedTo));
+    }
+
+    /// The two ranges an Autofill run needs: {@code solveWindow} is what the
+    /// solver may actually change (eligible slots), {@code planRange} is the
+    /// full span the resulting open plan covers and is saved under - always a
+    /// superset of the solve window, extended to include the prior open
+    /// plan's whole range so nothing already decided there is dropped on save.
+    public record AutofillPlan(DateWindow solveWindow, DateWindow planRange) {
+    }
+
+    /// Resolves both ranges for an Autofill run from the user's (possibly
+    /// blank) bounds. The solve window comes from {@link
+    /// #resolveAutofillWindow}, then clamped to start no earlier than the day
+    /// after the latest archived period - archived services are frozen and
+    /// must never be re-solved or pulled into the open plan, so a blank
+    /// {@code from} that resolves into archived territory is raised to just
+    /// past it. The plan range is the solve window widened to also cover the
+    /// current open plan's full span (so a forward-only fill still saves the
+    /// earlier, already-decided part of the open plan rather than truncating
+    /// it). Empty if there are no services, the bounds are reversed, or the
+    /// whole window falls inside archived territory (nothing left to fill).
+    public Optional<AutofillPlan> planAutofill(@Nullable LocalDate from, @Nullable LocalDate to) {
+        Optional<DateWindow> resolved = resolveAutofillWindow(from, to);
+        if (resolved.isEmpty()) {
+            return Optional.empty();
+        }
+        DateWindow window = resolved.get();
+        LocalDate afterArchives = planRepository.listArchived().stream()
+                .map(AcceptedPlan::toInclusive)
+                .max(Comparator.naturalOrder())
+                .map(latest -> latest.plusDays(1))
+                .orElse(window.from());
+        LocalDate solveFrom = window.from().isBefore(afterArchives) ? afterArchives : window.from();
+        if (window.toInclusive().isBefore(solveFrom)) {
+            return Optional.empty();
+        }
+        DateWindow solveWindow = new DateWindow(solveFrom, window.toInclusive());
+        Optional<AcceptedPlan> open = planRepository.load();
+        LocalDate planFrom = open.map(p -> p.from().isBefore(solveFrom) ? p.from() : solveFrom).orElse(solveFrom);
+        LocalDate planTo = open.map(p -> p.toInclusive().isAfter(window.toInclusive()) ? p.toInclusive() : window.toInclusive())
+                .orElse(window.toInclusive());
+        return Optional.of(new AutofillPlan(solveWindow, new DateWindow(planFrom, planTo)));
+    }
+
+    /// Builds an Autofill problem: the usual {@link #buildProblem} for the
+    /// window, with every stored plan overlapping it - open or archived - 
+    /// re-applied on top, so previously-decided assignments (including
+    /// archived ones) come back with their saved values instead of blank,
+    /// which is what lets the pin pass leave only the genuinely eligible
+    /// slots open to the solver.
+    public ServicePlan buildAutofillProblem(LocalDate from, LocalDate toInclusive) {
+        ServicePlan plan = buildProblem(from, toInclusive);
+        for (AcceptedPlan stored : planRepository.allOverlapping(from, toInclusive)) {
+            PlanMapper.applyAcceptedPlan(plan, stored);
+        }
         return plan;
     }
 

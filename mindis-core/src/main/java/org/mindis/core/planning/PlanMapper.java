@@ -27,7 +27,7 @@ public final class PlanMapper {
         // savedAt is stamped by PlanRepository#save, not here - this mapper
         // is a pure ServicePlan<->AcceptedPlan conversion with no notion of
         // "when", used for export and re-solving too, not just saving.
-        return new AcceptedPlan(from, toInclusive, planned, null);
+        return new AcceptedPlan(from, toInclusive, planned, null, false, null);
     }
 
     /// Re-applies a persisted plan onto a freshly built problem: assigned

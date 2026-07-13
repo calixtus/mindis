@@ -1,6 +1,7 @@
 package org.mindis.gui.planning;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -8,6 +9,7 @@ import java.util.Optional;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
@@ -18,19 +20,27 @@ import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Window;
+
+import com.dlsc.gemsfx.CalendarPicker;
 
 import org.mindis.core.export.PlanExportFormat;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.planning.AcceptedPlan;
 
-/// Read-only browser over {@link PlanningViewModel#listArchivedPlans()}: every
-/// plan whose period the planner has since moved past. Selecting a row and
+import org.mindis.gui.util.CalendarPickers;
+
+/// Browser over {@link PlanningViewModel#listArchivedPlans()}: every plan whose
+/// period the planner has since moved past and frozen. Selecting a row and
 /// exporting reuses the same {@link PlanExportFormat} file-chooser flow as the
-/// active plan's own "Export plan" button - archived plans aren't editable,
-/// only viewable and exportable, so there's no re-solve/re-save affordance
-/// here.
+/// open plan's own "Export plan" button - archived plans aren't editable, only
+/// viewable and exportable. Also hosts the "Archive up to..." action, which
+/// freezes the open plan up to a chosen cutoff (splitting off the remainder as
+/// the new open plan) - placed here, next to the archives it produces, rather
+/// than in the always-visible main toolbar since it's an infrequent action.
 public final class ArchivedPlansDialog {
 
     private static final DateTimeFormatter SAVED_AT_FORMAT =
@@ -39,11 +49,13 @@ public final class ArchivedPlansDialog {
     private ArchivedPlansDialog() {
     }
 
-    public static void show(PlanningViewModel viewModel, Window owner) {
-        List<AcceptedPlan> archived = viewModel.listArchivedPlans();
-
+    /// Shows the dialog. {@code onArchived} runs after a successful Archive so
+    /// the caller (the Services module) can re-read the open plan's new,
+    /// smaller bounds and refresh - the split changed what's on disk underneath
+    /// whatever it had loaded.
+    public static void show(PlanningViewModel viewModel, Window owner, Runnable onArchived) {
         TableView<AcceptedPlan> table = new TableView<>();
-        table.getItems().setAll(archived);
+        table.getItems().setAll(viewModel.listArchivedPlans());
         table.setPrefWidth(520);
         table.setPrefHeight(320);
 
@@ -69,9 +81,7 @@ public final class ArchivedPlansDialog {
         savedAtColumn.setPrefWidth(180);
 
         table.getColumns().setAll(List.of(periodColumn, assignedColumn, savedAtColumn));
-
-        Label emptyLabel = new Label(Localization.lang("No archived plans yet"));
-        table.setPlaceholder(emptyLabel);
+        table.setPlaceholder(new Label(Localization.lang("No archived plans yet")));
 
         Button exportButton = new Button(Localization.lang("Export selected"));
         exportButton.disableProperty().bind(table.getSelectionModel().selectedItemProperty().isNull());
@@ -82,7 +92,36 @@ public final class ArchivedPlansDialog {
             }
         });
 
-        VBox content = new VBox(8, table, exportButton);
+        CalendarPicker cutoffPicker = CalendarPickers.create();
+        cutoffPicker.setPromptText(Localization.lang("Cutoff date"));
+        Button archiveButton = new Button(Localization.lang("Archive up to..."));
+        archiveButton.disableProperty().bind(cutoffPicker.valueProperty().isNull());
+        archiveButton.setOnAction(e -> {
+            LocalDate cutoff = cutoffPicker.getValue();
+            if (cutoff == null) {
+                return;
+            }
+            if (confirmArchive(cutoff, owner)) {
+                if (viewModel.archiveOpenPlan(cutoff)) {
+                    table.getItems().setAll(viewModel.listArchivedPlans());
+                    cutoffPicker.setValue(null);
+                    onArchived.run();
+                } else {
+                    Alert none = new Alert(AlertType.INFORMATION);
+                    none.setTitle(Localization.lang("Archive up to..."));
+                    none.setHeaderText(Localization.lang("Nothing to archive up to that date"));
+                    none.initOwner(owner);
+                    none.showAndWait();
+                }
+            }
+        });
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
+        HBox actionRow = new HBox(8, exportButton, spacer, cutoffPicker, archiveButton);
+        actionRow.setAlignment(Pos.CENTER_LEFT);
+
+        VBox content = new VBox(8, table, actionRow);
         content.setPadding(new Insets(4));
 
         Dialog<Void> dialog = new Dialog<>();
@@ -92,6 +131,17 @@ public final class ArchivedPlansDialog {
         pane.setContent(content);
         pane.getButtonTypes().add(new ButtonType(Localization.lang("Close"), ButtonData.CANCEL_CLOSE));
         dialog.showAndWait();
+    }
+
+    private static boolean confirmArchive(LocalDate cutoff, Window owner) {
+        Alert confirm = new Alert(AlertType.CONFIRMATION);
+        confirm.setTitle(Localization.lang("Archive up to..."));
+        confirm.setHeaderText(Localization.lang(
+                "Freeze every assignment up to %0? It can't be edited afterward, and any unsaved changes in that range are discarded.",
+                cutoff.toString()));
+        confirm.initOwner(owner);
+        Optional<ButtonType> result = confirm.showAndWait();
+        return result.isPresent() && result.get().getButtonData() == ButtonData.OK_DONE;
     }
 
     private static void exportPlan(PlanningViewModel viewModel, AcceptedPlan plan, Window owner) {

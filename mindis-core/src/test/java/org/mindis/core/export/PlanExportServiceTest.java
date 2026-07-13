@@ -30,7 +30,7 @@ class PlanExportServiceTest {
                 new RoleRepositoryStub(tempDir));
         AcceptedPlan plan = new AcceptedPlan(
                 LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
-                List.of(new AcceptedPlan.PlannedAssignment("a1", "svc1", Role.ACOLYTE, null, false)), null);
+                List.of(new AcceptedPlan.PlannedAssignment("a1", "svc1", Role.ACOLYTE, null, false)), null, false, null);
         Path target = tempDir.resolve("plan.pdf");
 
         exportService.export(plan, target, PlanExportFormat.PDF);
@@ -51,7 +51,7 @@ class PlanExportServiceTest {
                 new RoleRepositoryStub(tempDir));
         AcceptedPlan plan = new AcceptedPlan(
                 LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
-                List.of(new AcceptedPlan.PlannedAssignment("a1", "svc1", Role.ACOLYTE, null, false)), null);
+                List.of(new AcceptedPlan.PlannedAssignment("a1", "svc1", Role.ACOLYTE, null, false)), null, false, null);
 
         for (PlanExportFormat format : List.of(
                 PlanExportFormat.CSV, PlanExportFormat.TXT, PlanExportFormat.RTF, PlanExportFormat.MARKDOWN)) {
