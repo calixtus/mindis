@@ -107,11 +107,20 @@ public class PlanRepository {
         all.removeIf(existing -> !existing.archived());
         Instant now = Instant.now();
         all.add(new AcceptedPlan(archivedPortion.from(), archivedPortion.toInclusive(),
-                archivedPortion.assignments(), now, true, now));
+                archivedPortion.assignments(), now, true, now, archivedPortion.archivedServices()));
         if (remainder != null) {
             all.add(new AcceptedPlan(remainder.from(), remainder.toInclusive(),
                     remainder.assignments(), null, false, null));
         }
+        store.save(all);
+    }
+
+    /// Permanently removes the archived stored plan for the exact given
+    /// period. Only archived plans are deletable here - the open plan is
+    /// managed through save/applyArchiveSplit, never dropped outright.
+    public synchronized void deleteArchived(LocalDate from, LocalDate toInclusive) {
+        List<AcceptedPlan> all = new ArrayList<>(store.load());
+        all.removeIf(p -> p.archived() && p.from().equals(from) && p.toInclusive().equals(toInclusive));
         store.save(all);
     }
 

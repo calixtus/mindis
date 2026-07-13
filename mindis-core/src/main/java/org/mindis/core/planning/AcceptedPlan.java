@@ -6,6 +6,8 @@ import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 
+import org.mindis.core.model.LiturgicalService;
+
 /// A persisted planning result: which server serves which slot, and which of
 /// those decisions the planner pinned manually. Stored as JSON and re-applied
 /// onto a freshly built problem on restart (ids reference servers/services).
@@ -34,10 +36,26 @@ public record AcceptedPlan(
         List<PlannedAssignment> assignments,
         @Nullable Instant savedAt,
         boolean archived,
-        @Nullable Instant archivedAt) {
+        @Nullable Instant archivedAt,
+        List<LiturgicalService> archivedServices) {
 
     public AcceptedPlan {
         assignments = List.copyOf(assignments);
+        // archivedServices is the self-contained snapshot of the services an
+        // Archive froze and removed from the live list, so an archived plan
+        // stays viewable/exportable after its services are gone. Empty for
+        // open plans; null-tolerant so a plan.json predating this field
+        // deserializes to an empty list rather than failing.
+        archivedServices = archivedServices == null ? List.of() : List.copyOf(archivedServices);
+    }
+
+    /// Convenience for the common "no service snapshot" case (open plans,
+    /// exports, re-solving, tests) - delegates to the canonical constructor
+    /// with an empty snapshot so existing call sites don't all grow an
+    /// argument.
+    public AcceptedPlan(LocalDate from, LocalDate toInclusive, List<PlannedAssignment> assignments,
+                        @Nullable Instant savedAt, boolean archived, @Nullable Instant archivedAt) {
+        this(from, toInclusive, assignments, savedAt, archived, archivedAt, List.of());
     }
 
     /// One persisted slot decision. {@code role} is the {@link

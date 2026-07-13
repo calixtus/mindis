@@ -107,4 +107,26 @@ class PlanningServiceAutofillTest {
         assertEquals(LocalDate.of(2026, 8, 1), autofill.planRange().from());
         assertEquals(LocalDate.of(2026, 9, 6), autofill.planRange().toInclusive());
     }
+
+    @Test
+    void archiveSnapshotsAndReturnsTheFrozenServices() {
+        addService("jul", LocalDate.of(2026, 7, 5));
+        addService("aug", LocalDate.of(2026, 8, 5));
+        // Open plan covering both, with one assignment per service.
+        plans.save(new AcceptedPlan(LocalDate.of(2026, 7, 1), LocalDate.of(2026, 8, 31),
+                List.of(new AcceptedPlan.PlannedAssignment("jul:s", "jul", "ACOLYTE", "srv", false),
+                        new AcceptedPlan.PlannedAssignment("aug:s", "aug", "ACOLYTE", "srv", false)),
+                null, false, null));
+
+        // Archive July: the July service is snapshotted and returned; August
+        // stays in the open remainder.
+        List<LiturgicalService> archived = service.archiveOpenPlan(LocalDate.of(2026, 7, 31));
+
+        assertEquals(1, archived.size());
+        assertEquals("jul", archived.getFirst().id());
+        AcceptedPlan frozen = plans.listArchived().getFirst();
+        assertEquals(1, frozen.archivedServices().size());
+        assertEquals("jul", frozen.archivedServices().getFirst().id());
+        assertEquals(LocalDate.of(2026, 8, 1), plans.load().orElseThrow().from());
+    }
 }

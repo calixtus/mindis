@@ -349,15 +349,8 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             exportPlanButton.getItems().add(formatItem);
         }
         Button archiveButton = new Button(Localization.lang("Archived plans"));
-        archiveButton.setOnAction(event -> ArchivedPlansDialog.show(planningViewModel, table().getScene().getWindow(),
-                () -> {
-                    // A split changed the open plan on disk - discard any
-                    // staged plan, re-read the new bounds, rebuild.
-                    planningViewModel.discardPlan();
-                    refreshOpenBoundsFromDisk();
-                    rebuildOpenPlan();
-                    table().refresh();
-                }));
+        archiveButton.setOnAction(event ->
+                ArchivedPlansDialog.show(planningViewModel, table().getScene().getWindow(), this::performArchive));
 
         toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL),
                 generateButton,
@@ -594,6 +587,30 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         openPlanFrom = open.map(AcceptedPlan::from).orElse(null);
         openPlanTo = open.map(AcceptedPlan::toInclusive).orElse(null);
         archivedRangesCache = planningViewModel.listArchivedPlans();
+    }
+
+    /// Freezes the open plan up to {@code cutoff}: the frozen services are
+    /// snapshotted into the archived plan (so it stays viewable/exportable)
+    /// and staged-removed from the live list here - a Save all commits the
+    /// removal. Returns whether anything was archived. Supplied to the
+    /// Archived Plans dialog as its archive action.
+    private boolean performArchive(LocalDate cutoff) {
+        List<LiturgicalService> archived = planningViewModel.archiveOpenPlan(cutoff, openFrom(), openToInclusive());
+        if (archived.isEmpty()) {
+            return false;
+        }
+        // The open plan on disk is now the remainder - resync bounds first so
+        // the service-count listener that fires when we remove the archived
+        // services below schedules its rebuild against the new (remainder)
+        // bounds, not the stale full range.
+        planningViewModel.discardPlan();
+        refreshOpenBoundsFromDisk();
+        for (LiturgicalService service : archived) {
+            store().remove(service);
+        }
+        rebuildOpenPlan();
+        table().refresh();
+        return true;
     }
 
     @Override

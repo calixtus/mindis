@@ -61,6 +61,10 @@ public class PlanExportService {
         serverRepository.findAll().forEach(server -> serversById.put(server.id(), server));
         Map<String, LiturgicalService> servicesById = new LinkedHashMap<>();
         serviceRepository.findAll().forEach(service -> servicesById.put(service.id(), service));
+        // An archived plan carries its own service snapshot (its services may
+        // already have been removed from the live list); prefer it so archived
+        // plans still export after their services are gone.
+        plan.archivedServices().forEach(service -> servicesById.put(service.id(), service));
         Map<String, Role> rolesById = new LinkedHashMap<>();
         roleRepository.findAll().forEach(role -> rolesById.put(role.id(), role));
 

@@ -486,10 +486,17 @@ public class PlanningViewModel {
         return plan;
     }
 
-    /// Splits the open plan at {@code cutoff} - see {@link
-    /// org.mindis.core.planning.PlanArchiver}. Returns false if there is no
-    /// open plan, or the cutoff produces no archived portion at all.
-    public boolean archiveOpenPlan(LocalDate cutoff) {
+    /// Persists the current (possibly staged) open plan, then splits it at
+    /// {@code cutoff} - see {@link org.mindis.core.planning.PlanArchiver}.
+    /// Saving first is what lets an Autofill that was never manually saved
+    /// still be captured in the frozen archive, rather than freezing an empty
+    /// on-disk plan. Returns false if there is no open plan, or the cutoff
+    /// produces no archived portion at all.
+    public java.util.List<org.mindis.core.model.LiturgicalService> archiveOpenPlan(
+            LocalDate cutoff, @Nullable LocalDate from, @Nullable LocalDate to) {
+        if (from != null && to != null) {
+            save(currentPlan, from, to);
+        }
         return planningService.archiveOpenPlan(cutoff);
     }
 
@@ -545,6 +552,11 @@ public class PlanningViewModel {
     public void exportPlan(ServicePlan plan, LocalDate from, LocalDate toInclusive,
                            Path target, PlanExportFormat format) {
         planExportService.export(PlanMapper.toAcceptedPlan(plan, from, toInclusive), target, format);
+    }
+
+    /// Permanently deletes an archived plan (retention / cleanup).
+    public void deleteArchivedPlan(AcceptedPlan plan) {
+        planRepository.deleteArchived(plan.from(), plan.toInclusive());
     }
 
     /// Every saved plan from a period the planner has since moved past, newest first.

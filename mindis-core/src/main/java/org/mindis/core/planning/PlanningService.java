@@ -105,25 +105,35 @@ public class PlanningService implements AutoCloseable {
         return plan;
     }
 
-    /// Splits the open plan at {@code cutoff}: the portion dated on or
-    /// before it is frozen into a new archived plan, the remainder (if any)
-    /// becomes the new open plan. No-op (returns false) if there is no open
-    /// plan, or if the split produces no archived portion at all (cutoff
-    /// before every known assignment date) - callers should disable the
-    /// archive action in that case rather than surface this as an error.
-    public boolean archiveOpenPlan(LocalDate cutoff) {
+    /// Splits the open plan at {@code cutoff}: the portion dated on or before
+    /// it is frozen into a new archived plan (carrying a self-contained
+    /// snapshot of its services, so it stays exportable once those services
+    /// leave the live list), the remainder (if any) becomes the new open
+    /// plan. Returns the archived services so the caller can drop them from
+    /// the live list; empty if there is no open plan or the cutoff archives
+    /// nothing (cutoff before every known assignment date).
+    public List<LiturgicalService> archiveOpenPlan(LocalDate cutoff) {
         Optional<AcceptedPlan> openOpt = planRepository.load();
         if (openOpt.isEmpty()) {
-            return false;
+            return List.of();
         }
         AcceptedPlan open = openOpt.get();
         PlanArchiver.Split split = PlanArchiver.split(open, cutoff,
                 id -> serviceRepository.findById(id).map(service -> service.dateTime().toLocalDate()));
         if (split.archived().isEmpty()) {
-            return false;
+            return List.of();
         }
-        planRepository.applyArchiveSplit(split.archived().get(), split.remainder().orElse(null));
-        return true;
+        AcceptedPlan archivedPortion = split.archived().get();
+        List<LiturgicalService> snapshot = archivedPortion.assignments().stream()
+                .map(AcceptedPlan.PlannedAssignment::serviceId)
+                .distinct()
+                .flatMap(id -> serviceRepository.findById(id).stream())
+                .toList();
+        AcceptedPlan frozen = new AcceptedPlan(archivedPortion.from(), archivedPortion.toInclusive(),
+                archivedPortion.assignments(), archivedPortion.savedAt(),
+                archivedPortion.archived(), archivedPortion.archivedAt(), snapshot);
+        planRepository.applyArchiveSplit(frozen, split.remainder().orElse(null));
+        return snapshot;
     }
 
     /// One end of an Autofill window, after resolving blank bounds against

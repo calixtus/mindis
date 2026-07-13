@@ -26,6 +26,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableView;
 import javafx.scene.control.ToolBar;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
@@ -365,6 +366,14 @@ public abstract class CrudModule<T> extends WorkbenchModule {
 
     private Node buildView() {
         table.setItems(tableItems());
+        // Del key deletes the selected row, same as the Delete button (only
+        // when the table itself has focus - not while editing in the side panel).
+        table.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.DELETE) {
+                deleteSelected();
+                event.consume();
+            }
+        });
 
         table.getSelectionModel().selectedItemProperty().subscribe((previous, current) -> {
             if (suppressEditorRebuild) {
@@ -423,7 +432,16 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         if (selected == null) {
             return;
         }
+        int index = table.getItems().indexOf(selected);
         store.remove(selected);
+        // Reselect whatever row shifted into the freed slot (or the new last
+        // row), so a run of deletions does not dump the user back to an empty
+        // editor after every one. store.remove updates the table item list
+        // synchronously, so the post-removal size/indices are already current.
+        int size = table.getItems().size();
+        if (size > 0 && index >= 0) {
+            table.getSelectionModel().select(Math.min(index, size - 1));
+        }
     }
 
     /// Prompts for a file and writes every row via {@code mapper}. Bind to the Export button's action.

@@ -49,11 +49,13 @@ public final class ArchivedPlansDialog {
     private ArchivedPlansDialog() {
     }
 
-    /// Shows the dialog. {@code onArchived} runs after a successful Archive so
-    /// the caller (the Services module) can re-read the open plan's new,
-    /// smaller bounds and refresh - the split changed what's on disk underneath
-    /// whatever it had loaded.
-    public static void show(PlanningViewModel viewModel, Window owner, Runnable onArchived) {
+    /// Shows the dialog. {@code archiveAction} performs the freeze at a chosen
+    /// cutoff and returns whether anything was archived - it lives on the
+    /// Services module because archiving also drops the frozen services from
+    /// the live list and rebuilds the open plan, needing the module's own
+    /// store and bound caches.
+    public static void show(PlanningViewModel viewModel, Window owner,
+                            java.util.function.Predicate<LocalDate> archiveAction) {
         TableView<AcceptedPlan> table = new TableView<>();
         table.getItems().setAll(viewModel.listArchivedPlans());
         table.setPrefWidth(520);
@@ -91,6 +93,15 @@ public final class ArchivedPlansDialog {
                 exportPlan(viewModel, selected, owner);
             }
         });
+        Button deleteButton = new Button(Localization.lang("Delete selected"));
+        deleteButton.disableProperty().bind(table.getSelectionModel().selectedItemProperty().isNull());
+        deleteButton.setOnAction(e -> {
+            AcceptedPlan selected = table.getSelectionModel().getSelectedItem();
+            if (selected != null && confirmDelete(selected, owner)) {
+                viewModel.deleteArchivedPlan(selected);
+                table.getItems().setAll(viewModel.listArchivedPlans());
+            }
+        });
 
         CalendarPicker cutoffPicker = CalendarPickers.create();
         cutoffPicker.setPromptText(Localization.lang("Cutoff date"));
@@ -102,10 +113,9 @@ public final class ArchivedPlansDialog {
                 return;
             }
             if (confirmArchive(cutoff, owner)) {
-                if (viewModel.archiveOpenPlan(cutoff)) {
+                if (archiveAction.test(cutoff)) {
                     table.getItems().setAll(viewModel.listArchivedPlans());
                     cutoffPicker.setValue(null);
-                    onArchived.run();
                 } else {
                     Alert none = new Alert(AlertType.INFORMATION);
                     none.setTitle(Localization.lang("Archive up to..."));
@@ -118,7 +128,7 @@ public final class ArchivedPlansDialog {
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
-        HBox actionRow = new HBox(8, exportButton, spacer, cutoffPicker, archiveButton);
+        HBox actionRow = new HBox(8, exportButton, deleteButton, spacer, cutoffPicker, archiveButton);
         actionRow.setAlignment(Pos.CENTER_LEFT);
 
         VBox content = new VBox(8, table, actionRow);
@@ -137,8 +147,18 @@ public final class ArchivedPlansDialog {
         Alert confirm = new Alert(AlertType.CONFIRMATION);
         confirm.setTitle(Localization.lang("Archive up to..."));
         confirm.setHeaderText(Localization.lang(
-                "Freeze every assignment up to %0? It can't be edited afterward, and any unsaved changes in that range are discarded.",
+                "Freeze every assignment up to %0? The plan is saved and can't be edited afterward.",
                 cutoff.toString()));
+        confirm.initOwner(owner);
+        Optional<ButtonType> result = confirm.showAndWait();
+        return result.isPresent() && result.get().getButtonData() == ButtonData.OK_DONE;
+    }
+
+    private static boolean confirmDelete(AcceptedPlan plan, Window owner) {
+        Alert confirm = new Alert(AlertType.CONFIRMATION);
+        confirm.setTitle(Localization.lang("Delete selected"));
+        confirm.setHeaderText(Localization.lang("Permanently delete the archived plan %0?",
+                plan.from() + " - " + plan.toInclusive()));
         confirm.initOwner(owner);
         Optional<ButtonType> result = confirm.showAndWait();
         return result.isPresent() && result.get().getButtonData() == ButtonData.OK_DONE;
