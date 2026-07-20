@@ -11,33 +11,40 @@ import ai.timefold.solver.core.config.solver.termination.TerminationConfig;
 import jakarta.inject.Singleton;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
 
+import org.mindis.core.model.ArchivedService;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.Slot;
-import org.mindis.core.persistence.PlanRepository;
+import org.mindis.core.persistence.ArchivedServiceRepository;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.preferences.PreferencesService;
 
-/// Builds planning problems from the repositories and solves them
-/// asynchronously. UI-agnostic API (PLAN.md section 2.5): callers receive best
-/// solutions through a plain {@link Consumer}; the GUI adapts onto the FX
-/// thread, a future web module onto HTTP.
+/// Turns the live services into solver problems and writes the results back
+/// onto them, and freezes past services into the archive. UI-agnostic API
+/// (PLAN.md 2.5): callers receive best solutions through a plain {@link
+/// Consumer}; the GUI adapts onto the FX thread.
+///
+/// <p>There is no separate range-keyed plan structure any more: an assignment
+/// lives on its {@link Slot} (see that class), so a {@link ServicePlan} is a
+/// transient view built on demand from a set of services and discarded once its
+/// results are written back. Scoping a solve to only some slots (one service,
+/// or an unassigned-only window) is done purely by pinning the rest - {@link
+/// Autofill}.
 @Singleton
 public class PlanningService implements AutoCloseable {
 
@@ -47,7 +54,7 @@ public class PlanningService implements AutoCloseable {
     private final ServiceRepository serviceRepository;
     private final RoleRepository roleRepository;
     private final PreferencesService preferencesService;
-    private final PlanRepository planRepository;
+    private final ArchivedServiceRepository archivedServiceRepository;
     private final SolverManager<ServicePlan> solverManager;
     private final SolutionManager<ServicePlan, HardMediumSoftScore> solutionManager;
 
@@ -55,12 +62,12 @@ public class PlanningService implements AutoCloseable {
                            ServiceRepository serviceRepository,
                            RoleRepository roleRepository,
                            PreferencesService preferencesService,
-                           PlanRepository planRepository) {
+                           ArchivedServiceRepository archivedServiceRepository) {
         this.serverRepository = serverRepository;
         this.serviceRepository = serviceRepository;
         this.roleRepository = roleRepository;
         this.preferencesService = preferencesService;
-        this.planRepository = planRepository;
+        this.archivedServiceRepository = archivedServiceRepository;
         this.solverManager = SolverManager.create(solverConfig());
         this.solutionManager = SolutionManager.create(solverManager);
     }
@@ -75,180 +82,130 @@ public class PlanningService implements AutoCloseable {
                         .withUnimprovedSecondsSpentLimit(UNIMPROVED_SECONDS));
     }
 
-    /// Creates the unsolved problem for a horizon: one {@link Assignment} per
-    /// required role slot of every service in the range, all active servers as
-    /// the value range.
-    public ServicePlan buildProblem(LocalDate from, LocalDate toInclusive) {
+    /// Builds a problem from the current live services: one {@link Assignment}
+    /// per role slot, each pre-populated from the slot's own stored assignment
+    /// (server + pin), all active servers as the value range, plus
+    /// cross-boundary spacing facts from the archive.
+    public ServicePlan buildProblem() {
+        List<LiturgicalService> services = serviceRepository.findAll();
+        return buildProblem(services, priorFromArchived(earliestDate(services)));
+    }
+
+    /// Builds a problem from an explicit service set with explicit prior facts
+    /// - the testable core of {@link #buildProblem()}.
+    public ServicePlan buildProblem(List<LiturgicalService> services, List<PriorAssignment> priorAssignments) {
         List<Server> activeServers = serverRepository.findAll().stream()
                 .filter(Server::active)
                 .toList();
+        Map<String, Server> serversById = new HashMap<>();
+        serverRepository.findAll().forEach(server -> serversById.put(server.id(), server));
         Map<String, Role> rolesById = new HashMap<>();
         roleRepository.findAll().forEach(role -> rolesById.put(role.id(), role));
+
         List<Assignment> assignments = new ArrayList<>();
-        for (LiturgicalService service : serviceRepository.findAll()) {
-            LocalDate date = service.dateTime().toLocalDate();
-            if (date.isBefore(from) || date.isAfter(toInclusive)) {
-                continue;
-            }
+        for (LiturgicalService service : services) {
             for (Slot slot : service.slots()) {
                 Role role = rolesById.get(slot.role());
                 if (role == null) {
                     // Slot references a deleted role; nothing to assign.
                     continue;
                 }
-                assignments.add(new Assignment(new AssignmentKey(service.id(), slot.id()).toId(), service, role));
+                Assignment assignment = new Assignment(
+                        new AssignmentKey(service.id(), slot.id()).toId(), service, role);
+                if (slot.serverId() != null) {
+                    assignment.setServer(serversById.get(slot.serverId()));
+                }
+                assignment.setPinned(slot.pinned() && assignment.getServer() != null);
+                assignments.add(assignment);
             }
         }
         ServicePlan plan = new ServicePlan(activeServers, assignments);
-        plan.setPriorAssignments(buildPriorAssignments(from));
+        plan.setPriorAssignments(priorAssignments);
         plan.setConstraintWeightOverrides(weightOverridesFromPreferences());
         return plan;
     }
 
-    /// Splits the open plan at {@code cutoff}: the portion dated on or before
-    /// it is frozen into a new archived plan (carrying a self-contained
-    /// snapshot of its services, so it stays exportable once those services
-    /// leave the live list), the remainder (if any) becomes the new open
-    /// plan. Returns the archived services so the caller can drop them from
-    /// the live list; empty if there is no open plan or the cutoff archives
-    /// nothing (cutoff before every known assignment date).
-    public List<LiturgicalService> archiveOpenPlan(LocalDate cutoff) {
-        Optional<AcceptedPlan> openOpt = planRepository.load();
-        if (openOpt.isEmpty()) {
-            return List.of();
-        }
-        AcceptedPlan open = openOpt.get();
-        PlanArchiver.Split split = PlanArchiver.split(open, cutoff,
-                id -> serviceRepository.findById(id).map(service -> service.dateTime().toLocalDate()));
-        if (split.archived().isEmpty()) {
-            return List.of();
-        }
-        AcceptedPlan archivedPortion = split.archived().get();
-        List<LiturgicalService> snapshot = archivedPortion.assignments().stream()
-                .map(AcceptedPlan.PlannedAssignment::serviceId)
-                .distinct()
-                .flatMap(id -> serviceRepository.findById(id).stream())
-                .toList();
-        AcceptedPlan frozen = new AcceptedPlan(archivedPortion.from(), archivedPortion.toInclusive(),
-                archivedPortion.assignments(), archivedPortion.savedAt(),
-                archivedPortion.archived(), archivedPortion.archivedAt(), snapshot);
-        planRepository.applyArchiveSplit(frozen, split.remainder().orElse(null));
-        return snapshot;
-    }
-
-    /// One end of an Autofill window, after resolving blank bounds against
-    /// the currently known service dates.
-    public record DateWindow(LocalDate from, LocalDate toInclusive) {
-    }
-
-    /// Resolves an Autofill window: a blank {@code from} defaults to the
-    /// earliest known service date ("fill all previous unassigned services
-    /// present"), a blank {@code to} defaults to the latest known service
-    /// date ("fill all future services"). Empty if there are no services at
-    /// all, or if the resolved bounds are reversed.
-    public Optional<DateWindow> resolveAutofillWindow(@Nullable LocalDate from, @Nullable LocalDate to) {
-        List<LocalDate> dates = serviceRepository.findAll().stream()
-                .map(service -> service.dateTime().toLocalDate())
-                .toList();
-        if (dates.isEmpty()) {
-            return Optional.empty();
-        }
-        LocalDate resolvedFrom = from != null ? from : dates.stream().min(LocalDate::compareTo).orElseThrow();
-        LocalDate resolvedTo = to != null ? to : dates.stream().max(LocalDate::compareTo).orElseThrow();
-        return resolvedTo.isBefore(resolvedFrom) ? Optional.empty() : Optional.of(new DateWindow(resolvedFrom, resolvedTo));
-    }
-
-    /// The two ranges an Autofill run needs: {@code solveWindow} is what the
-    /// solver may actually change (eligible slots), {@code planRange} is the
-    /// full span the resulting open plan covers and is saved under - always a
-    /// superset of the solve window, extended to include the prior open
-    /// plan's whole range so nothing already decided there is dropped on save.
-    public record AutofillPlan(DateWindow solveWindow, DateWindow planRange) {
-    }
-
-    /// Resolves both ranges for an Autofill run from the user's (possibly
-    /// blank) bounds. The solve window comes from {@link
-    /// #resolveAutofillWindow}, then clamped to start no earlier than the day
-    /// after the latest archived period - archived services are frozen and
-    /// must never be re-solved or pulled into the open plan, so a blank
-    /// {@code from} that resolves into archived territory is raised to just
-    /// past it. The plan range is the solve window widened to also cover the
-    /// current open plan's full span (so a forward-only fill still saves the
-    /// earlier, already-decided part of the open plan rather than truncating
-    /// it). Empty if there are no services, the bounds are reversed, or the
-    /// whole window falls inside archived territory (nothing left to fill).
-    public Optional<AutofillPlan> planAutofill(@Nullable LocalDate from, @Nullable LocalDate to) {
-        Optional<DateWindow> resolved = resolveAutofillWindow(from, to);
-        if (resolved.isEmpty()) {
-            return Optional.empty();
-        }
-        DateWindow window = resolved.get();
-        LocalDate afterArchives = planRepository.listArchived().stream()
-                .map(AcceptedPlan::toInclusive)
-                .max(Comparator.naturalOrder())
-                .map(latest -> latest.plusDays(1))
-                .orElse(window.from());
-        LocalDate solveFrom = window.from().isBefore(afterArchives) ? afterArchives : window.from();
-        if (window.toInclusive().isBefore(solveFrom)) {
-            return Optional.empty();
-        }
-        DateWindow solveWindow = new DateWindow(solveFrom, window.toInclusive());
-        Optional<AcceptedPlan> open = planRepository.load();
-        LocalDate planFrom = open.map(p -> p.from().isBefore(solveFrom) ? p.from() : solveFrom).orElse(solveFrom);
-        LocalDate planTo = open.map(p -> p.toInclusive().isAfter(window.toInclusive()) ? p.toInclusive() : window.toInclusive())
-                .orElse(window.toInclusive());
-        return Optional.of(new AutofillPlan(solveWindow, new DateWindow(planFrom, planTo)));
-    }
-
-    /// Builds an Autofill problem: the usual {@link #buildProblem} for the
-    /// window, with every stored plan overlapping it - open or archived - 
-    /// re-applied on top, so previously-decided assignments (including
-    /// archived ones) come back with their saved values instead of blank,
-    /// which is what lets the pin pass leave only the genuinely eligible
-    /// slots open to the solver.
-    public ServicePlan buildAutofillProblem(LocalDate from, LocalDate toInclusive) {
-        ServicePlan plan = buildProblem(from, toInclusive);
-        for (AcceptedPlan stored : planRepository.allOverlapping(from, toInclusive)) {
-            PlanMapper.applyAcceptedPlan(plan, stored);
-        }
-        return plan;
-    }
-
-    /// {@link PriorAssignment} facts from the plan immediately preceding
-    /// {@code from}, if any, trimmed to the {@link
-    /// MinDisConstraintProvider#SPACING_THRESHOLD_DAYS}-day tail that {@link
-    /// MinDisConstraintProvider#spacingFromPriorPlan} actually looks at -
-    /// loading the rest of a possibly month-long prior plan would just be
-    /// dead weight in the solver's fact list.
-    private List<PriorAssignment> buildPriorAssignments(LocalDate from) {
-        return planRepository.mostRecentBefore(from)
-                .map(prior -> priorAssignmentsFrom(prior, from))
-                .orElse(List.of());
-    }
-
-    private List<PriorAssignment> priorAssignmentsFrom(AcceptedPlan prior, LocalDate from) {
-        LocalDate cutoff = from.minusDays(MinDisConstraintProvider.SPACING_THRESHOLD_DAYS);
-        List<PriorAssignment> result = new ArrayList<>();
-        for (AcceptedPlan.PlannedAssignment assignment : prior.assignments()) {
-            String serverId = assignment.serverId();
-            if (serverId == null) {
-                continue;
+    /// Writes {@code solved}'s assignments back onto {@code services}: each
+    /// slot's {@code serverId}/{@code pinned} is updated from its assignment.
+    /// Pure - returns new service records, mutates nothing; the caller stages
+    /// them into the live store, and a Save all persists them like any other
+    /// service edit.
+    public List<LiturgicalService> writeBack(ServicePlan solved, List<LiturgicalService> services) {
+        Map<String, Assignment> byId = new HashMap<>();
+        solved.getAssignments().forEach(assignment -> byId.put(assignment.getId(), assignment));
+        List<LiturgicalService> result = new ArrayList<>();
+        for (LiturgicalService service : services) {
+            List<Slot> newSlots = new ArrayList<>();
+            for (Slot slot : service.slots()) {
+                Assignment assignment = byId.get(new AssignmentKey(service.id(), slot.id()).toId());
+                if (assignment == null) {
+                    newSlots.add(slot);
+                    continue;
+                }
+                Server server = assignment.getServer();
+                newSlots.add(slot.withServer(server == null ? null : server.id(), assignment.isPinned()));
             }
-            LiturgicalService service = serviceRepository.findById(assignment.serviceId()).orElse(null);
-            if (service == null) {
-                continue;
-            }
-            LocalDate date = service.dateTime().toLocalDate();
-            if (date.isBefore(cutoff)) {
-                continue;
-            }
-            Server server = serverRepository.findById(serverId).orElse(null);
-            if (server == null) {
-                continue;
-            }
-            result.add(new PriorAssignment(date, server));
+            result.add(service.withSlots(newSlots));
         }
         return result;
+    }
+
+    /// {@link PriorAssignment} facts drawn from the archive: any archived slot
+    /// whose service date lies in the {@link
+    /// MinDisConstraintProvider#SPACING_THRESHOLD_DAYS}-day tail immediately
+    /// before {@code earliest} and whose server still exists, so the solver is
+    /// penalized for scheduling that server again right up against the frozen
+    /// history. Empty when there are no live services to place.
+    public List<PriorAssignment> priorFromArchived(@Nullable LocalDate earliest) {
+        if (earliest == null) {
+            return List.of();
+        }
+        LocalDate cutoff = earliest.minusDays(MinDisConstraintProvider.SPACING_THRESHOLD_DAYS);
+        Map<String, Server> serversById = new HashMap<>();
+        serverRepository.findAll().forEach(server -> serversById.put(server.id(), server));
+        List<PriorAssignment> result = new ArrayList<>();
+        for (ArchivedService archived : archivedServiceRepository.findAll()) {
+            LocalDate date = archived.dateTime().toLocalDate();
+            if (date.isBefore(cutoff) || !date.isBefore(earliest)) {
+                continue;
+            }
+            for (ArchivedService.ArchivedSlot slot : archived.slots()) {
+                if (slot.serverId() == null) {
+                    continue;
+                }
+                Server server = serversById.get(slot.serverId());
+                if (server != null) {
+                    result.add(new PriorAssignment(date, server));
+                }
+            }
+        }
+        return result;
+    }
+
+    /// Freezes every live service dated on or before {@code cutoff} into a
+    /// self-contained {@link ArchivedService} snapshot (role/server names
+    /// resolved now), persists the snapshots immediately, and returns the ids
+    /// of the live services to drop. The caller removes those from the live
+    /// list and Save-alls to commit the removal. Empty result if the cutoff
+    /// freezes nothing.
+    public ServiceArchiver.Result archive(LocalDate cutoff) {
+        Map<String, Role> rolesById = new HashMap<>();
+        roleRepository.findAll().forEach(role -> rolesById.put(role.id(), role));
+        Map<String, Server> serversById = new HashMap<>();
+        serverRepository.findAll().forEach(server -> serversById.put(server.id(), server));
+        ServiceArchiver.Result result = ServiceArchiver.archive(
+                serviceRepository.findAll(), cutoff, Instant.now(),
+                roleId -> rolesById.containsKey(roleId) ? rolesById.get(roleId).name() : null,
+                serverId -> serversById.containsKey(serverId) ? serversById.get(serverId).displayName() : null);
+        archivedServiceRepository.addAll(result.archived());
+        return result;
+    }
+
+    private static @Nullable LocalDate earliestDate(List<LiturgicalService> services) {
+        return services.stream()
+                .map(service -> service.dateTime().toLocalDate())
+                .min(LocalDate::compareTo)
+                .orElse(null);
     }
 
     private ConstraintWeightOverrides<HardMediumSoftScore> weightOverridesFromPreferences() {
@@ -290,9 +247,7 @@ public class PlanningService implements AutoCloseable {
     }
 
     /// Per-assignment violation summary: assignment id to the names of the
-    /// violated hard/medium constraints. Constraint names are full-text
-    /// localization keys (PLAN.md section 2.3). Computed by
-    /// {@link ViolationChecker} - Timefold's {@code analyze()} is enterprise-only.
+    /// violated hard/medium constraints. Computed by {@link ViolationChecker}.
     public Map<String, List<String>> violationsByAssignment(ServicePlan plan) {
         return ViolationChecker.violationsByAssignment(plan);
     }

@@ -9,8 +9,11 @@ import jakarta.inject.Singleton;
 /// mutations and reloads from disk - the only two disk-I/O entry points for
 /// entity data.
 ///
-/// <p>{@code PlanRepository} is deliberately excluded: "Save plan" is a
-/// separate, plan-scoped concept owned by the Services module.
+/// <p>Assignments are part of the service records (see {@link
+/// org.mindis.core.model.Slot}), so they are flushed here with everything else;
+/// there is no separate plan store. The immutable archive
+/// ({@link ArchivedServiceRepository}) is excluded - it persists on archive,
+/// not through Save all.
 @Singleton
 public class AppDatabase {
 

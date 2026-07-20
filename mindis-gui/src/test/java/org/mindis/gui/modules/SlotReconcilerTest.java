@@ -24,7 +24,7 @@ class SlotReconcilerTest {
 
     @Test
     void growingAppendsFreshSlotsAndKeepsExistingIdsUntouched() {
-        Slot existingSlot = new Slot("s1", ACOLYTE);
+        Slot existingSlot = new Slot("s1", ACOLYTE, null, false);
 
         List<Slot> result = SlotReconciler.reconcile(List.of(existingSlot), Map.of(ACOLYTE, 2), slot -> false);
 
@@ -46,8 +46,8 @@ class SlotReconcilerTest {
 
     @Test
     void shrinkingDropsAnUnfilledSlotBeforeAFilledOne() {
-        Slot filled = new Slot("filled", ACOLYTE);
-        Slot empty = new Slot("empty", ACOLYTE);
+        Slot filled = new Slot("filled", ACOLYTE, null, false);
+        Slot empty = new Slot("empty", ACOLYTE, null, false);
         // "empty" sits at index 1, after "filled" at index 0 - index alone
         // would have no reason to prefer dropping it, isFilled must decide.
         List<Slot> existing = List.of(filled, empty);
@@ -60,8 +60,8 @@ class SlotReconcilerTest {
 
     @Test
     void shrinkingToZeroDropsEverySlotRegardlessOfFilled() {
-        Slot filled = new Slot("filled", ACOLYTE);
-        Slot empty = new Slot("empty", ACOLYTE);
+        Slot filled = new Slot("filled", ACOLYTE, null, false);
+        Slot empty = new Slot("empty", ACOLYTE, null, false);
 
         List<Slot> result = SlotReconciler.reconcile(List.of(filled, empty), Map.of(ACOLYTE, 0),
                 slot -> slot.id().equals("filled"));
@@ -74,7 +74,7 @@ class SlotReconcilerTest {
         // SlotCountEditor#collectCounts omits zero-count roles entirely -
         // a role with existing slots but no entry in counts must still
         // shrink to nothing, not be left untouched.
-        Slot existingSlot = new Slot("s1", ACOLYTE);
+        Slot existingSlot = new Slot("s1", ACOLYTE, null, false);
 
         List<Slot> result = SlotReconciler.reconcile(List.of(existingSlot), Map.of(), slot -> false);
 
@@ -83,9 +83,9 @@ class SlotReconcilerTest {
 
     @Test
     void unaffectedRolesAndOrderSurviveAMixedEdit() {
-        Slot acolyte1 = new Slot("a1", ACOLYTE);
-        Slot acolyte2 = new Slot("a2", ACOLYTE);
-        Slot thurifer1 = new Slot("t1", THURIFER);
+        Slot acolyte1 = new Slot("a1", ACOLYTE, null, false);
+        Slot acolyte2 = new Slot("a2", ACOLYTE, null, false);
+        Slot thurifer1 = new Slot("t1", THURIFER, null, false);
         List<Slot> existing = List.of(acolyte1, acolyte2, thurifer1);
 
         // Shrink Acolyte 2 -> 1 (unfilled a2 should go), leave Thurifer at 1.
