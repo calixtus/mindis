@@ -209,9 +209,6 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                 (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
 
         ReadOnlyBooleanProperty solving = planningViewModel.solvingProperty();
-        Button solveAllButton = new Button(Localization.lang("Solve all"));
-        solveAllButton.disableProperty().bind(solving.or(Bindings.isEmpty(store().items())));
-        solveAllButton.setOnAction(event -> onSolveAll());
         Button autofillButton = new Button(Localization.lang("Autofill..."));
         autofillButton.disableProperty().bind(solving.or(Bindings.isEmpty(store().items())));
         autofillButton.setOnAction(event -> showAutofillPopup(autofillButton));
@@ -241,7 +238,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                 generateButton,
                 new Separator(Orientation.VERTICAL), importButton, exportPlanButton,
                 new Separator(Orientation.VERTICAL),
-                autofillButton, solveAllButton, solvingIndicator, stopButton, archiveButton);
+                autofillButton, solvingIndicator, stopButton, archiveButton);
     }
 
     /// Lightweight popup for "Generate from templates", anchored under the
@@ -286,10 +283,12 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         popup.show(anchor, anchorBounds.getMinX(), anchorBounds.getMaxY() + 4);
     }
 
-    /// Popup for the Autofill action: From/To bounds (blank From = "from the
+    /// Popup for the solve actions: From/To bounds (blank From = "from the
     /// earliest service", blank To = "all future services") plus an "Overwrite
-    /// already-assigned slots" toggle. Fills every open slot of every service
-    /// in the window in one solve.
+    /// already-assigned slots" toggle. "Autofill" fills every open slot of
+    /// every service in the window (honoring those bounds and the toggle);
+    /// "Solve all" ignores the bounds and re-solves the whole board's
+    /// non-pinned slots in one go.
     private void showAutofillPopup(Node anchor) {
         CalendarPicker popupFrom = CalendarPickers.create();
         popupFrom.setValue(LocalDate.now());
@@ -309,13 +308,20 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         Popup popup = new Popup();
         popup.setAutoHide(true);
 
+        Button solveAllButton = new Button(Localization.lang("Solve all"));
+        solveAllButton.setOnAction(event -> {
+            popup.hide();
+            onSolveAll();
+        });
         Button okButton = new Button(Localization.lang("Autofill"));
         okButton.setOnAction(event -> {
             popup.hide();
             onAutofill(popupFrom.getValue(), popupTo.getValue(), overwriteToggle.isSelected());
         });
-        HBox buttonRow = new HBox(okButton);
-        buttonRow.setAlignment(Pos.CENTER_RIGHT);
+        Region buttonSpacer = new Region();
+        HBox.setHgrow(buttonSpacer, Priority.ALWAYS);
+        HBox buttonRow = new HBox(8, solveAllButton, buttonSpacer, okButton);
+        buttonRow.setAlignment(Pos.CENTER_LEFT);
 
         VBox content = new VBox(10, grid, buttonRow);
         content.setPadding(new Insets(12));
