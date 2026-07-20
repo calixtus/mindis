@@ -223,16 +223,17 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         StackPane autofillSlot = new StackPane();
         Button autofillButton = new Button(Localization.lang("Autofill..."));
         autofillButton.disableProperty().bind(Bindings.isEmpty(store().items()));
+        // Stays managed (reserving its width) even when hidden, so the progress
+        // bar drops into the exact same footprint with no toolbar reflow.
         autofillButton.visibleProperty().bind(solving.not());
-        autofillButton.managedProperty().bind(solving.not());
         autofillButton.setOnAction(event -> showAutofillPopup(autofillSlot));
         // Fills as the solver assigns more slots; a click asks to abort (and
-        // that prompt auto-dismisses if the solve finishes first).
+        // that prompt auto-dismisses if the solve finishes first). Sized to the
+        // button so it is a pure drop-in replacement.
         ProgressBar solveProgressBar = new ProgressBar(0);
-        solveProgressBar.setPrefWidth(140);
+        solveProgressBar.prefWidthProperty().bind(autofillButton.widthProperty());
         solveProgressBar.progressProperty().bind(planningViewModel.solveProgressProperty());
         solveProgressBar.visibleProperty().bind(solving);
-        solveProgressBar.managedProperty().bind(solving);
         solveProgressBar.setCursor(Cursor.HAND);
         Tooltip.install(solveProgressBar, new Tooltip(Localization.lang("Abort autofill")));
         solveProgressBar.setOnMouseClicked(event -> confirmAbort());
@@ -479,6 +480,12 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             locationField = new TextField(service.location());
             noteField = new TextField(service.note());
 
+            Button clearButton = new Button(null, new FontIcon("mdi2b-broom"));
+            clearButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
+            clearButton.disableProperty().bind(planningViewModel.solvingProperty());
+            clearButton.setOnAction(event -> onClearSlots());
+            Tooltip.install(clearButton, new Tooltip(Localization.lang("Clear assignments")));
+
             Button autoFillButton = new Button(null, new FontIcon("mdi2a-auto-fix"));
             autoFillButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
             autoFillButton.disableProperty().bind(planningViewModel.solvingProperty());
@@ -490,7 +497,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     autoFillButton.setGraphic(isSolving ? autoFillIndicator : new FontIcon("mdi2a-auto-fix")));
             Region titleSpacer = new Region();
             HBox.setHgrow(titleSpacer, Priority.ALWAYS);
-            HBox altarServersHeader = new HBox(8, altarServersTitle, titleSpacer, autoFillButton);
+            HBox altarServersHeader = new HBox(8, altarServersTitle, titleSpacer, clearButton, autoFillButton);
             altarServersHeader.setAlignment(Pos.CENTER_LEFT);
             Separator altarSeparator = new Separator();
 
@@ -655,6 +662,21 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                         : existing);
             }
             liveSlots = updated;
+            pushLive();
+            refreshAssignmentSection();
+            refreshScoreAndStatus();
+            table().refresh();
+        }
+
+        /// Clears every slot of this service - empties the server and drops the
+        /// pin on each, then stages and refreshes, same as clearing them one by
+        /// one by hand. A no-op (no unsaved change) if they are all empty already.
+        private void onClearSlots() {
+            List<Slot> cleared = new ArrayList<>(liveSlots.size());
+            for (Slot slot : liveSlots) {
+                cleared.add(slot.withServer(null, false));
+            }
+            liveSlots = cleared;
             pushLive();
             refreshAssignmentSection();
             refreshScoreAndStatus();
