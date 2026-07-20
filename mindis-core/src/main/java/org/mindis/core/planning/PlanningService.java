@@ -77,9 +77,22 @@ public class PlanningService implements AutoCloseable {
                 .withSolutionClass(ServicePlan.class)
                 .withEntityClasses(Assignment.class)
                 .withConstraintProviderClass(MinDisConstraintProvider.class)
-                .withTerminationConfig(new TerminationConfig()
-                        .withSecondsSpentLimit((long) MinDisPreferences.DEFAULT_SOLVER_SECONDS)
-                        .withUnimprovedSecondsSpentLimit(UNIMPROVED_SECONDS));
+                .withTerminationConfig(terminationWithin(
+                        Duration.ofSeconds(MinDisPreferences.DEFAULT_SOLVER_SECONDS)));
+    }
+
+    /// Termination for a solve capped at {@code timeBudget}: stop at the budget,
+    /// <em>or</em> early once no improved solution has been found for {@link
+    /// #UNIMPROVED_SECONDS} - the "it's clearly converged, don't burn the rest
+    /// of the clock" cutoff. Both limits always travel together: a {@link
+    /// SolverConfigOverride} replaces the whole {@link TerminationConfig} rather
+    /// than merging, so building the spent limit alone (as the per-solve
+    /// override used to) would silently drop the unimproved cutoff and make
+    /// every solve run the full budget.
+    static TerminationConfig terminationWithin(Duration timeBudget) {
+        return new TerminationConfig()
+                .withSpentLimit(timeBudget)
+                .withUnimprovedSecondsSpentLimit(UNIMPROVED_SECONDS);
     }
 
     /// Builds a problem from the current live services: one {@link Assignment}
@@ -227,7 +240,7 @@ public class PlanningService implements AutoCloseable {
         solverManager.solveBuilder()
                 .withProblemId(jobId)
                 .withProblem(problem)
-                .withConfigOverride(new SolverConfigOverride().withTerminationSpentLimit(timeBudget))
+                .withConfigOverride(new SolverConfigOverride().withTerminationConfig(terminationWithin(timeBudget)))
                 .withBestSolutionEventConsumer(event -> bestSolutionConsumer.accept(event.solution()))
                 .withFinalBestSolutionEventConsumer(event -> finalSolutionConsumer.accept(event.solution()))
                 .withExceptionHandler((id, throwable) -> exceptionHandler.accept(throwable))
