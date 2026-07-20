@@ -59,6 +59,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Popup;
 import javafx.util.StringConverter;
+import javafx.util.Subscription;
 
 import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
@@ -149,12 +150,16 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     /// abort action knows what to cancel.
     private @Nullable UUID jobId;
 
-    // The editor's own live (possibly unsaved) slot counts for whichever
-    // service is currently open - assignedCount() needs this so the tile's
-    // ratio denominator matches a slot just added in the editor, not just what
-    // is persisted. Self-correcting: opening another service overwrites these.
-    private @Nullable String liveSlotsServiceId;
-    private List<Slot> liveSlotsForEditor = List.of();
+    // A tile's rendered text depends on more than its own service record: the
+    // role and server display names come from the roster stores. Those are the
+    // one dependency a row can't react to through its own item being replaced
+    // (a server renamed in another module leaves this service's record
+    // untouched), so the tiles re-render off a single subscription to both
+    // stores here - the reactive replacement for the table().refresh() calls
+    // this module used to sprinkle through every handler. Every other trigger
+    // (a pick, a solve, an archive) already replaces or removes the row's own
+    // item, which re-renders that row on its own.
+    private final Subscription tileDependencySubscription;
 
     public ServicesModule(String name, LiveStore<LiturgicalService> serviceStore, LiveStore<Role> roleStore,
                           LiveStore<Server> serverStore, TemplateRepository templateRepository,
@@ -185,6 +190,10 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         table().getColumns().add(tileColumn);
         table().setTableMenuButtonVisible(false);
         table().getStyleClass().add("services-tile-table");
+        // Re-render the tiles when a role or server changes anywhere (its
+        // display name appears on the tiles) - see tileDependencySubscription.
+        tileDependencySubscription = serverStore.items().subscribe(() -> table().refresh())
+                .and(roleStore.items().subscribe(() -> table().refresh()));
 
         pagingControls.setPageSize(PAGE_SIZE);
         pagingControls.setShowPageSizeSelector(false);
@@ -414,17 +423,15 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     }
 
     @Override
-    protected void onActivate() {
-        // Pick up service/roster edits made in other modules since the last
-        // visit; the open editor refreshes itself via CrudModule's store
-        // listener, so nothing else is needed here.
-        table().refresh();
-    }
-
-    @Override
     protected EditorBinding<LiturgicalService> buildEditor(LiturgicalService service) {
         ServiceEditor editor = new ServiceEditor(service);
         return new EditorBinding<>(editor.node(), editor::refresh, editor::dispose);
+    }
+
+    @Override
+    public void dispose() {
+        tileDependencySubscription.unsubscribe();
+        super.dispose();
     }
 
     /// One service row's editor: date/time/type/location/note fields plus the
@@ -559,10 +566,11 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
         private void onSlotCountsChanged(Map<String, Integer> liveCounts) {
             liveSlots = reconcileSlots(liveSlots, liveCounts);
-            refreshAssignmentSection();
-            table().refresh();
             setFieldChanged(slotsEditor.label, slotsChanged(liveCounts));
+            // pushLive replaces this service's row item, which re-renders its
+            // tile on its own; refreshAssignmentSection redraws the open editor.
             pushLive();
+            refreshAssignmentSection();
         }
 
         private void refreshAssignmentSection() {
@@ -590,8 +598,6 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         /// slot just added by the count editor is immediately assignable - no
         /// "save first" placeholder.
         private List<Node> buildAssignmentRows() {
-            liveSlotsServiceId = service.id();
-            liveSlotsForEditor = liveSlots;
             setFieldChanged(altarServersTitle, assignmentsChanged());
             if (liveSlots.isEmpty()) {
                 return List.of();
@@ -665,7 +671,6 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             pushLive();
             refreshAssignmentSection();
             refreshScoreAndStatus();
-            table().refresh();
         }
 
         /// Clears every slot of this service - empties the server and drops the
@@ -680,7 +685,6 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             pushLive();
             refreshAssignmentSection();
             refreshScoreAndStatus();
-            table().refresh();
         }
 
         /// Whether {@link #liveSlots}' assignments (server + pin per slot id)
@@ -856,9 +860,10 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         return byId;
     }
 
-    /// Filled/total counts backing the tile's underfilled warning. For the
-    /// service open in the editor, {@code total} is the live (possibly unsaved)
-    /// slot count.
+    /// Filled/total slot counts backing the tile's underfilled warning. Reads
+    /// the service's own slots directly - an in-editor slot edit is written
+    /// through to the row's record before the tile re-renders, so the record is
+    /// always the live source.
     private record AssignedCount(int filled, int total) {
         boolean underfilled() {
             return filled < total;
@@ -866,9 +871,8 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     }
 
     private AssignedCount assignedCount(LiturgicalService service) {
-        List<Slot> slots = service.id().equals(liveSlotsServiceId) ? liveSlotsForEditor : service.slots();
-        int filled = (int) slots.stream().filter(slot -> slot.serverId() != null).count();
-        return new AssignedCount(filled, slots.size());
+        int filled = (int) service.slots().stream().filter(slot -> slot.serverId() != null).count();
+        return new AssignedCount(filled, service.totalSlots());
     }
 
     /// Discards every staged edit in the shared database (all modules) and
@@ -931,9 +935,10 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     /// Writes {@code solved}'s assignments back onto {@code services} and stages
     /// the updated records into the live store (Save all persists them).
     private void applySolution(ServicePlan solved, List<LiturgicalService> services) {
+        // mergeLive replaces each solved service's row item, which re-renders
+        // its tile on its own - no explicit table refresh needed.
         mergeLive(planningViewModel.writeBack(solved, services));
         refreshScoreAndStatus();
-        table().refresh();
     }
 
     private void onStop() {
@@ -994,10 +999,10 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         for (String id : result.removedServiceIds()) {
             LiturgicalService service = byId.get(id);
             if (service != null) {
+                // Removing the row from the store updates the table on its own.
                 store().remove(service);
             }
         }
-        table().refresh();
         return true;
     }
 
