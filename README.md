@@ -1,4 +1,4 @@
-# MinDis - Minister Dispatcher (Ministranten Disponent)
+# MinDis - Minister Dispatcher (Ministranten Dienstplaner)
 
 MinDis is an open-source, cross-plattform scheduling tool for altar servers. This tool is designed to help schedule altar servers for church services.
 
