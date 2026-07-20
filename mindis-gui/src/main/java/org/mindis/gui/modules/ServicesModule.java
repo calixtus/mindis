@@ -21,6 +21,7 @@ import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -30,12 +31,18 @@ import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.geometry.VPos;
+import javafx.scene.Cursor;
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar.ButtonData;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Separator;
 import javafx.scene.control.SplitMenuButton;
 import javafx.scene.control.TableCell;
@@ -73,6 +80,7 @@ import org.mindis.core.persistence.ServiceCsvMapper;
 import org.mindis.core.persistence.TemplateRepository;
 import org.mindis.core.planning.AssignmentKey;
 import org.mindis.core.planning.Autofill;
+import org.mindis.core.planning.ServiceArchiver;
 import org.mindis.core.planning.ServicePlan;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -138,7 +146,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     private final CalendarPicker fromPicker = CalendarPickers.create();
     private final CalendarPicker toPicker = CalendarPickers.create();
     /// The currently running solve job, if any - View-local bookkeeping so the
-    /// Stop button knows what to cancel.
+    /// abort action knows what to cancel.
     private @Nullable UUID jobId;
 
     // The editor's own live (possibly unsaved) slot counts for whichever
@@ -209,18 +217,26 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                 (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
 
         ReadOnlyBooleanProperty solving = planningViewModel.solvingProperty();
+        // While solving, the Autofill button is swapped for a progress bar
+        // (filled/total slots) that doubles as the abort control - one toolbar
+        // slot, never both at once.
+        StackPane autofillSlot = new StackPane();
         Button autofillButton = new Button(Localization.lang("Autofill..."));
-        autofillButton.disableProperty().bind(solving.or(Bindings.isEmpty(store().items())));
-        autofillButton.setOnAction(event -> showAutofillPopup(autofillButton));
-        // The solver can run up to the configured time budget with no other
-        // visible sign of progress - a spinner makes that wait readable.
-        ProgressIndicator solvingIndicator = new ProgressIndicator();
-        solvingIndicator.setPrefSize(20, 20);
-        solvingIndicator.visibleProperty().bind(solving);
-        solvingIndicator.managedProperty().bind(solving);
-        Button stopButton = new Button(Localization.lang("Stop"));
-        stopButton.disableProperty().bind(solving.not());
-        stopButton.setOnAction(event -> onStop());
+        autofillButton.disableProperty().bind(Bindings.isEmpty(store().items()));
+        autofillButton.visibleProperty().bind(solving.not());
+        autofillButton.managedProperty().bind(solving.not());
+        autofillButton.setOnAction(event -> showAutofillPopup(autofillSlot));
+        // Fills as the solver assigns more slots; a click asks to abort (and
+        // that prompt auto-dismisses if the solve finishes first).
+        ProgressBar solveProgressBar = new ProgressBar(0);
+        solveProgressBar.setPrefWidth(140);
+        solveProgressBar.progressProperty().bind(planningViewModel.solveProgressProperty());
+        solveProgressBar.visibleProperty().bind(solving);
+        solveProgressBar.managedProperty().bind(solving);
+        solveProgressBar.setCursor(Cursor.HAND);
+        Tooltip.install(solveProgressBar, new Tooltip(Localization.lang("Abort autofill")));
+        solveProgressBar.setOnMouseClicked(event -> confirmAbort());
+        autofillSlot.getChildren().addAll(autofillButton, solveProgressBar);
         SplitMenuButton exportPlanButton = new SplitMenuButton();
         exportPlanButton.setText(Localization.lang("Export"));
         exportPlanButton.disableProperty().bind(solving.or(Bindings.isEmpty(store().items())));
@@ -238,7 +254,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                 generateButton,
                 new Separator(Orientation.VERTICAL), importButton, exportPlanButton,
                 new Separator(Orientation.VERTICAL),
-                autofillButton, solvingIndicator, stopButton, archiveButton);
+                autofillSlot, archiveButton);
     }
 
     /// Lightweight popup for "Generate from templates", anchored under the
@@ -343,19 +359,18 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         }
         List<LiturgicalService> services = List.copyOf(store().items());
         ServicePlan problem = planningViewModel.buildProblem();
-        LocalDate effFrom = from == null ? LocalDate.MIN : from;
-        LocalDate effTo = to == null ? LocalDate.MAX : to;
-        Autofill.Scope scope = Autofill.begin(problem, Autofill.within(effFrom, effTo, overwrite));
+        Autofill.Scope scope = planningViewModel.beginWindowAutofill(problem, from, to, overwrite);
         if (scope.eligibleIds().isEmpty()) {
             LOGGER.info(Localization.lang("Nothing to autofill"));
             return;
         }
+        planningViewModel.updateProgress(problem);
         planningViewModel.beginSolve();
         LOGGER.info(Localization.lang("Solving..."));
         jobId = planningViewModel.solveAsync(problem,
-                best -> { },
+                best -> Platform.runLater(() -> planningViewModel.updateProgress(best)),
                 finalBest -> Platform.runLater(() -> {
-                    Autofill.finish(finalBest, scope);
+                    planningViewModel.finishAutofill(finalBest, scope);
                     applySolution(finalBest, services);
                     planningViewModel.finishSolve();
                     LOGGER.info(Localization.lang("Solving finished"));
@@ -846,10 +861,11 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         if (problem.getAssignments().isEmpty()) {
             return;
         }
+        planningViewModel.updateProgress(problem);
         planningViewModel.beginSolve();
         LOGGER.info(Localization.lang("Solving..."));
         jobId = planningViewModel.solveAsync(problem,
-                best -> { },
+                best -> Platform.runLater(() -> planningViewModel.updateProgress(best)),
                 finalBest -> Platform.runLater(() -> {
                     applySolution(finalBest, services);
                     planningViewModel.finishSolve();
@@ -862,22 +878,24 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     }
 
     /// Solves only {@code service}'s open slots: every other slot is pinned for
-    /// the duration of the solve, then restored afterward (see {@link Autofill}).
+    /// the duration of the solve, then restored afterward (see {@link
+    /// PlanningViewModel#beginServiceAutofill}).
     private void onAutoFillService(LiturgicalService service) {
         if (planningViewModel.solvingProperty().get()) {
             return;
         }
         ServicePlan problem = planningViewModel.buildProblem();
-        Autofill.Scope scope = Autofill.begin(problem, Autofill.forService(service.id(), false));
+        Autofill.Scope scope = planningViewModel.beginServiceAutofill(problem, service.id());
         if (scope.eligibleIds().isEmpty()) {
             return;
         }
+        planningViewModel.updateProgress(problem);
         planningViewModel.beginSolve();
         LOGGER.info(Localization.lang("Solving..."));
         jobId = planningViewModel.solveAsync(problem, AUTO_FILL_TIME_BUDGET,
-                best -> { },
+                best -> Platform.runLater(() -> planningViewModel.updateProgress(best)),
                 finalBest -> Platform.runLater(() -> {
-                    Autofill.finish(finalBest, scope);
+                    planningViewModel.finishAutofill(finalBest, scope);
                     applySolution(finalBest, List.of(service));
                     planningViewModel.finishSolve();
                     LOGGER.info(Localization.lang("Solving finished"));
@@ -902,6 +920,32 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         }
     }
 
+    /// Confirms aborting the running solve. The prompt auto-dismisses if the
+    /// solve finishes on its own before the user answers (the toolbar returns
+    /// to its Autofill button on its own via the {@code solving} bindings), so
+    /// a just-completed solve is never cancelled by a stale click.
+    private void confirmAbort() {
+        if (!planningViewModel.solvingProperty().get()) {
+            return;
+        }
+        Alert confirm = new Alert(AlertType.CONFIRMATION);
+        confirm.setTitle(Localization.lang("Abort autofill"));
+        confirm.setHeaderText(Localization.lang("Really abort the running autofill?"));
+        confirm.initOwner(table().getScene().getWindow());
+        ChangeListener<Boolean> autoDismiss = (obs, wasSolving, isSolving) -> {
+            if (!isSolving) {
+                confirm.close();
+            }
+        };
+        planningViewModel.solvingProperty().addListener(autoDismiss);
+        Optional<ButtonType> result = confirm.showAndWait();
+        planningViewModel.solvingProperty().removeListener(autoDismiss);
+        if (result.isPresent() && result.get().getButtonData() == ButtonData.OK_DONE
+                && planningViewModel.solvingProperty().get()) {
+            onStop();
+        }
+    }
+
     /// Flushes every module's staged edits to disk in one action. There is
     /// exactly one Save all action app-wide (the global toolbar button).
     public void saveAll() {
@@ -919,7 +963,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     /// removal). Returns whether anything was archived. Supplied to the
     /// Archived Plans dialog as its archive action.
     private boolean performArchive(LocalDate cutoff) {
-        var result = planningViewModel.archive(cutoff);
+        ServiceArchiver.Result result = planningViewModel.archive(cutoff);
         if (result.isEmpty()) {
             return false;
         }

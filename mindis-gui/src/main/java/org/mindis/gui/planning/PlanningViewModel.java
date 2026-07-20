@@ -12,8 +12,11 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 
 import org.jspecify.annotations.Nullable;
 
@@ -22,6 +25,8 @@ import org.mindis.core.export.PlanExportService;
 import org.mindis.core.model.ArchivedService;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.persistence.ArchivedServiceRepository;
+import org.mindis.core.planning.Assignment;
+import org.mindis.core.planning.Autofill;
 import org.mindis.core.planning.PlanningService;
 import org.mindis.core.planning.ServiceArchiver;
 import org.mindis.core.planning.ServicePlan;
@@ -44,6 +49,9 @@ public class PlanningViewModel {
     private final ArchivedServiceRepository archivedServiceRepository;
 
     private final BooleanProperty solving = new SimpleBooleanProperty(false);
+    /// Fraction (0..1) of the board's slots that are filled - the value a solve
+    /// progress bar binds to. Recomputed from each improved solution.
+    private final DoubleProperty solveProgress = new SimpleDoubleProperty(0);
 
     public PlanningViewModel(PlanningService planningService,
                              PreferencesService preferencesService,
@@ -60,6 +68,24 @@ public class PlanningViewModel {
     /// Whether the solver is currently running - every solve control and the global Save all stay disabled while true.
     public ReadOnlyBooleanProperty solvingProperty() {
         return solving;
+    }
+
+    /// Fraction (0..1) of the board's slots currently filled - bind a solve progress bar to this.
+    public ReadOnlyDoubleProperty solveProgressProperty() {
+        return solveProgress;
+    }
+
+    /// Recomputes {@link #solveProgressProperty()} from {@code plan}'s
+    /// filled/total slot ratio (empty board reads as 0). Called by the View on
+    /// the FX thread for each improved solution and at solve start.
+    public void updateProgress(ServicePlan plan) {
+        List<Assignment> assignments = plan.getAssignments();
+        if (assignments.isEmpty()) {
+            solveProgress.set(0);
+            return;
+        }
+        long filled = assignments.stream().filter(assignment -> assignment.getServer() != null).count();
+        solveProgress.set((double) filled / assignments.size());
     }
 
     public void beginSolve() {
@@ -85,6 +111,31 @@ public class PlanningViewModel {
     /// service records the caller merges into the live store.
     public List<LiturgicalService> writeBack(ServicePlan solved, List<LiturgicalService> services) {
         return planningService.writeBack(solved, services);
+    }
+
+    // --- Autofill scoping (which slots a solve may touch) ---
+
+    /// Scopes a windowed Autofill: leaves free only the slots of services in
+    /// {@code [from, to]} that are open (or, with {@code overwrite}, already
+    /// assigned) and pins the rest. A blank bound means unbounded. The returned
+    /// {@link Autofill.Scope} is an opaque handle to pass back to {@link
+    /// #finishAutofill} after the solve.
+    public Autofill.Scope beginWindowAutofill(ServicePlan problem, @Nullable LocalDate from,
+                                              @Nullable LocalDate to, boolean overwrite) {
+        LocalDate effFrom = from == null ? LocalDate.MIN : from;
+        LocalDate effTo = to == null ? LocalDate.MAX : to;
+        return Autofill.begin(problem, Autofill.within(effFrom, effTo, overwrite));
+    }
+
+    /// Scopes a single service's auto-fill: leaves only that service's open slots free, pins everything else.
+    public Autofill.Scope beginServiceAutofill(ServicePlan problem, String serviceId) {
+        return Autofill.begin(problem, Autofill.forService(serviceId, false));
+    }
+
+    /// Restores the pins of every slot the solve was not allowed to touch and
+    /// pins the freshly filled ones - the counterpart of {@code begin*Autofill}.
+    public void finishAutofill(ServicePlan solved, Autofill.Scope scope) {
+        Autofill.finish(solved, scope);
     }
 
     // --- Solve orchestration (callers own Platform.runLater marshaling) ---
