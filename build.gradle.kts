@@ -6,7 +6,7 @@
 // documented behavior when applied to the root of a multi-module build).
 plugins {
     id("org.mindis.gradle.feature.compile") // for openrewrite (java plugin + source sets)
-    id("org.openrewrite.rewrite") version "7.36.0"
+    id("org.openrewrite.rewrite") version "7.37.0"
 }
 
 dependencies {
