@@ -109,6 +109,11 @@ public class PreferencesService {
         // v7 -> v8: sidebarWidth added; absent field deserializes as null,
         // which is the intended default (the workbench falls back to its own
         // default width).
+        // v8 -> v9: lastDocument added (data moved from per-entity files in the
+        // data directory into one user-chosen document). Absent field
+        // deserializes as null, so a preferences file written by an older
+        // version starts with a new untitled document - the old per-entity
+        // files are not read any more.
         int solverSeconds = loaded.solverSecondsLimit() > 0
                 ? loaded.solverSecondsLimit()
                 : MinDisPreferences.DEFAULT_SOLVER_SECONDS;
@@ -124,7 +129,8 @@ public class PreferencesService {
                 loaded.fontSize(),
                 loaded.followSystemTheme(),
                 loaded.lastExportDirectory(),
-                loaded.sidebarWidth());
+                loaded.sidebarWidth(),
+                loaded.lastDocument());
     }
 
     private void save(MinDisPreferences preferences) {

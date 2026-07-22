@@ -239,7 +239,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         markDirtyOnChange(typeBox.getSelectionModel().selectedItemProperty(), () -> baselineSupplier.get().type(), typeLabel);
         markDirtyOnChange(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
 
-        // refresh: the row's value changed externally (e.g. a Load reverted
+        // refresh: the row's value changed externally (e.g. an Open or a revert reverted
         // this template) - push the new value into every control in place,
         // no rebuild, so the row survives without losing focus/scroll state.
         return new EditorBinding<>(content, updated -> {
@@ -254,7 +254,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
                 suppressPushLive[0] = false;
             }
             // None of the sets above necessarily changed what a control
-            // displays (a Save all moves the baseline, not the live value),
+            // displays (a Save moves the baseline, not the live value),
             // so their own listeners may not have fired - recompute
             // explicitly rather than relying on one.
             recomputeFieldChanged(dayBox.getSelectionModel().selectedItemProperty(), () -> baselineSupplier.get().dayOfWeek(), dayLabel);

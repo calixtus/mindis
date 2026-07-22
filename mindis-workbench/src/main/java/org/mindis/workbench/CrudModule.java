@@ -82,7 +82,7 @@ import org.slf4j.LoggerFactory;
 /// {@code refresh} callback and a {@code dispose} callback. This class calls
 /// {@code refresh} - not {@code buildEditor} again - whenever the selected
 /// row's value changes for a reason other than the editor's own edit (e.g. a
-/// Save all/Load re-baselining the store, or another module editing the same
+/// Save/Open re-baselining the store, or another module editing the same
 /// row): the subclass updates its controls' values in place instead of losing
 /// focus/cursor position to a full teardown-and-rebuild. {@code dispose} runs
 /// when the editor is replaced (a different row selected) or the module itself
@@ -99,7 +99,7 @@ import org.slf4j.LoggerFactory;
 /// {@link #createStub()} and inserts+selects it as a live row - an ordinary
 /// row from that point on, displayed exactly like any other (no "unsaved" row
 /// styling - the table always just shows the live store's current values).
-/// Nothing here writes to disk - flushing belongs to the global Save all,
+/// Nothing here writes to disk - flushing belongs to the global Save,
 /// which re-baselines the store via {@link LiveStore#refresh()}.
 /// {@link #deleteSelected()} likewise stages the removal; {@link
 /// #importCsv(CsvRowMapper, BiFunction)} merges parsed rows as dirty live
@@ -138,7 +138,7 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         refreshSubscription = store.refreshTickProperty().subscribe(this::restoreSelection);
         // The one generic mechanism replacing every ad hoc "please remember
         // to refresh the editor" call site: whenever the store's list changes
-        // for a reason other than this editor's own edit (Save all/Load
+        // for a reason other than this editor's own edit (Save/Open
         // re-baselining, a cross-module write to the same row), and that
         // change touches the currently open row, push the fresh value into
         // the open editor via refresh() instead of requiring a caller
@@ -273,7 +273,7 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     /// stuck "dirty" forever after the first save. Re-reading the supplier on
     /// every future control edit keeps the listener correct going forward;
     /// {@link EditorBinding}'s {@code refresh} callback additionally
-    /// re-invokes this method's initial check after a Save all/Load, since
+    /// re-invokes this method's initial check after a Save/Open, since
     /// that path changes no control value and so triggers no listener at all.
     ///
     /// <p>{@code original} is typically {@code () -> savedSnapshot(item)}-
@@ -286,7 +286,7 @@ public abstract class CrudModule<T> extends WorkbenchModule {
 
     /// The comparison {@link #markDirtyOnChange} reruns on every control
     /// change - factored out so an {@link EditorBinding}'s {@code refresh}
-    /// callback (a Save all/Load, which moves {@code original} without
+    /// callback (a Save/Open, which moves {@code original} without
     /// necessarily changing what the control displays, so no listener fires
     /// on its own) can re-invoke just the comparison without registering a
     /// second listener.

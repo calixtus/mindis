@@ -1,71 +1,41 @@
 package org.mindis.core.persistence;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-
 import jakarta.inject.Singleton;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import org.jspecify.annotations.Nullable;
-
 import org.mindis.core.model.ServiceTemplate;
-import org.mindis.core.preferences.DataDirectory;
 
-/// Recurring-service template storage: templates.json in the user data
-/// directory. Upsert by id. Mutations stage into the in-memory cache only;
-/// disk I/O happens exclusively through {@link #flush()} / {@link #reload()}
-/// (see {@link AppDatabase}).
+/// Recurring-service template storage: the templates of the currently open
+/// document. Upsert by id. Purely in-memory; disk I/O happens exclusively in
+/// {@link AppDatabase}.
 @Singleton
 public class TemplateRepository {
 
-    private final JsonStore<ServiceTemplate> store;
-    private @Nullable List<ServiceTemplate> templates;
-
-    public TemplateRepository(DataDirectory dataDirectory) {
-        this(dataDirectory.resolve("templates.json"));
-    }
-
-    TemplateRepository(Path file) {
-        this.store = new JsonStore<>(file, new TypeReference<>() {
-        });
-    }
+    private final List<ServiceTemplate> templates = new ArrayList<>();
 
     public synchronized List<ServiceTemplate> findAll() {
-        return List.copyOf(cached());
+        return List.copyOf(templates);
     }
 
     public synchronized void save(ServiceTemplate template) {
-        List<ServiceTemplate> list = cached();
-        list.removeIf(existing -> existing.id().equals(template.id()));
-        list.add(template);
-        sort(list);
+        templates.removeIf(existing -> existing.id().equals(template.id()));
+        templates.add(template);
+        sort(templates);
     }
 
     public synchronized void delete(String id) {
-        cached().removeIf(existing -> existing.id().equals(id));
+        templates.removeIf(existing -> existing.id().equals(id));
     }
 
-    /// Writes the staged state to disk - the only disk write path.
-    public synchronized void flush() {
-        store.save(cached());
-    }
-
-    /// Discards staged (unflushed) mutations and reloads from disk.
-    public synchronized void reload() {
-        templates = null;
-        cached();
-    }
-
-    /// The live (mutable) cache, loading and sorting it from disk on first access.
-    private List<ServiceTemplate> cached() {
-        if (templates == null) {
-            templates = new ArrayList<>(store.load());
-            sort(templates);
-        }
-        return templates;
+    /// Replaces the whole content with a freshly opened document's templates.
+    /// Only {@link AppDatabase} calls this.
+    synchronized void replaceAll(List<ServiceTemplate> items) {
+        templates.clear();
+        templates.addAll(items);
+        sort(templates);
     }
 
     private static void sort(List<ServiceTemplate> list) {

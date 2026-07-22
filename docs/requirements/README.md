@@ -15,7 +15,7 @@ omitted; the chain is documented, not enforced. See "Adopting tracing" below.
 | [services.md](services.md) | Liturgical services, weekly templates, service generation, role slots (`req~` + `dsn~`) |
 | [planning.md](planning.md) | Solver: constraints, scoring, autofill scoping, violations (`req~` + `dsn~`) |
 | [archive.md](archive.md) | Freezing past services into immutable snapshots (`req~` + `dsn~`) |
-| [persistence.md](persistence.md) | Storage layout, staged edits, Save all/Load, CSV import/export (`req~` + `dsn~`) |
+| [persistence.md](persistence.md) | The document file, staged edits, New/Open/Save, CSV import/export (`req~` + `dsn~`) |
 | [export.md](export.md) | Plan export to PDF/CSV/TXT/RTF/Markdown (`req~` + `dsn~`) |
 | [ui.md](ui.md) | Workbench shell, preferences, theming, localization, logging (`req~` + `dsn~`) |
 

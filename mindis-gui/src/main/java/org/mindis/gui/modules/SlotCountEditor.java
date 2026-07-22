@@ -82,7 +82,7 @@ final class SlotCountEditor {
 
     /// Reseeds every spinner from {@code counts} - for an
     /// {@code EditorBinding} refresh (the owning item's slots changed
-    /// externally, e.g. a Save all/Load reverting an unflushed count), not
+    /// externally, e.g. a Save/Open reverting an unflushed count), not
     /// for a role-list change (handled internally). Does not itself call
     /// {@code onChange}.
     void setCounts(Map<String, Integer> counts) {

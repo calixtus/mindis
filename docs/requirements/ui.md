@@ -7,7 +7,8 @@ Design decisions: [ADR 001 — view layer (FxmlKit)](../adr/001-view-layer.md),
 [ADR 005 — workbench shell](../adr/005-workbench-shell.md),
 [ADR 004 — preferences store](../adr/004-preferences.md),
 [ADR 006 — preferences architecture](../adr/006-preferences-architecture.md),
-[ADR 002 — packaging](../adr/002-packaging.md).
+[ADR 002 — packaging](../adr/002-packaging.md),
+[ADR 007 — document storage](../adr/007-document-storage.md).
 
 ## Requirements
 
@@ -16,7 +17,8 @@ Design decisions: [ADR 001 — view layer (FxmlKit)](../adr/001-view-layer.md),
 
 The application presents its areas — dashboard, servers, roles, templates, services, settings,
 about — as modules of one workbench window with a sidebar, and one global toolbar carrying the
-application-wide Save all and Load actions.
+application-wide document actions (New, Open, Save, Save as — see
+[persistence.md](persistence.md)).
 
 Covers:
 - feat~multilingual-desktop-app~1
@@ -61,7 +63,8 @@ Covers:
 ### Window state persists
 `req~window-state~1`
 
-Window position, size, maximized state and sidebar width are restored on the next start.
+Window position, size, maximized state and sidebar width are restored on the next start, and the
+window title names the open document and whether it has unsaved edits.
 
 Covers:
 - feat~multilingual-desktop-app~1
@@ -87,7 +90,7 @@ Covers:
 ### Unsaved work is recognizable
 `req~unsaved-indication~1`
 
-Rows and fields with unsaved edits are visually marked, and the global Save all reflects whether
+Rows and fields with unsaved edits are visually marked, and the global Save action reflects whether
 there is anything to save.
 
 Covers:
@@ -203,9 +206,12 @@ Covers:
 ### Language change rebuilds the UI
 `dsn~language-rebuild~1`
 
-`MinDisApp` sets the locale from preferences before the first scene, and a language change
-rebuilds the workbench (FXML resource bundles are bound at load time). `LiveDatabase` and the
-`LiveStore`s are *not* rebuilt, so unsaved cross-module edits and dirty counts survive the switch.
+`MinDisApp` sets the locale from preferences before the first scene — and before the startup
+document is opened, so a new document's seeded roles get localized names — and a language change
+rebuilds the workbench (FXML resource bundles are bound at load time). `LiveDatabase`, the
+`LiveStore`s and the `DocumentSession` are *not* rebuilt, so the open document, its unsaved
+cross-module edits and its dirty counts survive the switch; only the title binding is rebuilt, since
+its own text is localized.
 
 Covers:
 - req~language-choice~1
@@ -215,7 +221,10 @@ Covers:
 `dsn~window-geometry~1`
 
 The stage is restored from `MinDisPreferences.windowBounds` (position, size, maximized) at startup
-and saved on shutdown; the sidebar width is persisted separately. On startup the window is
+and saved on shutdown; the sidebar width is persisted separately. The title is bound to
+`DocumentSession.titleBinding()` (application name, document file name or "Untitled", `*` while
+dirty), and the window's close request runs the unsaved-changes guard, consuming the event when the
+user cancels. On startup the window is
 explicitly brought to the foreground, since launching from a terminal or IDE on Windows can leave it
 behind whatever had focus.
 
@@ -244,8 +253,9 @@ Each editor field's label carries a dirty accent computed against the *last-flus
 against the row's current value — a live row may already hold an unsaved edit. Collection-backed
 fields (qualifications, preferred times, unavailability periods, slot counts) re-diff the whole
 collection against the baseline behind one shared label instead of using the per-property
-mechanism. The global Save all button binds to `LiveDatabase.totalDirtyCount()` and stays disabled
-while a solve is running. Regression-tested by `RolesModuleDirtyFlagTest`.
+mechanism. The global Save button binds to `LiveDatabase.dirtyProperty()` (row-level dirty counts
+plus the archive's staged-change flag) and stays disabled while a solve is running, as does Save as.
+Regression-tested by `RolesModuleDirtyFlagTest`.
 
 Covers:
 - req~unsaved-indication~1

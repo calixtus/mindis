@@ -42,12 +42,15 @@ class PlanningServiceTest {
 
     @BeforeEach
     void setUp() {
-        DataDirectory dd = new DataDirectory(tempDir);
-        servers = new ServerRepository(dd);
-        services = new ServiceRepository(dd);
-        archived = new ArchivedServiceRepository(dd);
-        planning = new PlanningService(servers, services, new RoleRepository(dd),
-                new PreferencesService(dd), archived);
+        servers = new ServerRepository();
+        services = new ServiceRepository();
+        archived = new ArchivedServiceRepository();
+        // Roles are document content now, no longer seeded on first access -
+        // give this document the built-in defaults the slots below reference.
+        RoleRepository roles = new RoleRepository();
+        RoleRepository.defaults().forEach(roles::save);
+        planning = new PlanningService(servers, services, roles,
+                new PreferencesService(new DataDirectory(tempDir)), archived);
     }
 
     @AfterEach

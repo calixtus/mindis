@@ -65,6 +65,7 @@ public class MinDisApp extends Application {
     private PreferencesService preferencesService;
     private UiPreferences uiPreferences;
     private LiveDatabase liveDatabase;
+    private DocumentSession documentSession;
     private Stage stage;
     private Workbench workbench;
     private final LogConsoleModel logConsole = new LogConsoleModel();
@@ -89,10 +90,16 @@ public class MinDisApp extends Application {
                 beanScope.get(RoleRepository.class),
                 beanScope.get(ServerRepository.class),
                 beanScope.get(TemplateRepository.class),
-                beanScope.get(ServiceRepository.class));
+                beanScope.get(ServiceRepository.class),
+                beanScope.get(ArchivedServiceRepository.class));
+        documentSession = new DocumentSession(liveDatabase, preferencesService,
+                () -> stage.getScene() == null ? null : stage.getScene().getWindow());
 
         MinDisPreferences preferences = preferencesService.get();
         Localization.setLocale(preferences.locale());
+        // After the locale: a new document seeds the default roles with
+        // localized names.
+        documentSession.openLastDocumentOrNew();
 
         // Theme, accent and font are all baked into one user-agent stylesheet
         // (base theme @import + .root overrides), reapplied whenever any input
@@ -131,7 +138,14 @@ public class MinDisApp extends Application {
         stage.getIcons().addAll(loadAppIcons());
         workbench = buildWorkbench();
         stage.setScene(new Scene(workbench, 960, 640));
-        stage.setTitle(Localization.lang("MinDis - Minister Dispatcher"));
+        stage.titleProperty().bind(documentSession.titleBinding());
+        // Closing with unsaved edits asks first; a cancelled prompt keeps the
+        // window open.
+        stage.setOnCloseRequest(event -> {
+            if (!documentSession.confirmDropUnsavedChanges()) {
+                event.consume();
+            }
+        });
         restoreWindowBounds(preferences.windowBounds());
         stage.show();
         // On Windows, launching from a terminal/IDE can leave the new window
@@ -170,8 +184,7 @@ public class MinDisApp extends Application {
                         beanScope.get(PlanningService.class),
                         preferencesService,
                         beanScope.get(PlanExportService.class),
-                        beanScope.get(ArchivedServiceRepository.class)),
-                liveDatabase);
+                        beanScope.get(ArchivedServiceRepository.class)));
         Workbench.Builder builder = Workbench.builder(
                                 new DashboardModule(Localization.lang("Dashboard")),
                                 new RolesModule(Localization.lang("Roles"),
@@ -195,25 +208,28 @@ public class MinDisApp extends Application {
         return built;
     }
 
-    /// The application-wide Save all/Load toolbar, spanning the top of the
-    /// workbench - the only Save all/Load action app-wide. Delegates straight
-    /// to {@link ServicesModule#saveAll()}/{@link ServicesModule#loadAll()}
-    /// (which flush/reload {@link #liveDatabase} - assignments included, since
-    /// they now live on the service records) and log the outcome. Rebuilt with
-    /// each workbench (labels are localized); the state it binds
-    /// to is the long-lived {@code liveDatabase} plus the freshly built
-    /// {@code servicesModule} (a new instance each rebuild, like every module).
+    /// The application-wide document toolbar, spanning the top of the
+    /// workbench: New, Open, Save and Save as - the only document actions
+    /// app-wide. All data lives in one user-chosen JSON file, so these are the
+    /// file actions of {@link DocumentSession}, acting on the long-lived
+    /// {@link #liveDatabase}. Rebuilt with each workbench (labels are
+    /// localized); the state it binds to is not.
     private ToolBar buildGlobalToolbar(ServicesModule servicesModule) {
-        Button saveAllButton = new Button(Localization.lang("Save all"));
-        // An assignment pick now dirties its service record like any other
-        // edit, so totalDirtyCount already covers the plan - no separate
-        // plan-dirty term needed.
-        saveAllButton.disableProperty().bind(liveDatabase.totalDirtyCount().isEqualTo(0)
+        Button newButton = new Button(Localization.lang("New"));
+        newButton.setOnAction(event -> documentSession.onNew());
+        Button openButton = new Button(Localization.lang("Open..."));
+        openButton.setOnAction(event -> documentSession.onOpen());
+        Button saveButton = new Button(Localization.lang("Save"));
+        // An assignment pick dirties its service record like any other edit and
+        // archiving dirties the archive, so LiveDatabase#dirtyProperty already
+        // covers the whole document.
+        saveButton.disableProperty().bind(liveDatabase.dirtyProperty().not()
                 .or(servicesModule.solvingProperty()));
-        saveAllButton.setOnAction(event -> servicesModule.saveAll());
-        Button loadButton = new Button(Localization.lang("Load"));
-        loadButton.setOnAction(event -> servicesModule.loadAll());
-        ToolBar toolbar = new ToolBar(saveAllButton, loadButton);
+        saveButton.setOnAction(event -> documentSession.onSave());
+        Button saveAsButton = new Button(Localization.lang("Save as..."));
+        saveAsButton.disableProperty().bind(servicesModule.solvingProperty());
+        saveAsButton.setOnAction(event -> documentSession.onSaveAs());
+        ToolBar toolbar = new ToolBar(newButton, openButton, saveButton, saveAsButton);
         toolbar.setStyle("-fx-padding: 8 12 8 12; -fx-spacing: 8;");
         return toolbar;
     }
@@ -235,7 +251,9 @@ public class MinDisApp extends Application {
         }
         stage.getScene().setRoot(workbench);
         workbench.openModule(activeModuleClass);
-        stage.setTitle(Localization.lang("MinDis - Minister Dispatcher"));
+        // Rebound, not re-set: the binding's own text is localized, so it has
+        // to be rebuilt under the new locale.
+        stage.titleProperty().bind(documentSession.titleBinding());
     }
 
     /// The effective light/dark mode: the OS color scheme when "follow system"

@@ -142,7 +142,7 @@ public final class ArchivedPlansDialog {
         Alert confirm = new Alert(AlertType.CONFIRMATION);
         confirm.setTitle(Localization.lang("Archive up to..."));
         confirm.setHeaderText(Localization.lang(
-                "Freeze every assignment up to %0? The plan is saved and can't be edited afterward.",
+                "Freeze every assignment up to %0? The frozen plan can't be edited afterward; save the document to keep it.",
                 cutoff.toString()));
         confirm.initOwner(owner);
         Optional<ButtonType> result = confirm.showAndWait();

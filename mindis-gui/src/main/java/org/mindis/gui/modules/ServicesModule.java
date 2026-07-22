@@ -87,7 +87,6 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.mindis.gui.LiveDatabase;
 import org.mindis.gui.planning.ArchivedPlansDialog;
 import org.mindis.gui.planning.PlanExportChooser;
 import org.mindis.gui.planning.PlanningViewModel;
@@ -105,7 +104,7 @@ import org.mindis.workbench.LiveStore;
 /// {@link org.mindis.core.planning.PlanningService}), so a service <em>is</em>
 /// its own plan: picking a server, auto-filling, or solving just rewrites the
 /// service's slots and stages them into the shared {@link LiveStore} like any
-/// other service edit - the one global Save all persists them. There is no
+/// other service edit - one Save of the document persists them. There is no
 /// separate plan object, no plan-dirty state and no date-range bookkeeping.
 /// A {@link ServicePlan} is built transiently only when the solver runs (or to
 /// compute a score / per-slot violations) and discarded once its results are
@@ -133,7 +132,6 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
     private final ServicesViewModel viewModel;
     private final PlanningViewModel planningViewModel;
-    private final LiveDatabase liveDatabase;
     private final LiveStore<Role> roleStore;
     private final LiveStore<Server> serverStore;
 
@@ -163,12 +161,10 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
     public ServicesModule(String name, LiveStore<LiturgicalService> serviceStore, LiveStore<Role> roleStore,
                           LiveStore<Server> serverStore, TemplateRepository templateRepository,
-                          RoleRepository roleRepository, PlanningViewModel planningViewModel,
-                          LiveDatabase liveDatabase) {
+                          RoleRepository roleRepository, PlanningViewModel planningViewModel) {
         super(name, "mdi2c-church", serviceStore);
         this.viewModel = new ServicesViewModel(templateRepository, roleRepository);
         this.planningViewModel = planningViewModel;
-        this.liveDatabase = liveDatabase;
         this.roleStore = roleStore;
         this.serverStore = serverStore;
 
@@ -875,12 +871,6 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         return new AssignedCount(filled, service.totalSlots());
     }
 
-    /// Discards every staged edit in the shared database (all modules) and
-    /// reloads from disk. There is exactly one Load action app-wide.
-    public void loadAll() {
-        liveDatabase.loadAll();
-    }
-
     private void onSolveAll() {
         List<LiturgicalService> services = List.copyOf(store().items());
         ServicePlan problem = planningViewModel.buildProblem();
@@ -933,7 +923,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     }
 
     /// Writes {@code solved}'s assignments back onto {@code services} and stages
-    /// the updated records into the live store (Save all persists them).
+    /// the updated records into the live store (saving the document persists them).
     private void applySolution(ServicePlan solved, List<LiturgicalService> services) {
         // mergeLive replaces each solved service's row item, which re-renders
         // its tile on its own - no explicit table refresh needed.
@@ -973,21 +963,14 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         }
     }
 
-    /// Flushes every module's staged edits to disk in one action. There is
-    /// exactly one Save all action app-wide (the global toolbar button).
-    public void saveAll() {
-        liveDatabase.saveAll();
-        LOGGER.info(Localization.lang("Saved"));
-    }
-
-    /// Whether the solver is currently running - the global Save all stays disabled while true.
+    /// Whether the solver is currently running - the global Save action stays disabled while true.
     public ReadOnlyBooleanProperty solvingProperty() {
         return planningViewModel.solvingProperty();
     }
 
     /// Freezes live services up to {@code cutoff} into self-contained archived
-    /// snapshots and removes them from the live list (Save all commits the
-    /// removal). Returns whether anything was archived. Supplied to the
+    /// snapshots and removes them from the live list (saving the document
+    /// commits both). Returns whether anything was archived. Supplied to the
     /// Archived Plans dialog as its archive action.
     private boolean performArchive(LocalDate cutoff) {
         ServiceArchiver.Result result = planningViewModel.archive(cutoff);

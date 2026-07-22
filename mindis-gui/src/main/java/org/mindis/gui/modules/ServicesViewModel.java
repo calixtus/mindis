@@ -48,7 +48,7 @@ final class ServicesViewModel {
     /// Expands every weekly template into concrete services over
     /// {@code [from, toInclusive]} - pure computation, nothing is persisted;
     /// the caller merges the result into its live table state and it's
-    /// written to disk on the next "Save all".
+    /// written to disk on the next Save.
     ///
     /// @param existing services already in the live table (not the
     ///                 repository - a not-yet-saved live edit should count

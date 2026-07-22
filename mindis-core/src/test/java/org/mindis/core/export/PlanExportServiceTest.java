@@ -27,7 +27,7 @@ class PlanExportServiceTest {
 
     private PlanExportService exportService() {
         // Repositories on empty temp files: export must handle unknown ids.
-        return new PlanExportService(new ServerRepositoryStub(tempDir), new RoleRepositoryStub(tempDir));
+        return new PlanExportService(new ServerRepository(), new RoleRepository());
     }
 
     private static LiturgicalService service() {
@@ -77,17 +77,5 @@ class PlanExportServiceTest {
         String content = Files.readString(target);
         assertTrue(content.contains("Deleted Server"), "Archived server name missing from export");
         assertTrue(content.contains("Acolyte"), "Archived role name missing from export");
-    }
-
-    private static final class ServerRepositoryStub extends ServerRepository {
-        ServerRepositoryStub(Path dir) {
-            super(dir.resolve("servers.json"));
-        }
-    }
-
-    private static final class RoleRepositoryStub extends RoleRepository {
-        RoleRepositoryStub(Path dir) {
-            super(dir.resolve("roles.json"));
-        }
     }
 }

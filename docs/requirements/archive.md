@@ -76,7 +76,8 @@ Covers:
 
 `PlanningService.archive(cutoff)` resolves the lookups from the role and server repositories,
 persists the snapshots immediately, and returns the ids to drop. `ServicesModule` removes those rows
-from the live store; the removal is committed by the ordinary global Save all.
+from the live store; both the snapshots and the removal are committed by the next save of the
+document.
 
 Covers:
 - req~archive-past-services~1
@@ -84,9 +85,12 @@ Covers:
 ### Archive storage
 `dsn~archived-service-repository~1`
 
-`ArchivedServiceRepository` stores `archived-services.json` in the user data directory. Unlike the
-four live repositories it is committed history, not staged state: `addAll` and `delete` write to
-disk immediately and are excluded from `AppDatabase.saveAll()`. `findAll()` returns newest first.
+`ArchivedServiceRepository` holds the archive of the open document, saved with it like everything
+else (see [persistence.md](persistence.md)). Its entries are history, not editable state: `addAll`
+and `delete` are the only mutations and `findAll()` returns newest first. Because archive changes
+are not rows of any `LiveStore`, the repository tracks its own `isDirty()` flag and notifies
+listeners on every mutation; `LiveDatabase` folds both into the application-wide unsaved-changes
+signal, so archiving alone is enough to enable Save.
 
 Covers:
 - req~archive-immutable~1

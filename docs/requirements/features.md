@@ -44,8 +44,9 @@ after the servers or roles they referenced are renamed or deleted.
 ## Local, file-based data ownership
 `feat~local-data-ownership~1`
 
-All data is the user's: plain JSON files in the user's own data directory, importable and
-exportable as CSV, with no server, account or network dependency.
+All data is the user's: one plain JSON document the user picks, names and can back up or hand on
+like any other file, importable and exportable as CSV, with no server, account or network
+dependency.
 
 ## Multilingual desktop application
 `feat~multilingual-desktop-app~1`

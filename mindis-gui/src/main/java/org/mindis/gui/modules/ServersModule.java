@@ -467,7 +467,7 @@ public class ServersModule extends CrudModule<Server> {
         markDirtyOnChange(experiencedCheck.selectedProperty(), () -> baselineSupplier.get().experienced(), experiencedLabel);
         markDirtyOnChange(activeCheck.selectedProperty(), () -> baselineSupplier.get().active(), activeLabel);
 
-        // refresh: the row's value changed externally (e.g. a Load reverted
+        // refresh: the row's value changed externally (e.g. an Open or a revert reverted
         // this server) - push every field back to the new value in place.
         return EditorBinding.of(content, updated -> {
             suppressPushLive[0] = true;
@@ -488,7 +488,7 @@ public class ServersModule extends CrudModule<Server> {
                 suppressPushLive[0] = false;
             }
             // None of the sets above necessarily changed what a control
-            // displays (a Save all moves the baseline, not the live value),
+            // displays (a Save moves the baseline, not the live value),
             // so their own listeners may not have fired - recompute
             // explicitly rather than relying on one.
             recomputeFieldChanged(firstNameField.textProperty(), () -> baselineSupplier.get().firstName(), firstNameLabel);

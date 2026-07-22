@@ -1,40 +1,73 @@
 # Persistence and Data Exchange
 
-Where data lives, how edits are staged and committed, and how data gets in and out as CSV.
+Where data lives, how it is opened and saved, how edits are staged, and how data gets in and out as
+CSV.
 
-Related design decision: [ADR 004 — preferences: own JSON store in core](../adr/004-preferences.md)
-(same serializer and directory family as the entity repositories).
+Design decisions: [ADR 007 — one user-chosen document file](../adr/007-document-storage.md),
+[ADR 004 — preferences: own JSON store in core](../adr/004-preferences.md) (preferences keep their
+own file in the user data directory; only *entity* data moved into the document).
 
 ## Requirements
 
-### Local file storage
-`req~local-json-storage~1`
+### One document file
+`req~single-document-file~1`
 
-All data is stored as plain, human-readable JSON files in the per-user data directory of the
-operating system. No database, server or account.
+All planning data of a parish — roles, servers, templates, services with their assignments, and the
+archive — lives in a single, plain, human-readable JSON file that the user chooses, names and can
+copy, back up or hand on like any other file. No database, server, account, or hidden storage
+location.
 
 Covers:
 - feat~local-data-ownership~1
 
-### Never lose data to a crash or a bad file
-`req~robust-storage~1`
+### Document actions
+`req~document-actions~1`
 
-A write either fully succeeds or leaves the previous file intact. A missing file starts empty, and
-a corrupt file is reported and starts empty rather than crashing the application.
+The user starts a new document, opens an existing one, saves the open one, and saves it under a new
+name. A document that has never been saved has no file yet; saving it asks where to put it.
+
+Covers:
+- feat~local-data-ownership~1
+
+### Reopen the last document
+`req~reopen-last-document~1`
+
+Starting the application reopens the document that was open last. If there is none, or it has since
+been moved or cannot be read, the application starts with a new empty document and says so — a
+startup never fails because of a file the user may not even remember choosing.
 
 Covers:
 - feat~local-data-ownership~1
 
 ### Explicit save
-`req~explicit-save-load~1`
+`req~staged-edits~1`
 
-Edits in every screen are staged, not written per keystroke: one global Save all commits everything
-to disk, and one global Load discards all staged edits and reloads from disk. Unsaved edits are
-visible as such, counted, and shared across screens.
+Edits in every screen are staged, not written per keystroke: one Save writes the whole document to
+disk. Unsaved edits are visible as such, counted, and shared across screens; the open document's
+name and its unsaved state are visible in the window title.
 
 Covers:
 - feat~local-data-ownership~1
 - feat~manual-plan-control~1
+
+### Unsaved work is never dropped silently
+`req~unsaved-changes-guard~1`
+
+Starting a new document, opening another one, or closing the window while there are unsaved edits
+asks first, offering to save, to discard, or to cancel the action.
+
+Covers:
+- feat~local-data-ownership~1
+
+### Never lose data to a crash or a bad file
+`req~robust-storage~2`
+
+A save either fully succeeds or leaves the previous file intact. A document that cannot be read is
+reported to the user, and the document currently open stays untouched — a failed open never
+silently presents an empty parish.
+
+Covers:
+- feat~local-data-ownership~1
 
 ### One shared source of truth
 `req~shared-live-state~1`
@@ -57,78 +90,118 @@ Covers:
 ### Forward-compatible data files
 `req~data-file-evolution~1`
 
-A data file written by an older version still loads: fields added since are filled with their
-defaults, and fields removed since are ignored.
+A file written by an older version still loads: fields added since are filled with their defaults,
+and fields removed since are ignored.
 
 Covers:
 - feat~local-data-ownership~1
 
 ## Design
 
-### User data directory
-`dsn~app-directories~1`
+### Document record
+`dsn~document-record~1`
 
-`AppDirectories.userDataDir()` follows platform convention: `%APPDATA%\MinDis` on Windows
-(falling back to `~/AppData/Roaming/MinDis`), `~/Library/Application Support/MinDis` on macOS,
-`$XDG_DATA_HOME/MinDis` or `~/.local/share/MinDis` elsewhere. Files: `roles.json`, `servers.json`,
-`templates.json`, `services.json`, `archived-services.json`, `preferences.json`.
-
-Covers:
-- req~local-json-storage~1
-
-### Atomic, fault-tolerant JSON store
-`dsn~json-store~1`
-
-`JsonStore<T>` reads and writes one list per file with Jackson (`JavaTimeModule`, ISO dates, pretty
-printed, unknown properties ignored). `save` writes a `.tmp` sibling and moves it over the target
-with `ATOMIC_MOVE`, falling back to a plain replace where the filesystem does not support it. `load`
-returns an empty list for a missing file and, for an unreadable one, logs a warning and returns
-empty instead of throwing. `PreferencesService` uses the same temp-file-and-move discipline.
+`MinDisDocument(version, roles, servers, templates, services, archivedServices)` is the whole unit
+the user opens and saves; `CURRENT_VERSION` is 1 and `empty()` is the starting point of a new
+document. Null-tolerant like the model records: a list absent from an older or hand-edited file
+reads as empty rather than failing the whole open.
 
 Covers:
-- req~robust-storage~1
-- req~local-json-storage~1
+- req~single-document-file~1
 
-### Repositories stage, only flush touches disk
-`dsn~staged-repositories~1`
+### Atomic document store
+`dsn~document-store~1`
 
-`RoleRepository`, `ServerRepository`, `TemplateRepository` and `ServiceRepository` each hold a
-lazily loaded, sorted in-memory cache. `save`/`delete` mutate that cache only; `flush()` is the sole
-disk write and `reload()` discards staged mutations and re-reads. All methods are `synchronized`.
-Sort orders: roles by `sortOrder` then name, servers by last then first name, services by date-time.
+`DocumentStore` reads and writes the document with Jackson (`JavaTimeModule`, ISO dates, pretty
+printed, unknown properties ignored). `write` goes to a `.tmp` sibling and is moved over the target
+with `ATOMIC_MOVE`, falling back to a plain replace where the filesystem does not support it.
+Unlike the per-entity store this replaced, `read` does **not** swallow a failure into an empty
+result: the file is one the user picked explicitly, so the caller must be able to report it.
+`PreferencesService` keeps its own file and the same temp-file-and-move discipline.
 
 Covers:
-- req~explicit-save-load~1
+- req~robust-storage~2
+
+### In-memory repositories
+`dsn~in-memory-repositories~1`
+
+`RoleRepository`, `ServerRepository`, `TemplateRepository`, `ServiceRepository` and
+`ArchivedServiceRepository` hold the open document's content in memory and nothing else — no file
+path, no lazy load, no flush. `save`/`delete` upsert by id and stage; `replaceAll` (package-private,
+`AppDatabase` only) swaps in a freshly opened document. All methods are `synchronized`. Sort orders:
+roles by `sortOrder` then name, servers by last then first name, services by date-time, templates by
+day then time, archive newest first.
+
+Covers:
 - req~shared-live-state~1
+- req~staged-edits~1
 
-### Two global data actions
-`dsn~app-database~1`
+### Document actions
+`dsn~document-actions~1`
 
-`AppDatabase` aggregates the four live repositories and exposes exactly two disk entry points:
-`saveAll()` (flush all) and `loadAll()` (reload all, discarding staged edits). Assignments are part
-of the service records, so a plan is flushed with everything else — there is no separate plan store.
-The archive is deliberately excluded (see [archive.md](archive.md)).
+`AppDatabase` aggregates the five repositories and owns the open document's path (`null` =
+untitled). It is the only disk-I/O entry point for entity data: `newDocument()` (empty, untitled,
+seeded with `RoleRepository.defaults()`), `open(Path)`, `save()`, `saveAs(Path)` and `reload()`
+(re-read, discarding staged edits; an untitled document resets to a new one). `save()` on an
+untitled document throws `IllegalStateException` — the caller must route it to `saveAs`. Assignments
+are part of the service records and the archive is part of the document, so one save covers
+everything. Unit-tested by `DocumentRoundTripTest`.
 
 Covers:
-- req~explicit-save-load~1
+- req~document-actions~1
+- req~single-document-file~1
+- req~staged-edits~1
 
 ### Observable mirror with dirty tracking
-`dsn~live-store~1`
+`dsn~live-store~2`
 
 `LiveStore<T>` (workbench) is one long-lived JavaFX-observable mirror per entity type, constructed
 once at startup and surviving UI rebuilds. Every mutation (`updateLive`, `insertFirst`, `remove`,
-`mergeLive`) is **write-through**: it updates the observable list *and* stages into the repository
-cache in the same call, so non-GUI readers (solver, CSV mappers, generators) always see current
-state. A row counts as dirty when it differs from its snapshot in the last-*flushed* baseline
-according to a per-type `equivalence` predicate, or has no snapshot yet; each removal of a
-previously flushed row counts too. The baseline moves only in `refresh()`, which runs after a global
-Save all or Load. `LiveDatabase` owns the four stores plus `totalDirtyCount()`, the binding a global
-Save all button's disabled state uses. Equivalence is order-insensitive where order is not
-semantically significant (`RoleSlot.sameSlots`, `Slot.sameSlots`).
+`mergeLive`) is **write-through**: it updates the observable list *and* the repository in the same
+call, so non-GUI readers (solver, CSV mappers, generators) always see current state. A row counts as
+dirty when it differs from its snapshot in the last-*saved* baseline according to a per-type
+`equivalence` predicate, or has no snapshot yet; each removal of a previously saved row counts too.
+The baseline moves only in `refresh()`, which `LiveDatabase` runs after every document action.
+Equivalence is order-insensitive where order is not semantically significant (`RoleSlot.sameSlots`,
+`Slot.sameSlots`).
+
+`LiveDatabase` owns the four stores, mirrors `AppDatabase`'s document path into a property, and
+exposes `dirtyProperty()` — the row-level dirty counts **plus** the archive's own staged-change
+flag, which no row-level tracking covers (see [archive.md](archive.md)). That one binding drives the
+Save button, the window title and the close guard.
 
 Covers:
+- req~staged-edits~1
 - req~shared-live-state~1
-- req~explicit-save-load~1
+
+### Document session
+`dsn~document-session~1`
+
+`DocumentSession` (GUI) turns the document actions into user-facing ones: the file chooser (one
+`*.json` filter, starting in the current document's directory, default name `mindis.json`), the
+error dialogs for a failed open or save, the window title (application name, document file name or
+"Untitled", plus `*` while dirty), and the remembered last document. `confirmDropUnsavedChanges()`
+is the shared guard for New, Open and window close: Save (which may itself route to a location
+prompt), Discard, or Cancel — the answer decides whether the caller proceeds.
+`openLastDocumentOrNew()` runs at startup, after the locale is applied, so a new document's seeded
+roles get localized names.
+
+Covers:
+- req~document-actions~1
+- req~reopen-last-document~1
+- req~unsaved-changes-guard~1
+
+### Remembered document path
+`dsn~last-document-preference~1`
+
+`MinDisPreferences.lastDocument` (added in preferences version 9) holds the absolute path of the
+document last opened or saved, and is cleared when the user starts an untitled document. It lives in
+`preferences.json` in the user data directory (`AppDirectories.userDataDir()`: `%APPDATA%\MinDis`,
+`~/Library/Application Support/MinDis`, XDG), which also holds the log directory — the only data the
+application still keeps outside the user's own document.
+
+Covers:
+- req~reopen-last-document~1
 
 ### CSV mappers
 `dsn~csv-mappers~1`
@@ -137,7 +210,8 @@ Covers:
 header, a to-row and a from-row function, wired into `CrudModule`'s generic `exportCsv`/`importCsv`
 actions through `CsvRowMapper`. The mappers that reference roles take the `RoleRepository`, so role
 columns can be written and read as names. Slot columns round-trip through the collapsed role/count
-representation (`dsn~roleslot-versus-slot~1`).
+representation (`dsn~roleslot-versus-slot~1`). An import stages like any other edit and reaches disk
+with the next save.
 
 Covers:
 - req~csv-exchange~1
@@ -154,15 +228,15 @@ Covers:
 - req~csv-exchange~1
 
 ### Tolerant deserialization
-`dsn~tolerant-deserialization~1`
+`dsn~tolerant-deserialization~2`
 
 `FAIL_ON_UNKNOWN_PROPERTIES` is off everywhere, so a removed field in an old file is ignored, and
-every model record's compact constructor fills absent collections and newer scalars with defaults
-(`Server`, `MinDisPreferences`, `Slot`'s `serverId`/`pinned`). Role ids of the seeded defaults are
-kept equal to the former enum constant names so pre-existing data resolves without migration.
-Preferences additionally carry an explicit `version` with documented migrations
-(`dsn~preferences-store~1`). Round-trip tested by `RepositoryRoundTripTest`,
-`RoleRepositoryRoundTripTest` and `WriteThroughGeneratorTest`.
+every record's compact constructor fills absent collections and newer scalars with defaults
+(`MinDisDocument`, `Server`, `MinDisPreferences`, `Slot`'s `serverId`/`pinned`). The seeded default
+roles keep the ids of the former `Role` enum constants, so data referencing those names resolves
+without migration. Preferences carry an explicit `version` with documented migrations
+(`dsn~preferences-store~1`); the document carries its own `version` for the same purpose.
+Round-trip tested by `DocumentRoundTripTest` and `WriteThroughGeneratorTest`.
 
 Covers:
 - req~data-file-evolution~1

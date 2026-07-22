@@ -180,7 +180,8 @@ pre-populated from the slot's own stored `serverId`/`pinned` (a pin only survive
 actually set), with all *active* servers as the value range; a slot referencing a deleted role is
 skipped. `writeBack(solved, services)` is pure: it returns new `LiturgicalService` records whose
 slots carry the solved server and pin, which the caller stages into the live store — persisted by
-the ordinary global Save all. Unit-tested by `PlanningServiceTest` and `PlanningEndToEndTest`.
+the ordinary Save of the document. Unit-tested by `PlanningServiceTest` and
+`PlanningEndToEndTest`.
 
 Covers:
 - req~scoped-solving~1
@@ -220,8 +221,8 @@ Covers:
 While a solve runs, the Autofill button is swapped in place for a progress bar bound to
 `PlanningViewModel.solveProgressProperty()` — the filled/total slot fraction, recomputed from every
 improved solution — which doubles as the abort control; the abort prompt auto-dismisses if the solve
-finishes first, so a just-completed solve is never cancelled by a stale click. The global Save all
-stays disabled while `solvingProperty()` is true. The solve popup carries the From/To bounds and the
+finishes first, so a just-completed solve is never cancelled by a stale click. The global Save and
+Save as actions stay disabled while `solvingProperty()` is true. The solve popup carries the From/To bounds and the
 "overwrite already-assigned slots" toggle; "Solve all" ignores the bounds and re-solves every
 non-pinned slot.
 

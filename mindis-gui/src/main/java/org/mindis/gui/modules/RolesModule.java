@@ -177,7 +177,7 @@ public class RolesModule extends CrudModule<Role> {
         maxAgeSpinner.valueProperty().addListener((obs, oldValue, newValue) -> recomputeAgeRangeChanged.run());
         recomputeAgeRangeChanged.run();
 
-        // refresh: the row's value changed externally (e.g. a Load reverted
+        // refresh: the row's value changed externally (e.g. an Open or a revert reverted
         // this role, or an unrelated row's edit elsewhere ran CrudModule's
         // generic re-sync - see line141 in CrudModule) - push the new value
         // into every control in place. Suppressed the same way as above:
@@ -194,7 +194,7 @@ public class RolesModule extends CrudModule<Role> {
                 suppressPushLive[0] = false;
             }
             // None of the sets above necessarily changed what a control
-            // displays (a Save all moves the baseline, not the live value),
+            // displays (a Save moves the baseline, not the live value),
             // so their own listeners may not have fired - recompute
             // explicitly rather than relying on one.
             recomputeFieldChanged(nameField.textProperty(), () -> baselineSupplier.get().name(), nameLabel);

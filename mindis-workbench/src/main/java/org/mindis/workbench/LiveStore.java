@@ -26,7 +26,7 @@ import org.jspecify.annotations.Nullable;
 /// <em>and</em> stages the change into the repository cache in the same call -
 /// the repository stays the single source of truth for non-GUI readers (the
 /// solver, CSV mappers, generators). None of these touch disk; flushing and
-/// reloading happen at the repository level (global Save all/Load), after
+/// reloading happen at the repository level (global Save/Open), after
 /// which {@link #refresh()} re-mirrors and re-baselines this store.
 ///
 /// <p><b>Dirty tracking</b> (same algorithm as the former per-module

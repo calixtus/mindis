@@ -38,7 +38,7 @@ import org.mindis.core.preferences.PreferencesService;
 /// object to hold, no plan-dirty state and no range bookkeeping - a solve
 /// builds a transient {@link ServicePlan} from the live services, and its
 /// results are written straight back onto those services (ordinary service
-/// edits, saved by the same global Save all as everything else). The only
+/// edits, saved by the same global Save as everything else). The only
 /// state this class owns is the {@code solving} flag every solve control binds
 /// to. Plain-constructed and held as a field for the app's lifetime.
 public class PlanningViewModel {
@@ -65,7 +65,7 @@ public class PlanningViewModel {
 
     // --- Solve state ---
 
-    /// Whether the solver is currently running - every solve control and the global Save all stay disabled while true.
+    /// Whether the solver is currently running - every solve control and the global Save stay disabled while true.
     public ReadOnlyBooleanProperty solvingProperty() {
         return solving;
     }
