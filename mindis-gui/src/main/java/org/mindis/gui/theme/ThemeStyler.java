@@ -185,6 +185,9 @@ public final class ThemeStyler {
               -fx-font-weight: bold;
               -fx-text-fill: -color-fg-muted;
             }
+            .service-tile-archived {
+              -fx-opacity: 0.55;
+            }
             """;
 
     static String buildCss(MinDisPreferences.Theme theme, String accentHex,

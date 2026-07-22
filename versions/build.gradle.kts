@@ -26,14 +26,14 @@ dependencies.constraints {
     api("org.openjfx:javafx-fxml:$javafx")
 
     api("com.dlsc.fxmlkit:fxmlkit:1.5.1")
-    api("com.dlsc.gemsfx:gemsfx:3.10.1")
+    api("com.dlsc.gemsfx:gemsfx:4.2.2")
     api("io.github.mkpaz:atlantafx-base:2.1.0")
 
     api("io.avaje:avaje-inject:$avajeInject")
     api("io.avaje:avaje-inject-generator:$avajeInject")
     api("jakarta.inject:jakarta.inject-api:2.0.1")
 
-    api("ai.timefold.solver:timefold-solver-core:2.2.0")
+    api("ai.timefold.solver:timefold-solver-core:2.3.0")
     api("com.github.librepdf:openpdf:3.0.5")
 
     api("org.jspecify:jspecify:1.0.0")

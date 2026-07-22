@@ -7,20 +7,19 @@ import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Server;
-import org.mindis.core.persistence.PlanRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
-import org.mindis.core.planning.AcceptedPlan;
 
 /// ViewModel for {@link DashboardController}: owns every repository call and
 /// the upcoming-services/server-load aggregation, so the controller only
-/// constructs UI and binds to this class.
+/// constructs UI and binds to this class. Assignments live on the service
+/// slots, so everything is derived straight from the live services - there is
+/// no separate plan to read.
 @Prototype
 public class DashboardViewModel {
 
@@ -29,54 +28,52 @@ public class DashboardViewModel {
 
     private final ServiceRepository serviceRepository;
     private final ServerRepository serverRepository;
-    private final PlanRepository planRepository;
 
-    public DashboardViewModel(ServiceRepository serviceRepository, ServerRepository serverRepository,
-                              PlanRepository planRepository) {
+    public DashboardViewModel(ServiceRepository serviceRepository, ServerRepository serverRepository) {
         this.serviceRepository = serviceRepository;
         this.serverRepository = serverRepository;
-        this.planRepository = planRepository;
     }
 
-    /// Summary text, upcoming services and per-server load, computed off one plan read.
+    /// Summary text, upcoming services and per-server load, computed off the live services.
     public record Snapshot(String summaryText, List<String> upcomingServices, List<String> serverLoad) {
     }
 
     public Snapshot loadSnapshot() {
-        Optional<AcceptedPlan> plan = planRepository.load();
-        return new Snapshot(summaryText(plan), upcomingServices(plan), serverLoad(plan));
+        List<LiturgicalService> services = serviceRepository.findAll();
+        return new Snapshot(summaryText(services), upcomingServices(services), serverLoad(services));
     }
 
-    private String summaryText(Optional<AcceptedPlan> plan) {
-        if (plan.isEmpty()) {
+    private String summaryText(List<LiturgicalService> services) {
+        long totalSlots = services.stream().mapToLong(service -> service.slots().size()).sum();
+        if (totalSlots == 0) {
             return Localization.lang("No plan saved yet");
         }
-        long unassigned = plan.get().assignments().stream()
-                .filter(assignment -> assignment.serverId() == null)
+        long unassigned = services.stream()
+                .flatMap(service -> service.slots().stream())
+                .filter(slot -> slot.serverId() == null)
                 .count();
         return Localization.lang("Unassigned slots") + ": " + unassigned;
     }
 
-    private List<String> upcomingServices(Optional<AcceptedPlan> plan) {
-        return serviceRepository.findAll().stream()
+    private List<String> upcomingServices(List<LiturgicalService> services) {
+        return services.stream()
                 .filter(service -> service.dateTime().isAfter(LocalDateTime.now()))
                 .limit(MAX_NEXT_SERVICES)
-                .map(service -> describeService(service, plan))
+                .map(this::describeService)
                 .toList();
     }
 
-    private List<String> serverLoad(Optional<AcceptedPlan> plan) {
-        if (plan.isEmpty()) {
-            return List.of();
-        }
+    private List<String> serverLoad(List<LiturgicalService> services) {
         Map<String, Server> serversById = new LinkedHashMap<>();
         serverRepository.findAll().forEach(server -> serversById.put(server.id(), server));
         Map<String, Long> countByServer = new LinkedHashMap<>();
-        plan.get().assignments().forEach(assignment -> {
-            if (assignment.serverId() != null) {
-                countByServer.merge(assignment.serverId(), 1L, Long::sum);
-            }
-        });
+        services.stream()
+                .flatMap(service -> service.slots().stream())
+                .forEach(slot -> {
+                    if (slot.serverId() != null) {
+                        countByServer.merge(slot.serverId(), 1L, Long::sum);
+                    }
+                });
         return countByServer.entrySet().stream()
                 .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
                 .map(entry -> {
@@ -86,23 +83,15 @@ public class DashboardViewModel {
                 .toList();
     }
 
-    private String describeService(LiturgicalService service, Optional<AcceptedPlan> plan) {
+    private String describeService(LiturgicalService service) {
         String base = service.dateTime().format(DATE_TIME_FORMAT) + "  "
                 + EnumDisplay.of(service.type())
                 + (service.location().isBlank() ? "" : "  " + service.location());
-        if (plan.isEmpty()) {
-            return base;
-        }
-        long total = plan.get().assignments().stream()
-                .filter(assignment -> assignment.serviceId().equals(service.id()))
-                .count();
+        int total = service.slots().size();
         if (total == 0) {
             return base;
         }
-        long assigned = plan.get().assignments().stream()
-                .filter(assignment -> assignment.serviceId().equals(service.id()))
-                .filter(assignment -> assignment.serverId() != null)
-                .count();
+        long assigned = service.slots().stream().filter(slot -> slot.serverId() != null).count();
         return base + "  (" + assigned + "/" + total + ")";
     }
 }

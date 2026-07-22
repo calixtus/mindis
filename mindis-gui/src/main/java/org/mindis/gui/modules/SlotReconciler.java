@@ -45,7 +45,7 @@ final class SlotReconciler {
             if (current.size() <= wanted) {
                 result.addAll(current);
                 for (int i = current.size(); i < wanted; i++) {
-                    result.add(new Slot(Slot.newId(), roleId));
+                    result.add(Slot.open(roleId));
                 }
             } else {
                 // Shrinking: keep the first `wanted` slots off a filled-

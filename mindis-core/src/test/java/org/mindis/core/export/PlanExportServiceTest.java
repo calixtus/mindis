@@ -6,34 +6,40 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.LocalDate;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mindis.core.model.ArchivedService;
+import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.ServiceType;
+import org.mindis.core.model.Slot;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
-import org.mindis.core.persistence.ServiceRepository;
-import org.mindis.core.planning.AcceptedPlan;
 
 class PlanExportServiceTest {
 
     @TempDir
     Path tempDir;
 
-    @Test
-    void exportsPdfFile() throws IOException {
+    private PlanExportService exportService() {
         // Repositories on empty temp files: export must handle unknown ids.
-        PlanExportService exportService = new PlanExportService(
-                new ServerRepositoryStub(tempDir), new ServiceRepositoryStub(tempDir),
-                new RoleRepositoryStub(tempDir));
-        AcceptedPlan plan = new AcceptedPlan(
-                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
-                List.of(new AcceptedPlan.PlannedAssignment("a1", "svc1", Role.ACOLYTE, null, false)), null);
+        return new PlanExportService(new ServerRepositoryStub(tempDir), new RoleRepositoryStub(tempDir));
+    }
+
+    private static LiturgicalService service() {
+        return new LiturgicalService("svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60, "St. Mary",
+                ServiceType.SUNDAY_MASS, List.of(new Slot("slot-0", Role.ACOLYTE, null, false)), "");
+    }
+
+    @Test
+    void exportsPdfFileFromLiveServices() throws IOException {
         Path target = tempDir.resolve("plan.pdf");
 
-        exportService.export(plan, target, PlanExportFormat.PDF);
+        exportService().exportLive(List.of(service()), target, PlanExportFormat.PDF);
 
         assertTrue(Files.exists(target));
         assertTrue(Files.size(target) > 500, "PDF suspiciously small");
@@ -45,32 +51,37 @@ class PlanExportServiceTest {
     }
 
     @Test
-    void exportsCsvTxtAndRtfFiles() throws IOException {
-        PlanExportService exportService = new PlanExportService(
-                new ServerRepositoryStub(tempDir), new ServiceRepositoryStub(tempDir),
-                new RoleRepositoryStub(tempDir));
-        AcceptedPlan plan = new AcceptedPlan(
-                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31),
-                List.of(new AcceptedPlan.PlannedAssignment("a1", "svc1", Role.ACOLYTE, null, false)), null);
-
+    void exportsEveryTextFormatFromLiveServices() throws IOException {
+        PlanExportService exportService = exportService();
         for (PlanExportFormat format : List.of(
                 PlanExportFormat.CSV, PlanExportFormat.TXT, PlanExportFormat.RTF, PlanExportFormat.MARKDOWN)) {
             Path target = tempDir.resolve("plan." + format.extension());
-            exportService.export(plan, target, format);
+            exportService.exportLive(List.of(service()), target, format);
             assertTrue(Files.exists(target), format + " file was not written");
             assertTrue(Files.size(target) > 0, format + " file is empty");
         }
     }
 
+    @Test
+    void exportsArchivedSnapshotUsingItsOwnNames() throws IOException {
+        // No server or role exists in the (empty) repositories, yet the frozen
+        // snapshot still renders the captured display names.
+        ArchivedService archived = new ArchivedService("svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60,
+                "St. Mary", ServiceType.SUNDAY_MASS, "",
+                List.of(new ArchivedService.ArchivedSlot("Acolyte", "gone", "Deleted Server")),
+                Instant.now());
+        Path target = tempDir.resolve("archived.md");
+
+        exportService().exportArchived(List.of(archived), target, PlanExportFormat.MARKDOWN);
+
+        String content = Files.readString(target);
+        assertTrue(content.contains("Deleted Server"), "Archived server name missing from export");
+        assertTrue(content.contains("Acolyte"), "Archived role name missing from export");
+    }
+
     private static final class ServerRepositoryStub extends ServerRepository {
         ServerRepositoryStub(Path dir) {
             super(dir.resolve("servers.json"));
-        }
-    }
-
-    private static final class ServiceRepositoryStub extends ServiceRepository {
-        ServiceRepositoryStub(Path dir) {
-            super(dir.resolve("services.json"));
         }
     }
 

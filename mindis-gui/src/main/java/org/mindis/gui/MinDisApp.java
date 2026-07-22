@@ -24,7 +24,7 @@ import org.mindis.core.export.PlanExportService;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.logging.LoggingBootstrap;
 import org.mindis.core.persistence.AppDatabase;
-import org.mindis.core.persistence.PlanRepository;
+import org.mindis.core.persistence.ArchivedServiceRepository;
 import org.mindis.core.preferences.AccentColor;
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.persistence.RoleRepository;
@@ -163,14 +163,14 @@ public class MinDisApp extends Application {
         // Built before the Workbench (not inline in the varargs list below) so
         // buildGlobalToolbar(...) can bind to this exact instance afterward.
         ServicesModule servicesModule = new ServicesModule(Localization.lang("Services"),
-                liveDatabase.services(), liveDatabase.roles(),
+                liveDatabase.services(), liveDatabase.roles(), liveDatabase.servers(),
                 beanScope.get(TemplateRepository.class),
                 beanScope.get(RoleRepository.class),
                 new PlanningViewModel(
                         beanScope.get(PlanningService.class),
-                        beanScope.get(PlanRepository.class),
                         preferencesService,
-                        beanScope.get(PlanExportService.class)),
+                        beanScope.get(PlanExportService.class),
+                        beanScope.get(ArchivedServiceRepository.class)),
                 liveDatabase);
         Workbench.Builder builder = Workbench.builder(
                                 new DashboardModule(Localization.lang("Dashboard")),
@@ -198,18 +198,17 @@ public class MinDisApp extends Application {
     /// The application-wide Save all/Load toolbar, spanning the top of the
     /// workbench - the only Save all/Load action app-wide. Delegates straight
     /// to {@link ServicesModule#saveAll()}/{@link ServicesModule#loadAll()}
-    /// (which themselves flush/reload {@link #liveDatabase} plus the plan)
-    /// rather than calling {@code liveDatabase} directly: a second "is there
-    /// anything to save" calculation here - independent of
-    /// {@link ServicesModule#planDirtyProperty()} - is exactly how this button
-    /// used to go enabled/disabled out of step with an Altar-servers pick.
-    /// Rebuilt with each workbench (labels are localized); the state it binds
+    /// (which flush/reload {@link #liveDatabase} - assignments included, since
+    /// they now live on the service records) and log the outcome. Rebuilt with
+    /// each workbench (labels are localized); the state it binds
     /// to is the long-lived {@code liveDatabase} plus the freshly built
     /// {@code servicesModule} (a new instance each rebuild, like every module).
     private ToolBar buildGlobalToolbar(ServicesModule servicesModule) {
         Button saveAllButton = new Button(Localization.lang("Save all"));
+        // An assignment pick now dirties its service record like any other
+        // edit, so totalDirtyCount already covers the plan - no separate
+        // plan-dirty term needed.
         saveAllButton.disableProperty().bind(liveDatabase.totalDirtyCount().isEqualTo(0)
-                .and(servicesModule.planDirtyProperty().not())
                 .or(servicesModule.solvingProperty()));
         saveAllButton.setOnAction(event -> servicesModule.saveAll());
         Button loadButton = new Button(Localization.lang("Load"));
