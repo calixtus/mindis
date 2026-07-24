@@ -55,12 +55,14 @@
     -fx-icon-color: -color-fg-muted;
 }
 
-/* On the icon-only rail the switcher shows just the centered logo. The
-   dropdown arrow is shown when expanded but removed here: visibility hides the
-   arrow graphic (min-width:0 alone only clips the box, the arrow still paints)
-   and the zero widths reclaim its space so nothing crowds the divider. */
+/* On the icon-only rail the switcher shows just the centered logo, matching
+   the module nav buttons' padding (8) so it is the same height. The dropdown
+   arrow is shown when expanded but removed here: visibility hides the arrow
+   graphic (min-width:0 alone only clips the box, the arrow still paints) and
+   the zero widths reclaim its space so nothing crowds the divider. */
 .workbench-collection-switcher:collapsed .collection-button {
-    -fx-padding: 4;
+    -fx-padding: 8;
+    -fx-alignment: center;
 }
 
 .workbench-collection-switcher:collapsed .collection-button > .arrow-button {

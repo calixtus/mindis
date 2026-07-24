@@ -47,6 +47,9 @@ import org.mindis.core.preferences.RecentCollection;
 public final class CollectionSwitcher extends HBox {
 
     private static final int HEADER_LOGO_SIZE = 26;
+    /// Matches the module nav buttons' icon size, so the collapsed switcher is
+    /// the same height as the icon-only nav rail below it.
+    private static final int RAIL_LOGO_SIZE = 18;
     private static final int MENU_LOGO_SIZE = 20;
 
     private final DocumentSession session;
@@ -57,9 +60,11 @@ public final class CollectionSwitcher extends HBox {
     private final Label nameLabel = new Label();
     private final Label dirtyDot = new Label("●");
     private final StackPane logoHolder = new StackPane();
+    private final HBox identity;
     private final Button saveButton = new Button();
 
     private boolean collapsed;
+    private CollectionMeta currentMeta;
 
     public CollectionSwitcher(DocumentSession session, LiveDatabase liveDatabase,
                               ObservableBooleanValue solving) {
@@ -79,10 +84,15 @@ public final class CollectionSwitcher extends HBox {
         dirtyDot.managedProperty().bind(dirtyDot.visibleProperty());
 
         logoHolder.getStyleClass().add("collection-logo");
-        updateLogo(liveDatabase.meta());
-        liveDatabase.metaProperty().subscribe(this::updateLogo);
+        logoHolder.setAlignment(Pos.CENTER);
+        currentMeta = liveDatabase.meta();
+        updateLogo();
+        liveDatabase.metaProperty().subscribe(meta -> {
+            currentMeta = meta;
+            updateLogo();
+        });
 
-        HBox identity = new HBox(6, logoHolder, nameLabel, dirtyDot);
+        identity = new HBox(6, logoHolder, nameLabel, dirtyDot);
         identity.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(nameLabel, Priority.ALWAYS);
         collectionButton.setGraphic(identity);
@@ -119,6 +129,11 @@ public final class CollectionSwitcher extends HBox {
         nameLabel.setManaged(!value);
         saveButton.setVisible(!value);
         saveButton.setManaged(!value);
+        // Center the lone logo on the rail; left-align logo + name when expanded.
+        identity.setAlignment(value ? Pos.CENTER : Pos.CENTER_LEFT);
+        // Resize the logo to the nav-rail icon size (and back) so the collapsed
+        // switcher matches the module buttons' height.
+        updateLogo();
         // The dirty dot is redundant next to the (hidden) name on the rail; the
         // window title still carries the asterisk.
         dirtyDot.visibleProperty().unbind();
@@ -202,11 +217,12 @@ public final class CollectionSwitcher extends HBox {
         edited.ifPresent(session::updateMetadata);
     }
 
-    private void updateLogo(CollectionMeta meta) {
-        Image logo = imageFromBase64(meta.logoPngBase64());
+    private void updateLogo() {
+        int size = collapsed ? RAIL_LOGO_SIZE : HEADER_LOGO_SIZE;
+        Image logo = imageFromBase64(currentMeta.logoPngBase64());
         logoHolder.getChildren().setAll(logo == null
-                ? churchIcon(HEADER_LOGO_SIZE)
-                : logoView(logo, HEADER_LOGO_SIZE));
+                ? churchIcon(size)
+                : logoView(logo, size));
     }
 
     private static ImageView logoView(Image image, int size) {
