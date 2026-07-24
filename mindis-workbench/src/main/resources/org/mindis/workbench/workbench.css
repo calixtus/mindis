@@ -18,16 +18,20 @@
     -fx-background-color: transparent;
     -fx-background-radius: 6;
     -fx-padding: 4 6 4 6;
+    -fx-cursor: hand;
 }
 
-.workbench-collection-switcher .collection-button:hover,
-.workbench-collection-switcher .collection-button:showing {
+.workbench-collection-switcher .collection-button:hover {
     -fx-background-color: -color-bg-inset;
 }
 
 .workbench-collection-switcher .collection-name {
     -fx-font-weight: bold;
     -fx-text-fill: -color-fg-default;
+}
+
+.workbench-collection-switcher .collection-caret {
+    -fx-icon-color: -color-fg-muted;
 }
 
 .workbench-collection-switcher .collection-dirty-dot {

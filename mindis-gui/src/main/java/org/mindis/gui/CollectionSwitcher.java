@@ -9,9 +9,11 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableValue;
 import javafx.geometry.Pos;
+import javafx.geometry.Side;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
-import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Tooltip;
@@ -38,6 +40,12 @@ import org.mindis.core.preferences.RecentCollection;
 /// <p>All data lives in one document = one collection (a parish), so switching
 /// collection is opening a file - the dropdown is where {@link DocumentSession}'s
 /// file actions live now, in place of the old global toolbar.
+///
+/// <p>Built as a plain {@link Button} plus a {@link ContextMenu} rather than a
+/// {@code MenuButton}: a MenuButton's arrow hugs the control's right edge, where
+/// it collided with the sidebar divider, and its arrow forced a minimum width
+/// wider than the collapsed icon rail. This button's own caret is an inline icon
+/// with padding, and on the rail it shrinks to just the logo like a nav button.
 public final class CollectionSwitcher extends HBox {
 
     private static final int HEADER_LOGO_SIZE = 26;
@@ -47,11 +55,16 @@ public final class CollectionSwitcher extends HBox {
     private final LiveDatabase liveDatabase;
     private final ObservableBooleanValue solving;
 
-    private final MenuButton collectionButton = new MenuButton();
+    private final Button collectionButton = new Button();
+    private final ContextMenu menu = new ContextMenu();
     private final Label nameLabel = new Label();
     private final Label dirtyDot = new Label("●");
     private final StackPane logoHolder = new StackPane();
+    private final FontIcon caret = new FontIcon("mdi2m-menu-down");
+    private final HBox identity;
     private final Button saveButton = new Button();
+
+    private boolean collapsed;
 
     public CollectionSwitcher(DocumentSession session, LiveDatabase liveDatabase,
                               ObservableBooleanValue solving) {
@@ -62,6 +75,7 @@ public final class CollectionSwitcher extends HBox {
         setAlignment(Pos.CENTER_LEFT);
 
         nameLabel.getStyleClass().add("collection-name");
+        nameLabel.setMaxWidth(Double.MAX_VALUE);
         nameLabel.textProperty().bind(Bindings.createStringBinding(session::collectionDisplayName,
                 liveDatabase.metaProperty(), liveDatabase.documentPathProperty()));
 
@@ -73,15 +87,25 @@ public final class CollectionSwitcher extends HBox {
         updateLogo(liveDatabase.meta());
         liveDatabase.metaProperty().subscribe(this::updateLogo);
 
-        HBox identity = new HBox(6, logoHolder, nameLabel, dirtyDot);
+        caret.getStyleClass().add("collection-caret");
+
+        identity = new HBox(6, logoHolder, nameLabel, dirtyDot, caret);
         identity.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(nameLabel, Priority.ALWAYS);
+        // Fill the button so the name can grow and the caret sits at the right
+        // edge (with padding), instead of the graphic shrinking to its content.
+        identity.prefWidthProperty().bind(collectionButton.widthProperty().subtract(16));
+
         collectionButton.setGraphic(identity);
+        collectionButton.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         collectionButton.getStyleClass().add("collection-button");
         collectionButton.setMaxWidth(Double.MAX_VALUE);
+        collectionButton.setMinWidth(0);
         collectionButton.setTooltip(new Tooltip(Localization.lang("Switch collection")));
-        // Recents change with every open/save; rebuild the menu each time it opens.
-        collectionButton.setOnShowing(event -> rebuildMenu());
+        collectionButton.setOnAction(event -> showMenu());
+        // Recents change with every open/save (and the menu content depends on
+        // the collapsed state), so rebuild it each time it opens.
+        menu.setOnShowing(event -> rebuildMenu());
 
         saveButton.setGraphic(new FontIcon("mdi2c-content-save"));
         saveButton.getStyleClass().add("collection-save-button");
@@ -94,29 +118,48 @@ public final class CollectionSwitcher extends HBox {
     }
 
     /// Follows the sidebar's collapsed state: on the icon-only rail only the
-    /// logo shows (name, dirty dot and save button hide).
+    /// logo shows (name, caret, dirty dot and the inline save button hide), and
+    /// Save moves into the dropdown instead.
     public void bindCollapsed(ObservableValue<? extends Boolean> collapsed) {
         collapsed.subscribe(this::applyCollapsed);
     }
 
-    private void applyCollapsed(boolean collapsed) {
-        nameLabel.setVisible(!collapsed);
-        nameLabel.setManaged(!collapsed);
-        saveButton.setVisible(!collapsed);
-        saveButton.setManaged(!collapsed);
+    private void applyCollapsed(boolean value) {
+        this.collapsed = value;
+        nameLabel.setVisible(!value);
+        nameLabel.setManaged(!value);
+        caret.setVisible(!value);
+        caret.setManaged(!value);
+        saveButton.setVisible(!value);
+        saveButton.setManaged(!value);
+        // On the rail the logo centers like an icon-only nav button; expanded,
+        // the identity is left-aligned with the name growing to fill.
+        identity.setAlignment(value ? Pos.CENTER : Pos.CENTER_LEFT);
         // The dirty dot is redundant next to the (hidden) name on the rail; the
         // window title still carries the asterisk.
         dirtyDot.visibleProperty().unbind();
-        if (collapsed) {
+        if (value) {
             dirtyDot.setVisible(false);
         } else {
             dirtyDot.visibleProperty().bind(liveDatabase.dirtyProperty());
         }
-        pseudoClassStateChanged(javafx.css.PseudoClass.getPseudoClass("collapsed"), collapsed);
+        pseudoClassStateChanged(javafx.css.PseudoClass.getPseudoClass("collapsed"), value);
+    }
+
+    private void showMenu() {
+        menu.show(collectionButton, Side.BOTTOM, 0, 0);
     }
 
     private void rebuildMenu() {
-        collectionButton.getItems().clear();
+        menu.getItems().clear();
+        // On the rail the inline save button is hidden, so Save lives here.
+        if (collapsed) {
+            MenuItem save = actionItem("mdi2c-content-save", Localization.lang("Save"),
+                    session::onSave);
+            save.setDisable(!liveDatabase.isDirty() || solving.get());
+            menu.getItems().addAll(save, new SeparatorMenuItem());
+        }
+
         Path current = liveDatabase.documentPath().orElse(null);
         boolean addedRecent = false;
         for (RecentCollection recent : session.recents()) {
@@ -126,13 +169,13 @@ public final class CollectionSwitcher extends HBox {
             if (!addedRecent) {
                 MenuItem header = new MenuItem(Localization.lang("Recent collections"));
                 header.setDisable(true);
-                collectionButton.getItems().add(header);
+                menu.getItems().add(header);
                 addedRecent = true;
             }
-            collectionButton.getItems().add(recentItem(recent));
+            menu.getItems().add(recentItem(recent));
         }
         if (addedRecent) {
-            collectionButton.getItems().add(new SeparatorMenuItem());
+            menu.getItems().add(new SeparatorMenuItem());
         }
 
         MenuItem openOther = actionItem("mdi2f-folder-open", Localization.lang("Open other..."),
@@ -144,8 +187,7 @@ public final class CollectionSwitcher extends HBox {
                 this::openMetadataEditor);
         MenuItem newCollection = actionItem("mdi2p-plus", Localization.lang("New collection"),
                 session::onNew);
-        collectionButton.getItems().addAll(openOther, saveAs, edit,
-                new SeparatorMenuItem(), newCollection);
+        menu.getItems().addAll(openOther, saveAs, edit, new SeparatorMenuItem(), newCollection);
     }
 
     private MenuItem recentItem(RecentCollection recent) {

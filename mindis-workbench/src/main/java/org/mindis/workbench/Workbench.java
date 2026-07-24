@@ -75,11 +75,13 @@ public final class Workbench extends BorderPane {
         getStylesheets().add(Workbench.class.getResource("workbench.css").toExternalForm());
 
         sidebar.getStyleClass().add("workbench-sidebar");
+        // Chevron on top of everything, then the sidebar header (collection
+        // switcher), then the navigation entries.
+        sidebar.getChildren().add(createToggleButton());
         if (builder.sidebarHeader != null) {
             builder.sidebarHeader.getStyleClass().add("workbench-sidebar-header");
             sidebar.getChildren().add(builder.sidebarHeader);
         }
-        sidebar.getChildren().add(createToggleButton());
         for (WorkbenchModule module : builder.modules) {
             sidebar.getChildren().add(createNavButton(module));
         }
