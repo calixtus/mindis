@@ -7,6 +7,8 @@ import java.nio.file.Path;
 
 import org.jspecify.annotations.Nullable;
 
+import org.mindis.core.model.CollectionMeta;
+
 /// The open document: aggregates the five repositories, whose caches are the
 /// single source of truth every reader (GUI stores, solver, CSV mappers) sees
 /// live, and owns the file they came from.
@@ -34,6 +36,7 @@ public class AppDatabase {
     private final DocumentStore store = new DocumentStore();
 
     private @Nullable Path documentPath;
+    private CollectionMeta meta = CollectionMeta.empty();
 
     public AppDatabase(RoleRepository roles, ServerRepository servers,
                        TemplateRepository templates, ServiceRepository services,
@@ -49,6 +52,18 @@ public class AppDatabase {
     /// {@code null} for a new, never-saved document.
     public synchronized @Nullable Path documentPath() {
         return documentPath;
+    }
+
+    /// The open document's identity (name + logo); never {@code null} - a new
+    /// or metadata-less document reports {@link CollectionMeta#empty()}.
+    public synchronized CollectionMeta meta() {
+        return meta;
+    }
+
+    /// Replaces the open document's identity; staged like any other edit until
+    /// the next save.
+    public synchronized void updateMeta(CollectionMeta newMeta) {
+        this.meta = newMeta;
     }
 
     /// Replaces the open document with an empty, untitled one, seeded with the
@@ -100,7 +115,7 @@ public class AppDatabase {
 
     /// The open document's current (staged) state, as it would be written.
     public synchronized MinDisDocument snapshot() {
-        return new MinDisDocument(MinDisDocument.CURRENT_VERSION,
+        return new MinDisDocument(MinDisDocument.CURRENT_VERSION, meta,
                 roles.findAll(), servers.findAll(), templates.findAll(),
                 services.findAll(), archived.findAll());
     }
@@ -111,6 +126,7 @@ public class AppDatabase {
         templates.replaceAll(document.templates());
         services.replaceAll(document.services());
         archived.replaceAll(document.archivedServices());
+        meta = document.meta();
         documentPath = path;
     }
 }

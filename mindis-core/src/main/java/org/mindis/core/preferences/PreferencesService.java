@@ -114,10 +114,14 @@ public class PreferencesService {
         // deserializes as null, so a preferences file written by an older
         // version starts with a new untitled document - the old per-entity
         // files are not read any more.
+        // v9 -> v10: recentCollections added for the collection switcher. Absent
+        // field deserializes as an empty list; seed it from the single remembered
+        // lastDocument so an upgraded install still shows its last collection in
+        // the switcher (name and logo fill in on the next open or save).
         int solverSeconds = loaded.solverSecondsLimit() > 0
                 ? loaded.solverSecondsLimit()
                 : MinDisPreferences.DEFAULT_SOLVER_SECONDS;
-        return new MinDisPreferences(
+        MinDisPreferences migrated = new MinDisPreferences(
                 MinDisPreferences.CURRENT_VERSION,
                 loaded.languageTag(),
                 loaded.theme(),
@@ -130,7 +134,14 @@ public class PreferencesService {
                 loaded.followSystemTheme(),
                 loaded.lastExportDirectory(),
                 loaded.sidebarWidth(),
-                loaded.lastDocument());
+                loaded.lastDocument(),
+                loaded.recentCollections());
+        String lastDocument = loaded.lastDocument();
+        if (migrated.recentCollections().isEmpty() && lastDocument != null && !lastDocument.isBlank()) {
+            return migrated.withRecentCollection(
+                    new RecentCollection(lastDocument, null, null, 0L));
+        }
+        return migrated;
     }
 
     private void save(MinDisPreferences preferences) {

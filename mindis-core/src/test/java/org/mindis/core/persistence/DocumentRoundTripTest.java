@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import org.mindis.core.model.ArchivedService;
+import org.mindis.core.model.CollectionMeta;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
@@ -66,6 +67,7 @@ class DocumentRoundTripTest {
         original.templates.save(template);
         original.services.save(service);
         original.archived.addAll(List.of(archived));
+        original.database.updateMeta(new CollectionMeta("St. Mary's Parish", "iVBORw0KGgo="));
         original.database.saveAs(file);
 
         Fixture reopened = new Fixture();
@@ -76,7 +78,20 @@ class DocumentRoundTripTest {
         assertEquals(List.of(template), reopened.templates.findAll());
         assertEquals(List.of(service), reopened.services.findAll());
         assertEquals(List.of(archived), reopened.archived.findAll());
+        assertEquals(new CollectionMeta("St. Mary's Parish", "iVBORw0KGgo="), reopened.database.meta());
         assertEquals(file, reopened.database.documentPath());
+    }
+
+    @Test
+    void newDocumentResetsTheCollectionIdentity() throws IOException {
+        Path file = tempDir.resolve("parish.json");
+        Fixture fixture = new Fixture();
+        fixture.database.updateMeta(new CollectionMeta("St. Joseph", null));
+        fixture.database.saveAs(file);
+
+        fixture.database.newDocument();
+
+        assertEquals(CollectionMeta.empty(), fixture.database.meta());
     }
 
     @Test
