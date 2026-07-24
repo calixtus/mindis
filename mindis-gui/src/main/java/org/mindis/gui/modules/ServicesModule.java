@@ -40,11 +40,9 @@ import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.MenuItem;
 import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Separator;
-import javafx.scene.control.SplitMenuButton;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TextField;
@@ -243,16 +241,9 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         Tooltip.install(solveProgressBar, new Tooltip(Localization.lang("Abort autofill")));
         solveProgressBar.setOnMouseClicked(event -> confirmAbort());
         autofillSlot.getChildren().addAll(autofillButton, solveProgressBar);
-        SplitMenuButton exportPlanButton = new SplitMenuButton();
-        exportPlanButton.setText(Localization.lang("Export"));
-        Toolbars.markToolbarButton(exportPlanButton, "mdi2e-export");
+        Button exportPlanButton = Toolbars.button(Localization.lang("Export..."), "mdi2e-export");
         exportPlanButton.disableProperty().bind(solving.or(Bindings.isEmpty(store().items())));
-        exportPlanButton.setOnAction(event -> onExportPlan(PlanExportFormat.PDF));
-        for (PlanExportFormat format : PlanExportFormat.values()) {
-            MenuItem formatItem = new MenuItem(format.name());
-            formatItem.setOnAction(event -> onExportPlan(format));
-            exportPlanButton.getItems().add(formatItem);
-        }
+        exportPlanButton.setOnAction(event -> showExportPopup(exportPlanButton));
         Button archiveButton = Toolbars.button(Localization.lang("Archived plans"), "mdi2a-archive");
         archiveButton.setOnAction(event ->
                 ArchivedPlansDialog.show(planningViewModel, table().getScene().getWindow(), this::performArchive));
@@ -345,6 +336,66 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         HBox.setHgrow(buttonSpacer, Priority.ALWAYS);
         HBox buttonRow = new HBox(8, solveAllButton, buttonSpacer, okButton);
         buttonRow.setAlignment(Pos.CENTER_LEFT);
+
+        VBox content = new VBox(10, grid, buttonRow);
+        content.setPadding(new Insets(12));
+        content.setStyle(GENERATE_POPUP_STYLE);
+        popup.getContent().add(content);
+
+        Bounds anchorBounds = anchor.localToScreen(anchor.getBoundsInLocal());
+        popup.show(anchor, anchorBounds.getMinX(), anchorBounds.getMaxY() + 4);
+    }
+
+    /// Popup for exporting the plan, anchored under the toolbar button:
+    /// From/To date bounds (blank From = from the earliest service, blank To =
+    /// every later one) plus the output format that used to live on the export
+    /// menu button. Mirrors the Generate/Autofill popups.
+    private void showExportPopup(Node anchor) {
+        CalendarPicker popupFrom = CalendarPickers.create();
+        popupFrom.setValue(fromPicker.getValue());
+        CalendarPicker popupTo = CalendarPickers.create();
+        popupTo.setValue(toPicker.getValue());
+
+        ComboBox<PlanExportFormat> formatBox =
+                new ComboBox<>(FXCollections.observableArrayList(PlanExportFormat.values()));
+        formatBox.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(@Nullable PlanExportFormat format) {
+                return format == null ? "" : format.name();
+            }
+
+            @Override
+            public @Nullable PlanExportFormat fromString(@Nullable String string) {
+                return null;
+            }
+        });
+        formatBox.getSelectionModel().select(PlanExportFormat.PDF);
+        formatBox.setMaxWidth(Double.MAX_VALUE);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(8);
+        grid.setVgap(8);
+        grid.add(new Label(Localization.lang("From")), 0, 0);
+        grid.add(popupFrom, 1, 0);
+        grid.add(new Label(Localization.lang("To")), 0, 1);
+        grid.add(popupTo, 1, 1);
+        grid.add(new Label(Localization.lang("Format")), 0, 2);
+        grid.add(formatBox, 1, 2);
+
+        Popup popup = new Popup();
+        popup.setAutoHide(true);
+
+        Button okButton = new Button(Localization.lang("Export"));
+        okButton.setOnAction(event -> {
+            PlanExportFormat format = formatBox.getValue();
+            if (format == null) {
+                return;
+            }
+            popup.hide();
+            onExportPlan(popupFrom.getValue(), popupTo.getValue(), format);
+        });
+        HBox buttonRow = new HBox(okButton);
+        buttonRow.setAlignment(Pos.CENTER_RIGHT);
 
         VBox content = new VBox(10, grid, buttonRow);
         content.setPadding(new Insets(12));
@@ -990,9 +1041,20 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         return true;
     }
 
-    private void onExportPlan(PlanExportFormat preferredFormat) {
-        List<LiturgicalService> services = List.copyOf(store().items());
+    /// Live services whose date falls within {@code [from, to]}, either bound
+    /// blank meaning unbounded on that side (same convention as the Autofill
+    /// window).
+    private List<LiturgicalService> servicesInRange(@Nullable LocalDate from, @Nullable LocalDate to) {
+        return store().items().stream()
+                .filter(service -> from == null || !service.dateTime().toLocalDate().isBefore(from))
+                .filter(service -> to == null || !service.dateTime().toLocalDate().isAfter(to))
+                .toList();
+    }
+
+    private void onExportPlan(@Nullable LocalDate from, @Nullable LocalDate to, PlanExportFormat preferredFormat) {
+        List<LiturgicalService> services = servicesInRange(from, to);
         if (services.isEmpty()) {
+            LOGGER.info(Localization.lang("Nothing to export"));
             return;
         }
         Optional<PlanExportChooser.Target> target = PlanExportChooser.show(

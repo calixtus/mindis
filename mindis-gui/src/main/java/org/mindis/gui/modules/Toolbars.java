@@ -2,6 +2,7 @@ package org.mindis.gui.modules;
 
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBase;
+import javafx.scene.control.Tooltip;
 
 import org.kordamp.ikonli.javafx.FontIcon;
 
@@ -15,8 +16,12 @@ final class Toolbars {
     }
 
     /// A toolbar button with the given localized text and Material Design icon.
+    /// The text is also installed as a tooltip so the button still names its
+    /// action in "icon only" mode, where the label is hidden (see {@code
+    /// workbench.css} and {@link org.mindis.core.preferences.ToolbarButtonDisplay}).
     static Button button(String text, String iconLiteral) {
         Button button = new Button(text, new FontIcon(iconLiteral));
+        button.setTooltip(new Tooltip(text));
         markToolbarButton(button, iconLiteral);
         return button;
     }
