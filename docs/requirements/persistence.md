@@ -13,9 +13,10 @@ own file in the user data directory; only *entity* data moved into the document)
 `req~single-document-file~1`
 
 All planning data of a parish — roles, servers, templates, services with their assignments, and the
-archive — lives in a single, plain, human-readable JSON file that the user chooses, names and can
-copy, back up or hand on like any other file. No database, server, account, or hidden storage
-location.
+archive — plus the collection's own identity (a display name and an optional logo) lives in a single,
+plain, human-readable JSON file that the user chooses, names and can copy, back up or hand on like
+any other file. The identity travels inside the file, so a collection is self-contained. No database,
+server, account, or hidden storage location.
 
 Covers:
 - feat~local-data-ownership~1
@@ -23,8 +24,10 @@ Covers:
 ### Document actions
 `req~document-actions~1`
 
-The user starts a new document, opens an existing one, saves the open one, and saves it under a new
-name. A document that has never been saved has no file yet; saving it asks where to put it.
+The user starts a new document, opens an existing one, saves the open one, saves it under a new name,
+and edits the open collection's name and logo. A document that has never been saved has no file yet;
+saving it asks where to put it. The application remembers up to five recently used documents for
+quick reopening.
 
 Covers:
 - feat~local-data-ownership~1
@@ -140,12 +143,15 @@ Covers:
 `dsn~document-actions~1`
 
 `AppDatabase` aggregates the five repositories and owns the open document's path (`null` =
-untitled). It is the only disk-I/O entry point for entity data: `newDocument()` (empty, untitled,
-seeded with `RoleRepository.defaults()`), `open(Path)`, `save()`, `saveAs(Path)` and `reload()`
-(re-read, discarding staged edits; an untitled document resets to a new one). `save()` on an
-untitled document throws `IllegalStateException` — the caller must route it to `saveAs`. Assignments
-are part of the service records and the archive is part of the document, so one save covers
-everything. Unit-tested by `DocumentRoundTripTest`.
+untitled) and its `CollectionMeta` identity. It is the only disk-I/O entry point for entity data:
+`newDocument()` (empty, untitled, empty identity, seeded with `RoleRepository.defaults()`),
+`open(Path)`, `save()`, `saveAs(Path)` and `reload()` (re-read, discarding staged edits; an untitled
+document resets to a new one), plus `meta()`/`updateMeta()` for the identity. `save()` on an
+untitled document throws `IllegalStateException` — the caller must route it to `saveAs`. The
+document is a `MinDisDocument` (version 2 since `CollectionMeta` was added; a v1 file simply lacks
+the field and reads back as an empty identity). Assignments are part of the service records and the
+archive is part of the document, so one save covers everything. Unit-tested by
+`DocumentRoundTripTest`.
 
 Covers:
 - req~document-actions~1
@@ -165,10 +171,11 @@ The baseline moves only in `refresh()`, which `LiveDatabase` runs after every do
 Equivalence is order-insensitive where order is not semantically significant (`RoleSlot.sameSlots`,
 `Slot.sameSlots`).
 
-`LiveDatabase` owns the four stores, mirrors `AppDatabase`'s document path into a property, and
-exposes `dirtyProperty()` — the row-level dirty counts **plus** the archive's own staged-change
-flag, which no row-level tracking covers (see [archive.md](archive.md)). That one binding drives the
-Save button, the window title and the close guard.
+`LiveDatabase` owns the four stores, mirrors `AppDatabase`'s document path and `CollectionMeta` into
+properties, and exposes `dirtyProperty()` — the row-level dirty counts **plus** the archive's own
+staged-change flag (see [archive.md](archive.md)) **plus** a collection-identity staged flag
+(`updateMeta` dirties the document like any other edit), neither of which row-level tracking covers.
+That one binding drives the collection switcher's Save button, the window title and the close guard.
 
 Covers:
 - req~staged-edits~1
@@ -179,29 +186,38 @@ Covers:
 
 `DocumentSession` (GUI) turns the document actions into user-facing ones: the file chooser (one
 `*.json` filter, starting in the current document's directory, default name `mindis.json`), the
-error dialogs for a failed open or save, the window title (application name, document file name or
-"Untitled", plus `*` while dirty), and the remembered last document. `confirmDropUnsavedChanges()`
-is the shared guard for New, Open and window close: Save (which may itself route to a location
-prompt), Discard, or Cancel — the answer decides whether the caller proceeds.
-`openLastDocumentOrNew()` runs at startup, after the locale is applied, so a new document's seeded
-roles get localized names.
+error dialogs for a failed open or save, the window title (application name, the collection display
+name — its `CollectionMeta` name, else the file name, else "Untitled" — plus `*` while dirty), and
+the remembered documents. `confirmDropUnsavedChanges()` is the shared guard for New, Open, switching
+collection and window close: Save (which may itself route to a location prompt), Discard, or
+Cancel — the answer decides whether the caller proceeds. `openLastDocumentOrNew()` runs at startup,
+after the locale is applied, so a new document's seeded roles get localized names. It also serves the
+collection switcher: `recents()`, `switchTo()` (guarded open of a recent, self-healing — a vanished
+or unreadable recent is reported and dropped), `currentMeta()`/`updateMetadata()` and
+`collectionDisplayName()`. Every action records the document, with a snapshot of its identity, at the
+front of the recent list.
 
 Covers:
 - req~document-actions~1
 - req~reopen-last-document~1
 - req~unsaved-changes-guard~1
+- req~collection-switcher~1
 
-### Remembered document path
+### Remembered documents
 `dsn~last-document-preference~1`
 
 `MinDisPreferences.lastDocument` (added in preferences version 9) holds the absolute path of the
-document last opened or saved, and is cleared when the user starts an untitled document. It lives in
+document last opened or saved, and is cleared when the user starts an untitled document;
+`recentCollections` (version 10, capped at `MAX_RECENT_COLLECTIONS` = 5) is the switcher's list —
+each entry a path plus a cached name and logo, most recent first, dedup by path, refreshed on every
+open or save. The v9→v10 migration seeds the list from `lastDocument`. Both live in
 `preferences.json` in the user data directory (`AppDirectories.userDataDir()`: `%APPDATA%\MinDis`,
 `~/Library/Application Support/MinDis`, XDG), which also holds the log directory — the only data the
 application still keeps outside the user's own document.
 
 Covers:
 - req~reopen-last-document~1
+- req~collection-switcher~1
 
 ### CSV mappers
 `dsn~csv-mappers~1`

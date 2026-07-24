@@ -16,12 +16,27 @@ Design decisions: [ADR 001 — view layer (FxmlKit)](../adr/001-view-layer.md),
 `req~workbench-shell~1`
 
 The application presents its areas — dashboard, servers, roles, templates, services, settings,
-about — as modules of one workbench window with a sidebar, and one global toolbar carrying the
-application-wide document actions (New, Open, Save, Save as — see
-[persistence.md](persistence.md)).
+about — as modules of one workbench window with a sidebar. The sidebar top carries the collection
+switcher (below), which owns the application-wide document actions (New, Open, Save, Save as — see
+[persistence.md](persistence.md)); there is no separate global toolbar.
 
 Covers:
 - feat~multilingual-desktop-app~1
+
+### Collection switcher
+`req~collection-switcher~1`
+
+The open document is a collection (one parish). The sidebar top shows the collection's identity — a
+display name (the parish name) and an optional logo — with an inline Save action that reflects
+whether there is anything to save. A dropdown switches to one of up to five recently used
+collections, opens another document, saves under a new name, edits the current collection's name and
+logo, or starts a new collection. Switching away from unsaved work asks first. A recent whose file
+has since vanished is reported and dropped from the list. The collection's identity is shown in the
+window title and travels inside its own document (see [persistence.md](persistence.md)).
+
+Covers:
+- feat~multilingual-desktop-app~1
+- feat~local-data-ownership~1
 
 ### Overview at a glance
 `req~dashboard~1`
@@ -64,7 +79,8 @@ Covers:
 `req~window-state~1`
 
 Window position, size, maximized state and sidebar width are restored on the next start, and the
-window title names the open document and whether it has unsaved edits.
+window title names the open collection (its display name, or the file name) and whether it has
+unsaved edits.
 
 Covers:
 - feat~multilingual-desktop-app~1
@@ -90,8 +106,8 @@ Covers:
 ### Unsaved work is recognizable
 `req~unsaved-indication~1`
 
-Rows and fields with unsaved edits are visually marked, and the global Save action reflects whether
-there is anything to save.
+Rows and fields with unsaved edits are visually marked, and the collection switcher's Save action
+reflects whether there is anything to save.
 
 Covers:
 - feat~local-data-ownership~1
@@ -109,6 +125,26 @@ itself — every button and its wiring belongs to the subclass — and holds no 
 its table to a shared `LiveStore` (see [persistence.md](persistence.md)).
 
 Covers:
+- req~workbench-shell~1
+
+### Collection switcher
+`dsn~collection-switcher~1`
+
+`CollectionSwitcher` (GUI) sits in the sidebar-header slot the `Workbench` builder exposes. It binds
+its name to `DocumentSession.collectionDisplayName()` and its logo to the open collection's
+`CollectionMeta` (a `mdi2c-church` placeholder when there is none), shows a dirty dot bound to
+`LiveDatabase.dirtyProperty()`, and an inline save `Button` disabled unless dirty and not solving.
+Its `MenuButton` dropdown is rebuilt on each open (recents change with every save): up to five
+recent collections excluding the current one — each switching via `DocumentSession.switchTo` — then
+Open other (`onOpen`), Save as (`onSaveAs`, disabled while solving), Edit collection
+(`CollectionMetaDialog` → `updateMetadata`) and New collection (`onNew`). It follows the
+`Workbench.collapsedProperty()` so the icon-only rail shows just the logo. `CollectionMetaDialog`
+edits name and logo; the logo is a PNG only, size-capped (512 KB) so it stays small inside the
+document. `MinDisApp` also registers Ctrl+N/O/S and Ctrl+Shift+S as scene accelerators for the same
+actions (the scene survives a language rebuild, so they do too).
+
+Covers:
+- req~collection-switcher~1
 - req~workbench-shell~1
 
 ### Composition root and DI
@@ -137,11 +173,12 @@ Covers:
 ### Preferences record
 `dsn~preferences-record~1`
 
-`MinDisPreferences` is an immutable record with a `version` (currently 8) plus `languageTag`,
+`MinDisPreferences` is an immutable record with a `version` (currently 10) plus `languageTag`,
 `theme`, `windowBounds`, `solverSecondsLimit` (default 30), `softConstraintWeights`, `accentColor`,
-`fontFamily`/`fontSize` (default 14, clamped 10–24), `followSystemTheme`, `lastExportDirectory` and
-`sidebarWidth`. Changes go through wither methods. The compact constructor fills absent or invalid
-values with defaults, which is what makes most version steps migration-free.
+`fontFamily`/`fontSize` (default 14, clamped 10–24), `followSystemTheme`, `lastExportDirectory`,
+`sidebarWidth`, `lastDocument` and `recentCollections` (the switcher's list, capped at five; see
+[persistence.md](persistence.md)). Changes go through wither methods. The compact constructor fills
+absent or invalid values with defaults, which is what makes most version steps migration-free.
 
 Covers:
 - req~appearance-settings~1
@@ -222,8 +259,9 @@ Covers:
 
 The stage is restored from `MinDisPreferences.windowBounds` (position, size, maximized) at startup
 and saved on shutdown; the sidebar width is persisted separately. The title is bound to
-`DocumentSession.titleBinding()` (application name, document file name or "Untitled", `*` while
-dirty), and the window's close request runs the unsaved-changes guard, consuming the event when the
+`DocumentSession.titleBinding()` (application name, the collection display name — its `CollectionMeta`
+name, else the file name, else "Untitled" — `*` while dirty), and the window's close request runs
+the unsaved-changes guard, consuming the event when the
 user cancels. On startup the window is
 explicitly brought to the foreground, since launching from a terminal or IDE on Windows can leave it
 behind whatever had focus.
@@ -253,9 +291,10 @@ Each editor field's label carries a dirty accent computed against the *last-flus
 against the row's current value — a live row may already hold an unsaved edit. Collection-backed
 fields (qualifications, preferred times, unavailability periods, slot counts) re-diff the whole
 collection against the baseline behind one shared label instead of using the per-property
-mechanism. The global Save button binds to `LiveDatabase.dirtyProperty()` (row-level dirty counts
-plus the archive's staged-change flag) and stays disabled while a solve is running, as does Save as.
-Regression-tested by `RolesModuleDirtyFlagTest`.
+mechanism. The collection switcher's Save button binds to `LiveDatabase.dirtyProperty()` (row-level
+dirty counts, the archive's staged-change flag, and the collection-identity staged flag — editing
+the name or logo dirties the document like any other edit) and stays disabled while a solve is
+running, as does Save as. Regression-tested by `RolesModuleDirtyFlagTest`.
 
 Covers:
 - req~unsaved-indication~1
