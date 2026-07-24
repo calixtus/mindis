@@ -1,0 +1,107 @@
+/* Dashboard widget board styling on AtlantaFX design tokens (-color-*). */
+
+.dashboard-scroll {
+    -fx-background-color: transparent;
+}
+
+.dashboard-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.dashboard-board {
+    -fx-background-color: transparent;
+}
+
+/* One widget card. The body fills the card; the resize grip floats in the
+   bottom-right corner. */
+.dashboard-widget {
+    -fx-background-color: -color-bg-default;
+    -fx-background-radius: 8;
+    -fx-border-color: -color-border-default;
+    -fx-border-radius: 8;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.12), 8, 0, 0, 2);
+}
+
+.dashboard-widget-body {
+    -fx-spacing: 0;
+}
+
+.dashboard-widget-header {
+    -fx-alignment: CENTER_LEFT;
+    -fx-spacing: 6;
+    -fx-padding: 6 6 6 12;
+    -fx-background-color: -color-bg-subtle;
+    -fx-background-radius: 8 8 0 0;
+    -fx-border-color: transparent transparent -color-border-default transparent;
+    -fx-border-width: 0 0 1 0;
+}
+
+.dashboard-widget-title {
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-default;
+}
+
+.dashboard-widget-close {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-padding: 2 6 2 6;
+    -fx-cursor: hand;
+}
+
+.dashboard-widget-close:hover {
+    -fx-background-color: -color-danger-subtle;
+}
+
+.dashboard-widget-close .ikonli-font-icon {
+    -fx-icon-color: -color-fg-muted;
+    -fx-icon-size: 14;
+}
+
+.dashboard-widget-close:hover .ikonli-font-icon {
+    -fx-icon-color: -color-danger-fg;
+}
+
+.dashboard-widget-content {
+    -fx-padding: 8;
+}
+
+.dashboard-widget-content .list-view {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.dashboard-summary {
+    -fx-font-size: 1.3em;
+    -fx-text-fill: -color-fg-default;
+    -fx-padding: 8;
+}
+
+/* Bottom-right resize grip: a small ridged corner, brighter on hover. */
+.dashboard-widget-resize-grip {
+    -fx-background-color: linear-gradient(from 0% 100% to 100% 0%,
+        -color-border-muted 0%, -color-border-muted 40%, transparent 40%);
+    -fx-background-radius: 0 0 8 0;
+    -fx-opacity: 0.6;
+}
+
+.dashboard-widget-resize-grip:hover {
+    -fx-opacity: 1;
+}
+
+/* Floats over the top-right of the board, above the widgets: solid fill and a
+   drop shadow so it lifts off whatever widget sits beneath it. */
+.dashboard-add-button {
+    -fx-cursor: hand;
+    -fx-background-color: -color-accent-emphasis;
+    -fx-text-fill: -color-fg-emphasis;
+    -fx-background-radius: 6;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.25), 8, 0, 0, 2);
+}
+
+.dashboard-add-button .ikonli-font-icon {
+    -fx-icon-color: -color-fg-emphasis;
+}
+
+.dashboard-add-button > .arrow-button > .arrow {
+    -fx-background-color: -color-fg-emphasis;
+}

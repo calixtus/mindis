@@ -155,6 +155,23 @@ class PreferencesServiceTest {
     }
 
     @Test
+    void dashboardWidgetsDefaultToNullAndSurviveRoundTrip() {
+        PreferencesService service = new PreferencesService(preferencesFile());
+        assertNull(service.get().dashboardWidgets());
+
+        service.update(p -> p.withDashboardWidgets(java.util.List.of(
+                new DashboardWidgetLayout("summary", 0, 0, 12, 1),
+                new DashboardWidgetLayout("next-services", 0, 1, 6, 3))));
+
+        PreferencesService reloaded = new PreferencesService(preferencesFile());
+        assertEquals(
+                java.util.List.of(
+                        new DashboardWidgetLayout("summary", 0, 0, 12, 1),
+                        new DashboardWidgetLayout("next-services", 0, 1, 6, 3)),
+                reloaded.get().dashboardWidgets());
+    }
+
+    @Test
     void windowBoundsRoundTrip() {
         PreferencesService service = new PreferencesService(preferencesFile());
         MinDisPreferences.WindowBounds bounds = new MinDisPreferences.WindowBounds(10, 20, 800, 600, false);

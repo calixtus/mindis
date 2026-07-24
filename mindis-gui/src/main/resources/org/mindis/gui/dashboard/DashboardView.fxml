@@ -1,28 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ListView?>
-<?import javafx.scene.control.TitledPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.MenuButton?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.StackPane?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
 
-<VBox xmlns="http://javafx.com/javafx"
-      xmlns:fx="http://javafx.com/fxml"
-      fx:controller="org.mindis.gui.dashboard.DashboardController"
-      spacing="12">
-    <padding>
-        <Insets top="16" right="16" bottom="16" left="16"/>
-    </padding>
+<!-- The board fills the pane; the add button floats over it, pinned top-right,
+     overlapping the widgets rather than sitting in its own toolbar strip. -->
+<StackPane xmlns="http://javafx.com/javafx"
+           xmlns:fx="http://javafx.com/fxml"
+           fx:controller="org.mindis.gui.dashboard.DashboardController"
+           stylesheets="@dashboard.css"
+           styleClass="dashboard">
 
-    <Label fx:id="summaryLabel" style="-fx-font-size: 1.2em;"/>
+    <ScrollPane fx:id="boardScroll" fitToWidth="true" styleClass="dashboard-scroll">
+        <padding>
+            <Insets top="16" right="16" bottom="16" left="16"/>
+        </padding>
+    </ScrollPane>
 
-    <HBox spacing="12" VBox.vgrow="ALWAYS">
-        <TitledPane text="%Next services" collapsible="false" HBox.hgrow="ALWAYS">
-            <ListView fx:id="nextServicesList"/>
-        </TitledPane>
-        <TitledPane text="%Assignments per server" collapsible="false" HBox.hgrow="ALWAYS">
-            <ListView fx:id="serverLoadList"/>
-        </TitledPane>
-    </HBox>
-</VBox>
+    <MenuButton fx:id="addWidgetButton" text="%Add widget" styleClass="dashboard-add-button"
+                StackPane.alignment="TOP_RIGHT">
+        <StackPane.margin>
+            <Insets top="12" right="24"/>
+        </StackPane.margin>
+        <graphic>
+            <FontIcon iconLiteral="mdi2p-plus"/>
+        </graphic>
+    </MenuButton>
+</StackPane>

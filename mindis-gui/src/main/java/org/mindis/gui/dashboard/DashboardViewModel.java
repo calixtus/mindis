@@ -4,9 +4,12 @@ import io.avaje.inject.Prototype;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
@@ -14,6 +17,8 @@ import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Server;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
+import org.mindis.core.preferences.DashboardWidgetLayout;
+import org.mindis.core.preferences.PreferencesService;
 
 /// ViewModel for {@link DashboardController}: owns every repository call and
 /// the upcoming-services/server-load aggregation, so the controller only
@@ -28,10 +33,47 @@ public class DashboardViewModel {
 
     private final ServiceRepository serviceRepository;
     private final ServerRepository serverRepository;
+    private final PreferencesService preferencesService;
 
-    public DashboardViewModel(ServiceRepository serviceRepository, ServerRepository serverRepository) {
+    public DashboardViewModel(ServiceRepository serviceRepository, ServerRepository serverRepository,
+                              PreferencesService preferencesService) {
         this.serviceRepository = serviceRepository;
         this.serverRepository = serverRepository;
+        this.preferencesService = preferencesService;
+    }
+
+    /// The persisted widget layout, or - when the user has never arranged the
+    /// board (null in preferences) - the default arrangement. An unknown widget
+    /// id (e.g. a removed widget type from a newer version) is skipped.
+    public List<WidgetPlacement> loadLayout() {
+        @Nullable List<DashboardWidgetLayout> saved = preferencesService.get().dashboardWidgets();
+        if (saved == null) {
+            return defaultLayout();
+        }
+        List<WidgetPlacement> layout = new ArrayList<>();
+        for (DashboardWidgetLayout entry : saved) {
+            WidgetType.fromId(entry.widgetId()).ifPresent(type -> layout.add(
+                    new WidgetPlacement(type, entry.col(), entry.row(), entry.colSpan(), entry.rowSpan())));
+        }
+        return layout;
+    }
+
+    /// Persists the current board arrangement (positions and spans).
+    public void saveLayout(List<WidgetPlacement> placements) {
+        List<DashboardWidgetLayout> saved = new ArrayList<>();
+        for (WidgetPlacement placement : placements) {
+            saved.add(new DashboardWidgetLayout(placement.type().id(),
+                    placement.col(), placement.row(), placement.colSpan(), placement.rowSpan()));
+        }
+        preferencesService.update(preferences -> preferences.withDashboardWidgets(saved));
+    }
+
+    private static List<WidgetPlacement> defaultLayout() {
+        List<WidgetPlacement> layout = new ArrayList<>();
+        for (WidgetType type : WidgetType.values()) {
+            layout.add(type.defaultPlacement());
+        }
+        return layout;
     }
 
     /// Summary text, upcoming services and per-server load, computed off the live services.

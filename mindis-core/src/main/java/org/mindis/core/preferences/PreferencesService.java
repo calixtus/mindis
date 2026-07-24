@@ -127,6 +127,8 @@ public class PreferencesService {
         // Theme.SYSTEM enum value. Read the legacy flag from the raw JSON (the
         // record no longer has the field, so it deserializes away) and, when it
         // was on, promote the theme to SYSTEM.
+        // v12 -> v13: dashboardWidgets added; absent field deserializes as null,
+        // the intended default (the dashboard falls back to its default layout).
         int solverSeconds = loaded.solverSecondsLimit() > 0
                 ? loaded.solverSecondsLimit()
                 : MinDisPreferences.DEFAULT_SOLVER_SECONDS;
@@ -147,7 +149,8 @@ public class PreferencesService {
                 loaded.sidebarWidth(),
                 loaded.lastDocument(),
                 loaded.recentCollections(),
-                loaded.toolbarButtonDisplay());
+                loaded.toolbarButtonDisplay(),
+                loaded.dashboardWidgets());
         String lastDocument = loaded.lastDocument();
         if (migrated.recentCollections().isEmpty() && lastDocument != null && !lastDocument.isBlank()) {
             return migrated.withRecentCollection(
