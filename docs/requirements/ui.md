@@ -145,11 +145,14 @@ recent collections excluding the current one — each switching via `DocumentSes
 Open other (`onOpen`), Save as (`onSaveAs`, disabled while solving), Edit collection
 (`CollectionMetaDialog` → `updateMetadata`) and New collection (`onNew`). It follows the
 `Workbench.collapsedProperty()` so the icon-only rail shows just the logo. `CollectionMetaDialog`
-edits name, logo and backdrop with a live preview: the logo is either a custom PNG (only, size-capped
-to 512 KB so it stays small inside the document) or a stock icon from `LogoIcons` (a Material Design
-icon literal), and the backdrop (none / light / dark, applied as a rounded inline style shared with
-the switcher via `CollectionSwitcher.logoBackgroundStyle`) lifts a low-contrast logo off the sidebar.
-A custom image wins over a stock icon, which wins over the default icon. `MinDisApp` also registers
+edits name, logo and backdrop with a live preview. Logo and icon are one control: clicking the logo
+tile opens a popover (a `ContextMenu` of `LogoIcons` glyphs with a "Select custom image" button at
+the bottom); picking an icon or an image replaces the other, so there is no separate remove action.
+A custom image is a PNG only, size-capped to 512 KB so it stays small inside the document; a custom
+image wins over a stock icon, which wins over the default icon. The backdrop is a row of swatches
+like the settings accent picker (reusing `accent-selector.css`) - light, dark, or transparent (a
+bordered square with a diagonal line) - applied as a rounded inline style shared with the switcher
+via `CollectionSwitcher.logoBackgroundStyle`, to lift a low-contrast logo off the sidebar. `MinDisApp` also registers
 Ctrl+N/O/S and Ctrl+Shift+S as scene accelerators for the same
 actions (the scene survives a language rebuild, so they do too).
 
