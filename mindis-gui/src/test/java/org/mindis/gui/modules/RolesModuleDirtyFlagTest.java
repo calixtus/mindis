@@ -14,6 +14,7 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import org.mindis.core.model.Role;
@@ -105,16 +106,22 @@ class RolesModuleDirtyFlagTest {
     }
 
     private static final AtomicBoolean FX_STARTED = new AtomicBoolean(false);
+    private static volatile boolean fxAvailable = true;
 
     private static void runOnFxThreadAndWait(Runnable body) throws Exception {
         if (FX_STARTED.compareAndSet(false, true)) {
             try {
                 Platform.startup(() -> { });
             } catch (IllegalStateException alreadyRunning) {
-                // The JavaFX toolkit was already booted by another test in this
-                // JVM; startup() then throws. Nothing to do — runLater works.
+                // Toolkit already booted by another test in this JVM; fine.
+            } catch (UnsupportedOperationException noToolkit) {
+                // Headless environment with no JavaFX platform (e.g. Linux CI
+                // without a display or Monocle). Can't run a UI test here.
+                fxAvailable = false;
             }
         }
+        Assumptions.assumeTrue(fxAvailable,
+                "JavaFX toolkit unavailable (headless); skipping UI test");
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] error = new Throwable[1];
         Platform.runLater(() -> {
