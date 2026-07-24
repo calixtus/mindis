@@ -20,10 +20,16 @@
     -fx-background-color: -color-bg-inset;
 }
 
+/* Active entry: accent background + bold text, plus a solid accent bar down
+   the left edge so the selection reads without relying on color alone
+   (color-blind / low-contrast safe). */
 .workbench-nav-button:selected {
     -fx-background-color: -color-accent-subtle;
     -fx-text-fill: -color-accent-fg;
     -fx-font-weight: bold;
+    -fx-border-color: -color-accent-emphasis transparent transparent transparent;
+    -fx-border-width: 0 0 0 3;
+    -fx-border-radius: 6 0 0 6;
 }
 
 .workbench-nav-button .workbench-nav-icon {

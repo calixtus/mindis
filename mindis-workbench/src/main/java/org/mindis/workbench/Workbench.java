@@ -36,10 +36,11 @@ public final class Workbench extends BorderPane {
 
     /// Icon-only rail width.
     private static final double COLLAPSED_WIDTH = 60;
-    /// Default width the chevron toggle expands to.
-    private static final double EXPANDED_WIDTH = 180;
+    /// Default width the chevron toggle expands to (within the 240-300px band
+    /// UX guidance recommends for an expanded sidebar).
+    private static final double EXPANDED_WIDTH = 256;
     /// Narrowest labelled width; below this the sidebar collapses.
-    private static final double MIN_EXPANDED_WIDTH = 140;
+    private static final double MIN_EXPANDED_WIDTH = 200;
     /// Widest the sidebar may be dragged.
     private static final double MAX_WIDTH = 360;
     /// Drag narrower than this and the sidebar snaps to the icon-only rail.
