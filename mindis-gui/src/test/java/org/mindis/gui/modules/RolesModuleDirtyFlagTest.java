@@ -108,7 +108,12 @@ class RolesModuleDirtyFlagTest {
 
     private static void runOnFxThreadAndWait(Runnable body) throws Exception {
         if (FX_STARTED.compareAndSet(false, true)) {
-            Platform.startup(() -> { });
+            try {
+                Platform.startup(() -> { });
+            } catch (IllegalStateException alreadyRunning) {
+                // The JavaFX toolkit was already booted by another test in this
+                // JVM; startup() then throws. Nothing to do — runLater works.
+            }
         }
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] error = new Throwable[1];
