@@ -19,6 +19,9 @@
     -fx-background-radius: 6;
     -fx-padding: 4 6 4 6;
     -fx-cursor: hand;
+    /* ~1.7x a normal module nav button (which is ~34px tall) so the name and
+       the active-server line sit comfortably beside the logo tile. */
+    -fx-min-height: 58;
 }
 
 .workbench-collection-switcher .collection-button:hover,
@@ -34,6 +37,11 @@
 .workbench-collection-switcher .collection-dirty-dot {
     -fx-text-fill: -color-accent-emphasis;
     -fx-font-size: 0.8em;
+}
+
+.workbench-collection-switcher .collection-subtitle {
+    -fx-font-size: 0.8em;
+    -fx-text-fill: -color-fg-muted;
 }
 
 .workbench-collection-switcher .collection-logo-placeholder {
@@ -61,7 +69,8 @@
    graphic (min-width:0 alone only clips the box, the arrow still paints) and
    the zero widths reclaim its space so nothing crowds the divider. */
 .workbench-collection-switcher:collapsed .collection-button {
-    -fx-padding: 8;
+    -fx-padding: 0;
+    -fx-min-height: 0;
     -fx-alignment: center;
 }
 

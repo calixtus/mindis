@@ -20,6 +20,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.stage.Window;
 
 import org.jspecify.annotations.Nullable;
@@ -27,6 +28,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
 
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.CollectionMeta;
+import org.mindis.core.model.Server;
 import org.mindis.core.preferences.RecentCollection;
 
 /// The sidebar-top collection switcher (the account-switcher pattern from the
@@ -46,10 +48,13 @@ import org.mindis.core.preferences.RecentCollection;
 /// shows, like an icon-only nav button.
 public final class CollectionSwitcher extends HBox {
 
-    private static final int HEADER_LOGO_SIZE = 26;
-    /// Matches the module nav buttons' icon size, so the collapsed switcher is
-    /// the same height as the icon-only nav rail below it.
-    private static final int RAIL_LOGO_SIZE = 18;
+    /// The logo/backdrop tile size, matched to a module nav button so the logo
+    /// reads as the same element in both the collapsed and expanded switcher.
+    private static final int LOGO_TILE = 34;
+    /// Icon glyph inside the tile (the module nav icon size).
+    private static final int GLYPH_SIZE = 18;
+    /// A custom image fits the tile with a little breathing room.
+    private static final int IMAGE_FIT = 28;
     private static final int MENU_LOGO_SIZE = 20;
 
     private final DocumentSession session;
@@ -58,8 +63,10 @@ public final class CollectionSwitcher extends HBox {
 
     private final MenuButton collectionButton = new MenuButton();
     private final Label nameLabel = new Label();
+    private final Label subtitleLabel = new Label();
     private final Label dirtyDot = new Label("●");
     private final StackPane logoHolder = new StackPane();
+    private final VBox textColumn;
     private final HBox identity;
     private final Button saveButton = new Button();
 
@@ -75,7 +82,6 @@ public final class CollectionSwitcher extends HBox {
         setAlignment(Pos.CENTER_LEFT);
 
         nameLabel.getStyleClass().add("collection-name");
-        nameLabel.setMaxWidth(Double.MAX_VALUE);
         nameLabel.textProperty().bind(Bindings.createStringBinding(session::collectionDisplayName,
                 liveDatabase.metaProperty(), liveDatabase.documentPathProperty()));
 
@@ -83,8 +89,18 @@ public final class CollectionSwitcher extends HBox {
         dirtyDot.visibleProperty().bind(liveDatabase.dirtyProperty());
         dirtyDot.managedProperty().bind(dirtyDot.visibleProperty());
 
+        // Below the name (expanded only): how many servers are active in the
+        // open collection, recomputed live as the roster changes.
+        subtitleLabel.getStyleClass().add("collection-subtitle");
+        subtitleLabel.textProperty().bind(Bindings.createStringBinding(
+                () -> Localization.lang("%0 active servers", activeServerCount()),
+                liveDatabase.servers().items()));
+
         logoHolder.getStyleClass().add("collection-logo");
         logoHolder.setAlignment(Pos.CENTER);
+        logoHolder.setMinSize(LOGO_TILE, LOGO_TILE);
+        logoHolder.setPrefSize(LOGO_TILE, LOGO_TILE);
+        logoHolder.setMaxSize(LOGO_TILE, LOGO_TILE);
         currentMeta = liveDatabase.meta();
         updateLogo();
         liveDatabase.metaProperty().subscribe(meta -> {
@@ -92,9 +108,16 @@ public final class CollectionSwitcher extends HBox {
             updateLogo();
         });
 
-        identity = new HBox(6, logoHolder, nameLabel, dirtyDot);
-        identity.setAlignment(Pos.CENTER_LEFT);
+        HBox nameRow = new HBox(6, nameLabel, dirtyDot);
+        nameRow.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(nameLabel, Priority.ALWAYS);
+        nameLabel.setMaxWidth(Double.MAX_VALUE);
+        textColumn = new VBox(1, nameRow, subtitleLabel);
+        textColumn.setAlignment(Pos.CENTER_LEFT);
+
+        identity = new HBox(8, logoHolder, textColumn);
+        identity.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(textColumn, Priority.ALWAYS);
         collectionButton.setGraphic(identity);
         collectionButton.getStyleClass().add("collection-button");
         collectionButton.setMaxWidth(Double.MAX_VALUE);
@@ -125,25 +148,20 @@ public final class CollectionSwitcher extends HBox {
 
     private void applyCollapsed(boolean value) {
         this.collapsed = value;
-        nameLabel.setVisible(!value);
-        nameLabel.setManaged(!value);
+        // On the rail only the logo tile shows; the whole text column (name,
+        // dirty dot, active-server line) and the inline save button hide.
+        textColumn.setVisible(!value);
+        textColumn.setManaged(!value);
         saveButton.setVisible(!value);
         saveButton.setManaged(!value);
-        // Center the lone logo on the rail; left-align logo + name when expanded.
+        // Center the lone logo on the rail; left-align logo + text when expanded.
         identity.setAlignment(value ? Pos.CENTER : Pos.CENTER_LEFT);
-        // Resize the logo to the nav-rail icon size (and back) so the collapsed
-        // switcher matches the module buttons' height.
-        updateLogo();
-        // The dirty dot is redundant next to the (hidden) name on the rail; the
-        // window title still carries the asterisk.
-        dirtyDot.visibleProperty().unbind();
-        if (value) {
-            dirtyDot.setVisible(false);
-        } else {
-            dirtyDot.visibleProperty().bind(liveDatabase.dirtyProperty());
-        }
-        // Drives CSS that hides the dropdown arrow and centers the logo.
+        // Drives CSS that hides the dropdown arrow, sizes and centers the tile.
         pseudoClassStateChanged(javafx.css.PseudoClass.getPseudoClass("collapsed"), value);
+    }
+
+    private int activeServerCount() {
+        return (int) liveDatabase.servers().items().stream().filter(Server::active).count();
     }
 
     private void rebuildMenu() {
@@ -218,13 +236,12 @@ public final class CollectionSwitcher extends HBox {
     }
 
     private void updateLogo() {
-        int size = collapsed ? RAIL_LOGO_SIZE : HEADER_LOGO_SIZE;
         Image logo = imageFromBase64(currentMeta.logoPngBase64());
         if (logo != null) {
-            logoHolder.getChildren().setAll(logoView(logo, size));
+            logoHolder.getChildren().setAll(logoView(logo, IMAGE_FIT));
         } else {
             String icon = currentMeta.logoIcon() == null ? LogoIcons.DEFAULT : currentMeta.logoIcon();
-            logoHolder.getChildren().setAll(LogoIcons.iconNode(icon, size));
+            logoHolder.getChildren().setAll(LogoIcons.iconNode(icon, GLYPH_SIZE));
         }
         logoHolder.setStyle(logoBackgroundStyle(currentMeta.logoBackground()));
     }

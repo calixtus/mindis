@@ -29,7 +29,8 @@ Covers:
 The open document is a collection (one parish). The sidebar top shows the collection's identity — a
 display name (the parish name) and a logo (a custom image or, failing that, a stock icon), optionally
 on a light or dark backdrop for contrast — with an inline Save action that reflects whether there is
-anything to save. A dropdown switches to one of up to five recently used
+anything to save. When expanded it also shows, below the name, how many servers are active in the
+collection. A dropdown switches to one of up to five recently used
 collections, opens another document, saves under a new name, edits the current collection's name and
 logo, or starts a new collection. Switching away from unsaved work asks first. A recent whose file
 has since vanished is reported and dropped from the list. The collection's identity is shown in the
@@ -134,7 +135,11 @@ Covers:
 `CollectionSwitcher` (GUI) sits in the sidebar-header slot the `Workbench` builder exposes. It binds
 its name to `DocumentSession.collectionDisplayName()` and its logo to the open collection's
 `CollectionMeta` (a `mdi2c-church` placeholder when there is none), shows a dirty dot bound to
-`LiveDatabase.dirtyProperty()`, and an inline save `Button` disabled unless dirty and not solving.
+`LiveDatabase.dirtyProperty()`, an active-server count recomputed live off
+`LiveDatabase.servers().items()` (shown under the name when expanded), and an inline save `Button`
+disabled unless dirty and not solving. The logo sits on a fixed tile sized like a module nav button
+(in both states); the expanded button is roughly 1.7x a nav button's height to fit the two text lines,
+and on the collapsed rail it shrinks to just that tile.
 Its `MenuButton` dropdown is rebuilt on each open (recents change with every save): up to five
 recent collections excluding the current one — each switching via `DocumentSession.switchTo` — then
 Open other (`onOpen`), Save as (`onSaveAs`, disabled while solving), Edit collection
