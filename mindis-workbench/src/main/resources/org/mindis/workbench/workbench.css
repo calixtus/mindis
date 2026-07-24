@@ -21,17 +21,18 @@
     -fx-cursor: hand;
 }
 
-.workbench-collection-switcher .collection-button:hover {
+.workbench-collection-switcher .collection-button:hover,
+.workbench-collection-switcher .collection-button:showing {
     -fx-background-color: -color-bg-inset;
+}
+
+.workbench-collection-switcher .collection-button > .arrow-button > .arrow {
+    -fx-background-color: -color-fg-muted;
 }
 
 .workbench-collection-switcher .collection-name {
     -fx-font-weight: bold;
     -fx-text-fill: -color-fg-default;
-}
-
-.workbench-collection-switcher .collection-caret {
-    -fx-icon-color: -color-fg-muted;
 }
 
 .workbench-collection-switcher .collection-dirty-dot {
@@ -58,9 +59,22 @@
     -fx-icon-color: -color-fg-muted;
 }
 
-/* On the icon-only rail the switcher shows just the logo. */
+/* On the icon-only rail the switcher shows just the centered logo: hide the
+   dropdown arrow (which otherwise crowds the divider) and center the label. */
 .workbench-collection-switcher:collapsed .collection-button {
     -fx-padding: 4;
+}
+
+.workbench-collection-switcher:collapsed .collection-button > .arrow-button {
+    -fx-min-width: 0;
+    -fx-pref-width: 0;
+    -fx-max-width: 0;
+    -fx-padding: 0;
+}
+
+.workbench-collection-switcher:collapsed .collection-button > .label {
+    -fx-alignment: center;
+    -fx-padding: 0;
 }
 
 .workbench-nav-button {
