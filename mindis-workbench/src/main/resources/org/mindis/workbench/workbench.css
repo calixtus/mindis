@@ -26,15 +26,6 @@
     -fx-background-color: -color-bg-inset;
 }
 
-/* No dropdown arrow: the whole button is the affordance (it opens on click),
-   and the arrow only crowded the sidebar divider. */
-.workbench-collection-switcher .collection-button > .arrow-button {
-    -fx-min-width: 0;
-    -fx-pref-width: 0;
-    -fx-max-width: 0;
-    -fx-padding: 0;
-}
-
 .workbench-collection-switcher .collection-name {
     -fx-font-weight: bold;
     -fx-text-fill: -color-fg-default;
@@ -64,9 +55,20 @@
     -fx-icon-color: -color-fg-muted;
 }
 
-/* On the icon-only rail the switcher shows just the centered logo. */
+/* On the icon-only rail the switcher shows just the centered logo. The
+   dropdown arrow is shown when expanded but removed here: visibility hides the
+   arrow graphic (min-width:0 alone only clips the box, the arrow still paints)
+   and the zero widths reclaim its space so nothing crowds the divider. */
 .workbench-collection-switcher:collapsed .collection-button {
     -fx-padding: 4;
+}
+
+.workbench-collection-switcher:collapsed .collection-button > .arrow-button {
+    visibility: hidden;
+    -fx-min-width: 0;
+    -fx-pref-width: 0;
+    -fx-max-width: 0;
+    -fx-padding: 0;
 }
 
 .workbench-collection-switcher:collapsed .collection-button > .label {
