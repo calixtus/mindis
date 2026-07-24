@@ -5,7 +5,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.ToggleButton;
@@ -57,6 +60,9 @@ public final class Workbench extends BorderPane {
 
     private @Nullable WorkbenchModule activeModule;
     private boolean collapsed;
+    /// Observable mirror of {@link #collapsed} so a sidebar header (e.g. the
+    /// collection switcher) can adapt to the icon-only rail.
+    private final ReadOnlyBooleanWrapper collapsedProperty = new ReadOnlyBooleanWrapper(this, "collapsed");
     private double dragStartSceneX;
     private double dragStartWidth;
     private double currentWidth;
@@ -69,6 +75,10 @@ public final class Workbench extends BorderPane {
         getStylesheets().add(Workbench.class.getResource("workbench.css").toExternalForm());
 
         sidebar.getStyleClass().add("workbench-sidebar");
+        if (builder.sidebarHeader != null) {
+            builder.sidebarHeader.getStyleClass().add("workbench-sidebar-header");
+            sidebar.getChildren().add(builder.sidebarHeader);
+        }
         sidebar.getChildren().add(createToggleButton());
         for (WorkbenchModule module : builder.modules) {
             sidebar.getChildren().add(createNavButton(module));
@@ -112,6 +122,12 @@ public final class Workbench extends BorderPane {
 
     public @Nullable WorkbenchModule getActiveModule() {
         return activeModule;
+    }
+
+    /// Whether the sidebar is collapsed to the icon-only rail; a sidebar header
+    /// binds to this to hide its labels while collapsed.
+    public ReadOnlyBooleanProperty collapsedProperty() {
+        return collapsedProperty.getReadOnlyProperty();
     }
 
     /// Current sidebar width (icon-only rail width while collapsed), for
@@ -197,6 +213,7 @@ public final class Workbench extends BorderPane {
             return;
         }
         collapsed = value;
+        collapsedProperty.set(value);
         navButtons.forEach(this::applyButtonMode);
         updateToggleIcon();
     }
@@ -258,9 +275,18 @@ public final class Workbench extends BorderPane {
         private final List<WorkbenchModule> modules;
         private final List<WorkbenchModule> bottomModules = new ArrayList<>();
         private double initialSidebarWidth = EXPANDED_WIDTH;
+        private @Nullable Node sidebarHeader;
 
         private Builder(WorkbenchModule... modules) {
             this.modules = List.of(modules);
+        }
+
+        /// Places a node at the very top of the sidebar, above the collapse
+        /// toggle and the navigation entries (e.g. the collection switcher).
+        /// Gets the {@code workbench-sidebar-header} style class.
+        public Builder sidebarHeader(Node header) {
+            this.sidebarHeader = header;
+            return this;
         }
 
         /// Pins a module to the bottom of the sidebar, below a spacer. Call

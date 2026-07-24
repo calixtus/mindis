@@ -564,6 +564,16 @@ vs. JIT is acceptable. Same release pipeline ships both artifacts.
   case in a single-window app; an event/ObservableList layer would add machinery with no
   visible behavior change (YAGNI). Revisit only if multi-window or background imports arrive.
 - Still deferred: TestFX harness (user decision).
+- **Sidebar collection switcher (2026-07-24, UX review #3):** the sidebar top
+  carries an account-switcher-style control for the open collection (a document =
+  one parish). It shows the collection's logo + name and an inline save button
+  (enabled only when dirty), with a dropdown of up to five recent collections and
+  the document actions (Open other, Save as, Edit collection, New collection).
+  The old global top toolbar is gone; Ctrl+N/O/S/Shift+S are the shortcuts.
+  Collection identity (name + Base64 PNG logo) lives inside the document
+  (`CollectionMeta`, doc v2); recents live in preferences (`RecentCollection`,
+  prefs v10, capped 5). `CollectionMetaDialog` edits the identity (PNG only,
+  size-capped to keep the document small).
 - **Postponed — sidebar quick-search box** (UX best-practice #10 from the sidebar review,
   2026-07-24): a top-of-sidebar search/filter with a keyboard shortcut (e.g. Ctrl+K) to jump
   between modules. Not worth it at five fixed modules — omittable until the nav list grows

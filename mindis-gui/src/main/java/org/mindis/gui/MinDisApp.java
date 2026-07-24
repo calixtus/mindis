@@ -13,9 +13,10 @@ import javafx.application.Application;
 import javafx.application.ColorScheme;
 import javafx.application.Platform;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.ToolBar;
 import javafx.scene.image.Image;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 import javafx.stage.Stage;
 
 import org.jspecify.annotations.Nullable;
@@ -137,7 +138,9 @@ public class MinDisApp extends Application {
 
         stage.getIcons().addAll(loadAppIcons());
         workbench = buildWorkbench();
-        stage.setScene(new Scene(workbench, 960, 640));
+        Scene scene = new Scene(workbench, 960, 640);
+        addDocumentAccelerators(scene);
+        stage.setScene(scene);
         stage.titleProperty().bind(documentSession.titleBinding());
         // Closing with unsaved edits asks first; a cancelled prompt keeps the
         // window open.
@@ -185,6 +188,14 @@ public class MinDisApp extends Application {
                         preferencesService,
                         beanScope.get(PlanExportService.class),
                         beanScope.get(ArchivedServiceRepository.class)));
+        // The collection switcher (sidebar top) owns the document actions now:
+        // switching collection is opening a file, and its dropdown carries New,
+        // Open other, Save as and Edit collection. An assignment pick dirties
+        // its service record and archiving dirties the archive, so
+        // LiveDatabase#dirtyProperty already drives the switcher's save button
+        // for the whole document.
+        CollectionSwitcher switcher = new CollectionSwitcher(documentSession, liveDatabase,
+                servicesModule.solvingProperty());
         Workbench.Builder builder = Workbench.builder(
                                 new DashboardModule(Localization.lang("Dashboard")),
                                 new RolesModule(Localization.lang("Roles"),
@@ -198,40 +209,34 @@ public class MinDisApp extends Application {
                                         liveDatabase.templates(), liveDatabase.roles(),
                                         beanScope.get(RoleRepository.class)),
                                 servicesModule)
+                        .sidebarHeader(switcher)
                         .bottomModule(new AboutModule(Localization.lang("About"), getHostServices(), logConsole))
                         .bottomModule(new SettingsModule(Localization.lang("Settings"), uiPreferences));
         if (sidebarWidth != null) {
             builder.initialSidebarWidth(sidebarWidth);
         }
         Workbench built = builder.build();
-        built.setTop(buildGlobalToolbar(servicesModule));
+        switcher.bindCollapsed(built.collapsedProperty());
         return built;
     }
 
-    /// The application-wide document toolbar, spanning the top of the
-    /// workbench: New, Open, Save and Save as - the only document actions
-    /// app-wide. All data lives in one user-chosen JSON file, so these are the
-    /// file actions of {@link DocumentSession}, acting on the long-lived
-    /// {@link #liveDatabase}. Rebuilt with each workbench (labels are
-    /// localized); the state it binds to is not.
-    private ToolBar buildGlobalToolbar(ServicesModule servicesModule) {
-        Button newButton = new Button(Localization.lang("New"));
-        newButton.setOnAction(event -> documentSession.onNew());
-        Button openButton = new Button(Localization.lang("Open..."));
-        openButton.setOnAction(event -> documentSession.onOpen());
-        Button saveButton = new Button(Localization.lang("Save"));
-        // An assignment pick dirties its service record like any other edit and
-        // archiving dirties the archive, so LiveDatabase#dirtyProperty already
-        // covers the whole document.
-        saveButton.disableProperty().bind(liveDatabase.dirtyProperty().not()
-                .or(servicesModule.solvingProperty()));
-        saveButton.setOnAction(event -> documentSession.onSave());
-        Button saveAsButton = new Button(Localization.lang("Save as..."));
-        saveAsButton.disableProperty().bind(servicesModule.solvingProperty());
-        saveAsButton.setOnAction(event -> documentSession.onSaveAs());
-        ToolBar toolbar = new ToolBar(newButton, openButton, saveButton, saveAsButton);
-        toolbar.setStyle("-fx-padding: 8 12 8 12; -fx-spacing: 8;");
-        return toolbar;
+    /// Application-wide keyboard shortcuts for the document actions the
+    /// collection switcher exposes. Registered on the scene once; the scene
+    /// survives a language-driven UI rebuild (only its root is swapped), so
+    /// these do too.
+    private void addDocumentAccelerators(Scene scene) {
+        scene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.N, KeyCombination.SHORTCUT_DOWN),
+                documentSession::onNew);
+        scene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN),
+                documentSession::onOpen);
+        scene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN),
+                documentSession::onSave);
+        scene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN),
+                documentSession::onSaveAs);
     }
 
     /// Recreates all UI content with the current locale. Called after a

@@ -6,6 +6,59 @@
     -fx-spacing: 4;
 }
 
+/* Collection switcher pinned at the very top of the sidebar: the current
+   collection's logo + name with a save button, and a dropdown of recents and
+   document actions. */
+.workbench-sidebar-header {
+    -fx-padding: 0 0 8 0;
+    -fx-spacing: 4;
+}
+
+.workbench-collection-switcher .collection-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-padding: 4 6 4 6;
+}
+
+.workbench-collection-switcher .collection-button:hover,
+.workbench-collection-switcher .collection-button:showing {
+    -fx-background-color: -color-bg-inset;
+}
+
+.workbench-collection-switcher .collection-name {
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-default;
+}
+
+.workbench-collection-switcher .collection-dirty-dot {
+    -fx-text-fill: -color-accent-emphasis;
+    -fx-font-size: 0.8em;
+}
+
+.workbench-collection-switcher .collection-logo-placeholder {
+    -fx-icon-color: -color-fg-muted;
+}
+
+.workbench-collection-switcher .collection-save-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-padding: 4 6 4 6;
+    -fx-cursor: hand;
+}
+
+.workbench-collection-switcher .collection-save-button:hover {
+    -fx-background-color: -color-bg-inset;
+}
+
+.workbench-collection-switcher .collection-save-button .ikonli-font-icon {
+    -fx-icon-color: -color-fg-muted;
+}
+
+/* On the icon-only rail the switcher shows just the logo. */
+.workbench-collection-switcher:collapsed .collection-button {
+    -fx-padding: 4;
+}
+
 .workbench-nav-button {
     -fx-background-color: transparent;
     -fx-alignment: CENTER_LEFT;
