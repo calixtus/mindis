@@ -87,6 +87,20 @@
     -fx-padding: 0;
 }
 
+/* Module toolbar buttons render text, icon, or both per the user setting - a
+   mode style class on the workbench root drives -fx-content-display. */
+.workbench.toolbar-mode-text .toolbar-button {
+    -fx-content-display: text-only;
+}
+
+.workbench.toolbar-mode-icon .toolbar-button {
+    -fx-content-display: graphic-only;
+}
+
+.workbench.toolbar-mode-both .toolbar-button {
+    -fx-content-display: left;
+}
+
 .workbench-nav-button {
     -fx-background-color: transparent;
     -fx-alignment: CENTER_LEFT;

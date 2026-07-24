@@ -62,8 +62,8 @@ Covers:
 `req~appearance-settings~1`
 
 The user chooses a light or dark theme (or follows the operating system's scheme live), an accent
-color (default follows the OS accent), and a font family and size. Changes apply immediately and
-persist.
+color (default follows the OS accent), a font family and size, and how the module toolbar buttons
+render - text only, icons only, or both. Changes apply immediately and persist.
 
 Covers:
 - feat~multilingual-desktop-app~1
@@ -124,7 +124,10 @@ Covers:
 `TemplatesModule`, `ServicesModule`, `SettingsModule` and `AboutModule`. The four data screens
 extend `CrudModule` (table left, editor right, toolbar on top); `CrudModule` holds no localized text
 itself — every button and its wiring belongs to the subclass — and holds no state either, binding
-its table to a shared `LiveStore` (see [persistence.md](persistence.md)).
+its table to a shared `LiveStore` (see [persistence.md](persistence.md)). Toolbar buttons are built
+through `Toolbars`, which gives each an icon and the `toolbar-button` style class; a mode class on the
+workbench root (from the `toolbarButtonDisplay` setting) drives `-fx-content-display` so they show
+text, icon, or both. Import always precedes Export in a module's toolbar.
 
 Covers:
 - req~workbench-shell~1
@@ -189,8 +192,9 @@ Covers:
 `MinDisPreferences` is an immutable record with a `version` (currently 10) plus `languageTag`,
 `theme`, `windowBounds`, `solverSecondsLimit` (default 30), `softConstraintWeights`, `accentColor`,
 `fontFamily`/`fontSize` (default 14, clamped 10–24), `followSystemTheme`, `lastExportDirectory`,
-`sidebarWidth`, `lastDocument` and `recentCollections` (the switcher's list, capped at five; see
-[persistence.md](persistence.md)). Changes go through wither methods. The compact constructor fills
+`sidebarWidth`, `lastDocument`, `recentCollections` (the switcher's list, capped at five; see
+[persistence.md](persistence.md)) and `toolbarButtonDisplay` (text / icon / both, default both).
+The record is at version 11. Changes go through wither methods. The compact constructor fills
 absent or invalid values with defaults, which is what makes most version steps migration-free.
 
 Covers:

@@ -205,19 +205,19 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         fromPicker.setValue(firstOfNextMonth);
         toPicker.setValue(firstOfNextMonth.plusMonths(1).minusDays(1));
 
-        Button generateButton = new Button(Localization.lang("Generate from templates"));
+        Button generateButton = Toolbars.button(Localization.lang("Generate from templates"), "mdi2c-calendar-plus");
         generateButton.setOnAction(event -> showGenerateFromTemplatesPopup(generateButton));
 
-        Button newButton = new Button(Localization.lang("New"));
+        Button newButton = Toolbars.button(Localization.lang("New"), "mdi2p-plus");
         newButton.setOnAction(event -> newItem());
-        Button deleteButton = new Button(Localization.lang("Delete"));
+        Button deleteButton = Toolbars.button(Localization.lang("Delete"), "mdi2d-delete");
         deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelected());
 
         ServiceCsvMapper serviceCsvMapper = new ServiceCsvMapper(roleRepository);
         CsvRowMapper<LiturgicalService> csvMapper =
                 CsvRowMapper.of(serviceCsvMapper::header, serviceCsvMapper::toRow, serviceCsvMapper::fromRow);
-        Button importButton = new Button(Localization.lang("Import"));
+        Button importButton = Toolbars.button(Localization.lang("Import"), "mdi2i-import");
         importButton.setOnAction(event -> importCsv(csvMapper,
                 (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
 
@@ -226,7 +226,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         // (filled/total slots) that doubles as the abort control - one toolbar
         // slot, never both at once.
         StackPane autofillSlot = new StackPane();
-        Button autofillButton = new Button(Localization.lang("Autofill..."));
+        Button autofillButton = Toolbars.button(Localization.lang("Autofill..."), "mdi2a-auto-fix");
         autofillButton.disableProperty().bind(Bindings.isEmpty(store().items()));
         // Stays managed (reserving its width) even when hidden, so the progress
         // bar drops into the exact same footprint with no toolbar reflow.
@@ -245,6 +245,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         autofillSlot.getChildren().addAll(autofillButton, solveProgressBar);
         SplitMenuButton exportPlanButton = new SplitMenuButton();
         exportPlanButton.setText(Localization.lang("Export"));
+        Toolbars.markToolbarButton(exportPlanButton, "mdi2e-export");
         exportPlanButton.disableProperty().bind(solving.or(Bindings.isEmpty(store().items())));
         exportPlanButton.setOnAction(event -> onExportPlan(PlanExportFormat.PDF));
         for (PlanExportFormat format : PlanExportFormat.values()) {
@@ -252,7 +253,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             formatItem.setOnAction(event -> onExportPlan(format));
             exportPlanButton.getItems().add(formatItem);
         }
-        Button archiveButton = new Button(Localization.lang("Archived plans"));
+        Button archiveButton = Toolbars.button(Localization.lang("Archived plans"), "mdi2a-archive");
         archiveButton.setOnAction(event ->
                 ArchivedPlansDialog.show(planningViewModel, table().getScene().getWindow(), this::performArchive));
 

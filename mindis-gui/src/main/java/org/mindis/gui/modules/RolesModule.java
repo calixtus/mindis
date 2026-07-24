@@ -57,21 +57,21 @@ public class RolesModule extends CrudModule<Role> {
         table().getColumns().add(nameColumn);
         table().getColumns().add(ageRangeColumn);
 
-        Button newButton = new Button(Localization.lang("New"));
+        Button newButton = Toolbars.button(Localization.lang("New"), "mdi2p-plus");
         newButton.setOnAction(event -> newItem());
-        Button deleteButton = new Button(Localization.lang("Delete"));
+        Button deleteButton = Toolbars.button(Localization.lang("Delete"), "mdi2d-delete");
         deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
         deleteButton.setOnAction(event -> deleteSelected());
 
         RoleCsvMapper roleCsvMapper = new RoleCsvMapper(roleRepository);
         CsvRowMapper<Role> csvMapper = CsvRowMapper.of(roleCsvMapper::header, roleCsvMapper::toRow, roleCsvMapper::fromRow);
-        Button exportButton = new Button(Localization.lang("Export"));
-        exportButton.setOnAction(event -> exportCsv(csvMapper));
-        Button importButton = new Button(Localization.lang("Import"));
+        Button importButton = Toolbars.button(Localization.lang("Import"), "mdi2i-import");
         importButton.setOnAction(event -> importCsv(csvMapper,
                 (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
+        Button exportButton = Toolbars.button(Localization.lang("Export"), "mdi2e-export");
+        exportButton.setOnAction(event -> exportCsv(csvMapper));
 
-        toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL), exportButton, importButton);
+        toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL), importButton, exportButton);
     }
 
     @Override

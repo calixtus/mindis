@@ -118,6 +118,9 @@ public class PreferencesService {
         // field deserializes as an empty list; seed it from the single remembered
         // lastDocument so an upgraded install still shows its last collection in
         // the switcher (name and logo fill in on the next open or save).
+        // v10 -> v11: toolbarButtonDisplay added; absent field deserializes as
+        // null and the record's compact constructor fills it with the default
+        // (BOTH).
         int solverSeconds = loaded.solverSecondsLimit() > 0
                 ? loaded.solverSecondsLimit()
                 : MinDisPreferences.DEFAULT_SOLVER_SECONDS;
@@ -135,7 +138,8 @@ public class PreferencesService {
                 loaded.lastExportDirectory(),
                 loaded.sidebarWidth(),
                 loaded.lastDocument(),
-                loaded.recentCollections());
+                loaded.recentCollections(),
+                loaded.toolbarButtonDisplay());
         String lastDocument = loaded.lastDocument();
         if (migrated.recentCollections().isEmpty() && lastDocument != null && !lastDocument.isBlank()) {
             return migrated.withRecentCollection(

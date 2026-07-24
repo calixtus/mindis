@@ -111,6 +111,11 @@ public class MinDisApp extends Application {
         uiPreferences.accentColorProperty().subscribe((_, _) -> applyAppearance());
         uiPreferences.fontFamilyProperty().subscribe((_, _) -> applyAppearance());
         uiPreferences.fontSizeProperty().subscribe((_, _) -> applyAppearance());
+        uiPreferences.toolbarButtonDisplayProperty().subscribe((_, _) -> {
+            if (workbench != null) {
+                applyToolbarButtonDisplay(workbench);
+            }
+        });
         // Follow the OS light/dark scheme live while that option is on.
         Platform.getPreferences().colorSchemeProperty().subscribe((_, _) -> {
             if (uiPreferences.followSystemThemeProperty().get()) {
@@ -217,7 +222,21 @@ public class MinDisApp extends Application {
         }
         Workbench built = builder.build();
         switcher.bindCollapsed(built.collapsedProperty());
+        applyToolbarButtonDisplay(built);
         return built;
+    }
+
+    /// Applies the "text / icon / both" toolbar-button setting by tagging the
+    /// workbench root with a mode style class the CSS keys off (see
+    /// {@code workbench.css}). Reapplied on a rebuild and when the setting
+    /// changes.
+    private void applyToolbarButtonDisplay(Workbench target) {
+        target.getStyleClass().removeAll("toolbar-mode-text", "toolbar-mode-icon", "toolbar-mode-both");
+        target.getStyleClass().add(switch (uiPreferences.toolbarButtonDisplayProperty().get()) {
+            case TEXT -> "toolbar-mode-text";
+            case ICON -> "toolbar-mode-icon";
+            case BOTH -> "toolbar-mode-both";
+        });
     }
 
     /// Application-wide keyboard shortcuts for the document actions the

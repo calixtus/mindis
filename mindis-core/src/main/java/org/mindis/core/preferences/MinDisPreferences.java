@@ -31,9 +31,10 @@ public record MinDisPreferences(
         @Nullable String lastExportDirectory,
         @Nullable Double sidebarWidth,
         @Nullable String lastDocument,
-        List<RecentCollection> recentCollections) {
+        List<RecentCollection> recentCollections,
+        ToolbarButtonDisplay toolbarButtonDisplay) {
 
-    public static final int CURRENT_VERSION = 10;
+    public static final int CURRENT_VERSION = 11;
     /// Most-recent collections kept for the switcher dropdown (UX guidance:
     /// show up to five recents).
     public static final int MAX_RECENT_COLLECTIONS = 5;
@@ -84,6 +85,9 @@ public record MinDisPreferences(
         }
         // Null-tolerant: older JSON (before the recent list) lacks this field.
         recentCollections = recentCollections == null ? List.of() : List.copyOf(recentCollections);
+        if (toolbarButtonDisplay == null) {
+            toolbarButtonDisplay = ToolbarButtonDisplay.BOTH;
+        }
     }
 
     public static MinDisPreferences defaults() {
@@ -91,7 +95,7 @@ public record MinDisPreferences(
         return new MinDisPreferences(CURRENT_VERSION, language, Theme.LIGHT, null,
                 DEFAULT_SOLVER_SECONDS, MinDisConstraintProvider.defaultSoftWeights(),
                 AccentColor.DEFAULT, DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE, false, null, null, null,
-                List.of());
+                List.of(), ToolbarButtonDisplay.BOTH);
     }
 
     public Locale locale() {
@@ -101,25 +105,25 @@ public record MinDisPreferences(
     public MinDisPreferences withLanguageTag(String newLanguageTag) {
         return new MinDisPreferences(version, newLanguageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
-                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, recentCollections);
+                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay);
     }
 
     public MinDisPreferences withTheme(Theme newTheme) {
         return new MinDisPreferences(version, languageTag, newTheme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
-                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, recentCollections);
+                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay);
     }
 
     public MinDisPreferences withWindowBounds(WindowBounds newWindowBounds) {
         return new MinDisPreferences(version, languageTag, theme, newWindowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
-                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, recentCollections);
+                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay);
     }
 
     public MinDisPreferences withSolverSecondsLimit(int newSolverSecondsLimit) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 newSolverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
-                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, recentCollections);
+                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay);
     }
 
     public MinDisPreferences withSoftConstraintWeight(String constraintName, int weight) {
@@ -127,45 +131,45 @@ public record MinDisPreferences(
         weights.put(constraintName, weight);
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, weights, accentColor, fontFamily, fontSize, followSystemTheme,
-                lastExportDirectory, sidebarWidth, lastDocument, recentCollections);
+                lastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay);
     }
 
     public MinDisPreferences withAccentColor(AccentColor newAccentColor) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, newAccentColor, fontFamily, fontSize,
-                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, recentCollections);
+                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay);
     }
 
     public MinDisPreferences withFontFamily(String newFontFamily) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, newFontFamily, fontSize,
-                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, recentCollections);
+                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay);
     }
 
     public MinDisPreferences withFontSize(int newFontSize) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, newFontSize,
-                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, recentCollections);
+                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay);
     }
 
     public MinDisPreferences withFollowSystemTheme(boolean newFollowSystemTheme) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
-                newFollowSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, recentCollections);
+                newFollowSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay);
     }
 
     /// Directory the plan export {@code FileChooser} last saved into; {@code null} until the first export.
     public MinDisPreferences withLastExportDirectory(String newLastExportDirectory) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
-                followSystemTheme, newLastExportDirectory, sidebarWidth, lastDocument, recentCollections);
+                followSystemTheme, newLastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay);
     }
 
     /// Sidebar width; {@code null} until the first shutdown (the workbench then uses its own default).
     public MinDisPreferences withSidebarWidth(double newSidebarWidth) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
-                followSystemTheme, lastExportDirectory, newSidebarWidth, lastDocument, recentCollections);
+                followSystemTheme, lastExportDirectory, newSidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay);
     }
 
     /// Path of the document last opened or saved, reopened on the next start;
@@ -174,7 +178,7 @@ public record MinDisPreferences(
     public MinDisPreferences withLastDocument(@Nullable String newLastDocument) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
-                followSystemTheme, lastExportDirectory, sidebarWidth, newLastDocument, recentCollections);
+                followSystemTheme, lastExportDirectory, sidebarWidth, newLastDocument, recentCollections, toolbarButtonDisplay);
     }
 
     /// Records {@code recent} as the most-recently-used collection: moved to the
@@ -193,7 +197,8 @@ public record MinDisPreferences(
                 : updated;
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
-                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, trimmed);
+                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, trimmed,
+                toolbarButtonDisplay);
     }
 
     /// Drops the recent entry for {@code path} (e.g. a document that has since
@@ -207,6 +212,16 @@ public record MinDisPreferences(
         }
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
-                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, updated);
+                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, updated,
+                toolbarButtonDisplay);
+    }
+
+    /// How the module toolbar buttons render (text/icon/both); default {@link
+    /// ToolbarButtonDisplay#BOTH}.
+    public MinDisPreferences withToolbarButtonDisplay(ToolbarButtonDisplay newToolbarButtonDisplay) {
+        return new MinDisPreferences(version, languageTag, theme, windowBounds,
+                solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
+                followSystemTheme, lastExportDirectory, sidebarWidth, lastDocument, recentCollections,
+                newToolbarButtonDisplay);
     }
 }

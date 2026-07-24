@@ -16,6 +16,7 @@ import org.mindis.core.preferences.AccentColor;
 import org.mindis.core.preferences.AppLanguage;
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.preferences.PreferencesService;
+import org.mindis.core.preferences.ToolbarButtonDisplay;
 
 /// JavaFX property view over {@link PreferencesService} (PLAN.md section 2.6):
 /// UI code binds to these properties; changes write through to the persisted
@@ -38,6 +39,7 @@ public final class UiPreferences {
     private final PreferenceValue<String> fontFamily;
     private final PreferenceValue<Integer> fontSize;
     private final PreferenceValue<Boolean> followSystemTheme;
+    private final PreferenceValue<ToolbarButtonDisplay> toolbarButtonDisplay;
     private final Map<String, PreferenceValue<Integer>> softWeights = new LinkedHashMap<>();
 
     public UiPreferences(PreferencesService preferencesService) {
@@ -64,6 +66,9 @@ public final class UiPreferences {
         followSystemTheme = register(
                 MinDisPreferences::followSystemTheme,
                 MinDisPreferences::withFollowSystemTheme);
+        toolbarButtonDisplay = register(
+                MinDisPreferences::toolbarButtonDisplay,
+                MinDisPreferences::withToolbarButtonDisplay);
         for (String constraintName : MinDisConstraintProvider.tunableSoftConstraints()) {
             softWeights.put(constraintName, register(
                     p -> p.softConstraintWeights().get(constraintName),
@@ -109,6 +114,10 @@ public final class UiPreferences {
 
     public ObjectProperty<Boolean> followSystemThemeProperty() {
         return followSystemTheme.property();
+    }
+
+    public ObjectProperty<ToolbarButtonDisplay> toolbarButtonDisplayProperty() {
+        return toolbarButtonDisplay.property();
     }
 
     /// Editable weight of one tunable soft constraint

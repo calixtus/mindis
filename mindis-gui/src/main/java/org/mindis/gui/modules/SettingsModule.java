@@ -33,6 +33,7 @@ import org.mindis.core.preferences.AppLanguage;
 import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.preferences.MinDisPreferences;
+import org.mindis.core.preferences.ToolbarButtonDisplay;
 import org.mindis.gui.preferences.PreferenceControls;
 import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.gui.theme.AccentColorSelector;
@@ -129,6 +130,10 @@ public class SettingsModule extends WorkbenchModule {
         fontRow.setPrefWidth(CONTROL_WIDTH);
         HBox.setHgrow(fontFamilyBox, Priority.ALWAYS);
 
+        ComboBox<ToolbarButtonDisplay> toolbarButtonsBox = PreferenceControls.choiceBox(
+                ToolbarButtonDisplay.values(), uiPreferences.toolbarButtonDisplayProperty());
+        toolbarButtonsBox.setPrefWidth(CONTROL_WIDTH);
+
         VBox tiles = new VBox(
                 tile(Localization.lang("Language"), Localization.lang("Interface language"), languageBox),
                 tile(Localization.lang("Theme"), Localization.lang("Light or dark or follow the system"), themeBox),
@@ -137,7 +142,9 @@ public class SettingsModule extends WorkbenchModule {
                         followSystemToggle),
                 tile(Localization.lang("Accent color"), Localization.lang("Highlight color across the app"),
                         accentSelector),
-                tile(Localization.lang("Font"), Localization.lang("Application font family and size"), fontRow));
+                tile(Localization.lang("Font"), Localization.lang("Application font family and size"), fontRow),
+                tile(Localization.lang("Toolbar buttons"),
+                        Localization.lang("Show toolbar buttons as text, icons, or both"), toolbarButtonsBox));
         return groupPane(Localization.lang("Appearance"), tiles, this::resetAppearanceToDefaults);
     }
 
@@ -163,6 +170,7 @@ public class SettingsModule extends WorkbenchModule {
         uiPreferences.accentColorProperty().set(AccentColor.DEFAULT);
         uiPreferences.fontFamilyProperty().set(MinDisPreferences.DEFAULT_FONT_FAMILY);
         uiPreferences.fontSizeProperty().set(MinDisPreferences.DEFAULT_FONT_SIZE);
+        uiPreferences.toolbarButtonDisplayProperty().set(ToolbarButtonDisplay.BOTH);
     }
 
     private void resetSolverToDefaults() {
