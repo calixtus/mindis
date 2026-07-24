@@ -26,8 +26,13 @@
     -fx-background-color: -color-bg-inset;
 }
 
-.workbench-collection-switcher .collection-button > .arrow-button > .arrow {
-    -fx-background-color: -color-fg-muted;
+/* No dropdown arrow: the whole button is the affordance (it opens on click),
+   and the arrow only crowded the sidebar divider. */
+.workbench-collection-switcher .collection-button > .arrow-button {
+    -fx-min-width: 0;
+    -fx-pref-width: 0;
+    -fx-max-width: 0;
+    -fx-padding: 0;
 }
 
 .workbench-collection-switcher .collection-name {
@@ -59,17 +64,9 @@
     -fx-icon-color: -color-fg-muted;
 }
 
-/* On the icon-only rail the switcher shows just the centered logo: hide the
-   dropdown arrow (which otherwise crowds the divider) and center the label. */
+/* On the icon-only rail the switcher shows just the centered logo. */
 .workbench-collection-switcher:collapsed .collection-button {
     -fx-padding: 4;
-}
-
-.workbench-collection-switcher:collapsed .collection-button > .arrow-button {
-    -fx-min-width: 0;
-    -fx-pref-width: 0;
-    -fx-max-width: 0;
-    -fx-padding: 0;
 }
 
 .workbench-collection-switcher:collapsed .collection-button > .label {
