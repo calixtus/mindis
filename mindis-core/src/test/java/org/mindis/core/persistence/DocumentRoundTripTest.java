@@ -2,6 +2,7 @@ package org.mindis.core.persistence;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -145,7 +146,7 @@ class DocumentRoundTripTest {
 
         fixture.database.newDocument();
 
-        assertEquals(null, fixture.database.documentPath());
+        assertNull(fixture.database.documentPath());
         assertFalse(fixture.roles.findAll().isEmpty(), "expected seeded default roles");
         assertTrue(fixture.roles.findAll().stream().anyMatch(role -> Role.ACOLYTE.equals(role.id())));
     }

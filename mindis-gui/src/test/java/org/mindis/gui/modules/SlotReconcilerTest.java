@@ -30,7 +30,7 @@ class SlotReconcilerTest {
 
         assertEquals(2, result.size());
         assertTrue(result.contains(existingSlot), "the existing slot's id must survive a grow, not be replaced");
-        assertTrue(result.stream().anyMatch(slot -> slot.role().equals(ACOLYTE) && !slot.id().equals("s1")),
+        assertTrue(result.stream().anyMatch(slot -> ACOLYTE.equals(slot.role()) && !"s1".equals(slot.id())),
                 "a fresh slot must be appended for the new count");
     }
 
@@ -39,7 +39,7 @@ class SlotReconcilerTest {
         List<Slot> result = SlotReconciler.reconcile(List.of(), Map.of(ACOLYTE, 3), slot -> false);
 
         assertEquals(3, result.size());
-        assertTrue(result.stream().allMatch(slot -> slot.role().equals(ACOLYTE)));
+        assertTrue(result.stream().allMatch(slot -> ACOLYTE.equals(slot.role())));
         // Every generated id must be distinct.
         assertEquals(3, result.stream().map(Slot::id).collect(Collectors.toSet()).size());
     }
@@ -53,7 +53,7 @@ class SlotReconcilerTest {
         List<Slot> existing = List.of(filled, empty);
 
         List<Slot> result = SlotReconciler.reconcile(existing, Map.of(ACOLYTE, 1),
-                slot -> slot.id().equals("filled"));
+                slot -> "filled".equals(slot.id()));
 
         assertEquals(List.of(filled), result, "the filled slot must be the one that survives");
     }
@@ -64,7 +64,7 @@ class SlotReconcilerTest {
         Slot empty = new Slot("empty", ACOLYTE, null, false);
 
         List<Slot> result = SlotReconciler.reconcile(List.of(filled, empty), Map.of(ACOLYTE, 0),
-                slot -> slot.id().equals("filled"));
+                slot -> "filled".equals(slot.id()));
 
         assertTrue(result.isEmpty());
     }
@@ -90,7 +90,7 @@ class SlotReconcilerTest {
 
         // Shrink Acolyte 2 -> 1 (unfilled a2 should go), leave Thurifer at 1.
         List<Slot> result = SlotReconciler.reconcile(existing, Map.of(ACOLYTE, 1, THURIFER, 1),
-                slot -> slot.id().equals("a1"));
+                slot -> "a1".equals(slot.id()));
 
         assertEquals(Set.of(acolyte1, thurifer1), Set.copyOf(result));
     }

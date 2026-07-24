@@ -24,9 +24,9 @@ public final class LogConsoleModel {
     /// Safe to call from any thread - log calls can come from anywhere.
     void append(LogEntry entry) {
         Platform.runLater(() -> {
-            entries.add(0, entry);
+            entries.addFirst(entry);
             if (entries.size() > MAX_ENTRIES) {
-                entries.remove(entries.size() - 1);
+                entries.removeLast();
             }
         });
     }

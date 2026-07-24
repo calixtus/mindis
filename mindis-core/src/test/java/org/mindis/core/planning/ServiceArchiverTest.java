@@ -38,9 +38,9 @@ class ServiceArchiverTest {
         assertEquals(1, result.archived().size());
         ArchivedService frozen = result.archived().getFirst();
         assertEquals("jul", frozen.id());
-        assertEquals("Acolyte", frozen.slots().get(0).roleName());
-        assertEquals("Anna B.", frozen.slots().get(0).serverName());
-        assertEquals("srv", frozen.slots().get(0).serverId());
+        assertEquals("Acolyte", frozen.slots().getFirst().roleName());
+        assertEquals("Anna B.", frozen.slots().getFirst().serverName());
+        assertEquals("srv", frozen.slots().getFirst().serverId());
         assertNull(frozen.slots().get(1).serverName(), "Open slot must have no server name");
     }
 

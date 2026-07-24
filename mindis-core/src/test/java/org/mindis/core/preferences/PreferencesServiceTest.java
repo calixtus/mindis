@@ -110,9 +110,9 @@ class PreferencesServiceTest {
                 .withRecentCollection(new RecentCollection("/2.json", "two-again", null, 7L));
 
         assertEquals(MinDisPreferences.MAX_RECENT_COLLECTIONS, preferences.recentCollections().size());
-        assertEquals("/2.json", preferences.recentCollections().get(0).path());
-        assertEquals("two-again", preferences.recentCollections().get(0).displayName());
-        assertTrue(preferences.recentCollections().stream().noneMatch(r -> r.path().equals("/1.json")),
+        assertEquals("/2.json", preferences.recentCollections().getFirst().path());
+        assertEquals("two-again", preferences.recentCollections().getFirst().displayName());
+        assertTrue(preferences.recentCollections().stream().noneMatch(r -> "/1.json".equals(r.path())),
                 "oldest entry must fall off once the cap is exceeded");
     }
 
@@ -127,7 +127,7 @@ class PreferencesServiceTest {
 
         assertEquals(MinDisPreferences.CURRENT_VERSION, preferences.version());
         assertEquals(1, preferences.recentCollections().size());
-        assertEquals("/parish.json", preferences.recentCollections().get(0).path());
+        assertEquals("/parish.json", preferences.recentCollections().getFirst().path());
     }
 
     @Test

@@ -68,8 +68,8 @@ class LiveStoreTest {
         int index = store.updateLive(new Item("a", "2"));
 
         assertEquals(0, index);
-        assertEquals("2", store.items().get(0).value());
-        assertEquals("2", repo.get(0).value(), "updateLive must stage into the repo, not just the observable list");
+        assertEquals("2", store.items().getFirst().value());
+        assertEquals("2", repo.getFirst().value(), "updateLive must stage into the repo, not just the observable list");
         assertEquals(1, store.dirtyCountProperty().get());
     }
 
@@ -85,7 +85,7 @@ class LiveStoreTest {
         store.insertFirst(new Item("a", "1"));
         store.refresh();
 
-        store.remove(store.items().get(0));
+        store.remove(store.items().getFirst());
 
         assertTrue(store.items().isEmpty());
         assertTrue(repo.isEmpty());
@@ -98,7 +98,7 @@ class LiveStoreTest {
         LiveStore<Item> store = newStore();
         store.insertFirst(new Item("a", "1"));
 
-        store.remove(store.items().get(0));
+        store.remove(store.items().getFirst());
 
         assertEquals(0, store.dirtyCountProperty().get(), "a row that was never saved leaves nothing pending once dropped");
     }
@@ -112,7 +112,7 @@ class LiveStoreTest {
         store.mergeLive(List.of(new Item("a", "updated"), new Item("b", "new")));
 
         assertEquals(2, store.items().size());
-        assertEquals("updated", store.items().get(0).value());
+        assertEquals("updated", store.items().getFirst().value());
         assertEquals("new", store.items().get(1).value());
         assertEquals(2, store.dirtyCountProperty().get());
     }
@@ -145,7 +145,7 @@ class LiveStoreTest {
         store.refresh();
         store.updateLive(new Item("a", "2"));
 
-        Item snapshot = store.savedSnapshot(store.items().get(0));
+        Item snapshot = store.savedSnapshot(store.items().getFirst());
         assertNotNull(snapshot);
         assertEquals("1", snapshot.value());
     }

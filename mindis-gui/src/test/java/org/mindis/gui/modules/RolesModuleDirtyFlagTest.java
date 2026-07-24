@@ -49,7 +49,7 @@ class RolesModuleDirtyFlagTest {
 
             GridPane grid = find(content, GridPane.class);
             TextField nameField = (TextField) grid.getChildren().get(1);
-            Label nameLabel = (Label) grid.getChildren().get(0);
+            Label nameLabel = (Label) grid.getChildren().getFirst();
 
             assertFalse(nameLabel.getStyleClass().contains("field-changed"), "should start clean");
 
