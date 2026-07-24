@@ -20,6 +20,7 @@ import javafx.beans.property.SimpleObjectProperty;
 
 import org.jspecify.annotations.Nullable;
 
+import org.mindis.core.model.CollectionMeta;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
@@ -56,7 +57,11 @@ public final class LiveDatabase {
     private final LiveStore<LiturgicalService> services;
 
     private final ObjectProperty<@Nullable Path> documentPath = new SimpleObjectProperty<>();
+    private final ObjectProperty<CollectionMeta> meta = new SimpleObjectProperty<>(CollectionMeta.empty());
     private final BooleanProperty archiveDirty = new SimpleBooleanProperty(false);
+    // The collection identity (name/logo) is not a row of any LiveStore, so its
+    // edits need their own staged-change flag, mirrored into the dirty signal.
+    private final BooleanProperty metaDirty = new SimpleBooleanProperty(false);
     private final BooleanBinding dirty;
 
     public LiveDatabase(AppDatabase database, RoleRepository roleRepository,
@@ -83,7 +88,7 @@ public final class LiveDatabase {
         // repository notifies from whatever thread archived; hop to the FX
         // thread before touching a property the UI binds to.
         this.archivedServiceRepository.addChangeListener(() -> Platform.runLater(this::syncArchiveDirty));
-        this.dirty = Bindings.notEqual(0, totalDirtyCount()).or(archiveDirty);
+        this.dirty = Bindings.notEqual(0, totalDirtyCount()).or(archiveDirty).or(metaDirty);
     }
 
     public LiveStore<Role> roles() {
@@ -111,6 +116,23 @@ public final class LiveDatabase {
 
     public Optional<Path> documentPath() {
         return Optional.ofNullable(documentPath.get());
+    }
+
+    /// The open collection's identity (name + logo); never {@code null}.
+    public ReadOnlyObjectProperty<CollectionMeta> metaProperty() {
+        return meta;
+    }
+
+    public CollectionMeta meta() {
+        return meta.get();
+    }
+
+    /// Replaces the open collection's identity, staging it like any other edit
+    /// (so the document goes dirty and a save writes it).
+    public void updateMeta(CollectionMeta newMeta) {
+        database.updateMeta(newMeta);
+        meta.set(newMeta);
+        metaDirty.set(true);
     }
 
     /// Whether the open document holds edits that have not been saved yet.
@@ -171,6 +193,8 @@ public final class LiveDatabase {
     private void afterDocumentChange() {
         stores().forEach(LiveStore::refresh);
         documentPath.set(database.documentPath());
+        meta.set(database.meta());
+        metaDirty.set(false);
         syncArchiveDirty();
     }
 

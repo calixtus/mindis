@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -21,7 +22,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.mindis.core.l10n.Localization;
+import org.mindis.core.model.CollectionMeta;
 import org.mindis.core.preferences.PreferencesService;
+import org.mindis.core.preferences.RecentCollection;
 
 /// The document actions behind the global toolbar: New, Open, Save and Save
 /// as, plus the guard that keeps unsaved work from being dropped silently and
@@ -51,13 +54,26 @@ public final class DocumentSession {
         this.owner = owner;
     }
 
-    /// The window title: application name plus the open document's file name
-    /// (or "Untitled"), marked with an asterisk while there are unsaved edits.
+    /// The window title: application name plus the open collection's display
+    /// name - the parish name from its {@link CollectionMeta}, falling back to
+    /// the file name (or "Untitled") - marked with an asterisk while there are
+    /// unsaved edits.
     public StringBinding titleBinding() {
         return Bindings.createStringBinding(
-                () -> Localization.lang("MinDis - Minister Dispatcher") + " - " + documentName()
+                () -> Localization.lang("MinDis - Minister Dispatcher") + " - " + collectionDisplayName()
                         + (liveDatabase.isDirty() ? "*" : ""),
-                liveDatabase.documentPathProperty(), liveDatabase.dirtyProperty());
+                liveDatabase.documentPathProperty(), liveDatabase.metaProperty(),
+                liveDatabase.dirtyProperty());
+    }
+
+    /// The name to show for the open collection: its display name when set,
+    /// otherwise the file name, otherwise "Untitled".
+    public String collectionDisplayName() {
+        String displayName = liveDatabase.meta().displayName();
+        if (displayName != null && !displayName.isBlank()) {
+            return displayName;
+        }
+        return documentName();
     }
 
     /// Opens the document remembered from the last session, or starts a new
@@ -165,6 +181,70 @@ public final class DocumentSession {
         return answer == discard;
     }
 
+    // --- Recent collections (switcher dropdown) ---
+
+    /// The recently opened or saved collections, most recent first, for the
+    /// switcher dropdown. Capped at
+    /// {@link org.mindis.core.preferences.MinDisPreferences#MAX_RECENT_COLLECTIONS}.
+    public List<RecentCollection> recents() {
+        return preferencesService.get().recentCollections();
+    }
+
+    /// Switches to a collection from the recent list, after guarding unsaved
+    /// edits. A recent whose file has since vanished or fails to open is
+    /// reported and dropped from the list, so the switcher self-heals.
+    public void switchTo(RecentCollection recent) {
+        if (!confirmDropUnsavedChanges()) {
+            return;
+        }
+        Path file;
+        try {
+            file = Path.of(recent.path());
+        } catch (InvalidPathException e) {
+            LOGGER.warn("Dropping recent with unusable path {}", recent.path(), e);
+            forgetRecent(recent.path());
+            return;
+        }
+        if (!Files.isReadable(file)) {
+            showError(Localization.lang("Could not open %0", recent.path()));
+            forgetRecent(recent.path());
+            return;
+        }
+        try {
+            liveDatabase.open(file);
+            rememberDocument(file);
+            LOGGER.info(Localization.lang("Opened %0", file.getFileName().toString()));
+        } catch (IOException e) {
+            LOGGER.error(Localization.lang("Could not open %0", file.toString()), e);
+            showError(Localization.lang("Could not open %0", file.toString()), e);
+            forgetRecent(recent.path());
+        }
+    }
+
+    // --- Collection metadata (name + logo) ---
+
+    /// The open collection's identity, for the metadata editor to preload.
+    public CollectionMeta currentMeta() {
+        return liveDatabase.meta();
+    }
+
+    /// Applies an edited identity to the open collection (staged like any edit;
+    /// a save writes it and refreshes the collection's recent entry). When the
+    /// collection already has a file, its recent entry's cached name/logo are
+    /// refreshed immediately so the switcher reflects the change before a save.
+    public void updateMetadata(CollectionMeta meta) {
+        liveDatabase.updateMeta(meta);
+        liveDatabase.documentPath().ifPresent(this::refreshRecentMeta);
+    }
+
+    private void refreshRecentMeta(Path file) {
+        String path = file.toAbsolutePath().toString();
+        CollectionMeta meta = liveDatabase.meta();
+        preferencesService.update(preferences -> preferences.withRecentCollection(
+                new RecentCollection(path, meta.displayName(), meta.logoPngBase64(),
+                        System.currentTimeMillis())));
+    }
+
     private String documentName() {
         return liveDatabase.documentPath()
                 .map(path -> path.getFileName().toString())
@@ -211,8 +291,29 @@ public final class DocumentSession {
     }
 
     private void rememberDocument(@Nullable Path file) {
+        if (file == null) {
+            // An untitled document is not a recent collection; just clear the
+            // reopen-on-start pointer.
+            preferencesService.update(preferences -> preferences.withLastDocument(null));
+            return;
+        }
+        String path = file.toAbsolutePath().toString();
+        CollectionMeta meta = liveDatabase.meta();
+        RecentCollection recent = new RecentCollection(path, meta.displayName(),
+                meta.logoPngBase64(), System.currentTimeMillis());
         preferencesService.update(preferences ->
-                preferences.withLastDocument(file == null ? null : file.toAbsolutePath().toString()));
+                preferences.withLastDocument(path).withRecentCollection(recent));
+    }
+
+    private void forgetRecent(String path) {
+        preferencesService.update(preferences -> preferences.withoutRecentCollection(path));
+    }
+
+    private void showError(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR, message, ButtonType.OK);
+        alert.setHeaderText(null);
+        alert.initOwner(owner.get());
+        alert.showAndWait();
     }
 
     private void showError(String message, Exception cause) {
