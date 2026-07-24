@@ -14,6 +14,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 
+import org.jspecify.annotations.Nullable;
+
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
@@ -75,28 +77,37 @@ class RolesModuleDirtyFlagTest {
     private static RoleRepository dummyRoleRepository() {
         // buildEditor doesn't touch the repository directly, only the CSV
         // mapper wiring in the constructor needs a non-null instance.
-        return null;
+        return new RoleRepository();
     }
 
-    @SuppressWarnings("unchecked")
+    /// Finds the first node of the given type, or throws — a missing node means
+    /// the view changed shape and the test's assumptions are stale.
     private static <T extends Node> T find(Node root, Class<T> type) {
+        T found = findOrNull(root, type);
+        if (found == null) {
+            throw new AssertionError("no " + type.getSimpleName() + " in scene graph");
+        }
+        return found;
+    }
+
+    private static <T extends Node> @Nullable T findOrNull(Node root, Class<T> type) {
         if (type.isInstance(root)) {
-            return (T) root;
+            return type.cast(root);
         }
         if (root instanceof Pane pane) {
             for (Node child : pane.getChildrenUnmodifiable()) {
-                T found = find(child, type);
+                T found = findOrNull(child, type);
                 if (found != null) {
                     return found;
                 }
             }
         }
         if (root instanceof javafx.scene.control.ScrollPane scrollPane) {
-            return find(scrollPane.getContent(), type);
+            return findOrNull(scrollPane.getContent(), type);
         }
         if (root instanceof javafx.scene.control.SplitPane splitPane) {
             for (Node child : splitPane.getItems()) {
-                T found = find(child, type);
+                T found = findOrNull(child, type);
                 if (found != null) {
                     return found;
                 }
