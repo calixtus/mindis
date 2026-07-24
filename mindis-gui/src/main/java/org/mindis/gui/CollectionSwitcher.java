@@ -191,7 +191,7 @@ public final class CollectionSwitcher extends HBox {
         MenuItem item = new MenuItem(recentLabel(recent));
         Image logo = imageFromBase64(recent.logoPngBase64());
         item.setGraphic(logo == null
-                ? churchIcon(MENU_LOGO_SIZE)
+                ? LogoIcons.iconNode(LogoIcons.DEFAULT, MENU_LOGO_SIZE)
                 : logoView(logo, MENU_LOGO_SIZE));
         item.setOnAction(event -> session.switchTo(recent));
         return item;
@@ -220,9 +220,24 @@ public final class CollectionSwitcher extends HBox {
     private void updateLogo() {
         int size = collapsed ? RAIL_LOGO_SIZE : HEADER_LOGO_SIZE;
         Image logo = imageFromBase64(currentMeta.logoPngBase64());
-        logoHolder.getChildren().setAll(logo == null
-                ? churchIcon(size)
-                : logoView(logo, size));
+        if (logo != null) {
+            logoHolder.getChildren().setAll(logoView(logo, size));
+        } else {
+            String icon = currentMeta.logoIcon() == null ? LogoIcons.DEFAULT : currentMeta.logoIcon();
+            logoHolder.getChildren().setAll(LogoIcons.iconNode(icon, size));
+        }
+        logoHolder.setStyle(logoBackgroundStyle(currentMeta.logoBackground()));
+    }
+
+    /// Inline style for a logo backdrop (rounded, padded), shared with
+    /// {@link CollectionMetaDialog}. Inline rather than a CSS class because the
+    /// dialog is a popup window that does not load the workbench stylesheet.
+    static String logoBackgroundStyle(CollectionMeta.LogoBackground background) {
+        return switch (background) {
+            case LIGHT -> "-fx-background-color: white; -fx-background-radius: 6; -fx-padding: 3;";
+            case DARK -> "-fx-background-color: #2b2b2b; -fx-background-radius: 6; -fx-padding: 3;";
+            case NONE -> "";
+        };
     }
 
     private static ImageView logoView(Image image, int size) {
@@ -232,13 +247,6 @@ public final class CollectionSwitcher extends HBox {
         view.setPreserveRatio(true);
         view.setSmooth(true);
         return view;
-    }
-
-    private static FontIcon churchIcon(int size) {
-        FontIcon icon = new FontIcon("mdi2c-church");
-        icon.setIconSize(size);
-        icon.getStyleClass().add("collection-logo-placeholder");
-        return icon;
     }
 
     /// Decodes a Base64 PNG logo into an image, or {@code null} when there is

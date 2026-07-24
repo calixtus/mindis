@@ -27,8 +27,9 @@ Covers:
 `req~collection-switcher~1`
 
 The open document is a collection (one parish). The sidebar top shows the collection's identity — a
-display name (the parish name) and an optional logo — with an inline Save action that reflects
-whether there is anything to save. A dropdown switches to one of up to five recently used
+display name (the parish name) and a logo (a custom image or, failing that, a stock icon), optionally
+on a light or dark backdrop for contrast — with an inline Save action that reflects whether there is
+anything to save. A dropdown switches to one of up to five recently used
 collections, opens another document, saves under a new name, edits the current collection's name and
 logo, or starts a new collection. Switching away from unsaved work asks first. A recent whose file
 has since vanished is reported and dropped from the list. The collection's identity is shown in the
@@ -139,8 +140,12 @@ recent collections excluding the current one — each switching via `DocumentSes
 Open other (`onOpen`), Save as (`onSaveAs`, disabled while solving), Edit collection
 (`CollectionMetaDialog` → `updateMetadata`) and New collection (`onNew`). It follows the
 `Workbench.collapsedProperty()` so the icon-only rail shows just the logo. `CollectionMetaDialog`
-edits name and logo; the logo is a PNG only, size-capped (512 KB) so it stays small inside the
-document. `MinDisApp` also registers Ctrl+N/O/S and Ctrl+Shift+S as scene accelerators for the same
+edits name, logo and backdrop with a live preview: the logo is either a custom PNG (only, size-capped
+to 512 KB so it stays small inside the document) or a stock icon from `LogoIcons` (a Material Design
+icon literal), and the backdrop (none / light / dark, applied as a rounded inline style shared with
+the switcher via `CollectionSwitcher.logoBackgroundStyle`) lifts a low-contrast logo off the sidebar.
+A custom image wins over a stock icon, which wins over the default icon. `MinDisApp` also registers
+Ctrl+N/O/S and Ctrl+Shift+S as scene accelerators for the same
 actions (the scene survives a language rebuild, so they do too).
 
 Covers:

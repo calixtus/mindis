@@ -67,7 +67,8 @@ class DocumentRoundTripTest {
         original.templates.save(template);
         original.services.save(service);
         original.archived.addAll(List.of(archived));
-        original.database.updateMeta(new CollectionMeta("St. Mary's Parish", "iVBORw0KGgo="));
+        original.database.updateMeta(new CollectionMeta("St. Mary's Parish", "iVBORw0KGgo=",
+                null, CollectionMeta.LogoBackground.DARK));
         original.database.saveAs(file);
 
         Fixture reopened = new Fixture();
@@ -78,7 +79,8 @@ class DocumentRoundTripTest {
         assertEquals(List.of(template), reopened.templates.findAll());
         assertEquals(List.of(service), reopened.services.findAll());
         assertEquals(List.of(archived), reopened.archived.findAll());
-        assertEquals(new CollectionMeta("St. Mary's Parish", "iVBORw0KGgo="), reopened.database.meta());
+        assertEquals(new CollectionMeta("St. Mary's Parish", "iVBORw0KGgo=",
+                null, CollectionMeta.LogoBackground.DARK), reopened.database.meta());
         assertEquals(file, reopened.database.documentPath());
     }
 
@@ -86,7 +88,8 @@ class DocumentRoundTripTest {
     void newDocumentResetsTheCollectionIdentity() throws IOException {
         Path file = tempDir.resolve("parish.json");
         Fixture fixture = new Fixture();
-        fixture.database.updateMeta(new CollectionMeta("St. Joseph", null));
+        fixture.database.updateMeta(new CollectionMeta("St. Joseph", null,
+                "mdi2c-cross", CollectionMeta.LogoBackground.LIGHT));
         fixture.database.saveAs(file);
 
         fixture.database.newDocument();

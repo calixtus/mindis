@@ -13,7 +13,8 @@ own file in the user data directory; only *entity* data moved into the document)
 `req~single-document-file~1`
 
 All planning data of a parish — roles, servers, templates, services with their assignments, and the
-archive — plus the collection's own identity (a display name and an optional logo) lives in a single,
+archive — plus the collection's own identity (a display name, a logo — a custom image or a stock
+icon — and its backdrop) lives in a single,
 plain, human-readable JSON file that the user chooses, names and can copy, back up or hand on like
 any other file. The identity travels inside the file, so a collection is self-contained. No database,
 server, account, or hidden storage location.
