@@ -189,13 +189,16 @@ Covers:
 ### Preferences record
 `dsn~preferences-record~1`
 
-`MinDisPreferences` is an immutable record with a `version` (currently 10) plus `languageTag`,
-`theme`, `windowBounds`, `solverSecondsLimit` (default 30), `softConstraintWeights`, `accentColor`,
-`fontFamily`/`fontSize` (default 14, clamped 10–24), `followSystemTheme`, `lastExportDirectory`,
+`MinDisPreferences` is an immutable record with a `version` (currently 12) plus `languageTag`,
+`theme` (`Light`/`Dark`/`System`, where `System` follows the OS colour scheme live), `windowBounds`,
+`solverSecondsLimit` (default 30), `softConstraintWeights`, `accentColor`,
+`fontFamily`/`fontSize` (default 14, clamped 10–24), `lastExportDirectory`,
 `sidebarWidth`, `lastDocument`, `recentCollections` (the switcher's list, capped at five; see
 [persistence.md](persistence.md)) and `toolbarButtonDisplay` (text / icon / both, default both).
-The record is at version 11. Changes go through wither methods. The compact constructor fills
-absent or invalid values with defaults, which is what makes most version steps migration-free.
+The record is at version 12. Changes go through wither methods. The compact constructor fills
+absent or invalid values with defaults, which is what makes most version steps migration-free. The
+v11→v12 step is an explicit migration: the old standalone `followSystemTheme` boolean folds into the
+`Theme.SYSTEM` enum value.
 
 Covers:
 - req~appearance-settings~1
@@ -236,9 +239,9 @@ overrides into a single `data:` URI installed as the *user-agent* stylesheet —
 — because popup windows (ComboBox popups etc.) consult only the user-agent stylesheet. Accent tokens
 (`-color-accent-fg/emphasis/muted/subtle`) are derived from one base hex per theme mode. It also
 defines the legacy Modena tokens GemsFX's bundled control CSS looks up but AtlantaFX never defines.
-`MinDisApp` reapplies the whole stylesheet whenever theme, follow-system-theme, accent, font family
+`MinDisApp` reapplies the whole stylesheet whenever theme, accent, font family
 or font size changes, and subscribes to the OS color scheme and OS accent so `AccentColor.DEFAULT`
-and "follow system theme" track live.
+and the `System` theme track live.
 
 Covers:
 - req~appearance-settings~1

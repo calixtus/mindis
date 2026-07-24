@@ -1,6 +1,7 @@
 package org.mindis.core.preferences;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
@@ -82,15 +83,16 @@ public class PreferencesService {
             return MinDisPreferences.defaults();
         }
         try {
-            MinDisPreferences loaded = objectMapper.readValue(preferencesFile.toFile(), MinDisPreferences.class);
-            return migrate(loaded);
+            JsonNode root = objectMapper.readTree(preferencesFile.toFile());
+            MinDisPreferences loaded = objectMapper.treeToValue(root, MinDisPreferences.class);
+            return migrate(loaded, root);
         } catch (IOException e) {
             LOGGER.warn("Could not read preferences, falling back to defaults: {}", preferencesFile, e);
             return MinDisPreferences.defaults();
         }
     }
 
-    private MinDisPreferences migrate(MinDisPreferences loaded) {
+    private MinDisPreferences migrate(MinDisPreferences loaded, JsonNode root) {
         if (loaded.version() == MinDisPreferences.CURRENT_VERSION) {
             return loaded;
         }
@@ -121,20 +123,26 @@ public class PreferencesService {
         // v10 -> v11: toolbarButtonDisplay added; absent field deserializes as
         // null and the record's compact constructor fills it with the default
         // (BOTH).
+        // v11 -> v12: the standalone followSystemTheme boolean folded into a
+        // Theme.SYSTEM enum value. Read the legacy flag from the raw JSON (the
+        // record no longer has the field, so it deserializes away) and, when it
+        // was on, promote the theme to SYSTEM.
         int solverSeconds = loaded.solverSecondsLimit() > 0
                 ? loaded.solverSecondsLimit()
                 : MinDisPreferences.DEFAULT_SOLVER_SECONDS;
+        MinDisPreferences.Theme theme = root.path("followSystemTheme").asBoolean(false)
+                ? MinDisPreferences.Theme.SYSTEM
+                : loaded.theme();
         MinDisPreferences migrated = new MinDisPreferences(
                 MinDisPreferences.CURRENT_VERSION,
                 loaded.languageTag(),
-                loaded.theme(),
+                theme,
                 loaded.windowBounds(),
                 solverSeconds,
                 loaded.softConstraintWeights(),
                 loaded.accentColor(),
                 loaded.fontFamily(),
                 loaded.fontSize(),
-                loaded.followSystemTheme(),
                 loaded.lastExportDirectory(),
                 loaded.sidebarWidth(),
                 loaded.lastDocument(),

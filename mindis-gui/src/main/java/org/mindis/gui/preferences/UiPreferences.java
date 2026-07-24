@@ -38,7 +38,6 @@ public final class UiPreferences {
     private final PreferenceValue<AccentColor> accentColor;
     private final PreferenceValue<String> fontFamily;
     private final PreferenceValue<Integer> fontSize;
-    private final PreferenceValue<Boolean> followSystemTheme;
     private final PreferenceValue<ToolbarButtonDisplay> toolbarButtonDisplay;
     private final Map<String, PreferenceValue<Integer>> softWeights = new LinkedHashMap<>();
 
@@ -63,9 +62,6 @@ public final class UiPreferences {
         fontSize = register(
                 MinDisPreferences::fontSize,
                 MinDisPreferences::withFontSize);
-        followSystemTheme = register(
-                MinDisPreferences::followSystemTheme,
-                MinDisPreferences::withFollowSystemTheme);
         toolbarButtonDisplay = register(
                 MinDisPreferences::toolbarButtonDisplay,
                 MinDisPreferences::withToolbarButtonDisplay);
@@ -110,10 +106,6 @@ public final class UiPreferences {
 
     public ObjectProperty<Integer> fontSizeProperty() {
         return fontSize.property();
-    }
-
-    public ObjectProperty<Boolean> followSystemThemeProperty() {
-        return followSystemTheme.property();
     }
 
     public ObjectProperty<ToolbarButtonDisplay> toolbarButtonDisplayProperty() {

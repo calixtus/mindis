@@ -131,6 +131,30 @@ class PreferencesServiceTest {
     }
 
     @Test
+    void migrationFoldsFollowSystemThemeIntoSystemTheme() throws IOException {
+        Files.writeString(preferencesFile(), """
+                { "version": 11, "languageTag": "en", "theme": "DARK", "followSystemTheme": true }
+                """);
+
+        PreferencesService service = new PreferencesService(preferencesFile());
+        MinDisPreferences preferences = service.get();
+
+        assertEquals(MinDisPreferences.CURRENT_VERSION, preferences.version());
+        assertEquals(MinDisPreferences.Theme.SYSTEM, preferences.theme());
+    }
+
+    @Test
+    void migrationKeepsExplicitThemeWhenNotFollowingSystem() throws IOException {
+        Files.writeString(preferencesFile(), """
+                { "version": 11, "languageTag": "en", "theme": "DARK", "followSystemTheme": false }
+                """);
+
+        PreferencesService service = new PreferencesService(preferencesFile());
+
+        assertEquals(MinDisPreferences.Theme.DARK, service.get().theme());
+    }
+
+    @Test
     void windowBoundsRoundTrip() {
         PreferencesService service = new PreferencesService(preferencesFile());
         MinDisPreferences.WindowBounds bounds = new MinDisPreferences.WindowBounds(10, 20, 800, 600, false);

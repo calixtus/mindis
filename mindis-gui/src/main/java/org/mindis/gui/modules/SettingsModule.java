@@ -1,7 +1,6 @@
 package org.mindis.gui.modules;
 
 import atlantafx.base.controls.Tile;
-import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
 
 import java.util.Locale;
@@ -96,15 +95,11 @@ public class SettingsModule extends WorkbenchModule {
                 PreferenceControls.choiceBox(AppLanguage.values(), uiPreferences.languageProperty());
         languageBox.setPrefWidth(CONTROL_WIDTH);
 
-        // Theme dropdown is disabled while the app follows the OS light/dark
-        // scheme; the toggle in its own tile below drives that.
+        // "Follow system" is the third Theme choice (System), not a separate
+        // toggle: the dropdown offers Light, Dark and System.
         ComboBox<MinDisPreferences.Theme> themeBox =
                 PreferenceControls.choiceBox(MinDisPreferences.Theme.values(), uiPreferences.themeProperty());
-        themeBox.disableProperty().bind(uiPreferences.followSystemThemeProperty());
         themeBox.setPrefWidth(CONTROL_WIDTH);
-
-        ToggleSwitch followSystemToggle = new ToggleSwitch();
-        followSystemToggle.selectedProperty().bindBidirectional(uiPreferences.followSystemThemeProperty());
 
         AccentColorSelector accentSelector = new AccentColorSelector(uiPreferences.accentColorProperty());
 
@@ -137,9 +132,6 @@ public class SettingsModule extends WorkbenchModule {
         VBox tiles = new VBox(
                 tile(Localization.lang("Language"), Localization.lang("Interface language"), languageBox),
                 tile(Localization.lang("Theme"), Localization.lang("Light or dark or follow the system"), themeBox),
-                tile(Localization.lang("Follow system theme"),
-                        Localization.lang("Use the OS light/dark setting instead of the Theme dropdown"),
-                        followSystemToggle),
                 tile(Localization.lang("Accent color"), Localization.lang("Highlight color across the app"),
                         accentSelector),
                 tile(Localization.lang("Font"), Localization.lang("Application font family and size"), fontRow),
@@ -166,7 +158,6 @@ public class SettingsModule extends WorkbenchModule {
         String systemLanguage = "de".equals(Locale.getDefault().getLanguage()) ? "de" : "en";
         uiPreferences.languageProperty().set(AppLanguage.fromTag(systemLanguage));
         uiPreferences.themeProperty().set(MinDisPreferences.Theme.LIGHT);
-        uiPreferences.followSystemThemeProperty().set(false);
         uiPreferences.accentColorProperty().set(AccentColor.DEFAULT);
         uiPreferences.fontFamilyProperty().set(MinDisPreferences.DEFAULT_FONT_FAMILY);
         uiPreferences.fontSizeProperty().set(MinDisPreferences.DEFAULT_FONT_SIZE);

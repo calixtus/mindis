@@ -107,7 +107,6 @@ public class MinDisApp extends Application {
         // changes. Two-arg subscribe does not fire initially; the explicit
         // apply below seeds the first render.
         uiPreferences.themeProperty().subscribe((_, _) -> applyAppearance());
-        uiPreferences.followSystemThemeProperty().subscribe((_, _) -> applyAppearance());
         uiPreferences.accentColorProperty().subscribe((_, _) -> applyAppearance());
         uiPreferences.fontFamilyProperty().subscribe((_, _) -> applyAppearance());
         uiPreferences.fontSizeProperty().subscribe((_, _) -> applyAppearance());
@@ -116,9 +115,9 @@ public class MinDisApp extends Application {
                 applyToolbarButtonDisplay(workbench);
             }
         });
-        // Follow the OS light/dark scheme live while that option is on.
+        // Follow the OS light/dark scheme live while the theme is SYSTEM.
         Platform.getPreferences().colorSchemeProperty().subscribe((_, _) -> {
-            if (uiPreferences.followSystemThemeProperty().get()) {
+            if (uiPreferences.themeProperty().get() == MinDisPreferences.Theme.SYSTEM) {
                 applyAppearance();
             }
         });
@@ -280,15 +279,17 @@ public class MinDisApp extends Application {
         stage.titleProperty().bind(documentSession.titleBinding());
     }
 
-    /// The effective light/dark mode: the OS color scheme when "follow system"
-    /// is on, otherwise the user's explicit theme choice.
+    /// The effective light/dark mode: the OS color scheme when the theme is
+    /// {@link MinDisPreferences.Theme#SYSTEM}, otherwise the explicit choice.
+    /// Never returns {@code SYSTEM}.
     private MinDisPreferences.Theme resolveTheme() {
-        if (uiPreferences.followSystemThemeProperty().get()) {
+        MinDisPreferences.Theme theme = uiPreferences.themeProperty().get();
+        if (theme == MinDisPreferences.Theme.SYSTEM) {
             return Platform.getPreferences().getColorScheme() == ColorScheme.DARK
                     ? MinDisPreferences.Theme.DARK
                     : MinDisPreferences.Theme.LIGHT;
         }
-        return uiPreferences.themeProperty().get();
+        return theme;
     }
 
     /// Applies theme, accent and font as a single user-agent stylesheet: the
@@ -298,11 +299,12 @@ public class MinDisApp extends Application {
     /// ComboBox popups and other popup windows, which only see the UA stylesheet
     /// - avoiding stale-token CSS warnings when the theme is switched at runtime.
     private void applyAppearance() {
+        // resolveTheme() collapses SYSTEM to a concrete LIGHT/DARK, so only
+        // those two reach the base-theme choice here.
         MinDisPreferences.Theme theme = resolveTheme();
-        String baseUrl = switch (theme) {
-            case LIGHT -> new NordLight().getUserAgentStylesheet();
-            case DARK -> new NordDark().getUserAgentStylesheet();
-        };
+        String baseUrl = theme == MinDisPreferences.Theme.DARK
+                ? new NordDark().getUserAgentStylesheet()
+                : new NordLight().getUserAgentStylesheet();
         setUserAgentStylesheet(ThemeStyler.userAgentStylesheet(
                 baseUrl,
                 theme,
