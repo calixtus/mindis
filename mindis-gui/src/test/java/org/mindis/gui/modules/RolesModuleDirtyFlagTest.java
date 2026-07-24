@@ -4,9 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javafx.application.Platform;
-import javafx.embed.swing.JFXPanel;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableView;
@@ -104,8 +104,12 @@ class RolesModuleDirtyFlagTest {
         return null;
     }
 
+    private static final AtomicBoolean FX_STARTED = new AtomicBoolean(false);
+
     private static void runOnFxThreadAndWait(Runnable body) throws Exception {
-        new JFXPanel(); // initializes the JavaFX toolkit
+        if (FX_STARTED.compareAndSet(false, true)) {
+            Platform.startup(() -> { });
+        }
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] error = new Throwable[1];
         Platform.runLater(() -> {
