@@ -38,7 +38,12 @@ public class TemplateRepository {
         sort(templates);
     }
 
+    /// Recurrence rules have no natural order once they are more than a
+    /// weekday, so templates sort by the fields that still do: time of day,
+    /// then location, then id for a stable order between equal rows.
     private static void sort(List<ServiceTemplate> list) {
-        list.sort(Comparator.comparing(ServiceTemplate::dayOfWeek).thenComparing(ServiceTemplate::time));
+        list.sort(Comparator.comparing(ServiceTemplate::time)
+                .thenComparing(ServiceTemplate::location)
+                .thenComparing(ServiceTemplate::id));
     }
 }

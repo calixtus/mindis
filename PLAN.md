@@ -582,6 +582,27 @@ vs. JIT is acceptable. Same release pipeline ships both artifacts.
   widened to the 240-300px UX band (#1) and an accent bar on the active entry for
   color-independent highlighting (#7).
 
+- **Recurrence rules for service templates (2026-07-29):** a template's date pattern is no
+  longer a single `DayOfWeek` but a `RecurrenceRule` — a sealed interface of immutable records
+  over one method, `boolean matches(LocalDate)`. Atoms: weekday, day-of-month (negative counts
+  from the month's end), n-th weekday of month (±1..5), month filter, fixed month-day, fixed
+  date, every-n days/weeks/months (anchored, ISO weeks), feast-relative. Combined with
+  `AllOf`/`AnyOf`/`Not` instead of by special cases, so "every third Sunday", "every other
+  Sunday", "every 13th", "the Saturday before Advent 1" and "every Sunday except Easter" are
+  all the same three-line vocabulary. Dates are never clamped: a 31st simply does not occur in
+  a 30-day month. Feast days (`LiturgicalDay` + `LiturgicalCalendar`) cover the Easter cycle
+  (Meeus/Jones/Butcher Easter, checked against a published date table), the Advent Sundays and
+  a few German-usage days (Erntedank, Buß- und Bettag, Totensonntag); every liturgical date is
+  a pure function of the year, which is why rules need no calendar context passed in.
+  Two serialized forms, both outside the model: `RecurrenceRuleMixin` (JSON, `kind` property,
+  in an own `persistence.json` package so downstream modules need no Jackson annotations on
+  their module path) and `RecurrenceCodec` (the one-line CSV column form,
+  `ALL(WEEKDAY:SUNDAY; NOT(FEAST:EASTER))`, all-or-nothing parsing). `ServiceGenerator` asks
+  every template per day; idempotency is unchanged. **Still open:** the Templates editor
+  offers the weekly case only and passes richer (CSV-imported) rules through untouched — the
+  full recurrence editor with a next-occurrences preview and localized rule descriptions is
+  the next step. No document migration was written: the app is unreleased.
+
 ### Future (explicitly out of scope for M0–M7): `mindis-web`
 
 Browser UI as additional module per §2.5. Prerequisites already in place by then: UI-free core,

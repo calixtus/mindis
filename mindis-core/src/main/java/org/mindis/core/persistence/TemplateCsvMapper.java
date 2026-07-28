@@ -1,12 +1,12 @@
 package org.mindis.core.persistence;
 
-import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.List;
 
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
+import org.mindis.core.model.RecurrenceRule;
 import org.mindis.core.model.ServiceTemplate;
 import org.mindis.core.model.ServiceType;
 
@@ -25,13 +25,13 @@ public final class TemplateCsvMapper {
     }
 
     public List<String> header() {
-        return List.of("id", "dayOfWeek", "time", "durationMinutes", "location", "type", "slots");
+        return List.of("id", "recurrence", "time", "durationMinutes", "location", "type", "slots");
     }
 
     public List<String> toRow(ServiceTemplate template) {
         return List.of(
                 template.id(),
-                template.dayOfWeek().name(),
+                RecurrenceCodec.format(template.recurrence()),
                 template.time().toString(),
                 String.valueOf(template.durationMinutes()),
                 template.location(),
@@ -39,18 +39,19 @@ public final class TemplateCsvMapper {
                 RoleSlotCsv.format(template.slots(), roleRepository));
     }
 
-    /// Rows with an unparsable weekday/time are skipped; a blank id gets a fresh one.
+    /// Rows with an unparsable recurrence/time are skipped; a blank id gets a
+    /// fresh one.
     public @Nullable ServiceTemplate fromRow(List<String> row) {
-        DayOfWeek day = CsvFields.parseDayOfWeek(CsvFields.at(row, 1));
+        RecurrenceRule recurrence = RecurrenceCodec.parse(CsvFields.at(row, 1));
         LocalTime time = CsvFields.parseTime(CsvFields.at(row, 2));
-        if (day == null || time == null) {
+        if (recurrence == null || time == null) {
             return null;
         }
         String id = CsvFields.at(row, 0);
         Integer duration = CsvFields.parseInt(CsvFields.at(row, 3));
         return new ServiceTemplate(
                 id.isEmpty() ? ServiceTemplate.newId() : id,
-                day,
+                recurrence,
                 time,
                 duration == null ? DEFAULT_DURATION_MINUTES : duration,
                 CsvFields.at(row, 4),

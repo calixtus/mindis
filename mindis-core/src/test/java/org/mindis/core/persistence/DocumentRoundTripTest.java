@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.Month;
 import java.util.List;
 import java.util.Set;
 
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mindis.core.model.ArchivedService;
 import org.mindis.core.model.CollectionMeta;
 import org.mindis.core.model.LiturgicalService;
+import org.mindis.core.model.RecurrenceRule;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.Server;
@@ -49,7 +51,9 @@ class DocumentRoundTripTest {
                 List.of(new UnavailabilityPeriod(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 15))),
                 Set.of(LocalTime.of(10, 0)), true, true);
         Role role = new Role(Role.newId(), "Thurifer", 14, 99, 50);
-        ServiceTemplate template = new ServiceTemplate(ServiceTemplate.newId(), DayOfWeek.SUNDAY,
+        ServiceTemplate template = new ServiceTemplate(ServiceTemplate.newId(),
+                RecurrenceRule.allOf(RecurrenceRule.nthWeekdayOfMonth(3, DayOfWeek.SUNDAY),
+                        RecurrenceRule.not(RecurrenceRule.fixedMonthDay(Month.DECEMBER, 25))),
                 LocalTime.of(10, 0), 60, "St. Mary", ServiceType.SUNDAY_MASS,
                 List.of(new RoleSlot(Role.ACOLYTE, 2)));
         LiturgicalService service = new LiturgicalService(

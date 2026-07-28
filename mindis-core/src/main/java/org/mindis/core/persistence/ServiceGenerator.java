@@ -11,7 +11,11 @@ import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.ServiceTemplate;
 import org.mindis.core.model.Slot;
 
-/// Expands recurring templates into concrete services for a date range.
+/// Expands recurring templates into concrete services for a date range by
+/// asking every template's {@link org.mindis.core.model.RecurrenceRule} about
+/// every day of the range - the rules are pure date predicates, so no
+/// per-rule iteration strategy is needed.
+///
 /// Occurrences that collide with an existing service (same date-time and
 /// location) are skipped, so re-generating a range is idempotent.
 public final class ServiceGenerator {
@@ -31,7 +35,7 @@ public final class ServiceGenerator {
         List<LiturgicalService> generated = new ArrayList<>();
         for (LocalDate date = from; !date.isAfter(toInclusive); date = date.plusDays(1)) {
             for (ServiceTemplate template : templates) {
-                if (template.dayOfWeek() != date.getDayOfWeek()) {
+                if (!template.occursOn(date)) {
                     continue;
                 }
                 LocalDateTime dateTime = date.atTime(template.time());

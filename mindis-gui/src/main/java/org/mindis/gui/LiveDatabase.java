@@ -207,7 +207,7 @@ public final class LiveDatabase {
     }
 
     private static boolean sameTemplate(ServiceTemplate a, ServiceTemplate b) {
-        return a.dayOfWeek() == b.dayOfWeek()
+        return a.recurrence().equals(b.recurrence())
                 && a.time().equals(b.time())
                 && a.durationMinutes() == b.durationMinutes()
                 && a.location().equals(b.location())

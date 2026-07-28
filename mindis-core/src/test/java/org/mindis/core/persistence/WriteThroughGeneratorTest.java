@@ -19,13 +19,13 @@ class WriteThroughGeneratorTest {
     void unsavedTemplateEditIsVisibleToGenerateFromTemplates() {
         TemplateRepository repository = new TemplateRepository();
 
-        ServiceTemplate original = new ServiceTemplate(ServiceTemplate.newId(), DayOfWeek.SUNDAY,
+        ServiceTemplate original = ServiceTemplate.weekly(ServiceTemplate.newId(), DayOfWeek.SUNDAY,
                 LocalTime.of(10, 0), 60, "St. Mary", ServiceType.SUNDAY_MASS, List.of());
         repository.save(original);
 
         // Edit staged only - never saved to a document - same as an unsaved
         // live edit in the GUI.
-        ServiceTemplate edited = new ServiceTemplate(original.id(), original.dayOfWeek(), original.time(),
+        ServiceTemplate edited = new ServiceTemplate(original.id(), original.recurrence(), original.time(),
                 original.durationMinutes(), original.location(), ServiceType.FEAST, original.slots());
         repository.save(edited);
 

@@ -33,6 +33,7 @@ import com.dlsc.gemsfx.TimePicker;
 
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
+import org.mindis.core.model.RecurrenceRule;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.ServiceTemplate;
@@ -46,11 +47,14 @@ import org.mindis.workbench.CrudModule;
 import org.mindis.workbench.CsvRowMapper;
 import org.mindis.workbench.LiveStore;
 
-/// Weekly recurring service templates ("every Sunday 10:00 at St. Mary"),
-/// expanded into concrete services from the Services module.
+/// Recurring service templates ("every Sunday 10:00 at St. Mary"), expanded
+/// into concrete services from the Services module.
 ///
-/// <p>Weekly-only for now; month/year/feast-day template types are a planned
-/// extension of this module (see PLAN.md).
+/// <p>The model behind a template is a full
+/// {@link org.mindis.core.model.RecurrenceRule} (monthly, yearly and combined
+/// patterns included); this editor still only offers the weekly case and
+/// passes richer rules - importable via CSV - through unchanged. The editor
+/// for them is the next step (see PLAN.md).
 public class TemplatesModule extends CrudModule<ServiceTemplate> {
 
     private static final double EDITOR_MIN_HEIGHT = 420;
@@ -64,10 +68,10 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         this.viewModel = new TemplatesViewModel(roleRepository);
         this.roleStore = roleStore;
 
-        TableColumn<ServiceTemplate, String> dayColumn = new TableColumn<>(Localization.lang("Weekday"));
-        dayColumn.setPrefWidth(110);
+        TableColumn<ServiceTemplate, String> dayColumn = new TableColumn<>(Localization.lang("Recurrence"));
+        dayColumn.setPrefWidth(160);
         dayColumn.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().dayOfWeek().getDisplayName(TextStyle.FULL, Locale.getDefault())));
+                TemplatesViewModel.describe(data.getValue().recurrence())));
 
         TableColumn<ServiceTemplate, String> timeColumn = new TableColumn<>(Localization.lang("Time"));
         timeColumn.setPrefWidth(70);
@@ -127,7 +131,14 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
                 return null;
             }
         });
-        dayBox.getSelectionModel().select(template.dayOfWeek());
+        // A rule the weekday box cannot express (an imported "third Sunday",
+        // say) leaves the box empty and is carried through edits untouched
+        // instead of being flattened into a weekly one - see
+        // TemplatesViewModel#simpleWeekday. The full recurrence editor
+        // replaces this box in a later milestone.
+        RecurrenceRule[] recurrence = {template.recurrence()};
+        dayBox.setDisable(TemplatesViewModel.simpleWeekday(template.recurrence()) == null);
+        dayBox.getSelectionModel().select(TemplatesViewModel.simpleWeekday(template.recurrence()));
 
         TimePicker timeField = TimePickers.create();
         timeField.setTime(template.time());
@@ -188,10 +199,13 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
             }
             DayOfWeek day = dayBox.getValue();
             LocalTime time = timeField.getTime();
-            if (day == null || time == null) {
+            if (time == null) {
                 return;
             }
-            updateLive(new ServiceTemplate(template.id(), day, time, template.durationMinutes(),
+            if (day != null) {
+                recurrence[0] = RecurrenceRule.weekly(day);
+            }
+            updateLive(new ServiceTemplate(template.id(), recurrence[0], time, template.durationMinutes(),
                     locationField.getText().strip(),
                     typeBox.getValue() == null ? ServiceType.SUNDAY_MASS : typeBox.getValue(),
                     toRoleSlots(slotsEditor.collectCounts())));
@@ -211,7 +225,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         fieldColumn.setHgrow(Priority.ALWAYS);
         grid.getColumnConstraints().addAll(labelColumn, fieldColumn);
 
-        Label dayLabel = new Label(Localization.lang("Weekday"));
+        Label dayLabel = new Label(Localization.lang("Recurrence"));
         Label timeLabel = new Label(Localization.lang("Time"));
         Label typeLabel = new Label(Localization.lang("Type"));
         Label locationLabel = new Label(Localization.lang("Location"));
@@ -234,7 +248,8 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         VBox content = new VBox(10, grid);
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
-        markDirtyOnChange(dayBox.getSelectionModel().selectedItemProperty(), () -> baselineSupplier.get().dayOfWeek(), dayLabel);
+        markDirtyOnChange(dayBox.getSelectionModel().selectedItemProperty(),
+                () -> TemplatesViewModel.simpleWeekday(baselineSupplier.get().recurrence()), dayLabel);
         markDirtyOnChange(timeField.timeProperty(), () -> baselineSupplier.get().time(), timeLabel);
         markDirtyOnChange(typeBox.getSelectionModel().selectedItemProperty(), () -> baselineSupplier.get().type(), typeLabel);
         markDirtyOnChange(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
@@ -245,7 +260,9 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         return new EditorBinding<>(content, updated -> {
             suppressPushLive[0] = true;
             try {
-                dayBox.getSelectionModel().select(updated.dayOfWeek());
+                recurrence[0] = updated.recurrence();
+                dayBox.setDisable(TemplatesViewModel.simpleWeekday(updated.recurrence()) == null);
+                dayBox.getSelectionModel().select(TemplatesViewModel.simpleWeekday(updated.recurrence()));
                 timeField.setTime(updated.time());
                 typeBox.getSelectionModel().select(updated.type());
                 locationField.setText(updated.location());
@@ -257,7 +274,8 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
             // displays (a Save moves the baseline, not the live value),
             // so their own listeners may not have fired - recompute
             // explicitly rather than relying on one.
-            recomputeFieldChanged(dayBox.getSelectionModel().selectedItemProperty(), () -> baselineSupplier.get().dayOfWeek(), dayLabel);
+            recomputeFieldChanged(dayBox.getSelectionModel().selectedItemProperty(),
+                    () -> TemplatesViewModel.simpleWeekday(baselineSupplier.get().recurrence()), dayLabel);
             recomputeFieldChanged(timeField.timeProperty(), () -> baselineSupplier.get().time(), timeLabel);
             recomputeFieldChanged(typeBox.getSelectionModel().selectedItemProperty(), () -> baselineSupplier.get().type(), typeLabel);
             recomputeFieldChanged(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
