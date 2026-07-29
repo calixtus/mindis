@@ -598,10 +598,14 @@ vs. JIT is acceptable. Same release pipeline ships both artifacts.
   in an own `persistence.json` package so downstream modules need no Jackson annotations on
   their module path) and `RecurrenceCodec` (the one-line CSV column form,
   `ALL(WEEKDAY:SUNDAY; NOT(FEAST:EASTER))`, all-or-nothing parsing). `ServiceGenerator` asks
-  every template per day; idempotency is unchanged. **Still open:** the Templates editor
-  offers the weekly case only and passes richer (CSV-imported) rules through untouched — the
-  full recurrence editor with a next-occurrences preview and localized rule descriptions is
-  the next step. No document migration was written: the app is unreleased.
+  every template per day; idempotency is unchanged. The Templates editor is a
+  `RecurrenceEditor`: a mode picker (weekly / monthly / yearly / feast day / custom) with that
+  mode's fields, a plain-language summary (`RecurrenceText`, localized, also the table column)
+  and a preview of the next five dates (`RecurrenceRule#nextOccurrences`, bounded to a
+  ten-year search). Reading a rule back into the fields only recognizes the shapes the guided
+  modes build; anything else opens in the custom mode with its exact text, which round-trips
+  losslessly instead of being flattened. No document migration was written: the app is
+  unreleased.
 
 ### Future (explicitly out of scope for M0–M7): `mindis-web`
 

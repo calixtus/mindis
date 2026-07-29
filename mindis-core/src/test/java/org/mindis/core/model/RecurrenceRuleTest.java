@@ -163,6 +163,19 @@ class RecurrenceRuleTest {
     }
 
     @Test
+    void nextOccurrencesPreviewsWhatATemplateWouldGenerate() {
+        RecurrenceRule rule = RecurrenceRule.nthWeekdayOfMonth(3, DayOfWeek.SUNDAY);
+
+        assertEquals(List.of(LocalDate.of(2026, 7, 19), LocalDate.of(2026, 8, 16), LocalDate.of(2026, 9, 20)),
+                rule.nextOccurrences(LocalDate.of(2026, 7, 1), 3));
+    }
+
+    @Test
+    void nextOccurrencesTerminatesOnARuleThatMatchesNothing() {
+        assertEquals(List.of(), RecurrenceRule.NEVER.nextOccurrences(LocalDate.of(2026, 7, 1), 5));
+    }
+
+    @Test
     void neverMatchesNothing() {
         assertFalse(RecurrenceRule.NEVER.matches(LocalDate.of(2026, 7, 5)));
     }

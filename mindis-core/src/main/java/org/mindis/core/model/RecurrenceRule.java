@@ -41,9 +41,26 @@ public sealed interface RecurrenceRule {
     /// instead of throwing during generation.
     RecurrenceRule NEVER = new Never();
 
+    /// How far {@link #nextOccurrences} looks ahead before giving up. A rule
+    /// may match nothing at all ({@link Never}, or a combination that cancels
+    /// itself out), so the search has to be bounded; ten years is far beyond
+    /// any planning horizon a preview needs.
+    int SEARCH_HORIZON_YEARS = 10;
+
     /// True if a service occurs on {@code date}. Must be side-effect free and
     /// depend on nothing but the date itself.
     boolean matches(LocalDate date);
+
+    /// The first {@code limit} dates this rule matches on or after
+    /// {@code from}, for a preview of what a template will generate. Fewer
+    /// than {@code limit} dates - possibly none - if the rule runs out within
+    /// {@link #SEARCH_HORIZON_YEARS}.
+    default List<LocalDate> nextOccurrences(LocalDate from, int limit) {
+        return from.datesUntil(from.plusYears(SEARCH_HORIZON_YEARS))
+                .filter(this::matches)
+                .limit(limit)
+                .toList();
+    }
 
     static RecurrenceRule weekly(DayOfWeek... days) {
         return new Weekday(Set.of(days));

@@ -1,11 +1,8 @@
 package org.mindis.gui.modules;
 
-import java.time.DayOfWeek;
 import java.time.LocalTime;
-import java.time.format.TextStyle;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
@@ -33,7 +30,7 @@ import com.dlsc.gemsfx.TimePicker;
 
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
-import org.mindis.core.model.RecurrenceRule;
+import org.mindis.core.l10n.RecurrenceText;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.ServiceTemplate;
@@ -50,11 +47,10 @@ import org.mindis.workbench.LiveStore;
 /// Recurring service templates ("every Sunday 10:00 at St. Mary"), expanded
 /// into concrete services from the Services module.
 ///
-/// <p>The model behind a template is a full
-/// {@link org.mindis.core.model.RecurrenceRule} (monthly, yearly and combined
-/// patterns included); this editor still only offers the weekly case and
-/// passes richer rules - importable via CSV - through unchanged. The editor
-/// for them is the next step (see PLAN.md).
+/// <p>A template's date pattern is a full
+/// {@link org.mindis.core.model.RecurrenceRule}, edited through
+/// {@link RecurrenceEditor} (weekly, monthly, yearly, feast-day or a rule
+/// written out in text) and shown in the table as localized prose.
 public class TemplatesModule extends CrudModule<ServiceTemplate> {
 
     private static final double EDITOR_MIN_HEIGHT = 420;
@@ -71,7 +67,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         TableColumn<ServiceTemplate, String> dayColumn = new TableColumn<>(Localization.lang("Recurrence"));
         dayColumn.setPrefWidth(160);
         dayColumn.setCellValueFactory(data -> new SimpleStringProperty(
-                TemplatesViewModel.describe(data.getValue().recurrence())));
+                RecurrenceText.describe(data.getValue().recurrence())));
 
         TableColumn<ServiceTemplate, String> timeColumn = new TableColumn<>(Localization.lang("Time"));
         timeColumn.setPrefWidth(70);
@@ -119,26 +115,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         // CrudModule#markDirtyOnChange.
         Supplier<ServiceTemplate> baselineSupplier = () -> Objects.requireNonNullElse(savedSnapshot(template), template);
 
-        ComboBox<DayOfWeek> dayBox = new ComboBox<>(FXCollections.observableArrayList(DayOfWeek.values()));
-        dayBox.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(@Nullable DayOfWeek day) {
-                return day == null ? "" : day.getDisplayName(TextStyle.FULL, Locale.getDefault());
-            }
-
-            @Override
-            public @Nullable DayOfWeek fromString(@Nullable String string) {
-                return null;
-            }
-        });
-        // A rule the weekday box cannot express (an imported "third Sunday",
-        // say) leaves the box empty and is carried through edits untouched
-        // instead of being flattened into a weekly one - see
-        // TemplatesViewModel#simpleWeekday. The full recurrence editor
-        // replaces this box in a later milestone.
-        RecurrenceRule[] recurrence = {template.recurrence()};
-        dayBox.setDisable(TemplatesViewModel.simpleWeekday(template.recurrence()) == null);
-        dayBox.getSelectionModel().select(TemplatesViewModel.simpleWeekday(template.recurrence()));
+        RecurrenceEditor recurrenceEditor = new RecurrenceEditor(template.recurrence());
 
         TimePicker timeField = TimePickers.create();
         timeField.setTime(template.time());
@@ -197,21 +174,17 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
             if (suppressPushLive[0]) {
                 return;
             }
-            DayOfWeek day = dayBox.getValue();
             LocalTime time = timeField.getTime();
             if (time == null) {
                 return;
             }
-            if (day != null) {
-                recurrence[0] = RecurrenceRule.weekly(day);
-            }
-            updateLive(new ServiceTemplate(template.id(), recurrence[0], time, template.durationMinutes(),
+            updateLive(new ServiceTemplate(template.id(), recurrenceEditor.rule(), time, template.durationMinutes(),
                     locationField.getText().strip(),
                     typeBox.getValue() == null ? ServiceType.SUNDAY_MASS : typeBox.getValue(),
                     toRoleSlots(slotsEditor.collectCounts())));
         };
         pushLiveHolder[0] = pushLive;
-        dayBox.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        recurrenceEditor.ruleProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
         timeField.timeProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
         typeBox.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
         locationField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
@@ -231,8 +204,9 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         Label locationLabel = new Label(Localization.lang("Location"));
 
         int row = 0;
+        GridPane.setValignment(dayLabel, VPos.TOP);
         grid.add(dayLabel, 0, row);
-        grid.add(dayBox, 1, row++);
+        grid.add(recurrenceEditor.node(), 1, row++);
         grid.add(timeLabel, 0, row);
         grid.add(timeField, 1, row++);
         grid.add(typeLabel, 0, row);
@@ -248,8 +222,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         VBox content = new VBox(10, grid);
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
-        markDirtyOnChange(dayBox.getSelectionModel().selectedItemProperty(),
-                () -> TemplatesViewModel.simpleWeekday(baselineSupplier.get().recurrence()), dayLabel);
+        markDirtyOnChange(recurrenceEditor.ruleProperty(), () -> baselineSupplier.get().recurrence(), dayLabel);
         markDirtyOnChange(timeField.timeProperty(), () -> baselineSupplier.get().time(), timeLabel);
         markDirtyOnChange(typeBox.getSelectionModel().selectedItemProperty(), () -> baselineSupplier.get().type(), typeLabel);
         markDirtyOnChange(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
@@ -260,9 +233,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         return new EditorBinding<>(content, updated -> {
             suppressPushLive[0] = true;
             try {
-                recurrence[0] = updated.recurrence();
-                dayBox.setDisable(TemplatesViewModel.simpleWeekday(updated.recurrence()) == null);
-                dayBox.getSelectionModel().select(TemplatesViewModel.simpleWeekday(updated.recurrence()));
+                recurrenceEditor.setRule(updated.recurrence());
                 timeField.setTime(updated.time());
                 typeBox.getSelectionModel().select(updated.type());
                 locationField.setText(updated.location());
@@ -274,8 +245,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
             // displays (a Save moves the baseline, not the live value),
             // so their own listeners may not have fired - recompute
             // explicitly rather than relying on one.
-            recomputeFieldChanged(dayBox.getSelectionModel().selectedItemProperty(),
-                    () -> TemplatesViewModel.simpleWeekday(baselineSupplier.get().recurrence()), dayLabel);
+            recomputeFieldChanged(recurrenceEditor.ruleProperty(), () -> baselineSupplier.get().recurrence(), dayLabel);
             recomputeFieldChanged(timeField.timeProperty(), () -> baselineSupplier.get().time(), timeLabel);
             recomputeFieldChanged(typeBox.getSelectionModel().selectedItemProperty(), () -> baselineSupplier.get().type(), typeLabel);
             recomputeFieldChanged(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
