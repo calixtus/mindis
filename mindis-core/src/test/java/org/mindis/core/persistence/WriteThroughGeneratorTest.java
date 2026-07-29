@@ -25,7 +25,7 @@ class WriteThroughGeneratorTest {
 
         // Edit staged only - never saved to a document - same as an unsaved
         // live edit in the GUI.
-        ServiceTemplate edited = new ServiceTemplate(original.id(), original.recurrence(), original.time(),
+        ServiceTemplate edited = new ServiceTemplate(original.id(), original.schedule(), original.time(),
                 original.durationMinutes(), original.location(), ServiceType.FEAST, original.slots());
         repository.save(edited);
 

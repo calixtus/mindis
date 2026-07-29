@@ -6,6 +6,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.Month;
 import java.util.Locale;
+import java.util.Set;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import org.mindis.core.model.LiturgicalDay;
 import org.mindis.core.model.RecurrenceRule;
+import org.mindis.core.model.ServiceSchedule;
 
 /// Pins the English wording; the point is that every rule shape produces a
 /// sentence rather than syntax, including nested composites.
@@ -89,6 +91,22 @@ class RecurrenceTextTest {
                 RecurrenceText.describe(RecurrenceRule.fixedMonthDay(Month.DECEMBER, 24)));
         assertEquals("On 2026-04-05", RecurrenceText.describe(new RecurrenceRule.FixedDay(LocalDate.of(2026, 4, 5))));
         assertEquals("In October", RecurrenceText.describe(RecurrenceRule.inMonths(Month.OCTOBER)));
+    }
+
+    @Test
+    void aScheduleAddsItsWindowAndCancellationsToThePattern() {
+        ServiceSchedule schedule = ServiceSchedule.of(RecurrenceRule.weekly(DayOfWeek.SUNDAY));
+
+        assertEquals("Every Sunday", RecurrenceText.describe(schedule));
+        assertEquals("Every Sunday, from 2026-09-01",
+                RecurrenceText.describe(schedule.withWindow(LocalDate.of(2026, 9, 1), null)));
+        assertEquals("Every Sunday, until 2027-06-30",
+                RecurrenceText.describe(schedule.withWindow(null, LocalDate.of(2027, 6, 30))));
+        assertEquals("Every Sunday, from 2026-09-01 until 2027-06-30",
+                RecurrenceText.describe(schedule.withWindow(LocalDate.of(2026, 9, 1), LocalDate.of(2027, 6, 30))));
+        assertEquals("Every Sunday, 2 dates skipped",
+                RecurrenceText.describe(schedule.withSkipDates(
+                        Set.of(LocalDate.of(2026, 8, 2), LocalDate.of(2026, 8, 9)))));
     }
 
     @Test

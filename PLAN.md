@@ -604,8 +604,15 @@ vs. JIT is acceptable. Same release pipeline ships both artifacts.
   and a preview of the next five dates (`RecurrenceRule#nextOccurrences`, bounded to a
   ten-year search). Reading a rule back into the fields only recognizes the shapes the guided
   modes build; anything else opens in the custom mode with its exact text, which round-trips
-  losslessly instead of being flattened. No document migration was written: the app is
-  unreleased.
+  losslessly instead of being flattened. A template's "when" is a `ServiceSchedule` — the rule
+  plus a validity window (both bounds inclusive, either side open) plus individual skipped
+  dates — so pausing a template over the summer or cancelling one occurrence never touches the
+  pattern; encoding those as `Not(FixedDay(...))` would work but would make the rule
+  unreadable and unrepresentable in the guided modes. Skipped dates are stored sorted so that
+  saving an unchanged document produces an unchanged file. No document migration was written:
+  the app is unreleased. **Not built:** ICS/RRULE export — `PlanExportDocument` is a
+  text-flattened view with no date, duration or location left on it, so a calendar export
+  needs its own pipeline off `LiturgicalService` rather than a sixth `PlanExporter`.
 
 ### Future (explicitly out of scope for M0–M7): `mindis-web`
 

@@ -8,11 +8,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.RecurrenceRule;
+import org.mindis.core.model.ServiceSchedule;
 import org.mindis.core.model.ServiceTemplate;
 import org.mindis.core.model.ServiceType;
 
@@ -56,6 +58,20 @@ class ServiceGeneratorTest {
     }
 
     @Test
+    void generationHonoursTheScheduleWindowAndItsSkippedDates() {
+        ServiceTemplate template = new ServiceTemplate(ServiceTemplate.newId(),
+                new ServiceSchedule(RecurrenceRule.weekly(DayOfWeek.SUNDAY),
+                        LocalDate.of(2026, 7, 10), LocalDate.of(2026, 7, 26),
+                        Set.of(LocalDate.of(2026, 7, 19))),
+                LocalTime.of(10, 0), 60, "St. Mary", ServiceType.SUNDAY_MASS, List.of());
+
+        List<LiturgicalService> generated = generate(template, LocalDate.of(2026, 7, 1), LocalDate.of(2026, 8, 31));
+
+        assertEquals(List.of(LocalDateTime.of(2026, 7, 12, 10, 0), LocalDateTime.of(2026, 7, 26, 10, 0)),
+                generated.stream().map(LiturgicalService::dateTime).sorted().toList());
+    }
+
+    @Test
     void aTemplateWithoutAUsableRuleGeneratesNothing() {
         List<LiturgicalService> generated = generate(template(RecurrenceRule.NEVER),
                 LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31));
@@ -64,7 +80,7 @@ class ServiceGeneratorTest {
     }
 
     private static ServiceTemplate template(RecurrenceRule recurrence) {
-        return new ServiceTemplate(ServiceTemplate.newId(), recurrence, LocalTime.of(10, 0), 60,
+        return new ServiceTemplate(ServiceTemplate.newId(), ServiceSchedule.of(recurrence), LocalTime.of(10, 0), 60,
                 "St. Mary", ServiceType.SUNDAY_MASS, List.of());
     }
 

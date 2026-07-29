@@ -48,8 +48,8 @@ import org.mindis.workbench.LiveStore;
 /// into concrete services from the Services module.
 ///
 /// <p>A template's date pattern is a full
-/// {@link org.mindis.core.model.RecurrenceRule}, edited through
-/// {@link RecurrenceEditor} (weekly, monthly, yearly, feast-day or a rule
+/// {@link org.mindis.core.model.ServiceSchedule}, edited through
+/// {@link ScheduleEditor} (weekly, monthly, yearly, feast-day or a rule
 /// written out in text) and shown in the table as localized prose.
 public class TemplatesModule extends CrudModule<ServiceTemplate> {
 
@@ -67,7 +67,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         TableColumn<ServiceTemplate, String> dayColumn = new TableColumn<>(Localization.lang("Recurrence"));
         dayColumn.setPrefWidth(160);
         dayColumn.setCellValueFactory(data -> new SimpleStringProperty(
-                RecurrenceText.describe(data.getValue().recurrence())));
+                RecurrenceText.describe(data.getValue().schedule())));
 
         TableColumn<ServiceTemplate, String> timeColumn = new TableColumn<>(Localization.lang("Time"));
         timeColumn.setPrefWidth(70);
@@ -115,7 +115,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         // CrudModule#markDirtyOnChange.
         Supplier<ServiceTemplate> baselineSupplier = () -> Objects.requireNonNullElse(savedSnapshot(template), template);
 
-        RecurrenceEditor recurrenceEditor = new RecurrenceEditor(template.recurrence());
+        ScheduleEditor scheduleEditor = new ScheduleEditor(template.schedule());
 
         TimePicker timeField = TimePickers.create();
         timeField.setTime(template.time());
@@ -178,13 +178,13 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
             if (time == null) {
                 return;
             }
-            updateLive(new ServiceTemplate(template.id(), recurrenceEditor.rule(), time, template.durationMinutes(),
+            updateLive(new ServiceTemplate(template.id(), scheduleEditor.schedule(), time, template.durationMinutes(),
                     locationField.getText().strip(),
                     typeBox.getValue() == null ? ServiceType.SUNDAY_MASS : typeBox.getValue(),
                     toRoleSlots(slotsEditor.collectCounts())));
         };
         pushLiveHolder[0] = pushLive;
-        recurrenceEditor.ruleProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        scheduleEditor.scheduleProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
         timeField.timeProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
         typeBox.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
         locationField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
@@ -206,7 +206,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         int row = 0;
         GridPane.setValignment(dayLabel, VPos.TOP);
         grid.add(dayLabel, 0, row);
-        grid.add(recurrenceEditor.node(), 1, row++);
+        grid.add(scheduleEditor.node(), 1, row++);
         grid.add(timeLabel, 0, row);
         grid.add(timeField, 1, row++);
         grid.add(typeLabel, 0, row);
@@ -222,7 +222,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         VBox content = new VBox(10, grid);
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
-        markDirtyOnChange(recurrenceEditor.ruleProperty(), () -> baselineSupplier.get().recurrence(), dayLabel);
+        markDirtyOnChange(scheduleEditor.scheduleProperty(), () -> baselineSupplier.get().schedule(), dayLabel);
         markDirtyOnChange(timeField.timeProperty(), () -> baselineSupplier.get().time(), timeLabel);
         markDirtyOnChange(typeBox.getSelectionModel().selectedItemProperty(), () -> baselineSupplier.get().type(), typeLabel);
         markDirtyOnChange(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
@@ -233,7 +233,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         return new EditorBinding<>(content, updated -> {
             suppressPushLive[0] = true;
             try {
-                recurrenceEditor.setRule(updated.recurrence());
+                scheduleEditor.setSchedule(updated.schedule());
                 timeField.setTime(updated.time());
                 typeBox.getSelectionModel().select(updated.type());
                 locationField.setText(updated.location());
@@ -245,7 +245,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
             // displays (a Save moves the baseline, not the live value),
             // so their own listeners may not have fired - recompute
             // explicitly rather than relying on one.
-            recomputeFieldChanged(recurrenceEditor.ruleProperty(), () -> baselineSupplier.get().recurrence(), dayLabel);
+            recomputeFieldChanged(scheduleEditor.scheduleProperty(), () -> baselineSupplier.get().schedule(), dayLabel);
             recomputeFieldChanged(timeField.timeProperty(), () -> baselineSupplier.get().time(), timeLabel);
             recomputeFieldChanged(typeBox.getSelectionModel().selectedItemProperty(), () -> baselineSupplier.get().type(), typeLabel);
             recomputeFieldChanged(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);

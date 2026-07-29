@@ -11,6 +11,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.mindis.core.model.RecurrenceRule;
+import org.mindis.core.model.ServiceSchedule;
 
 /// Localized one-line descriptions of a {@link RecurrenceRule} - "Every third
 /// Sunday of the month", "Easter Sunday minus 2 days" - for the templates
@@ -23,6 +24,25 @@ import org.mindis.core.model.RecurrenceRule;
 public final class RecurrenceText {
 
     private RecurrenceText() {
+    }
+
+    /// The whole schedule: its pattern, then the window it applies in and how
+    /// many single dates are dropped from it - the parts a bare rule
+    /// description would silently leave out.
+    public static String describe(ServiceSchedule schedule) {
+        StringBuilder text = new StringBuilder(describe(schedule.rule()));
+        if (schedule.validFrom() != null && schedule.validUntil() != null) {
+            text.append(", ").append(Localization.lang("from %0 until %1",
+                    schedule.validFrom(), schedule.validUntil()));
+        } else if (schedule.validFrom() != null) {
+            text.append(", ").append(Localization.lang("from %0", schedule.validFrom()));
+        } else if (schedule.validUntil() != null) {
+            text.append(", ").append(Localization.lang("until %0", schedule.validUntil()));
+        }
+        if (!schedule.skipDates().isEmpty()) {
+            text.append(", ").append(Localization.lang("%0 dates skipped", schedule.skipDates().size()));
+        }
+        return text.toString();
     }
 
     public static String describe(RecurrenceRule rule) {

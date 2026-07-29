@@ -5,12 +5,14 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.time.format.TextStyle;
 import java.time.temporal.WeekFields;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -20,6 +22,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.geometry.Pos;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -28,6 +31,8 @@ import javafx.scene.control.Spinner;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.control.Tooltip;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
@@ -42,12 +47,13 @@ import org.mindis.core.l10n.Localization;
 import org.mindis.core.l10n.RecurrenceText;
 import org.mindis.core.model.LiturgicalDay;
 import org.mindis.core.model.RecurrenceRule;
+import org.mindis.core.model.ServiceSchedule;
 import org.mindis.core.persistence.RecurrenceCodec;
 import org.mindis.gui.util.CalendarPickers;
 
-/// Editor for a {@link RecurrenceRule}: a mode picker plus the fields that
-/// mode needs, a plain-language summary and a preview of the next dates the
-/// rule produces.
+/// Editor for a {@link ServiceSchedule}: the pattern (a mode picker plus that
+/// mode's fields), the window it applies in, the dates dropped from it, a
+/// plain-language summary and a preview of the next dates it produces.
 ///
 /// <p>The four guided modes cover what a parish schedules ("every other
 /// Sunday", "the third Sunday of the month", "the first Sunday of October",
@@ -60,14 +66,15 @@ import org.mindis.gui.util.CalendarPickers;
 /// normalize arbitrary rule trees into fields, anything else opens in CUSTOM
 /// with its exact text - which round-trips losslessly - instead of being
 /// silently flattened into something the fields can hold.
-final class RecurrenceEditor {
+final class ScheduleEditor {
 
     private static final int PREVIEW_COUNT = 5;
     private static final int MAX_INTERVAL = 12;
     private static final int MAX_FEAST_OFFSET_DAYS = 90;
     private static final List<Integer> ORDINALS = List.of(1, 2, 3, 4, 5, -1);
 
-    private final ObjectProperty<RecurrenceRule> rule = new SimpleObjectProperty<>(RecurrenceRule.NEVER);
+    private final ObjectProperty<ServiceSchedule> schedule =
+            new SimpleObjectProperty<>(ServiceSchedule.of(RecurrenceRule.NEVER));
     private final VBox root = new VBox(8);
     private final VBox modeBody = new VBox(8);
     private final Label summary = new Label();
@@ -105,13 +112,21 @@ final class RecurrenceEditor {
     private final TextField customText = new TextField();
     private final CheckBox customValid = new CheckBox();
 
-    /// Guards every control listener while {@link #setRule} pushes an
-    /// externally changed rule into the fields, so that seeding the controls
-    /// cannot rebuild (and thereby round off) the very rule being seeded.
+    private final CalendarPicker validFrom = CalendarPickers.create();
+    private final CalendarPicker validUntil = CalendarPickers.create();
+    private final CalendarPicker skipDatePicker = CalendarPickers.create();
+    private final Button addSkipDate = new Button(Localization.lang("Skip this date"));
+    private final FlowPane skipDateChips = new FlowPane(6, 6);
+    private final Set<LocalDate> skipDates = new TreeSet<>();
+
+    /// Guards every control listener while {@link #setSchedule} pushes an
+    /// externally changed schedule into the fields, so that seeding the
+    /// controls cannot rebuild (and thereby round off) the very schedule
+    /// being seeded.
     private boolean seeding;
 
-    RecurrenceEditor(RecurrenceRule initial) {
-        modeBox.setConverter(converter(RecurrenceEditor::modeLabel));
+    ScheduleEditor(ServiceSchedule initial) {
+        modeBox.setConverter(converter(ScheduleEditor::modeLabel));
         summary.setWrapText(true);
         preview.setWrapText(true);
         preview.getStyleClass().add("text-muted");
@@ -123,7 +138,13 @@ final class RecurrenceEditor {
         buildWeeklyControls();
         buildMonthlyControls();
         buildYearlyControls();
-        root.getChildren().addAll(modeBox, modeBody, summary, preview);
+        addSkipDate.setOnAction(event -> addSkipDate());
+        root.getChildren().addAll(modeBox, modeBody,
+                row(new Label(Localization.lang("Valid from")), validFrom,
+                        new Label(Localization.lang("until")), validUntil),
+                row(skipDatePicker, addSkipDate),
+                skipDateChips,
+                summary, preview);
 
         modeBox.getSelectionModel().selectedItemProperty().addListener((obs, old, mode) -> {
             showMode(mode == null ? Mode.WEEKLY : mode);
@@ -134,49 +155,51 @@ final class RecurrenceEditor {
                 monthlyWeekday.valueProperty(), monthlyInterval.valueProperty(), monthlyAnchor.valueProperty(),
                 yearlyMonth.valueProperty(), yearlyKind.selectedToggleProperty(), yearlyDay.valueProperty(),
                 yearlyOrdinal.valueProperty(), yearlyWeekday.valueProperty(),
-                feastBox.valueProperty(), feastOffset.valueProperty(), customText.textProperty());
+                feastBox.valueProperty(), feastOffset.valueProperty(), customText.textProperty(),
+                validFrom.valueProperty(), validUntil.valueProperty());
         weekdayToggles.values().forEach(toggle -> onChange(toggle.selectedProperty()));
 
-        setRule(initial);
+        setSchedule(initial);
     }
 
     Region node() {
         return root;
     }
 
-    /// The rule currently described by the controls. Never null; a mode with
-    /// nothing selected yet yields {@link RecurrenceRule#NEVER}.
-    RecurrenceRule rule() {
-        return rule.get();
+    /// The schedule currently described by the controls. Never null; a mode
+    /// with nothing selected yet yields {@link RecurrenceRule#NEVER}.
+    ServiceSchedule schedule() {
+        return schedule.get();
     }
 
     /// For {@code CrudModule}'s dirty tracking and for the owning editor's
-    /// live push - fires whenever any control changes the rule.
-    ReadOnlyObjectProperty<RecurrenceRule> ruleProperty() {
-        return rule;
+    /// live push - fires whenever any control changes the schedule.
+    ReadOnlyObjectProperty<ServiceSchedule> scheduleProperty() {
+        return schedule;
     }
 
     /// Seeds the controls from {@code value} - for an {@code EditorBinding}
     /// refresh, or when the editor is first built.
-    void setRule(RecurrenceRule value) {
+    void setSchedule(ServiceSchedule value) {
         seeding = true;
         try {
             seedControls(value);
         } finally {
             seeding = false;
         }
-        rule.set(value);
+        schedule.set(value);
         describe(value);
     }
 
-    // --- rule <-> controls -------------------------------------------------
+    // --- schedule <-> controls ---------------------------------------------
 
     private void rebuild() {
         if (seeding) {
             return;
         }
-        RecurrenceRule built = buildRule();
-        rule.set(built);
+        ServiceSchedule built = new ServiceSchedule(buildRule(), validFrom.getValue(), validUntil.getValue(),
+                Set.copyOf(skipDates));
+        schedule.set(built);
         describe(built);
     }
 
@@ -235,10 +258,10 @@ final class RecurrenceEditor {
     private RecurrenceRule customRule() {
         RecurrenceRule parsed = RecurrenceCodec.parse(customText.getText());
         customValid.setSelected(parsed != null);
-        return parsed == null ? rule.get() : parsed;
+        return parsed == null ? schedule.get().rule() : parsed;
     }
 
-    private void seedControls(RecurrenceRule value) {
+    private void seedControls(ServiceSchedule value) {
         // Defaults first, so that the shape-specific seeding below only has to
         // set what it actually knows.
         weeklyInterval.getValueFactory().setValue(1);
@@ -248,20 +271,25 @@ final class RecurrenceEditor {
         yearlyMonth.setValue(Month.JANUARY);
         feastBox.setValue(LiturgicalDay.EASTER);
         feastOffset.getValueFactory().setValue(0);
-        customText.setText(RecurrenceCodec.format(value));
+        customText.setText(RecurrenceCodec.format(value.rule()));
         customValid.setSelected(true);
+        validFrom.setValue(value.validFrom());
+        validUntil.setValue(value.validUntil());
+        skipDates.clear();
+        skipDates.addAll(value.skipDates());
+        rebuildSkipDateChips();
 
-        Mode mode = seedGuidedMode(value);
+        Mode mode = seedGuidedMode(value.rule());
         modeBox.getSelectionModel().select(mode);
         showMode(mode);
     }
 
-    /// Fills the fields of whichever guided mode {@code value} corresponds to
+    /// Fills the fields of whichever guided mode {@code rule} corresponds to
     /// and returns that mode, or {@link Mode#CUSTOM} for a rule none of them
     /// can hold.
-    private Mode seedGuidedMode(RecurrenceRule value) {
-        RecurrenceRule base = value;
-        if (value instanceof RecurrenceRule.AllOf allOf && allOf.rules().size() == 2) {
+    private Mode seedGuidedMode(RecurrenceRule rule) {
+        RecurrenceRule base = rule;
+        if (rule instanceof RecurrenceRule.AllOf allOf && allOf.rules().size() == 2) {
             RecurrenceRule first = allOf.rules().getFirst();
             RecurrenceRule second = allOf.rules().getLast();
             if (second instanceof RecurrenceRule.EveryNWeeks weeks && first instanceof RecurrenceRule.Weekday) {
@@ -328,13 +356,42 @@ final class RecurrenceEditor {
                 && ORDINALS.contains(nth.ordinals().iterator().next());
     }
 
-    private void describe(RecurrenceRule value) {
+    private void describe(ServiceSchedule value) {
         summary.setText(RecurrenceText.describe(value));
         List<LocalDate> dates = value.nextOccurrences(LocalDate.now(), PREVIEW_COUNT);
         preview.setText(dates.isEmpty()
                 ? Localization.lang("No upcoming dates")
                 : Localization.lang("Next dates: %0",
                         dates.stream().map(LocalDate::toString).collect(Collectors.joining(", "))));
+    }
+
+    // --- skipped dates -----------------------------------------------------
+
+    private void addSkipDate() {
+        LocalDate date = skipDatePicker.getValue();
+        if (date == null || !skipDates.add(date)) {
+            return;
+        }
+        rebuildSkipDateChips();
+        rebuild();
+    }
+
+    /// One removable chip per skipped date - a list this short (a summer
+    /// break, a handful of cancellations) reads better inline than in a list
+    /// view.
+    private void rebuildSkipDateChips() {
+        List<Button> chips = new ArrayList<>();
+        for (LocalDate date : skipDates) {
+            Button chip = new Button(date + "  ×");
+            chip.setTooltip(new Tooltip(Localization.lang("Remove this date")));
+            chip.setOnAction(event -> {
+                skipDates.remove(date);
+                rebuildSkipDateChips();
+                rebuild();
+            });
+            chips.add(chip);
+        }
+        skipDateChips.getChildren().setAll(chips);
     }
 
     // --- layout ------------------------------------------------------------
