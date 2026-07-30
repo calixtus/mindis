@@ -25,7 +25,7 @@ import org.mindis.core.model.Role;
 /// <p>Soft constraint weights are tunable via preferences
 /// ([#defaultSoftWeights()] names the knobs); overrides are applied per
 /// solve through `ConstraintWeightOverrides` on the solution.
-public class MinDisConstraintProvider implements ConstraintProvider {
+public final class MinDisConstraintProvider implements ConstraintProvider {
 
     static final int FAIRNESS_WEIGHT = 2;
     static final int SIBLINGS_REWARD = 5;

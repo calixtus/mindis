@@ -19,7 +19,7 @@ import org.mindis.core.model.Role;
 /// empty. Their ids match the former `Role` enum constants, so data
 /// referencing those names still resolves.
 @Singleton
-public class RoleRepository {
+public final class RoleRepository {
 
     private static final int SORT_ORDER_STEP = 10;
 

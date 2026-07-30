@@ -27,6 +27,9 @@ import org.slf4j.LoggerFactory;
 ///
 /// <p>Change listeners use a plain [Consumer] - no JavaFX types in core
 /// (PLAN.md section 2.5). UI adapters bridge to observable properties.
+///
+/// <p>Deliberately not `final`, unlike its sibling services: `UiPreferencesTest`
+/// subclasses it as an in-memory test double. Do not "fix" that.
 @Singleton
 public class PreferencesService {
 

@@ -15,7 +15,7 @@ import org.mindis.core.model.Server;
 /// [AppDatabase], which fills this repository when a document is opened
 /// and collects it back when one is saved.
 @Singleton
-public class ServerRepository {
+public final class ServerRepository {
 
     private final List<Server> servers = new ArrayList<>();
 

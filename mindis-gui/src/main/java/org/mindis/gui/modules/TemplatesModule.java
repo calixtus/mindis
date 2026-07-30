@@ -47,7 +47,7 @@ import org.mindis.gui.data.LiveStore;
 /// [org.mindis.core.model.ServiceSchedule], edited through
 /// [ScheduleEditor] (weekly, monthly, yearly, feast-day or a rule
 /// written out in text) and shown in the table as localized prose.
-public class TemplatesModule extends CrudModule<ServiceTemplate> {
+public final class TemplatesModule extends CrudModule<ServiceTemplate> {
 
     private static final double EDITOR_MIN_HEIGHT = 420;
 

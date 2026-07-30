@@ -108,7 +108,7 @@ import org.mindis.gui.data.LiveStore;
 /// A [ServicePlan] is built transiently only when the solver runs (or to
 /// compute a score / per-slot violations) and discarded once its results are
 /// written back onto the services.
-public class ServicesModule extends CrudModule<LiturgicalService> {
+public final class ServicesModule extends CrudModule<LiturgicalService> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ServicesModule.class);
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");

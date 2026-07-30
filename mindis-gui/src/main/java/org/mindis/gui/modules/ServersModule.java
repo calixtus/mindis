@@ -73,7 +73,7 @@ import org.mindis.gui.data.LiveStore;
 /// unavailability periods (both part of the [Server] model). The
 /// qualifications checklist binds to the shared live role list, so roles
 /// created or edited (even unsaved) in the Roles module appear immediately.
-public class ServersModule extends CrudModule<Server> {
+public final class ServersModule extends CrudModule<Server> {
 
     // Checkbox list row height as a multiple of the app font size.
     private static final double CELL_SIZE_FONT_FACTOR = 2.0;

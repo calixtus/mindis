@@ -45,7 +45,7 @@ import org.mindis.gui.shell.ShellModule;
 /// block for bug reports, and - at the bottom - an in-app log messages panel
 /// (severity-colored log history, so a user can see and copy what went wrong
 /// without digging into the log file).
-public class AboutModule extends ShellModule {
+public final class AboutModule extends ShellModule {
 
     private static final String REPOSITORY_URL = "https://github.com/calixtus/mindis";
     private static final String LICENSE_URL = "https://www.apache.org/licenses/LICENSE-2.0";

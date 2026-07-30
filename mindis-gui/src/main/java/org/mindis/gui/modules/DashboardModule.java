@@ -7,7 +7,7 @@ import org.mindis.gui.shell.ShellModule;
 
 /// Overview module. Content is rebuilt on every activation so the dashboard
 /// always reflects the latest roster/services/plan state.
-public class DashboardModule extends ShellModule {
+public final class DashboardModule extends ShellModule {
 
     public DashboardModule(String name) {
         super(name, "mdi2v-view-dashboard");

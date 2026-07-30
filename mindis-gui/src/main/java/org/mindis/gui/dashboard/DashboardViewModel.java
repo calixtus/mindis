@@ -26,7 +26,7 @@ import org.mindis.core.preferences.PreferencesService;
 /// slots, so everything is derived straight from the live services - there is
 /// no separate plan to read.
 @Prototype
-public class DashboardViewModel {
+public final class DashboardViewModel {
 
     private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
     private static final int MAX_NEXT_SERVICES = 8;

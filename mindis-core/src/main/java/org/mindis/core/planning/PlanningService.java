@@ -45,7 +45,7 @@ import org.mindis.core.preferences.PreferencesService;
 /// results are written back. Scoping a solve to only some slots (one service,
 /// or an unassigned-only window) is done purely by pinning the rest - [Autofill].
 @Singleton
-public class PlanningService implements AutoCloseable {
+public final class PlanningService implements AutoCloseable {
 
     private static final long UNIMPROVED_SECONDS = 5L;
 

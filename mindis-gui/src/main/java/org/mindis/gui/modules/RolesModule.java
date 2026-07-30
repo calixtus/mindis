@@ -31,7 +31,7 @@ import org.mindis.gui.data.LiveStore;
 
 /// Liturgical role management module: name plus an optional minimum/maximum
 /// age requirement (years). Reference implementation of [CrudModule].
-public class RolesModule extends CrudModule<Role> {
+public final class RolesModule extends CrudModule<Role> {
 
     private static final int MIN_AGE = 1;
     private static final int MAX_AGE = 120;

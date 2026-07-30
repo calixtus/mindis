@@ -12,7 +12,7 @@ import org.mindis.core.model.ServiceTemplate;
 /// document. Upsert by id. Purely in-memory; disk I/O happens exclusively in
 /// [AppDatabase].
 @Singleton
-public class TemplateRepository {
+public final class TemplateRepository {
 
     private final List<ServiceTemplate> templates = new ArrayList<>();
 

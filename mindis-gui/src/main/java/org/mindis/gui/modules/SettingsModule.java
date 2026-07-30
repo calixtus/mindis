@@ -45,7 +45,7 @@ import org.mindis.gui.shell.ShellModule;
 /// settings-list look. All controls bind bidirectionally to
 /// [UiPreferences], and stretch to use whatever width the module has
 /// rather than sitting at a fixed narrow size.
-public class SettingsModule extends ShellModule {
+public final class SettingsModule extends ShellModule {
 
     // A fixed width, not one reactively bound to the pane's own width - that
     // was tried first (clamped to a fraction of content's width) and made

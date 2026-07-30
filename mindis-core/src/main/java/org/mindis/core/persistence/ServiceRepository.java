@@ -13,7 +13,7 @@ import org.mindis.core.model.LiturgicalService;
 /// assignments included (an assignment lives on its slot). Upsert by id.
 /// Purely in-memory; disk I/O happens exclusively in [AppDatabase].
 @Singleton
-public class ServiceRepository {
+public final class ServiceRepository {
 
     private final List<LiturgicalService> services = new ArrayList<>();
 

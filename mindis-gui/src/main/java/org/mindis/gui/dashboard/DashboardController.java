@@ -19,7 +19,7 @@ import javafx.scene.control.ScrollPane;
 /// widget with content from the [DashboardViewModel] snapshot, and offers
 /// an "add widget" menu of the types not yet on the board (each type is unique).
 @Prototype
-public class DashboardController {
+public final class DashboardController {
 
     private final DashboardViewModel viewModel;
 

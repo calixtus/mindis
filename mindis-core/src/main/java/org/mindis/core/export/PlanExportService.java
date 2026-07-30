@@ -37,7 +37,7 @@ import org.mindis.core.persistence.ServerRepository;
 /// snapshot, so a frozen plan still exports faithfully after the servers or
 /// roles it referenced are gone.
 @Singleton
-public class PlanExportService {
+public final class PlanExportService {
 
     private final ServerRepository serverRepository;
     private final RoleRepository roleRepository;

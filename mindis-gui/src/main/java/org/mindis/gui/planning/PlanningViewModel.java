@@ -41,7 +41,7 @@ import org.mindis.core.preferences.PreferencesService;
 /// edits, saved by the same global Save as everything else). The only
 /// state this class owns is the `solving` flag every solve control binds
 /// to. Plain-constructed and held as a field for the app's lifetime.
-public class PlanningViewModel {
+public final class PlanningViewModel {
 
     private final PlanningService planningService;
     private final PreferencesService preferencesService;

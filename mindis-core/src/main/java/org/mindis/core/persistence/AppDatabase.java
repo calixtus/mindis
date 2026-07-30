@@ -26,7 +26,7 @@ import org.mindis.core.model.CollectionMeta;
 /// [#save()] on such a document is a programming error - the caller must
 /// route it to [#saveAs(Path)], which is what the GUI does.
 @Singleton
-public class AppDatabase {
+public final class AppDatabase {
 
     private final RoleRepository roles;
     private final ServerRepository servers;

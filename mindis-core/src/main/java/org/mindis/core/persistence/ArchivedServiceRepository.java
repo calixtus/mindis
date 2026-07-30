@@ -21,7 +21,7 @@ import org.mindis.core.model.ArchivedService;
 /// tracking; listeners registered through [#addChangeListener] fire on
 /// every mutation so the UI can rebind.
 @Singleton
-public class ArchivedServiceRepository {
+public final class ArchivedServiceRepository {
 
     private final List<ArchivedService> archived = new ArrayList<>();
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
