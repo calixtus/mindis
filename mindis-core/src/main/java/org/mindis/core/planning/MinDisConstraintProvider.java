@@ -184,8 +184,8 @@ public class MinDisConstraintProvider implements ConstraintProvider {
     /// scheduling the same server again the day after a previous plan ended.
     /// A separate constraint (not folded into spacingBetweenAssignments)
     /// because [PriorAssignment] isn't an [Assignment] - it's a
-    /// read-only fact, never a planning entity - so it needs its own `
-    /// join` rather than a `forEachUniquePair`; that in turn means its
+    /// read-only fact, never a planning entity - so it needs its own
+    /// `join` rather than a `forEachUniquePair`; that in turn means its
     /// own constraint id, since Timefold requires those unique, which is why
     /// it has its own (separately tunable) weight rather than sharing [#SPACING_PENALTY].
     @SuppressWarnings("NullAway")

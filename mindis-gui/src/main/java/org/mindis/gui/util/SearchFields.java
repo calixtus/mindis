@@ -5,8 +5,8 @@ import com.dlsc.gemsfx.SearchField;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
-/// Corrective theming for GemsFX [SearchField] (and its `
-/// TagsField` subclass), same problem and same fix as [CalendarPickers]:
+/// Corrective theming for GemsFX [SearchField] (and its
+/// `TagsField` subclass), same problem and same fix as [CalendarPickers]:
 /// gemsfx's bundled `search-field.css` is written against stock Modena
 /// (`-fx-control-inner-background`, `-fx-text-background-color`,
 /// ...), tokens AtlantaFX's from-scratch `-color-*` stylesheet never

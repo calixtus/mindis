@@ -238,8 +238,8 @@ public record MinDisPreferences(
                 newToolbarButtonDisplay, dashboardWidgets);
     }
 
-    /// Persisted dashboard widget layout (positions and grid spans); `
-    /// null` until the user first arranges the board, when the dashboard uses
+    /// Persisted dashboard widget layout (positions and grid spans);
+    /// `null` until the user first arranges the board, when the dashboard uses
     /// its default arrangement. An empty list is a deliberately-cleared board.
     public MinDisPreferences withDashboardWidgets(List<DashboardWidgetLayout> newDashboardWidgets) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,

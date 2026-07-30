@@ -475,9 +475,10 @@ public abstract class CrudModule<T> extends ShellModule {
 
     /// Prompts for a file and merges every parsed row into the live store (via
     /// [#mergeLive(List)] - staged, not written to disk until the next
-    /// global Save all), then shows `summaryMessage.apply(imported,
-    /// total)` (e.g. localized "12 of 14 rows imported" text - this class has
-    /// no localized text of its own). Bind to the Import button's action.
+    /// global Save all), then shows
+    /// `summaryMessage.apply(imported, total)` (e.g. localized
+    /// "12 of 14 rows imported" text - this class has no localized text of its
+    /// own). Bind to the Import button's action.
     protected final void importCsv(CsvRowMapper<T> mapper, BiFunction<Integer, Integer, String> summaryMessage) {
         FileChooser chooser = new FileChooser();
         chooser.setTitle(getName());

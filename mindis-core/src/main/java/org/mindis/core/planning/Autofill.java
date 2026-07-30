@@ -41,8 +41,8 @@ public final class Autofill {
     }
 
     /// Eligibility for a windowed "fill all unassigned" run: the service falls
-    /// within `[from, to]` and the slot is either open or - when `
-    /// overwrite` - already filled.
+    /// within `[from, to]` and the slot is either open or - when
+    /// `overwrite` - already filled.
     public static Predicate<Assignment> within(LocalDate from, LocalDate to, boolean overwrite) {
         return assignment -> {
             LocalDate date = assignment.getService().dateTime().toLocalDate();

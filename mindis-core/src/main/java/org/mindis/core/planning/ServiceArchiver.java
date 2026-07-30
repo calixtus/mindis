@@ -36,8 +36,8 @@ public final class ServiceArchiver {
         }
     }
 
-    /// Snapshots every service in `live` dated on or before `
-    /// cutoff`, resolving each slot's role and (if filled) server to the
+    /// Snapshots every service in `live` dated on or before
+    /// `cutoff`, resolving each slot's role and (if filled) server to the
     /// display names `roleName`/`serverName` return - copied in
     /// now so the snapshot never needs the live roster again. A name lookup
     /// returning `null` (role/server already gone) falls back to the
