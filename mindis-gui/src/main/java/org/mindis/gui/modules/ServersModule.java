@@ -2,7 +2,6 @@ package org.mindis.gui.modules;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -63,6 +62,7 @@ import org.mindis.core.persistence.ServerCsvMapper;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.gui.util.CalendarPickers;
+import org.mindis.gui.util.DateTimes;
 import org.mindis.gui.util.SearchFields;
 import org.mindis.gui.util.TimePickers;
 import org.mindis.gui.shell.CrudModule;
@@ -78,7 +78,6 @@ public final class ServersModule extends CrudModule<Server> {
     // Checkbox list row height as a multiple of the app font size.
     private static final double CELL_SIZE_FONT_FACTOR = 2.0;
     private static final double EDITOR_MIN_HEIGHT = 520;
-    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
 
     private final ServersViewModel viewModel;
     private final UiPreferences uiPreferences;
@@ -502,7 +501,7 @@ public final class ServersModule extends CrudModule<Server> {
                                                         FlowPane flow, Node inputGroup) {
         ChipView<LocalTime> chip = new ChipView<>();
         chip.setValue(time);
-        chip.setText(TIME_FORMAT.format(time));
+        chip.setText(DateTimes.time(time));
         chip.setOnClose(value -> {
             times.remove(value);
             refreshPreferredTimeChips(flow, times, inputGroup);

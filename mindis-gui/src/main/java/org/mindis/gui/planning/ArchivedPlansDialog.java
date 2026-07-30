@@ -1,8 +1,6 @@
 package org.mindis.gui.planning;
 
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,6 +31,7 @@ import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.ArchivedService;
 
 import org.mindis.gui.util.CalendarPickers;
+import org.mindis.gui.util.DateTimes;
 
 /// Browser over [PlanningViewModel#listArchived()]: the frozen services
 /// the planner has archived. Archived services aren't editable, only viewable,
@@ -41,10 +40,6 @@ import org.mindis.gui.util.CalendarPickers;
 /// Also hosts the "Archive up to..." action that freezes past services.
 public final class ArchivedPlansDialog {
 
-    private static final DateTimeFormatter DATE_TIME_FORMAT =
-            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
-    private static final DateTimeFormatter ARCHIVED_AT_FORMAT =
-            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm").withZone(ZoneId.systemDefault());
 
     private ArchivedPlansDialog() {
     }
@@ -62,7 +57,7 @@ public final class ArchivedPlansDialog {
 
         TableColumn<ArchivedService, String> whenColumn = new TableColumn<>(Localization.lang("Services"));
         whenColumn.setCellValueFactory(data -> new SimpleStringProperty(
-                data.getValue().dateTime().format(DATE_TIME_FORMAT) + "  "
+                DateTimes.dateTime(data.getValue().dateTime()) + "  "
                         + EnumDisplay.of(data.getValue().type()) + "  " + data.getValue().location()));
         whenColumn.setPrefWidth(280);
 
@@ -78,7 +73,7 @@ public final class ArchivedPlansDialog {
         TableColumn<ArchivedService, String> archivedAtColumn = new TableColumn<>(Localization.lang("Saved"));
         archivedAtColumn.setCellValueFactory(data -> {
             Instant archivedAt = data.getValue().archivedAt();
-            return new SimpleStringProperty(archivedAt == null ? "-" : ARCHIVED_AT_FORMAT.format(archivedAt));
+            return new SimpleStringProperty(archivedAt == null ? "-" : DateTimes.dateTime(archivedAt));
         });
         archivedAtColumn.setPrefWidth(160);
 
@@ -153,7 +148,7 @@ public final class ArchivedPlansDialog {
         Alert confirm = new Alert(AlertType.CONFIRMATION);
         confirm.setTitle(Localization.lang("Delete selected"));
         confirm.setHeaderText(Localization.lang("Permanently delete the archived plan %0?",
-                service.dateTime().format(DATE_TIME_FORMAT)));
+                DateTimes.dateTime(service.dateTime())));
         confirm.initOwner(owner);
         Optional<ButtonType> result = confirm.showAndWait();
         return result.isPresent() && result.get().getButtonData() == ButtonData.OK_DONE;

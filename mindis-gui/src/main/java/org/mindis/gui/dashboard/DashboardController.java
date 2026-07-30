@@ -13,6 +13,10 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 
+import org.mindis.core.l10n.EnumDisplay;
+import org.mindis.core.l10n.Localization;
+import org.mindis.gui.util.DateTimes;
+
 /// Dashboard board of widgets - upcoming services, unassigned-slot count and
 /// per-server load - each a draggable, resizable card on an invisible column
 /// grid. The controller builds the board from the persisted layout, fills each
@@ -84,14 +88,34 @@ public final class DashboardController {
     private Node buildContent(WidgetType type) {
         return switch (type) {
             case SUMMARY -> {
-                Label label = new Label(snapshot.summaryText());
+                Label label = new Label(summaryText());
                 label.getStyleClass().add("dashboard-summary");
                 label.setWrapText(true);
                 yield label;
             }
-            case NEXT_SERVICES -> listView(snapshot.upcomingServices());
-            case SERVER_LOAD -> listView(snapshot.serverLoad());
+            case NEXT_SERVICES -> listView(snapshot.upcomingServices().stream()
+                    .map(DashboardController::describe)
+                    .toList());
+            case SERVER_LOAD -> listView(snapshot.serverLoad().stream()
+                    .map(load -> load.serverName() + ": " + load.assignments())
+                    .toList());
         };
+    }
+
+    private String summaryText() {
+        return snapshot.isEmpty()
+                ? Localization.lang("No plan saved yet")
+                : Localization.lang("Unassigned slots") + ": " + snapshot.unassignedSlots();
+    }
+
+    /// One "next services" row: when, what, where, and how full it is.
+    private static String describe(DashboardViewModel.UpcomingService service) {
+        String base = DateTimes.dateTime(service.dateTime()) + "  "
+                + EnumDisplay.of(service.type())
+                + (service.location().isBlank() ? "" : "  " + service.location());
+        return service.totalSlots() == 0
+                ? base
+                : base + "  (" + service.assignedSlots() + "/" + service.totalSlots() + ")";
     }
 
     private static ListView<String> listView(List<String> items) {

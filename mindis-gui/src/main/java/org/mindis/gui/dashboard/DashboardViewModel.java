@@ -3,7 +3,6 @@ package org.mindis.gui.dashboard;
 import io.avaje.inject.Prototype;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -11,24 +10,21 @@ import java.util.Map;
 
 import org.jspecify.annotations.Nullable;
 
-import org.mindis.core.l10n.EnumDisplay;
-import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServiceType;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.preferences.DashboardWidgetLayout;
 import org.mindis.core.preferences.PreferencesService;
 
-/// ViewModel for [DashboardController]: owns every repository call and
-/// the upcoming-services/server-load aggregation, so the controller only
-/// constructs UI and binds to this class. Assignments live on the service
-/// slots, so everything is derived straight from the live services - there is
-/// no separate plan to read.
+/// ViewModel for the dashboard: owns every repository call and the
+/// upcoming-services/server-load aggregation, and hands the view plain data to
+/// render. Assignments live on the service slots, so everything is derived
+/// straight from the live services - there is no separate plan to read.
 @Prototype
 public final class DashboardViewModel {
 
-    private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
     private static final int MAX_NEXT_SERVICES = 8;
 
     private final ServiceRepository serviceRepository;
@@ -76,36 +72,57 @@ public final class DashboardViewModel {
         return layout;
     }
 
-    /// Summary text, upcoming services and per-server load, computed off the live services.
-    public record Snapshot(String summaryText, List<String> upcomingServices, List<String> serverLoad) {
+    /// What the board shows, as data: no formatted text, no locale, no layout.
+    /// Rendering it - dates, separators, "n/m" - is the view's job, so the same
+    /// numbers could drive a chart or an export without unpicking a string.
+    public record Snapshot(int unassignedSlots, int totalSlots,
+                           List<UpcomingService> upcomingServices,
+                           List<ServerLoad> serverLoad) {
+
+        public Snapshot {
+            upcomingServices = List.copyOf(upcomingServices);
+            serverLoad = List.copyOf(serverLoad);
+        }
+
+        /// Whether the document holds no plan at all yet (no slots anywhere).
+        public boolean isEmpty() {
+            return totalSlots == 0;
+        }
+    }
+
+    /// One entry of the "next services" widget.
+    public record UpcomingService(LocalDateTime dateTime, ServiceType type, String location,
+                                  int assignedSlots, int totalSlots) {
+    }
+
+    /// One entry of the "assignments per server" widget, most-loaded first.
+    public record ServerLoad(String serverName, long assignments) {
     }
 
     public Snapshot loadSnapshot() {
         List<LiturgicalService> services = serviceRepository.findAll();
-        return new Snapshot(summaryText(services), upcomingServices(services), serverLoad(services));
-    }
-
-    private String summaryText(List<LiturgicalService> services) {
-        long totalSlots = services.stream().mapToLong(service -> service.slots().size()).sum();
-        if (totalSlots == 0) {
-            return Localization.lang("No plan saved yet");
-        }
-        long unassigned = services.stream()
+        int totalSlots = services.stream().mapToInt(service -> service.slots().size()).sum();
+        int unassigned = (int) services.stream()
                 .flatMap(service -> service.slots().stream())
                 .filter(slot -> slot.serverId() == null)
                 .count();
-        return Localization.lang("Unassigned slots") + ": " + unassigned;
+        return new Snapshot(unassigned, totalSlots, upcomingServices(services), serverLoad(services));
     }
 
-    private List<String> upcomingServices(List<LiturgicalService> services) {
+    private static List<UpcomingService> upcomingServices(List<LiturgicalService> services) {
         return services.stream()
                 .filter(service -> service.dateTime().isAfter(LocalDateTime.now()))
                 .limit(MAX_NEXT_SERVICES)
-                .map(this::describeService)
+                .map(service -> new UpcomingService(
+                        service.dateTime(),
+                        service.type(),
+                        service.location(),
+                        (int) service.slots().stream().filter(slot -> slot.serverId() != null).count(),
+                        service.slots().size()))
                 .toList();
     }
 
-    private List<String> serverLoad(List<LiturgicalService> services) {
+    private List<ServerLoad> serverLoad(List<LiturgicalService> services) {
         Map<String, Server> serversById = new LinkedHashMap<>();
         serverRepository.findAll().forEach(server -> serversById.put(server.id(), server));
         Map<String, Long> countByServer = new LinkedHashMap<>();
@@ -120,20 +137,10 @@ public final class DashboardViewModel {
                 .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
                 .map(entry -> {
                     Server server = serversById.get(entry.getKey());
-                    return (server == null ? entry.getKey() : server.displayName()) + ": " + entry.getValue();
+                    // An id with no server left (deleted while still assigned)
+                    // falls back to the raw id rather than vanishing.
+                    return new ServerLoad(server == null ? entry.getKey() : server.displayName(), entry.getValue());
                 })
                 .toList();
-    }
-
-    private String describeService(LiturgicalService service) {
-        String base = service.dateTime().format(DATE_TIME_FORMAT) + "  "
-                + EnumDisplay.of(service.type())
-                + (service.location().isBlank() ? "" : "  " + service.location());
-        int total = service.slots().size();
-        if (total == 0) {
-            return base;
-        }
-        long assigned = service.slots().stream().filter(slot -> slot.serverId() != null).count();
-        return base + "  (" + assigned + "/" + total + ")";
     }
 }

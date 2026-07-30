@@ -4,7 +4,6 @@ package org.mindis.gui.modules;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -80,6 +79,7 @@ import org.mindis.gui.planning.ArchivedPlansDialog;
 import org.mindis.gui.planning.PlanExportChooser;
 import org.mindis.gui.planning.PlanningViewModel;
 import org.mindis.gui.util.CalendarPickers;
+import org.mindis.gui.util.DateTimes;
 import org.mindis.gui.util.TimePickers;
 import org.mindis.gui.shell.CrudModule;
 import org.mindis.gui.shell.ShellOverlays;
@@ -102,7 +102,6 @@ import org.mindis.gui.data.LiveStore;
 public final class ServicesModule extends CrudModule<LiturgicalService> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ServicesModule.class);
-    private static final DateTimeFormatter DATE_TIME_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
     private static final double EDITOR_MIN_HEIGHT = 520;
     // Auto-fill only leaves one service's slots free - a far smaller problem
     // than a whole-plan solve, so it doesn't need the full solverSecondsLimit.
@@ -749,7 +748,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
     /// underfilled warning icon), type/location below it, and the role-slot
     /// grid on the right.
     private Node buildTileNode(LiturgicalService service) {
-        Label dateTimeLabel = new Label(service.dateTime().format(DATE_TIME_FORMAT));
+        Label dateTimeLabel = new Label(DateTimes.dateTime(service.dateTime()));
         dateTimeLabel.getStyleClass().add("service-tile-datetime");
         Label typeLabel = new Label(EnumDisplay.of(service.type()));
         Label locationLabel = new Label(service.location());
