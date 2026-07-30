@@ -16,7 +16,7 @@ import javafx.scene.control.ScrollPane;
 /// Dashboard board of widgets - upcoming services, unassigned-slot count and
 /// per-server load - each a draggable, resizable card on an invisible column
 /// grid. The controller builds the board from the persisted layout, fills each
-/// widget with content from the {@link DashboardViewModel} snapshot, and offers
+/// widget with content from the [DashboardViewModel] snapshot, and offers
 /// an "add widget" menu of the types not yet on the board (each type is unique).
 @Prototype
 public class DashboardController {

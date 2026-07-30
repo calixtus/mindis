@@ -4,14 +4,15 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
-/// Rolling history of log records for the in-app error console (see {@code
-/// AboutModule}) - a bounded, observable list {@link LogConsoleHandler}
+/// Rolling history of log records for the in-app error console (see `
+/// AboutModule`) - a bounded, observable list [LogConsoleHandler]
 /// appends to and the console UI binds to directly. One instance, constructed
-/// once in {@code MinDisApp} and shared between the handler (registered on
+/// once in `MinDisApp` and shared between the handler (registered on
 /// the root JUL logger) and the console view.
 public final class LogConsoleModel {
 
-    /// Newest-first cap - older entries are dropped rather than growing unbounded for the life of the process.
+    /// Newest-first cap - older entries are dropped rather than growing unbounded for the life
+    /// of the process.
     private static final int MAX_ENTRIES = 500;
 
     private final ObservableList<LogEntry> entries = FXCollections.observableArrayList();

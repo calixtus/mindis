@@ -13,20 +13,20 @@ import javafx.util.StringConverter;
 
 import org.jspecify.annotations.Nullable;
 
-/// ISO ({@code yyyy-MM-dd}) formatting for GemsFX {@link CalendarPicker}s,
+/// ISO (`yyyy-MM-dd`) formatting for GemsFX [CalendarPicker]s,
 /// shared by every date field in the app (see ADR: date pickers use GemsFX's
-/// calendar popup instead of the stock JavaFX {@code DatePicker}).
+/// calendar popup instead of the stock JavaFX `DatePicker`).
 public final class CalendarPickers {
 
-    /// The date format every {@code CalendarPicker} in the app displays and parses.
+    /// The date format every `CalendarPicker` in the app displays and parses.
     public static final DateTimeFormatter ISO = DateTimeFormatter.ISO_LOCAL_DATE;
 
     /// GemsFX's bundled CSS (calendar-picker/calendar-view/year-view/
     /// year-month-view) is written against stock Modena: it looks up
-    /// {@code -fx-base}, {@code -fx-mark-color}, {@code -fx-text-background-color}
+    /// `-fx-base`, `-fx-mark-color`, `-fx-text-background-color`
     /// and similar Modena-only tokens that AtlantaFX (a from-scratch
-    /// {@code -color-*} stylesheet, not a Modena derivative) never defines, and
-    /// hardcodes a few literals ({@code rgb(230, 231, 233)}, {@code #eeeeee})
+    /// `-color-*` stylesheet, not a Modena derivative) never defines, and
+    /// hardcodes a few literals (`rgb(230, 231, 233)`, `#eeeeee`)
     /// that ignore the theme entirely. Both cause visible bugs: unresolved
     /// lookups make gemsfx's rule fail to convert and fall back to its own
     /// defaults (ClassCastException/"could not resolve" in the javafx.css log),
@@ -136,16 +136,16 @@ public final class CalendarPickers {
     private CalendarPickers() {
     }
 
-    /// A new {@link CalendarPicker} already set to {@link #ISO} format.
+    /// A new [CalendarPicker] already set to [#ISO] format.
     public static CalendarPicker create() {
         CalendarPicker picker = new CalendarPicker();
         applyIsoFormat(picker);
         return picker;
     }
 
-    /// Applies {@link #ISO} format to an existing (e.g. FXML-instantiated) picker,
+    /// Applies [#ISO] format to an existing (e.g. FXML-instantiated) picker,
     /// hides its "Today" shortcut button - the app shows plain dates only, no
-    /// shortcut text - and attaches {@link #CALENDAR_THEME_CSS} so the popup
+    /// shortcut text - and attaches [#CALENDAR_THEME_CSS] so the popup
     /// calendar actually follows the app's AtlantaFX theme.
     public static void applyIsoFormat(CalendarPicker picker) {
         CalendarView calendarView = picker.getCalendarView();

@@ -5,7 +5,7 @@ import java.util.List;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 /// The stock icon catalog a collection can pick from when it has no custom image
-/// logo (see {@link org.mindis.core.model.CollectionMeta#logoIcon()}), plus the
+/// logo (see [org.mindis.core.model.CollectionMeta#logoIcon()]), plus the
 /// default. Literals are Material Design Icons (the `materialdesign2` Ikonli
 /// pack the app already ships).
 final class LogoIcons {
@@ -29,7 +29,7 @@ final class LogoIcons {
     private LogoIcons() {
     }
 
-    /// A sized icon node for {@code literal}, falling back to {@link #DEFAULT}
+    /// A sized icon node for `literal`, falling back to [#DEFAULT]
     /// if the literal is unknown (a bad stored/hand-edited value must never crash
     /// the switcher or the editor).
     static FontIcon iconNode(String literal, int size) {
@@ -45,7 +45,7 @@ final class LogoIcons {
     }
 
     /// A human-readable name for a catalog literal, derived from the literal
-    /// (e.g. {@code mdi2a-account-group} -> {@code Account group}).
+    /// (e.g. `mdi2a-account-group` -> `Account group`).
     static String displayName(String literal) {
         int dash = literal.indexOf('-');
         String name = dash < 0 ? literal : literal.substring(dash + 1);

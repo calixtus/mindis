@@ -10,9 +10,9 @@ import org.mindis.core.model.Server;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 
-/// ViewModel for {@link ServersModule}: owns the repository reads the module
+/// ViewModel for [ServersModule]: owns the repository reads the module
 /// still needs directly (CRUD goes through the shared
-/// {@link org.mindis.workbench.LiveStore}), so the module only constructs UI
+/// [org.mindis.gui.data.LiveStore]), so the module only constructs UI
 /// and binds to this class. All reads see the live staged state, unsaved
 /// edits included.
 @NullMarked

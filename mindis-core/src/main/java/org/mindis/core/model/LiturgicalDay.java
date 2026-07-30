@@ -5,7 +5,7 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.util.function.IntFunction;
 
-/// The feast days a {@link RecurrenceRule.FeastRelative} rule can be anchored
+/// The feast days a [RecurrenceRule.FeastRelative] rule can be anchored
 /// on, each resolvable to its date in any year.
 ///
 /// <p>Two groups, both pure functions of the year: the movable feasts of the
@@ -14,11 +14,11 @@ import java.util.function.IntFunction;
 /// the feast rather than against a bare 15 August.
 ///
 /// <p>A handful of days are German-usage rather than general-calendar
-/// ({@link #REPENTANCE_DAY}, {@link #HARVEST_THANKSGIVING},
-/// {@link #ETERNITY_SUNDAY}); they are marked as such below. Dioceses that
+/// ([#REPENTANCE_DAY], [#HARVEST_THANKSGIVING],
+/// [#ETERNITY_SUNDAY]); they are marked as such below. Dioceses that
 /// transfer Ascension or Corpus Christi to the following Sunday are not
 /// modelled - a parish doing that writes the transferred rule instead
-/// ({@code FEAST:ASCENSION+3}).
+/// (`FEAST:ASCENSION+3`).
 ///
 /// <p>Constant names are part of the persisted formats (JSON and the CSV
 /// recurrence column); renaming one breaks existing documents.
@@ -75,7 +75,7 @@ public enum LiturgicalDay {
         this.resolver = resolver;
     }
 
-    /// This day's date in {@code year}. For the Christmas-cycle days that is
+    /// This day's date in `year`. For the Christmas-cycle days that is
     /// the occurrence belonging to that calendar year, not to the liturgical
     /// year that starts with Advent.
     public LocalDate dateIn(int year) {

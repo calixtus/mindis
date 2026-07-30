@@ -5,7 +5,7 @@ import java.util.Optional;
 import org.mindis.core.l10n.Localization;
 
 /// The kinds of dashboard widget. Each type is unique on the board (added once,
-/// removed via the widget's close button) and carries a stable {@link #id()}
+/// removed via the widget's close button) and carries a stable [#id()]
 /// used to persist the layout - decoupled from the enum name so a rename does
 /// not invalidate saved layouts - plus its default grid placement for a fresh
 /// board.

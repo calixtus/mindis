@@ -19,24 +19,24 @@ import javafx.scene.layout.VBox;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
 
-/// "Required servers" role/slot-count editor shared by {@link ServicesModule}
-/// and {@link TemplatesModule}: one compact row per role (name left, a small
+/// "Required servers" role/slot-count editor shared by [ServicesModule]
+/// and [TemplatesModule]: one compact row per role (name left, a small
 /// split-arrow count spinner right). Exchanges plain role-id-to-count maps,
-/// not either caller's own slot type ({@code RoleSlot} for a template's
-/// shape-only requirement, {@code Slot} for a service's individually-
+/// not either caller's own slot type (`RoleSlot` for a template's
+/// shape-only requirement, `Slot` for a service's individually-
 /// identified instances) - a spinner only ever edits a count, so this class
 /// has no business knowing which of the two a caller actually persists;
-/// each caller converts at its own boundary (see {@code ServicesModule}'s
-/// {@code reconcileSlots}, which is also where a count decrease's "which
+/// each caller converts at its own boundary (see `ServicesModule`'s
+/// `reconcileSlots`, which is also where a count decrease's "which
 /// specific slot instance to drop" decision belongs, not here).
 ///
-/// <p>Bound directly to the live (shared) {@code ObservableList<Role>}
+/// <p>Bound directly to the live (shared) `ObservableList<Role>`
 /// rather than a caller-supplied snapshot: a role added, renamed or removed
 /// anywhere - even unsaved - updates this editor's rows on its own via an
 /// internal listener, with no rebuild call needed from outside. Only the
 /// affected rows are rebuilt; already-entered counts for roles unaffected by
-/// the change survive. Call {@link #dispose()} when the owning editor is
-/// discarded (see {@code CrudModule.EditorBinding}) to detach the listener
+/// the change survive. Call [#dispose()] when the owning editor is
+/// discarded (see `CrudModule.EditorBinding`) to detach the listener
 /// from the shared list.
 final class SlotCountEditor {
 
@@ -55,9 +55,9 @@ final class SlotCountEditor {
         this(roles, initialCounts, counts -> { });
     }
 
-    /// @param onChange called with {@link #collectCounts()}'s current result
+    /// @param onChange called with [#collectCounts()]'s current result
     ///                 whenever any spinner's count changes - lets a caller
-    ///                 (e.g. {@link ServicesModule}'s per-slot assignment
+    ///                 (e.g. [ServicesModule]'s per-slot assignment
     ///                 rows) stay in sync with counts live, before Save.
     SlotCountEditor(ObservableList<Role> roles, Map<String, Integer> initialCounts, Consumer<Map<String, Integer>> onChange) {
         this.roles = roles;
@@ -70,21 +70,22 @@ final class SlotCountEditor {
         }
     }
 
-    /// Detaches this editor's listener from the shared role list; call when the editor is discarded.
+    /// Detaches this editor's listener from the shared role list; call when the editor is
+    /// discarded.
     void dispose() {
         roles.removeListener(rolesListener);
     }
 
-    /// The row list; place in the editor grid's field column, with {@code GridPane.setVgrow(ALWAYS)}.
+    /// The row list; place in the editor grid's field column, with `GridPane.setVgrow(ALWAYS)`.
     VBox list() {
         return list;
     }
 
-    /// Reseeds every spinner from {@code counts} - for an
-    /// {@code EditorBinding} refresh (the owning item's slots changed
+    /// Reseeds every spinner from `counts` - for an
+    /// `EditorBinding` refresh (the owning item's slots changed
     /// externally, e.g. a Save/Open reverting an unflushed count), not
     /// for a role-list change (handled internally). Does not itself call
-    /// {@code onChange}.
+    /// `onChange`.
     void setCounts(Map<String, Integer> counts) {
         rebuildRows(roleId -> counts.getOrDefault(roleId, 0));
     }
@@ -101,13 +102,14 @@ final class SlotCountEditor {
         return counts;
     }
 
-    /// This role's currently entered count, or 0 if it has no row yet (a role just added elsewhere).
+    /// This role's currently entered count, or 0 if it has no row yet (a role just added
+    /// elsewhere).
     private int currentOrZero(String roleId) {
         Spinner<Integer> spinner = spinners.get(roleId);
         return spinner == null ? 0 : spinner.getValue();
     }
 
-    /// Rebuilds every row from the current {@link #roles}; {@code seed}
+    /// Rebuilds every row from the current [#roles]; `seed`
     /// supplies each row's initial count (the constructor seeds from the
     /// item's persisted counts, a later role-list change seeds from whatever
     /// is already entered, so mid-edit counts survive a role being added or

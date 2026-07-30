@@ -15,7 +15,7 @@ import org.mindis.core.model.ServiceSchedule;
 import org.mindis.core.model.ServiceTemplate;
 import org.mindis.core.model.ServiceType;
 
-/// CSV row mapping for {@link ServiceTemplate}, shared by every consumer
+/// CSV row mapping for [ServiceTemplate], shared by every consumer
 /// that offers Templates import/export (currently the GUI's Templates
 /// module; PLAN.md's future web module gets the same for free).
 @NullMarked
@@ -51,7 +51,7 @@ public final class TemplateCsvMapper {
 
     /// Rows with an unparsable recurrence/time are skipped; a blank id gets a
     /// fresh one. The three schedule columns are optional - a row that stops
-    /// after {@code slots} is a template without a window or cancellations,
+    /// after `slots` is a template without a window or cancellations,
     /// and an unreadable date in them is dropped rather than failing the row,
     /// mirroring the per-field tolerance of every other importer.
     public @Nullable ServiceTemplate fromRow(List<String> row) {

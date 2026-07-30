@@ -6,33 +6,33 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalTime;
 import java.util.Base64;
 
-/// {@code HOURS_MINUTES}-only {@link TimePicker}s, shared by every time field
+/// `HOURS_MINUTES`-only [TimePicker]s, shared by every time field
 /// in the app.
 public final class TimePickers {
 
-    /// Same problem as {@link CalendarPickers}, different token set: GemsFX's
-    /// bundled {@code time-picker.css} is written against stock Modena
-    /// ({@code -fx-outer-border}, {@code -fx-body-color}, {@code -fx-focus-color},
-    /// {@code -fx-faint-focus-color}, {@code -fx-mark-color}, ...), tokens
+    /// Same problem as [CalendarPickers], different token set: GemsFX's
+    /// bundled `time-picker.css` is written against stock Modena
+    /// (`-fx-outer-border`, `-fx-body-color`, `-fx-focus-color`,
+    /// `-fx-faint-focus-color`, `-fx-mark-color`, ...), tokens
     /// AtlantaFX never defines - unresolved, JavaFX logs a ClassCastException/
     /// "could not resolve" the moment the field is focused. Author origin
-    /// (attached directly below), same reasoning as {@code CalendarPickers}:
+    /// (attached directly below), same reasoning as `CalendarPickers`:
     /// always outranks gemsfx's own stylesheet regardless of specificity, no
     /// cascade tie to fight.
     ///
-    /// <p>The clock-face popup ({@code TimePickerPopup}) needs the same
+    /// <p>The clock-face popup (`TimePickerPopup`) needs the same
     /// treatment for its own rules, including the ones gemsfx writes as
     /// hardcoded literals (white/gray/lightgray/black, not token lookups) for
     /// the idle/hover/selected list cells - a direct rule override of those
     /// previously failed when attached to the app's global scene-level UA
-    /// stylesheet ({@link org.mindis.gui.theme.ThemeStyler}), since the popup
-    /// is a separate {@code PopupControl} window with its own node-scoped UA
+    /// stylesheet ([org.mindis.gui.theme.ThemeStyler]), since the popup
+    /// is a separate `PopupControl` window with its own node-scoped UA
     /// stylesheet, and two same-origin (UA) rules of equal specificity resolve
     /// by declaration order, not simply "app always wins". Attached here
-    /// instead, directly on the {@code TimePicker} itself (author origin, like
-    /// {@code CalendarPickers} does via {@code getCalendarView()}) - the
-    /// popup's {@code PopupControl} declares the {@code TimePicker} as its
-    /// {@code getStyleableParent()}, and author-origin rules do cross that
+    /// instead, directly on the `TimePicker` itself (author origin, like
+    /// `CalendarPickers` does via `getCalendarView()`) - the
+    /// popup's `PopupControl` declares the `TimePicker` as its
+    /// `getStyleableParent()`, and author-origin rules do cross that
     /// boundary, unlike the UA-origin ones tried before.
     private static final String TIME_PICKER_THEME_CSS = """
             .time-picker {
@@ -98,7 +98,7 @@ public final class TimePickers {
     private TimePickers() {
     }
 
-    /// A new {@link TimePicker} restricted to hours and minutes, themed
+    /// A new [TimePicker] restricted to hours and minutes, themed
     /// (including its clock popup and, when pill-joined, its trigger button -
     /// see the class javadoc). The clock icon trigger button is shown, so a
     /// time can be picked without touching the keyboard; typing the

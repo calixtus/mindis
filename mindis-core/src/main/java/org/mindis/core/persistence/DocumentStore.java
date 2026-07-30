@@ -14,7 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
-/// Reads and writes a {@link MinDisDocument} as one pretty-printed JSON file.
+/// Reads and writes a [MinDisDocument] as one pretty-printed JSON file.
 /// Writes are atomic (temp file in the target's own directory, then move), so
 /// an interrupted save never truncates the user's existing document.
 ///

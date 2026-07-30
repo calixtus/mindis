@@ -13,7 +13,7 @@ import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Slot;
 
 /// Pure logic for freezing live services up to an archive cutoff into
-/// self-contained {@link ArchivedService} snapshots. Dependency-free by design
+/// self-contained [ArchivedService] snapshots. Dependency-free by design
 /// (SOLID/DIP): callers supply the role/server name lookups and the current
 /// time, so this stays a plain, testable transformation with no repository or
 /// clock coupling.
@@ -36,11 +36,11 @@ public final class ServiceArchiver {
         }
     }
 
-    /// Snapshots every service in {@code live} dated on or before {@code
-    /// cutoff}, resolving each slot's role and (if filled) server to the
-    /// display names {@code roleName}/{@code serverName} return - copied in
+    /// Snapshots every service in `live` dated on or before `
+    /// cutoff`, resolving each slot's role and (if filled) server to the
+    /// display names `roleName`/`serverName` return - copied in
     /// now so the snapshot never needs the live roster again. A name lookup
-    /// returning {@code null} (role/server already gone) falls back to the
+    /// returning `null` (role/server already gone) falls back to the
     /// stored id, so archiving never loses a slot. Services after the cutoff
     /// are left untouched.
     public static Result archive(List<LiturgicalService> live, LocalDate cutoff, Instant archivedAt,

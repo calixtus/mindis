@@ -1,9 +1,9 @@
 package org.mindis.core.planning;
 
-/// The concatenated string id every layer actually stores for one {@link
-/// Assignment} (Timefold's {@code @PlanningId}, the GUI's per-service slot
+/// The concatenated string id every layer actually stores for one [Assignment] (Timefold's
+/// `@PlanningId`, the GUI's per-service slot
 /// lookups) - one canonical construction/parse pair instead of every call site
-/// hand-rolling {@code serviceId + ":" + slotId} (and matching it back by
+/// hand-rolling `serviceId + ":" + slotId` (and matching it back by
 /// string prefix) independently.
 public record AssignmentKey(String serviceId, String slotId) {
 
@@ -13,9 +13,9 @@ public record AssignmentKey(String serviceId, String slotId) {
         return serviceId + SEPARATOR + slotId;
     }
 
-    /// Whether {@code assignmentId} (an {@link Assignment#getId()}) belongs to
-    /// {@code serviceId} - the prefix match every per-service filter used to
-    /// hand-roll as {@code id.startsWith(serviceId + ":")}.
+    /// Whether `assignmentId` (an [Assignment#getId()]) belongs to
+    /// `serviceId` - the prefix match every per-service filter used to
+    /// hand-roll as `id.startsWith(serviceId + ":")`.
     public static boolean belongsToService(String assignmentId, String serviceId) {
         return assignmentId.startsWith(serviceId + SEPARATOR);
     }

@@ -12,7 +12,7 @@ import org.mindis.core.preferences.PreferencesService;
 /// One preference exposed as a JavaFX property: reads its initial value from
 /// the persisted record, writes changes through via the record's wither, and
 /// can be re-synced when the record changes elsewhere. The registry in
-/// {@link UiPreferences} is the only creator.
+/// [UiPreferences] is the only creator.
 final class PreferenceValue<T> {
 
     private final ObjectProperty<T> property;

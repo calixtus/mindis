@@ -34,7 +34,7 @@ import org.mindis.core.model.ArchivedService;
 
 import org.mindis.gui.util.CalendarPickers;
 
-/// Browser over {@link PlanningViewModel#listArchived()}: the frozen services
+/// Browser over [PlanningViewModel#listArchived()]: the frozen services
 /// the planner has archived. Archived services aren't editable, only viewable,
 /// exportable and deletable - each is a self-contained snapshot (its own
 /// role/server names), so it still exports faithfully after the roster changes.
@@ -49,7 +49,7 @@ public final class ArchivedPlansDialog {
     private ArchivedPlansDialog() {
     }
 
-    /// Shows the dialog. {@code archiveAction} performs the freeze at a chosen
+    /// Shows the dialog. `archiveAction` performs the freeze at a chosen
     /// cutoff and returns whether anything was archived - it lives on the
     /// Services module because archiving also drops the frozen services from
     /// the live list.

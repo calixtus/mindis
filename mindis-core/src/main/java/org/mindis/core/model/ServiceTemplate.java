@@ -8,7 +8,7 @@ import java.util.UUID;
 
 /// A recurring service ("every Sunday 10:00 at St. Mary", "every third Sunday",
 /// "every 13th of the month"). When its services happen is the
-/// {@link ServiceSchedule}; concrete services are generated from templates for
+/// [ServiceSchedule]; concrete services are generated from templates for
 /// a date range (see ServiceGenerator).
 public record ServiceTemplate(
         String id,
@@ -41,12 +41,12 @@ public record ServiceTemplate(
         return UUID.randomUUID().toString();
     }
 
-    /// Whether this template produces a service on {@code date}.
+    /// Whether this template produces a service on `date`.
     public boolean occursOn(LocalDate date) {
         return schedule.occursOn(date);
     }
 
-    /// This template with {@code schedule} replaced - the editor rebuilds one
+    /// This template with `schedule` replaced - the editor rebuilds one
     /// part of the schedule at a time.
     public ServiceTemplate withSchedule(ServiceSchedule schedule) {
         return new ServiceTemplate(id, schedule, time, durationMinutes, location, type, slots);

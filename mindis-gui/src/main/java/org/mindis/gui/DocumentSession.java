@@ -31,10 +31,10 @@ import org.mindis.core.preferences.RecentCollection;
 /// the window title that shows which document is open.
 ///
 /// <p>All data lives in one user-chosen JSON file, so these are file actions
-/// (see {@link org.mindis.core.persistence.AppDatabase}). This class owns
+/// (see [org.mindis.core.persistence.AppDatabase]). This class owns
 /// everything that makes them user-facing - file chooser, confirmations, error
-/// dialogs and the remembered last document - while {@link LiveDatabase} owns
-/// the state they act on. Long-lived like {@code LiveDatabase} itself: a UI
+/// dialogs and the remembered last document - while [LiveDatabase] owns
+/// the state they act on. Long-lived like `LiveDatabase` itself: a UI
 /// rebuild (language change) re-binds the toolbar to the same session.
 public final class DocumentSession {
 
@@ -55,7 +55,7 @@ public final class DocumentSession {
     }
 
     /// The window title: application name plus the open collection's display
-    /// name - the parish name from its {@link CollectionMeta}, falling back to
+    /// name - the parish name from its [CollectionMeta], falling back to
     /// the file name (or "Untitled") - marked with an asterisk while there are
     /// unsaved edits.
     public StringBinding titleBinding() {
@@ -185,7 +185,7 @@ public final class DocumentSession {
 
     /// The recently opened or saved collections, most recent first, for the
     /// switcher dropdown. Capped at
-    /// {@link org.mindis.core.preferences.MinDisPreferences#MAX_RECENT_COLLECTIONS}.
+    /// [org.mindis.core.preferences.MinDisPreferences#MAX_RECENT_COLLECTIONS].
     public List<RecentCollection> recents() {
         return preferencesService.get().recentCollections();
     }

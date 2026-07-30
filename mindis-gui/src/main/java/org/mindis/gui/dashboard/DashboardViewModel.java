@@ -20,7 +20,7 @@ import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.preferences.DashboardWidgetLayout;
 import org.mindis.core.preferences.PreferencesService;
 
-/// ViewModel for {@link DashboardController}: owns every repository call and
+/// ViewModel for [DashboardController]: owns every repository call and
 /// the upcoming-services/server-load aggregation, so the controller only
 /// constructs UI and binds to this class. Assignments live on the service
 /// slots, so everything is derived straight from the live services - there is

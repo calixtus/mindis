@@ -13,11 +13,11 @@ import org.jspecify.annotations.Nullable;
 /// An altar server (ministrant). Plain record - no JavaFX types, no Timefold
 /// annotations (those live on the planning entities, PLAN.md section 3).
 ///
-/// @param familyId shared marker linking siblings; {@code null} if none
-/// @param birthDate {@code null} if unknown
+/// @param familyId shared marker linking siblings; `null` if none
+/// @param birthDate `null` if unknown
 /// @param preferredTimes service start times this server prefers (soft reward)
 /// @param experienced experienced servers are spread across services (soft reward)
-/// @param qualifications ids of the {@link Role}s this server may fill
+/// @param qualifications ids of the [Role]s this server may fill
 public record Server(
         String id,
         String firstName,
@@ -55,7 +55,7 @@ public record Server(
         return preferredTimes.contains(dateTime.toLocalTime());
     }
 
-    /// @return the server's age in whole years on {@code date}, or {@code null}
+    /// @return the server's age in whole years on `date`, or `null`
     ///         if the birth date is unknown (age requirements are then not
     ///         enforced).
     public @Nullable Integer ageAt(LocalDate date) {

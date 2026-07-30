@@ -38,21 +38,22 @@ import org.jspecify.annotations.Nullable;
 import org.mindis.core.l10n.Localization;
 import org.mindis.gui.logging.LogConsoleModel;
 import org.mindis.gui.logging.LogEntry;
-import org.mindis.workbench.WorkbenchModule;
+import org.mindis.gui.shell.ShellModule;
 
 /// About screen (modeled on JabRef's Help &gt; About dialog): logo, version,
 /// maintainers, links to the repository and license, a copyable version-info
 /// block for bug reports, and - at the bottom - an in-app log messages panel
 /// (severity-colored log history, so a user can see and copy what went wrong
 /// without digging into the log file).
-public class AboutModule extends WorkbenchModule {
+public class AboutModule extends ShellModule {
 
     private static final String REPOSITORY_URL = "https://github.com/calixtus/mindis";
     private static final String LICENSE_URL = "https://www.apache.org/licenses/LICENSE-2.0";
     private static final DateTimeFormatter ENTRY_TIME_FORMAT =
             DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault());
 
-    /// Below this, the logo+text side-by-side layout no longer fits comfortably - stack instead.
+    /// Below this, the logo+text side-by-side layout no longer fits comfortably - stack
+    /// instead.
     private static final double NARROW_WIDTH = 480;
 
     private static final String VERSION_BOX_STYLE = """
@@ -133,9 +134,9 @@ public class AboutModule extends WorkbenchModule {
 
     /// Logo + text side by side (logo on the right) while there's room;
     /// stacked (logo on top, text below) once the available width drops
-    /// below {@link #NARROW_WIDTH}. JavaFX has no CSS media queries, so this
-    /// reparents {@code logo}/{@code textBlock} between two prebuilt
-    /// containers on a width listener instead - a {@code FlowPane} would
+    /// below [#NARROW_WIDTH]. JavaFX has no CSS media queries, so this
+    /// reparents `logo`/`textBlock` between two prebuilt
+    /// containers on a width listener instead - a `FlowPane` would
     /// wrap automatically, but it can't put the logo on a *different* side
     /// depending on which state it's in (wide: text left, logo right;
     /// narrow: logo first/top), since wrapping preserves child order either way.
@@ -167,9 +168,9 @@ public class AboutModule extends WorkbenchModule {
         return holder;
     }
 
-    /// A bordered, scrolling block showing {@link #buildVersionInfo()},
+    /// A bordered, scrolling block showing [#buildVersionInfo()],
     /// with a copy icon that only appears on hover - same interaction as
-    /// {@link LogEntryCell}. A {@code TextArea} (tried first) always reserves
+    /// [LogEntryCell]. A `TextArea` (tried first) always reserves
     /// scrollbar space even when its content fits, and fighting that via
     /// scrollbar CSS is more fragile than just not using a scrollable control
     /// for text that was never meant to scroll.
@@ -222,7 +223,8 @@ public class AboutModule extends WorkbenchModule {
         return box;
     }
 
-    /// Shown in the About screen's copyable version-info box - bug reports need this, not just a clipboard side effect.
+    /// Shown in the About screen's copyable version-info box - bug reports need this, not just
+    /// a clipboard side effect.
     private String buildVersionInfo() {
         return "MinDis %s\nJava %s\nJavaFX %s\nOS %s %s".formatted(
                 readVersion(),
@@ -245,10 +247,10 @@ public class AboutModule extends WorkbenchModule {
         }
     }
 
-    /// The repo-root {@code MAINTAINERS} file, copied into this module's
-    /// resources at build time (see {@code build.gradle.kts}) rather than
+    /// The repo-root `MAINTAINERS` file, copied into this module's
+    /// resources at build time (see `build.gradle.kts`) rather than
     /// duplicated by hand, so it's always in sync with GitHub's own
-    /// {@code MAINTAINERS} convention.
+    /// `MAINTAINERS` convention.
     private String readMaintainers() {
         try (InputStream in = getClass().getResourceAsStream("/org/mindis/gui/about/MAINTAINERS")) {
             if (in == null) {
@@ -261,7 +263,7 @@ public class AboutModule extends WorkbenchModule {
         }
     }
 
-    /// One log line: {@code HH:mm:ss [LEVEL] message}, text color by
+    /// One log line: `HH:mm:ss [LEVEL] message`, text color by
     /// severity, with copy/remove icon buttons that only appear on hover -
     /// always-visible buttons on every row would be noisier than the list
     /// itself.

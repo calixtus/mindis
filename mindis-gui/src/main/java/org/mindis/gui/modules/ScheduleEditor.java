@@ -51,13 +51,13 @@ import org.mindis.core.model.ServiceSchedule;
 import org.mindis.core.persistence.RecurrenceCodec;
 import org.mindis.gui.util.CalendarPickers;
 
-/// Editor for a {@link ServiceSchedule}: the pattern (a mode picker plus that
+/// Editor for a [ServiceSchedule]: the pattern (a mode picker plus that
 /// mode's fields), the window it applies in, the dates dropped from it, a
 /// plain-language summary and a preview of the next dates it produces.
 ///
 /// <p>The four guided modes cover what a parish schedules ("every other
 /// Sunday", "the third Sunday of the month", "the first Sunday of October",
-/// "Easter minus two days"); {@link Mode#CUSTOM} takes the rule's text form
+/// "Easter minus two days"); [Mode#CUSTOM] takes the rule's text form
 /// directly and is what any rule the guided modes cannot express falls back
 /// to, so nothing a document or a CSV import can contain is uneditable here.
 ///
@@ -119,7 +119,7 @@ final class ScheduleEditor {
     private final FlowPane skipDateChips = new FlowPane(6, 6);
     private final Set<LocalDate> skipDates = new TreeSet<>();
 
-    /// Guards every control listener while {@link #setSchedule} pushes an
+    /// Guards every control listener while [#setSchedule] pushes an
     /// externally changed schedule into the fields, so that seeding the
     /// controls cannot rebuild (and thereby round off) the very schedule
     /// being seeded.
@@ -167,18 +167,18 @@ final class ScheduleEditor {
     }
 
     /// The schedule currently described by the controls. Never null; a mode
-    /// with nothing selected yet yields {@link RecurrenceRule#NEVER}.
+    /// with nothing selected yet yields [RecurrenceRule#NEVER].
     ServiceSchedule schedule() {
         return schedule.get();
     }
 
-    /// For {@code CrudModule}'s dirty tracking and for the owning editor's
+    /// For `CrudModule`'s dirty tracking and for the owning editor's
     /// live push - fires whenever any control changes the schedule.
     ReadOnlyObjectProperty<ServiceSchedule> scheduleProperty() {
         return schedule;
     }
 
-    /// Seeds the controls from {@code value} - for an {@code EditorBinding}
+    /// Seeds the controls from `value` - for an `EditorBinding`
     /// refresh, or when the editor is first built.
     void setSchedule(ServiceSchedule value) {
         seeding = true;
@@ -284,8 +284,8 @@ final class ScheduleEditor {
         showMode(mode);
     }
 
-    /// Fills the fields of whichever guided mode {@code rule} corresponds to
-    /// and returns that mode, or {@link Mode#CUSTOM} for a rule none of them
+    /// Fills the fields of whichever guided mode `rule` corresponds to
+    /// and returns that mode, or [Mode#CUSTOM] for a rule none of them
     /// can hold.
     private Mode seedGuidedMode(RecurrenceRule rule) {
         RecurrenceRule base = rule;

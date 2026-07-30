@@ -8,7 +8,7 @@ import java.util.TreeSet;
 
 import org.jspecify.annotations.Nullable;
 
-/// When a {@link ServiceTemplate}'s services happen: the {@link RecurrenceRule}
+/// When a [ServiceTemplate]'s services happen: the [RecurrenceRule]
 /// pattern, the window it applies in, and the individual dates dropped from it.
 ///
 /// <p>The three are separate on purpose. A rule answers "which days does this
@@ -42,7 +42,7 @@ public record ServiceSchedule(
         return new ServiceSchedule(rule, null, null, Set.of());
     }
 
-    /// Whether a service happens on {@code date}: the rule matches, the date
+    /// Whether a service happens on `date`: the rule matches, the date
     /// lies inside the window (both bounds inclusive), and it is not one of
     /// the skipped dates.
     public boolean occursOn(LocalDate date) {
@@ -55,8 +55,8 @@ public record ServiceSchedule(
         return !skipDates.contains(date) && rule.matches(date);
     }
 
-    /// The first {@code limit} dates this schedule produces on or after
-    /// {@code from}, for the editor's preview - the window and the skipped
+    /// The first `limit` dates this schedule produces on or after
+    /// `from`, for the editor's preview - the window and the skipped
     /// dates included, so the preview shows what would actually be generated.
     public List<LocalDate> nextOccurrences(LocalDate from, int limit) {
         LocalDate start = validFrom == null || validFrom.isBefore(from) ? from : validFrom;

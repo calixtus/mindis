@@ -13,8 +13,8 @@ import org.jspecify.annotations.Nullable;
 import org.mindis.core.preferences.PreferenceEnumValue;
 
 /// Generic controls for preference values. A choice value renders itself
-/// ({@link PreferenceEnumValue#displayName()}) and can exclude itself
-/// ({@link PreferenceEnumValue#isSelectable()}), so a settings row reduces to one
+/// ([PreferenceEnumValue#displayName()]) and can exclude itself
+/// ([PreferenceEnumValue#isSelectable()]), so a settings row reduces to one
 /// call (kickstartfx idea, reflection-free).
 public final class PreferenceControls {
 
@@ -39,8 +39,8 @@ public final class PreferenceControls {
         return box;
     }
 
-    /// An AtlantaFX-themed {@link Slider} bound to an integer preference.
-    /// {@code Slider.valueProperty()} is a primitive {@code DoubleProperty} -
+    /// An AtlantaFX-themed [Slider] bound to an integer preference.
+    /// `Slider.valueProperty()` is a primitive `DoubleProperty` -
     /// plain JavaFX bidirectional binding needs matching types, so this syncs
     /// both directions by hand instead, rounding on the way into the
     /// (integer) preference.

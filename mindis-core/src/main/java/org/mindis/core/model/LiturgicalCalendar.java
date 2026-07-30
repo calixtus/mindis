@@ -5,13 +5,13 @@ import java.time.LocalDate;
 import java.time.Month;
 import java.time.temporal.TemporalAdjusters;
 
-/// The date arithmetic behind {@link LiturgicalDay}: Easter, the Advent
+/// The date arithmetic behind [LiturgicalDay]: Easter, the Advent
 /// Sundays and the weekday rules a few regional feasts are defined by.
 ///
 /// <p>Every liturgical date is a pure function of the year, which is what lets
-/// a {@link RecurrenceRule} stay a plain date predicate with no calendar to
+/// a [RecurrenceRule] stay a plain date predicate with no calendar to
 /// pass around. Results are cheap enough (integer arithmetic plus a handful of
-/// {@link LocalDate} operations) that generation recomputes them per day
+/// [LocalDate] operations) that generation recomputes them per day
 /// rather than caching.
 ///
 /// <p>Western/Gregorian reckoning only - the Orthodox (Julian) Easter is a
@@ -42,14 +42,14 @@ public final class LiturgicalCalendar {
         return LocalDate.of(year, month, day);
     }
 
-    /// Easter Sunday of {@code year} shifted by {@code offsetDays} - how every
+    /// Easter Sunday of `year` shifted by `offsetDays` - how every
     /// movable feast of the Easter cycle is defined (Ash Wednesday -46,
     /// Ascension +39, Corpus Christi +60, ...).
     public static LocalDate easterPlus(int year, int offsetDays) {
         return easter(year).plusDays(offsetDays);
     }
 
-    /// The {@code number}-th Sunday of Advent (1-4) in {@code year}. The
+    /// The `number`-th Sunday of Advent (1-4) in `year`. The
     /// fourth is the last Sunday on or before 24 December - which is 24
     /// December itself when Christmas Eve falls on a Sunday - and the earlier
     /// ones follow a week apart.
@@ -61,12 +61,12 @@ public final class LiturgicalCalendar {
         return fourth.minusWeeks(4L - number);
     }
 
-    /// The last {@code day} on or before {@code date}.
+    /// The last `day` on or before `date`.
     public static LocalDate lastOnOrBefore(LocalDate date, DayOfWeek day) {
         return date.with(TemporalAdjusters.previousOrSame(day));
     }
 
-    /// The first {@code day} of the given month, e.g. Harvest Thanksgiving's
+    /// The first `day` of the given month, e.g. Harvest Thanksgiving's
     /// first Sunday of October.
     public static LocalDate firstInMonth(int year, Month month, DayOfWeek day) {
         return LocalDate.of(year, month, 1).with(TemporalAdjusters.firstInMonth(day));

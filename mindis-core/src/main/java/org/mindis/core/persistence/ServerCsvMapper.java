@@ -17,7 +17,7 @@ import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.UnavailabilityPeriod;
 
-/// CSV row mapping for {@link Server}, shared by every consumer that offers
+/// CSV row mapping for [Server], shared by every consumer that offers
 /// Servers import/export (currently the GUI's Servers module; PLAN.md's
 /// future web module gets the same for free).
 @NullMarked
@@ -101,7 +101,7 @@ public final class ServerCsvMapper {
                 .collect(Collectors.joining(", "));
     }
 
-    /// {@code "2026-01-01/2026-01-10, ..."}; malformed or inverted entries are dropped.
+    /// `"2026-01-01/2026-01-10, ..."`; malformed or inverted entries are dropped.
     private static List<UnavailabilityPeriod> parseUnavailabilities(String text) {
         List<UnavailabilityPeriod> periods = new ArrayList<>();
         if (text.isEmpty()) {

@@ -5,12 +5,12 @@ import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
 /// A liturgical role an altar server can be qualified for (Acolyte, Cross
-/// bearer, ...). Configurable and persisted like {@link Server}: referenced
-/// everywhere by {@link #id()}. Optional {@link #minAge}/{@link #maxAge} express
-/// an age requirement (years) for filling the role; either may be {@code null}.
+/// bearer, ...). Configurable and persisted like [Server]: referenced
+/// everywhere by [#id()]. Optional [#minAge]/[#maxAge] express
+/// an age requirement (years) for filling the role; either may be `null`.
 ///
-/// <p>The built-in defaults (seeded by {@code RoleRepository}) keep ids equal to
-/// the former {@code Role} enum constants ({@link #ACOLYTE} etc.) so pre-existing
+/// <p>The built-in defaults (seeded by `RoleRepository`) keep ids equal to
+/// the former `Role` enum constants ([#ACOLYTE] etc.) so pre-existing
 /// data referencing those names still resolves without migration.
 public record Role(
         String id,

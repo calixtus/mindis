@@ -14,7 +14,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
 /// One widget on the dashboard board: a titled card with a drag handle (the
 /// header), a close button, a body holding the widget content, and a
 /// bottom-right resize grip. It only builds and exposes these parts; all drag,
-/// resize, add and remove behaviour lives in {@link WidgetBoard}, which sizes
+/// resize, add and remove behaviour lives in [WidgetBoard], which sizes
 /// and positions the container on the grid. The current grid geometry is held
 /// here so the board can read and update it in place.
 final class WidgetContainer extends StackPane {

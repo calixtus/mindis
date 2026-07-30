@@ -10,7 +10,7 @@ import org.mindis.core.model.ServiceTemplate;
 
 /// Recurring-service template storage: the templates of the currently open
 /// document. Upsert by id. Purely in-memory; disk I/O happens exclusively in
-/// {@link AppDatabase}.
+/// [AppDatabase].
 @Singleton
 public class TemplateRepository {
 
@@ -31,7 +31,7 @@ public class TemplateRepository {
     }
 
     /// Replaces the whole content with a freshly opened document's templates.
-    /// Only {@link AppDatabase} calls this.
+    /// Only [AppDatabase] calls this.
     synchronized void replaceAll(List<ServiceTemplate> items) {
         templates.clear();
         templates.addAll(items);

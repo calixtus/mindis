@@ -12,7 +12,7 @@ import org.mindis.core.model.ServiceTemplate;
 import org.mindis.core.model.Slot;
 
 /// Expands recurring templates into concrete services for a date range by
-/// asking every template's {@link org.mindis.core.model.RecurrenceRule} about
+/// asking every template's [org.mindis.core.model.RecurrenceRule] about
 /// every day of the range - the rules are pure date predicates, so no
 /// per-rule iteration strategy is needed.
 ///

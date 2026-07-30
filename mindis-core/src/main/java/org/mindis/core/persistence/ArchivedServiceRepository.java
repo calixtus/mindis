@@ -9,16 +9,16 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.mindis.core.model.ArchivedService;
 
-/// The frozen {@link ArchivedService} snapshots of the currently open document.
+/// The frozen [ArchivedService] snapshots of the currently open document.
 /// Entries are only ever appended, browsed or deleted, never edited - each
-/// snapshot is self-contained (see {@link ArchivedService}) so it stays
+/// snapshot is self-contained (see [ArchivedService]) so it stays
 /// faithful regardless of later roster changes.
 ///
 /// <p>The archive is part of the document, so - unlike when it lived in its own
 /// always-written file - archiving and deleting stage in memory and reach disk
-/// with the next save. {@link #isDirty()} reports whether such a staged change
+/// with the next save. [#isDirty()] reports whether such a staged change
 /// exists, since archive edits are not covered by the GUI's per-row dirty
-/// tracking; listeners registered through {@link #addChangeListener} fire on
+/// tracking; listeners registered through [#addChangeListener] fire on
 /// every mutation so the UI can rebind.
 @Singleton
 public class ArchivedServiceRepository {
@@ -34,7 +34,7 @@ public class ArchivedServiceRepository {
         return all;
     }
 
-    /// Appends {@code services}. No-op for an empty list.
+    /// Appends `services`. No-op for an empty list.
     public void addAll(List<ArchivedService> services) {
         synchronized (this) {
             if (services.isEmpty()) {
@@ -46,7 +46,7 @@ public class ArchivedServiceRepository {
         notifyListeners();
     }
 
-    /// Removes the archived service with {@code id} (retention / cleanup).
+    /// Removes the archived service with `id` (retention / cleanup).
     public void delete(String id) {
         synchronized (this) {
             if (!archived.removeIf(service -> service.id().equals(id))) {
@@ -64,7 +64,7 @@ public class ArchivedServiceRepository {
     }
 
     /// Replaces the whole content with a freshly opened document's archive and
-    /// clears the dirty flag. Only {@link AppDatabase} calls this.
+    /// clears the dirty flag. Only [AppDatabase] calls this.
     void replaceAll(List<ArchivedService> services) {
         synchronized (this) {
             archived.clear();
@@ -74,7 +74,7 @@ public class ArchivedServiceRepository {
         notifyListeners();
     }
 
-    /// Marks the current content as saved. Only {@link AppDatabase} calls this.
+    /// Marks the current content as saved. Only [AppDatabase] calls this.
     synchronized void markSaved() {
         dirty = false;
     }

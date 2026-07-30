@@ -11,15 +11,15 @@ import java.util.function.Predicate;
 
 import org.mindis.core.model.Slot;
 
-/// Reconciles a role's slot count edit (from {@link SlotCountEditor}) into a
-/// concrete {@code List<Slot>}, preserving each surviving slot's stable id -
+/// Reconciles a role's slot count edit (from [SlotCountEditor]) into a
+/// concrete `List<Slot>`, preserving each surviving slot's stable id -
 /// growing a role appends fresh ids; shrinking removes ids, preferring
-/// whichever slots {@code isFilled} says aren't currently backed by a filled
+/// whichever slots `isFilled` says aren't currently backed by a filled
 /// or pinned assignment, so a shrink never silently drops an assigned server
 /// out from under an unrelated empty slot just because it happened to occupy
-/// a now out-of-range position (see {@link Slot}'s class docs on why
-/// identity matters here). Pure - no JavaFX, no {@code ServicesModule}/plan
-/// dependency, {@code isFilled} is the only seam - so it's unit-testable on
+/// a now out-of-range position (see [Slot]'s class docs on why
+/// identity matters here). Pure - no JavaFX, no `ServicesModule`/plan
+/// dependency, `isFilled` is the only seam - so it's unit-testable on
 /// its own.
 final class SlotReconciler {
 

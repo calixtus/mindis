@@ -11,12 +11,12 @@ import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
 
 /// Role storage: the roles of the currently open document. Upsert by id.
-/// Purely in-memory; disk I/O happens exclusively in {@link AppDatabase}.
+/// Purely in-memory; disk I/O happens exclusively in [AppDatabase].
 ///
 /// <p>The five built-in default roles are seeded into a <em>new</em> document
-/// ({@link AppDatabase#newDocument()}), not whenever the list happens to be
+/// ([AppDatabase#newDocument()]), not whenever the list happens to be
 /// empty - an opened document whose roster was deliberately emptied must stay
-/// empty. Their ids match the former {@code Role} enum constants, so data
+/// empty. Their ids match the former `Role` enum constants, so data
 /// referencing those names still resolves.
 @Singleton
 public class RoleRepository {
@@ -44,7 +44,7 @@ public class RoleRepository {
     }
 
     /// Replaces the whole content with a freshly opened document's roles.
-    /// Only {@link AppDatabase} calls this.
+    /// Only [AppDatabase] calls this.
     synchronized void replaceAll(List<Role> items) {
         roles.clear();
         roles.addAll(items);

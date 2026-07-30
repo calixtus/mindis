@@ -27,13 +27,13 @@ import org.mindis.core.model.Slot;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 
-/// Builds a localized, format-agnostic {@link PlanExportDocument} from a set of
-/// services and dispatches it to the {@link PlanExporter} registered for the
-/// requested {@link PlanExportFormat} (PLAN.md M5).
+/// Builds a localized, format-agnostic [PlanExportDocument] from a set of
+/// services and dispatches it to the [PlanExporter] registered for the
+/// requested [PlanExportFormat] (PLAN.md M5).
 ///
-/// <p>Two entry points, one document builder: {@link #exportLive} resolves each
-/// slot's role/server against the live roster; {@link #exportArchived} reads
-/// the display names straight off the self-contained {@link ArchivedService}
+/// <p>Two entry points, one document builder: [#exportLive] resolves each
+/// slot's role/server against the live roster; [#exportArchived] reads
+/// the display names straight off the self-contained [ArchivedService]
 /// snapshot, so a frozen plan still exports faithfully after the servers or
 /// roles it referenced are gone.
 @Singleton

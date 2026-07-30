@@ -13,18 +13,18 @@ import org.mindis.core.model.CollectionMeta;
 /// single source of truth every reader (GUI stores, solver, CSV mappers) sees
 /// live, and owns the file they came from.
 ///
-/// <p>All data lives in one user-chosen JSON file (see {@link MinDisDocument}),
+/// <p>All data lives in one user-chosen JSON file (see [MinDisDocument]),
 /// not in per-entity files under a fixed data directory - so the document
-/// actions <em>are</em> the file actions: {@link #newDocument()},
-/// {@link #open(Path)}, {@link #save()}, {@link #saveAs(Path)} and
-/// {@link #reload()}. These are the only disk-I/O entry points for entity data;
+/// actions <em>are</em> the file actions: [#newDocument()],
+/// [#open(Path)], [#save()], [#saveAs(Path)] and
+/// [#reload()]. These are the only disk-I/O entry points for entity data;
 /// every repository mutation stages in memory until a save. Assignments are
-/// part of the service records (see {@link org.mindis.core.model.Slot}) and the
+/// part of the service records (see [org.mindis.core.model.Slot]) and the
 /// archive is part of the document, so one save covers everything.
 ///
 /// <p>A new document has no path ("untitled") until it is saved somewhere:
-/// {@link #save()} on such a document is a programming error - the caller must
-/// route it to {@link #saveAs(Path)}, which is what the GUI does.
+/// [#save()] on such a document is a programming error - the caller must
+/// route it to [#saveAs(Path)], which is what the GUI does.
 @Singleton
 public class AppDatabase {
 
@@ -49,13 +49,13 @@ public class AppDatabase {
     }
 
     /// The file the open document was loaded from or last saved to;
-    /// {@code null} for a new, never-saved document.
+    /// `null` for a new, never-saved document.
     public synchronized @Nullable Path documentPath() {
         return documentPath;
     }
 
-    /// The open document's identity (name + logo); never {@code null} - a new
-    /// or metadata-less document reports {@link CollectionMeta#empty()}.
+    /// The open document's identity (name + logo); never `null` - a new
+    /// or metadata-less document reports [CollectionMeta#empty()].
     public synchronized CollectionMeta meta() {
         return meta;
     }
@@ -73,7 +73,7 @@ public class AppDatabase {
         roles.replaceAll(RoleRepository.defaults());
     }
 
-    /// Opens {@code file} and replaces the open document with its content.
+    /// Opens `file` and replaces the open document with its content.
     /// Staged edits of the previous document are discarded - the caller is
     /// responsible for asking the user first.
     ///
@@ -87,7 +87,7 @@ public class AppDatabase {
     /// Writes the open document back to its own file.
     ///
     /// @throws IllegalStateException if the document has never been saved (no
-    ///         path yet) - use {@link #saveAs(Path)}
+    ///         path yet) - use [#saveAs(Path)]
     public synchronized void save() throws IOException {
         if (documentPath == null) {
             throw new IllegalStateException("Untitled document: use saveAs(Path)");
@@ -96,7 +96,7 @@ public class AppDatabase {
         archived.markSaved();
     }
 
-    /// Writes the open document to {@code file} and makes that its file from now on.
+    /// Writes the open document to `file` and makes that its file from now on.
     public synchronized void saveAs(Path file) throws IOException {
         store.write(file, snapshot());
         documentPath = file;

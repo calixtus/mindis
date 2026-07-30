@@ -3,7 +3,7 @@ package org.mindis.core.preferences;
 import org.mindis.core.l10n.Localization;
 
 /// How the module toolbar buttons render their label and icon: text only, icon
-/// only, or both. A user preference (default {@link #BOTH}), applied app-wide.
+/// only, or both. A user preference (default [#BOTH]), applied app-wide.
 public enum ToolbarButtonDisplay implements PreferenceEnumValue {
 
     TEXT("Text only"),

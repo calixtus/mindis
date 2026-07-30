@@ -11,8 +11,8 @@ import org.slf4j.LoggerFactory;
 /// Localization with full-text keys (JabRef style): the key IS the English text.
 /// Missing translations fall back to the key itself, so the UI never shows raw keys.
 ///
-/// <p>Positional parameters use {@code %0}, {@code %1}, ... placeholders:
-/// <pre>{@code Localization.lang("%0 of %1 slots assigned", assigned, total)}</pre>
+/// <p>Positional parameters use `%0`, `%1`, ... placeholders:
+/// <pre>`Localization.lang("%0 of %1 slots assigned", assigned, total)`</pre>
 ///
 /// <p>Deliberate DIP exception (PLAN.md section 8): a global mutable static,
 /// like JabRef's Localization. Fine for a single-user desktop process with one

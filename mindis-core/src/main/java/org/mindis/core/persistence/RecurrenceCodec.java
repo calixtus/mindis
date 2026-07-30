@@ -20,9 +20,9 @@ import org.jspecify.annotations.Nullable;
 import org.mindis.core.model.LiturgicalDay;
 import org.mindis.core.model.RecurrenceRule;
 
-/// Text form of a {@link RecurrenceRule}, used wherever a rule has to fit into
-/// a single field a human may edit - currently the CSV {@code recurrence}
-/// column of {@link TemplateCsvMapper}. The JSON document uses Jackson's
+/// Text form of a [RecurrenceRule], used wherever a rule has to fit into
+/// a single field a human may edit - currently the CSV `recurrence`
+/// column of [TemplateCsvMapper]. The JSON document uses Jackson's
 /// polymorphic form instead; this one trades that verbosity for one readable
 /// line:
 ///
@@ -43,7 +43,7 @@ import org.mindis.core.model.RecurrenceRule;
 /// NEVER
 /// ```
 ///
-/// <p>Parsing is all-or-nothing per rule and returns {@code null} for anything
+/// <p>Parsing is all-or-nothing per rule and returns `null` for anything
 /// unreadable, including a group with one bad member: a partially understood
 /// pattern would generate services on the wrong days, which is worse than the
 /// row being skipped the way every other unparsable CSV row is.
@@ -82,7 +82,7 @@ public final class RecurrenceCodec {
         };
     }
 
-    /// The rule described by {@code text}, or {@code null} if it is blank or
+    /// The rule described by `text`, or `null` if it is blank or
     /// not understood.
     public static @Nullable RecurrenceRule parse(String text) {
         return parse(text, 0);
@@ -127,7 +127,7 @@ public final class RecurrenceCodec {
         };
     }
 
-    /// The leading keyword: everything up to the first {@code :} or {@code (},
+    /// The leading keyword: everything up to the first `:` or `(`,
     /// upper-cased so that hand-written rules may be lower case.
     private static String keywordOf(String text) {
         int end = text.length();
@@ -163,7 +163,7 @@ public final class RecurrenceCodec {
         return rule == null ? null : new RecurrenceRule.Not(rule);
     }
 
-    /// Splits a group body on {@code ;} at nesting depth zero, so that nested
+    /// Splits a group body on `;` at nesting depth zero, so that nested
     /// groups keep their own members.
     private static List<String> splitMembers(String body) {
         List<String> parts = new ArrayList<>();
@@ -233,9 +233,9 @@ public final class RecurrenceCodec {
         }
     }
 
-    /// {@code FEAST_NAME}, or {@code FEAST_NAME+n} / {@code FEAST_NAME-n}. The
+    /// `FEAST_NAME`, or `FEAST_NAME+n` / `FEAST_NAME-n`. The
     /// sign is looked for from the right so that a feast name may contain the
-    /// underscore-separated digits of {@code ADVENT_1}.
+    /// underscore-separated digits of `ADVENT_1`.
     private static @Nullable RecurrenceRule feastRelative(String value) {
         int sign = Math.max(value.lastIndexOf('+'), value.lastIndexOf('-'));
         String name = sign < 0 ? value : value.substring(0, sign).strip();
@@ -256,7 +256,7 @@ public final class RecurrenceCodec {
         return date == null ? null : new RecurrenceRule.FixedDay(date);
     }
 
-    /// {@code n@anchor}, e.g. {@code 2@2026-01-05}.
+    /// `n@anchor`, e.g. `2@2026-01-05`.
     private static @Nullable RecurrenceRule cycle(String value, CycleFactory factory) {
         int at = value.indexOf('@');
         if (at < 0) {
@@ -341,7 +341,7 @@ public final class RecurrenceCodec {
         return rules.stream().map(RecurrenceCodec::format).collect(Collectors.joining(MEMBER_SEPARATOR));
     }
 
-    /// Constructor reference shape shared by the three {@code EVERY_*} rules.
+    /// Constructor reference shape shared by the three `EVERY_*` rules.
     @FunctionalInterface
     private interface CycleFactory {
         RecurrenceRule create(int n, LocalDate anchor);

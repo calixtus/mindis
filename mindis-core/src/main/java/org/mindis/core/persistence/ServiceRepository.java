@@ -11,7 +11,7 @@ import org.mindis.core.model.LiturgicalService;
 
 /// Service storage: the liturgical services of the currently open document,
 /// assignments included (an assignment lives on its slot). Upsert by id.
-/// Purely in-memory; disk I/O happens exclusively in {@link AppDatabase}.
+/// Purely in-memory; disk I/O happens exclusively in [AppDatabase].
 @Singleton
 public class ServiceRepository {
 
@@ -36,7 +36,7 @@ public class ServiceRepository {
     }
 
     /// Replaces the whole content with a freshly opened document's services.
-    /// Only {@link AppDatabase} calls this.
+    /// Only [AppDatabase] calls this.
     synchronized void replaceAll(List<LiturgicalService> items) {
         services.clear();
         services.addAll(items);

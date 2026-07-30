@@ -43,7 +43,7 @@ import org.mindis.gui.theme.AccentColorSelector;
 /// and the backdrop behind it.
 ///
 /// <p>Logo and icon are one control: clicking the logo tile opens a popover of
-/// stock icons ({@link LogoIcons}) with a "custom image" button at the bottom.
+/// stock icons ([LogoIcons]) with a "custom image" button at the bottom.
 /// Picking an icon or an image replaces the other, so there is no separate
 /// remove action. A custom image is stored inside the document as a Base64 PNG
 /// (PNG-only, size-capped to keep the document small).

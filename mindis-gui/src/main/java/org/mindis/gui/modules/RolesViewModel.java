@@ -5,9 +5,9 @@ import org.jspecify.annotations.NullMarked;
 import org.mindis.core.model.Role;
 import org.mindis.core.persistence.RoleRepository;
 
-/// ViewModel for {@link RolesModule}: owns the {@link RoleRepository} reads the
+/// ViewModel for [RolesModule]: owns the [RoleRepository] reads the
 /// module still needs directly (CRUD goes through the shared
-/// {@link org.mindis.workbench.LiveStore}), so the module only constructs UI
+/// [org.mindis.gui.data.LiveStore]), so the module only constructs UI
 /// and binds to this class.
 @NullMarked
 final class RolesViewModel {

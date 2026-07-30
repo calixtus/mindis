@@ -8,8 +8,8 @@ import java.util.Map;
 import org.mindis.core.model.Server;
 
 /// Computes per-assignment hard/medium violations for display, mirroring the
-/// hard and medium constraints of {@link MinDisConstraintProvider} in plain
-/// Java. Needed because Timefold's {@code SolutionManager.analyze()} is an
+/// hard and medium constraints of [MinDisConstraintProvider] in plain
+/// Java. Needed because Timefold's `SolutionManager.analyze()` is an
 /// enterprise-only feature; these checks are trivial to hold in sync (shared
 /// name constants, guarded by tests).
 public final class ViolationChecker {

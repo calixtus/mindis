@@ -12,11 +12,11 @@ import org.junit.jupiter.api.Test;
 
 import org.mindis.core.model.Slot;
 
-/// Unit tests for the actual bug fix behind giving {@link Slot} its own
+/// Unit tests for the actual bug fix behind giving [Slot] its own
 /// stable id: a role's slot count shrinking must never drop a filled/pinned
 /// slot just because it happened to occupy a now out-of-range position - it
-/// must prefer dropping an unfilled one. No JavaFX, no {@code ServicesModule}
-/// construction needed - {@link SlotReconciler} is pure.
+/// must prefer dropping an unfilled one. No JavaFX, no `ServicesModule`
+/// construction needed - [SlotReconciler] is pure.
 class SlotReconcilerTest {
 
     private static final String ACOLYTE = "acolyte";

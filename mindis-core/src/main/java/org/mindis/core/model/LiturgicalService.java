@@ -23,7 +23,7 @@ public record LiturgicalService(
         return UUID.randomUUID().toString();
     }
 
-    /// This service with {@code slots} replaced - used to write solver results
+    /// This service with `slots` replaced - used to write solver results
     /// (assignments now live on the slots) back onto the record.
     public LiturgicalService withSlots(List<Slot> slots) {
         return new LiturgicalService(id, dateTime, durationMinutes, location, type, slots, note);

@@ -10,12 +10,12 @@ import org.jspecify.annotations.Nullable;
 /// <p>The logo is either a custom image - a small PNG thumbnail encoded as
 /// Base64, kept in the JSON so a collection is self-contained (no sidecar image
 /// file) - or, when there is none, a stock icon chosen from the icon font by its
-/// literal ({@link #logoIcon}). A custom image wins over a stock icon; with
-/// neither, the switcher draws its default icon. {@link #logoBackground} lets a
+/// literal ([#logoIcon]). A custom image wins over a stock icon; with
+/// neither, the switcher draws its default icon. [#logoBackground] lets a
 /// low-contrast logo sit on a light or dark rounded backdrop.
 ///
 /// <p>All fields are optional: an older or hand-edited document without a
-/// {@code meta} block, or with only some fields, reads back as {@link #empty()}
+/// `meta` block, or with only some fields, reads back as [#empty()]
 /// / defaults rather than failing the open.
 public record CollectionMeta(
         @Nullable String displayName,

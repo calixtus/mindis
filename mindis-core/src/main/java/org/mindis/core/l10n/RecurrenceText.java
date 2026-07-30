@@ -13,11 +13,11 @@ import java.util.stream.Collectors;
 import org.mindis.core.model.RecurrenceRule;
 import org.mindis.core.model.ServiceSchedule;
 
-/// Localized one-line descriptions of a {@link RecurrenceRule} - "Every third
+/// Localized one-line descriptions of a [RecurrenceRule] - "Every third
 /// Sunday of the month", "Easter Sunday minus 2 days" - for the templates
 /// table and the recurrence editor's summary.
 ///
-/// <p>The counterpart of {@code RecurrenceCodec}: that one writes the form a
+/// <p>The counterpart of `RecurrenceCodec`: that one writes the form a
 /// rule is stored in, this one the form it is read in. Composites are
 /// described by describing their parts, so an arbitrarily nested rule still
 /// produces a sentence rather than falling back to raw syntax.

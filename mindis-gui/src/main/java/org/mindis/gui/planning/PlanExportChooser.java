@@ -11,10 +11,12 @@ import javafx.stage.Window;
 import org.mindis.core.export.PlanExportFormat;
 import org.mindis.core.l10n.Localization;
 
-/// Shared "save plan as..." {@link FileChooser} setup for {@link org.mindis.gui.modules.ServicesModule}
-/// and {@link ArchivedPlansDialog} - both offer the same {@link PlanExportFormat} choices and used to
-/// resolve the export format from the typed file name only, silently ignoring whichever format the
-/// user had actually picked (e.g. from a format menu) whenever it disagreed with the initial filter.
+/// Shared "save plan as..." [FileChooser] setup for [org.mindis.gui.modules.ServicesModule]
+/// and [ArchivedPlansDialog] - both offer the same [PlanExportFormat] choices and used to
+/// resolve the export format from the typed file name only, silently ignoring whichever format
+/// the
+/// user had actually picked (e.g. from a format menu) whenever it disagreed with the initial
+/// filter.
 public final class PlanExportChooser {
 
     private static final List<FileChooser.ExtensionFilter> FILTERS = List.of(
@@ -30,8 +32,9 @@ public final class PlanExportChooser {
     public record Target(Path file, PlanExportFormat format) {
     }
 
-    /// Prompts for a save file, its extension filter preselected to {@code preferredFormat} so the
-    /// dialog agrees with whatever format the user already chose to trigger it. Empty if cancelled.
+    /// Prompts for a save file, its extension filter preselected to `preferredFormat` so the
+    /// dialog agrees with whatever format the user already chose to trigger it. Empty if
+    /// cancelled.
     public static Optional<Target> show(Window owner, PlanningViewModel viewModel, String initialFileNameBase,
             PlanExportFormat preferredFormat) {
         FileChooser chooser = new FileChooser();

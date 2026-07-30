@@ -12,7 +12,7 @@ import org.mindis.core.model.Server;
 /// Roster storage: the servers of the currently open document. Upsert by id.
 /// Purely in-memory - this cache is the single source of truth every reader
 /// (GUI stores, solver, CSV mappers) sees live; disk I/O happens exclusively in
-/// {@link AppDatabase}, which fills this repository when a document is opened
+/// [AppDatabase], which fills this repository when a document is opened
 /// and collects it back when one is saved.
 @Singleton
 public class ServerRepository {
@@ -38,7 +38,7 @@ public class ServerRepository {
     }
 
     /// Replaces the whole content, e.g. with a freshly opened document's
-    /// servers. Only {@link AppDatabase} calls this.
+    /// servers. Only [AppDatabase] calls this.
     synchronized void replaceAll(List<Server> items) {
         servers.clear();
         servers.addAll(items);

@@ -36,15 +36,14 @@ import org.mindis.core.preferences.PreferencesService;
 
 /// Turns the live services into solver problems and writes the results back
 /// onto them, and freezes past services into the archive. UI-agnostic API
-/// (PLAN.md 2.5): callers receive best solutions through a plain {@link
-/// Consumer}; the GUI adapts onto the FX thread.
+/// (PLAN.md 2.5): callers receive best solutions through a plain [Consumer]; the GUI adapts
+/// onto the FX thread.
 ///
 /// <p>There is no separate range-keyed plan structure any more: an assignment
-/// lives on its {@link Slot} (see that class), so a {@link ServicePlan} is a
+/// lives on its [Slot] (see that class), so a [ServicePlan] is a
 /// transient view built on demand from a set of services and discarded once its
 /// results are written back. Scoping a solve to only some slots (one service,
-/// or an unassigned-only window) is done purely by pinning the rest - {@link
-/// Autofill}.
+/// or an unassigned-only window) is done purely by pinning the rest - [Autofill].
 @Singleton
 public class PlanningService implements AutoCloseable {
 
@@ -81,11 +80,11 @@ public class PlanningService implements AutoCloseable {
                         Duration.ofSeconds(MinDisPreferences.DEFAULT_SOLVER_SECONDS)));
     }
 
-    /// Termination for a solve capped at {@code timeBudget}: stop at the budget,
-    /// <em>or</em> early once no improved solution has been found for {@link
-    /// #UNIMPROVED_SECONDS} - the "it's clearly converged, don't burn the rest
-    /// of the clock" cutoff. Both limits always travel together: a {@link
-    /// SolverConfigOverride} replaces the whole {@link TerminationConfig} rather
+    /// Termination for a solve capped at `timeBudget`: stop at the budget,
+    /// <em>or</em> early once no improved solution has been found for [#UNIMPROVED_SECONDS] -
+    /// the "it's clearly converged, don't burn the rest
+    /// of the clock" cutoff. Both limits always travel together: a [SolverConfigOverride]
+    /// replaces the whole [TerminationConfig] rather
     /// than merging, so building the spent limit alone (as the per-solve
     /// override used to) would silently drop the unimproved cutoff and make
     /// every solve run the full budget.
@@ -95,7 +94,7 @@ public class PlanningService implements AutoCloseable {
                 .withUnimprovedSecondsSpentLimit(UNIMPROVED_SECONDS);
     }
 
-    /// Builds a problem from the current live services: one {@link Assignment}
+    /// Builds a problem from the current live services: one [Assignment]
     /// per role slot, each pre-populated from the slot's own stored assignment
     /// (server + pin), all active servers as the value range, plus
     /// cross-boundary spacing facts from the archive.
@@ -105,7 +104,7 @@ public class PlanningService implements AutoCloseable {
     }
 
     /// Builds a problem from an explicit service set with explicit prior facts
-    /// - the testable core of {@link #buildProblem()}.
+    /// - the testable core of [#buildProblem()].
     public ServicePlan buildProblem(List<LiturgicalService> services, List<PriorAssignment> priorAssignments) {
         List<Server> activeServers = serverRepository.findAll().stream()
                 .filter(Server::active)
@@ -138,8 +137,8 @@ public class PlanningService implements AutoCloseable {
         return plan;
     }
 
-    /// Writes {@code solved}'s assignments back onto {@code services}: each
-    /// slot's {@code serverId}/{@code pinned} is updated from its assignment.
+    /// Writes `solved`'s assignments back onto `services`: each
+    /// slot's `serverId`/`pinned` is updated from its assignment.
     /// Pure - returns new service records, mutates nothing; the caller stages
     /// them into the live store, and a Save all persists them like any other
     /// service edit.
@@ -163,10 +162,10 @@ public class PlanningService implements AutoCloseable {
         return result;
     }
 
-    /// {@link PriorAssignment} facts drawn from the archive: any archived slot
-    /// whose service date lies in the {@link
-    /// MinDisConstraintProvider#SPACING_THRESHOLD_DAYS}-day tail immediately
-    /// before {@code earliest} and whose server still exists, so the solver is
+    /// [PriorAssignment] facts drawn from the archive: any archived slot
+    /// whose service date lies in the [MinDisConstraintProvider#SPACING_THRESHOLD_DAYS]-day
+    /// tail immediately
+    /// before `earliest` and whose server still exists, so the solver is
     /// penalized for scheduling that server again right up against the frozen
     /// history. Empty when there are no live services to place.
     public List<PriorAssignment> priorFromArchived(@Nullable LocalDate earliest) {
@@ -195,8 +194,8 @@ public class PlanningService implements AutoCloseable {
         return result;
     }
 
-    /// Freezes every live service dated on or before {@code cutoff} into a
-    /// self-contained {@link ArchivedService} snapshot (role/server names
+    /// Freezes every live service dated on or before `cutoff` into a
+    /// self-contained [ArchivedService] snapshot (role/server names
     /// resolved now), persists the snapshots immediately, and returns the ids
     /// of the live services to drop. The caller removes those from the live
     /// list and Save-alls to commit the removal. Empty result if the cutoff
@@ -229,8 +228,8 @@ public class PlanningService implements AutoCloseable {
     }
 
     /// Solves asynchronously; every improved solution is pushed to
-    /// {@code bestSolutionConsumer} (solver thread!). Returns a job id for
-    /// {@link #stopSolving}.
+    /// `bestSolutionConsumer` (solver thread!). Returns a job id for
+    /// [#stopSolving].
     public UUID solveAsync(ServicePlan problem,
                            Duration timeBudget,
                            Consumer<ServicePlan> bestSolutionConsumer,
@@ -253,14 +252,14 @@ public class PlanningService implements AutoCloseable {
     }
 
     /// Current score of a (possibly manually edited) plan. Uses
-    /// {@code SolutionManager.update} - Timefold's {@code analyze()} is an
+    /// `SolutionManager.update` - Timefold's `analyze()` is an
     /// enterprise-only feature (see PLAN.md risk table).
     public @Nullable HardMediumSoftScore scoreOf(ServicePlan plan) {
         return solutionManager.update(plan);
     }
 
     /// Per-assignment violation summary: assignment id to the names of the
-    /// violated hard/medium constraints. Computed by {@link ViolationChecker}.
+    /// violated hard/medium constraints. Computed by [ViolationChecker].
     public Map<String, List<String>> violationsByAssignment(ServicePlan plan) {
         return ViolationChecker.violationsByAssignment(plan);
     }

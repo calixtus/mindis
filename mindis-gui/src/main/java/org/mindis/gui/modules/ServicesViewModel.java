@@ -14,9 +14,9 @@ import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServiceGenerator;
 import org.mindis.core.persistence.TemplateRepository;
 
-/// ViewModel for {@link ServicesModule}: owns the repository reads and the
+/// ViewModel for [ServicesModule]: owns the repository reads and the
 /// template-generation logic the module still needs directly (CRUD goes
-/// through the shared {@link org.mindis.workbench.LiveStore}), so the module
+/// through the shared [org.mindis.gui.data.LiveStore]), so the module
 /// only constructs UI and binds to this class. All reads see the live staged
 /// state, unsaved edits included.
 @NullMarked
@@ -46,7 +46,7 @@ final class ServicesViewModel {
     }
 
     /// Expands every weekly template into concrete services over
-    /// {@code [from, toInclusive]} - pure computation, nothing is persisted;
+    /// `[from, toInclusive]` - pure computation, nothing is persisted;
     /// the caller merges the result into its live table state and it's
     /// written to disk on the next Save.
     ///
@@ -55,7 +55,7 @@ final class ServicesViewModel {
     ///                 against duplicate generation just as much as a saved
     ///                 one), so generation doesn't re-propose a service that's
     ///                 only sitting unsaved in the table
-    /// @return null if the range is invalid ({@code from}/{@code to} missing
+    /// @return null if the range is invalid (`from`/`to` missing
     ///         or reversed)
     @Nullable List<LiturgicalService> generateFromTemplates(LocalDate from, LocalDate to,
                                                              List<LiturgicalService> existing) {

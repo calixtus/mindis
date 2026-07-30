@@ -36,16 +36,16 @@ import org.mindis.core.preferences.ToolbarButtonDisplay;
 import org.mindis.gui.preferences.PreferenceControls;
 import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.gui.theme.AccentColorSelector;
-import org.mindis.workbench.WorkbenchModule;
+import org.mindis.gui.shell.ShellModule;
 
-/// Settings screen. Each preferences group is a {@link TitledPane} with a
+/// Settings screen. Each preferences group is a [TitledPane] with a
 /// "Reset to defaults" button in its header; inside, every setting is an
-/// AtlantaFX {@link Tile} (title + description on the left, its control in
+/// AtlantaFX [Tile] (title + description on the left, its control in
 /// the action slot on the right, highlighted on hover), stacked into a
 /// settings-list look. All controls bind bidirectionally to
-/// {@link UiPreferences}, and stretch to use whatever width the module has
+/// [UiPreferences], and stretch to use whatever width the module has
 /// rather than sitting at a fixed narrow size.
-public class SettingsModule extends WorkbenchModule {
+public class SettingsModule extends ShellModule {
 
     // A fixed width, not one reactively bound to the pane's own width - that
     // was tried first (clamped to a fraction of content's width) and made
@@ -235,7 +235,8 @@ public class SettingsModule extends WorkbenchModule {
         return box;
     }
 
-    /// A Tile with a hover highlight - AtlantaFX's own styling doesn't distinguish a hovered settings row otherwise.
+    /// A Tile with a hover highlight - AtlantaFX's own styling doesn't distinguish a hovered
+    /// settings row otherwise.
     private Tile tile(String title, @Nullable String description, Node action) {
         Tile tile = new Tile(title, description);
         tile.setAction(action);
@@ -244,10 +245,10 @@ public class SettingsModule extends WorkbenchModule {
         return tile;
     }
 
-    /// A {@link TitledPane} with a "Reset to defaults" button at the top
-    /// right of its header. {@code TitledPane} only reserves space for its
+    /// A [TitledPane] with a "Reset to defaults" button at the top
+    /// right of its header. `TitledPane` only reserves space for its
     /// title text by default, so the header is replaced entirely with a
-    /// custom {@code graphic} (title label + spacer + button).
+    /// custom `graphic` (title label + spacer + button).
     private TitledPane groupPane(String title, VBox tiles, Runnable onReset) {
         Label titleLabel = new Label(title);
         titleLabel.getStyleClass().add(Styles.TITLE_4);

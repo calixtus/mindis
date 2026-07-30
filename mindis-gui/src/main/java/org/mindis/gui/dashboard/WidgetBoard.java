@@ -21,7 +21,7 @@ import javafx.scene.paint.Color;
 ///
 /// <p>Widgets can be dragged (press-and-hold the header) to a new cell, resized
 /// in whole-cell steps by the bottom-right grip, added via
-/// {@link #placeNewWidget}, and removed via each widget's close button. The
+/// [#placeNewWidget], and removed via each widget's close button. The
 /// invisible grid is only drawn - faintly - while a drag or resize is in
 /// progress, as a placement guide. Every layout change notifies the supplied
 /// callback so the arrangement can be persisted.

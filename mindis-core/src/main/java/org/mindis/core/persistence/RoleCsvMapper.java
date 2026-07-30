@@ -7,7 +7,7 @@ import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.model.Role;
 
-/// CSV row mapping for {@link Role}, shared by every consumer that offers
+/// CSV row mapping for [Role], shared by every consumer that offers
 /// Roles import/export (currently the GUI's Roles module; PLAN.md's future
 /// web module gets the same for free).
 @NullMarked

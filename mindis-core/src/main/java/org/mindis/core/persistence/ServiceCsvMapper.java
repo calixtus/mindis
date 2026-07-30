@@ -11,7 +11,7 @@ import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
 
-/// CSV row mapping for {@link LiturgicalService}, shared by every consumer
+/// CSV row mapping for [LiturgicalService], shared by every consumer
 /// that offers Services import/export (currently the GUI's Services module;
 /// PLAN.md's future web module gets the same for free).
 @NullMarked

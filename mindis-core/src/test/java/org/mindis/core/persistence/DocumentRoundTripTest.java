@@ -35,7 +35,7 @@ import org.mindis.core.model.Slot;
 import org.mindis.core.model.UnavailabilityPeriod;
 
 /// All data lives in one user-chosen document, so a round trip means: mutate
-/// the repositories, save, open the file in a second {@link AppDatabase}.
+/// the repositories, save, open the file in a second [AppDatabase].
 class DocumentRoundTripTest {
 
     @TempDir
@@ -201,7 +201,7 @@ class DocumentRoundTripTest {
         return new Server(id, firstName, "Muster", "", null, null, Set.of(), List.of(), Set.of(), false, true);
     }
 
-    /// One document's repositories plus the {@link AppDatabase} over them -
+    /// One document's repositories plus the [AppDatabase] over them -
     /// what the DI container wires at runtime.
     private static final class Fixture {
         private final RoleRepository roles = new RoleRepository();

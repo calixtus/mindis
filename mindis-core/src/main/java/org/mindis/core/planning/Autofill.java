@@ -18,14 +18,14 @@ public final class Autofill {
     private Autofill() {
     }
 
-    /// The pin state captured by {@link #begin}: every assignment's original
+    /// The pin state captured by [#begin]: every assignment's original
     /// pin (to restore the ones the solver was not allowed to touch) plus the
     /// ids left eligible.
     public record Scope(Map<String, Boolean> pinSnapshot, Set<String> eligibleIds) {
     }
 
-    /// Leaves every assignment matching {@code eligible} free and pins the
-    /// rest, returning the snapshot {@link #finish} needs.
+    /// Leaves every assignment matching `eligible` free and pins the
+    /// rest, returning the snapshot [#finish] needs.
     public static Scope begin(ServicePlan plan, Predicate<Assignment> eligible) {
         Map<String, Boolean> pinSnapshot = new HashMap<>();
         Set<String> eligibleIds = new HashSet<>();
@@ -41,8 +41,8 @@ public final class Autofill {
     }
 
     /// Eligibility for a windowed "fill all unassigned" run: the service falls
-    /// within {@code [from, to]} and the slot is either open or - when {@code
-    /// overwrite} - already filled.
+    /// within `[from, to]` and the slot is either open or - when `
+    /// overwrite` - already filled.
     public static Predicate<Assignment> within(LocalDate from, LocalDate to, boolean overwrite) {
         return assignment -> {
             LocalDate date = assignment.getService().dateTime().toLocalDate();
@@ -58,7 +58,7 @@ public final class Autofill {
     }
 
     /// Restores the pin state of every assignment the solver was not allowed to
-    /// move (from {@code scope}); each eligible slot the solver filled becomes
+    /// move (from `scope`); each eligible slot the solver filled becomes
     /// pinned, since the planner asked for this fill just as deliberately as a
     /// manual pick, while an eligible slot left empty stays unpinned.
     public static void finish(ServicePlan solved, Scope scope) {

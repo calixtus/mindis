@@ -29,7 +29,7 @@ import org.mindis.core.preferences.DataDirectory;
 import org.mindis.core.preferences.PreferencesService;
 
 /// Non-solving planning behavior: problem building, write-back onto slots, and
-/// archiving. The solver itself is exercised by {@link PlanningEndToEndTest}.
+/// archiving. The solver itself is exercised by [PlanningEndToEndTest].
 class PlanningServiceTest {
 
     @TempDir

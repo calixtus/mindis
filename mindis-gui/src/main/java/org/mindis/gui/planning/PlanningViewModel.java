@@ -32,14 +32,14 @@ import org.mindis.core.planning.ServiceArchiver;
 import org.mindis.core.planning.ServicePlan;
 import org.mindis.core.preferences.PreferencesService;
 
-/// ViewModel for {@link org.mindis.gui.modules.ServicesModule}'s solve/archive/
-/// export workflow. Thin by design now that an assignment lives on its {@link
-/// org.mindis.core.model.Slot} (see {@link PlanningService}): there is no plan
+/// ViewModel for [org.mindis.gui.modules.ServicesModule]'s solve/archive/
+/// export workflow. Thin by design now that an assignment lives on its
+/// [org.mindis.core.model.Slot] (see [PlanningService]): there is no plan
 /// object to hold, no plan-dirty state and no range bookkeeping - a solve
-/// builds a transient {@link ServicePlan} from the live services, and its
+/// builds a transient [ServicePlan] from the live services, and its
 /// results are written straight back onto those services (ordinary service
 /// edits, saved by the same global Save as everything else). The only
-/// state this class owns is the {@code solving} flag every solve control binds
+/// state this class owns is the `solving` flag every solve control binds
 /// to. Plain-constructed and held as a field for the app's lifetime.
 public class PlanningViewModel {
 
@@ -65,17 +65,19 @@ public class PlanningViewModel {
 
     // --- Solve state ---
 
-    /// Whether the solver is currently running - every solve control and the global Save stay disabled while true.
+    /// Whether the solver is currently running - every solve control and the global Save stay
+    /// disabled while true.
     public ReadOnlyBooleanProperty solvingProperty() {
         return solving;
     }
 
-    /// Fraction (0..1) of the board's slots currently filled - bind a solve progress bar to this.
+    /// Fraction (0..1) of the board's slots currently filled - bind a solve progress bar to
+    /// this.
     public ReadOnlyDoubleProperty solveProgressProperty() {
         return solveProgress;
     }
 
-    /// Recomputes {@link #solveProgressProperty()} from {@code plan}'s
+    /// Recomputes [#solveProgressProperty()] from `plan`'s
     /// filled/total slot ratio (empty board reads as 0). Called by the View on
     /// the FX thread for each improved solution and at solve start.
     public void updateProgress(ServicePlan plan) {
@@ -102,12 +104,13 @@ public class PlanningViewModel {
 
     // --- Problem building / write-back ---
 
-    /// A transient problem over the current live services, each slot's stored assignment pre-applied.
+    /// A transient problem over the current live services, each slot's stored assignment
+    /// pre-applied.
     public ServicePlan buildProblem() {
         return planningService.buildProblem();
     }
 
-    /// Writes a solved plan's assignments back onto {@code services} - new
+    /// Writes a solved plan's assignments back onto `services` - new
     /// service records the caller merges into the live store.
     public List<LiturgicalService> writeBack(ServicePlan solved, List<LiturgicalService> services) {
         return planningService.writeBack(solved, services);
@@ -116,10 +119,9 @@ public class PlanningViewModel {
     // --- Autofill scoping (which slots a solve may touch) ---
 
     /// Scopes a windowed Autofill: leaves free only the slots of services in
-    /// {@code [from, to]} that are open (or, with {@code overwrite}, already
+    /// `[from, to]` that are open (or, with `overwrite`, already
     /// assigned) and pins the rest. A blank bound means unbounded. The returned
-    /// {@link Autofill.Scope} is an opaque handle to pass back to {@link
-    /// #finishAutofill} after the solve.
+    /// [Autofill.Scope] is an opaque handle to pass back to [#finishAutofill] after the solve.
     public Autofill.Scope beginWindowAutofill(ServicePlan problem, @Nullable LocalDate from,
                                               @Nullable LocalDate to, boolean overwrite) {
         LocalDate effFrom = from == null ? LocalDate.MIN : from;
@@ -127,13 +129,14 @@ public class PlanningViewModel {
         return Autofill.begin(problem, Autofill.within(effFrom, effTo, overwrite));
     }
 
-    /// Scopes a single service's auto-fill: leaves only that service's open slots free, pins everything else.
+    /// Scopes a single service's auto-fill: leaves only that service's open slots free, pins
+    /// everything else.
     public Autofill.Scope beginServiceAutofill(ServicePlan problem, String serviceId) {
         return Autofill.begin(problem, Autofill.forService(serviceId, false));
     }
 
     /// Restores the pins of every slot the solve was not allowed to touch and
-    /// pins the freshly filled ones - the counterpart of {@code begin*Autofill}.
+    /// pins the freshly filled ones - the counterpart of `begin*Autofill`.
     public void finishAutofill(ServicePlan solved, Autofill.Scope scope) {
         Autofill.finish(solved, scope);
     }
@@ -174,9 +177,9 @@ public class PlanningViewModel {
 
     // --- Archive ---
 
-    /// Freezes live services up to {@code cutoff} into self-contained archived
+    /// Freezes live services up to `cutoff` into self-contained archived
     /// snapshots (persisted immediately) and returns the ids to drop from the
-    /// live list - see {@link PlanningService#archive}.
+    /// live list - see [PlanningService#archive].
     public ServiceArchiver.Result archive(LocalDate cutoff) {
         return planningService.archive(cutoff);
     }
@@ -200,7 +203,7 @@ public class PlanningViewModel {
         planExportService.exportArchived(services, target, format);
     }
 
-    /// Directory the export {@code FileChooser} last saved into; empty until the first export.
+    /// Directory the export `FileChooser` last saved into; empty until the first export.
     public Optional<Path> lastExportDirectory() {
         String directory = preferencesService.get().lastExportDirectory();
         return directory == null ? Optional.empty() : Optional.of(Path.of(directory));
@@ -210,8 +213,8 @@ public class PlanningViewModel {
         preferencesService.update(p -> p.withLastExportDirectory(directory.toString()));
     }
 
-    /// Infers the export format from {@code fileName}'s extension, falling back
-    /// to the first of {@code fallbackExtensions} if the name has none recognized.
+    /// Infers the export format from `fileName`'s extension, falling back
+    /// to the first of `fallbackExtensions` if the name has none recognized.
     public static PlanExportFormat resolveFormat(String fileName, List<String> fallbackExtensions) {
         int dot = fileName.lastIndexOf('.');
         if (dot >= 0 && dot < fileName.length() - 1) {
