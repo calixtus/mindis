@@ -1,13 +1,17 @@
 /// JavaFX desktop application module. Thin UI adapter over org.mindis.core
-/// (PLAN.md section 2.5). Open module: FXMLLoader and FxmlKit need reflective
-/// access to views and controllers.
-open module org.mindis.gui {
+/// (PLAN.md section 2.5).
+///
+/// Views are built in Java, so the module is closed apart from one hole: the
+/// JavaFX launcher reflectively instantiates the [javafx.application.Application]
+/// subclass, so the package holding `MinDisApp` is opened to `javafx.graphics`
+/// and to nothing else.
+module org.mindis.gui {
     requires org.mindis.core;
     requires org.jspecify;
 
+    opens org.mindis.gui to javafx.graphics;
+
     requires javafx.controls;
-    requires javafx.fxml;
-    requires com.dlsc.fxmlkit;
     requires com.dlsc.gemsfx;
     requires atlantafx.base;
     requires org.kordamp.ikonli.javafx;

@@ -3,7 +3,7 @@
 The window the user actually works in: navigation, settings, appearance, language, and error
 visibility.
 
-Design decisions: [ADR 001 — view layer (FxmlKit)](../adr/001-view-layer.md),
+Design decisions: [ADR 001 — view layer](../adr/001-view-layer.md),
 [ADR 005 — application shell](../adr/005-shell.md),
 [ADR 004 — preferences store](../adr/004-preferences.md),
 [ADR 006 — preferences architecture](../adr/006-preferences-architecture.md),
@@ -174,10 +174,9 @@ Covers:
 `dsn~composition-root~1`
 
 `MinDisApp.start` is the single composition root: it builds one Avaje Inject `BeanScope` for the
-application (compile-time wiring, no runtime reflection), installs `AvajeDiAdapter` as FxmlKit's DI
-adapter so FXML controllers resolve from that scope, and constructs `LiveDatabase` exactly once, so
-stores and their unsaved edits survive a UI rebuild. The FxmlKit `DiAdapter` is a deliberate,
-documented DIP exception confined to this class (ADR 001).
+application (compile-time wiring, no runtime reflection), constructs `LiveDatabase` exactly once so
+stores and their unsaved edits survive a UI rebuild, and hands every module its collaborators by
+constructor. There is no view-layer DI hook and no service locator (ADR 001).
 
 Covers:
 - req~workbench-shell~1
@@ -187,8 +186,10 @@ Covers:
 
 `DashboardViewModel` owns every repository call and the upcoming-services / server-load
 aggregation, computed straight off the live services (assignments live on their slots, so there is
-no plan to read); `DashboardController` only constructs UI and binds. The view is standard FXML
-loaded by FxmlKit (ADR 001).
+no plan to read). It returns data — slot counts, `UpcomingService`, `ServerLoad` — and
+`DashboardView` decides how to word and format it; dates go through `DateTimes`, which follows the
+active language. The view is a plain JavaFX `StackPane` built in Java, like every other screen
+(ADR 001).
 
 Covers:
 - req~dashboard~1
@@ -272,7 +273,7 @@ Covers:
 
 `MinDisApp` sets the locale from preferences before the first scene — and before the startup
 document is opened, so a new document's seeded roles get localized names — and a language change
-rebuilds the shell (FXML resource bundles are bound at load time). `LiveDatabase`, the
+rebuilds the shell (labels are read at construction). `LiveDatabase`, the
 `LiveStore`s and the `DocumentSession` are *not* rebuilt, so the open document, its unsaved
 cross-module edits and its dirty counts survive the switch; only the title binding is rebuilt, since
 its own text is localized.

@@ -33,8 +33,8 @@ The application is **multilingual from the start** (German + English; parish con
 | UI toolkit           | JavaFX                                   | 26.0.1                  | Module path; platform jars via `org.openjfx.javafxplugin` (no Gradle metadata upstream) |
 | Window/shell UI      | **Bespoke shell** in `org.mindis.gui.shell`, wrapped in a GemsFX [`PowerPane`](https://github.com/dlsc-software-consulting-gmbh/GemsFX) for dialogs/notifications/drawer | — | No WorkbenchFX dependency; see ADR 005 and §4.1. |
 | Theme                | [AtlantaFX](https://mkpaz.github.io/atlantafx/) `io.github.mkpaz:atlantafx-base` | 2.x | Proper JPMS module `atlantafx.base` |
-| View layer           | **[FxmlKit](https://github.com/dlsc-software-consulting-gmbh/FxmlKit)** `com.dlsc.fxmlkit:fxmlkit` | 1.5.1 | Standard FXML at runtime, convention wiring, hot reload. **Sole view mechanism** — see §2.1. |
-| Dependency injection | [Avaje Inject](https://avaje.io/inject/) `io.avaje:avaje-inject` (+ `avaje-inject-generator` APT) | 12.6 | Compile-time DI: generated wiring, **zero runtime reflection** (§2.2-safe). Plugged into FxmlKit's DI hook — see §2.4. |
+| View layer           | **Plain Java** — views are JavaFX `Parent` subclasses built in their constructors | — | No FXML, no view-layer reflection — see §2.1. |
+| Dependency injection | [Avaje Inject](https://avaje.io/inject/) `io.avaje:avaje-inject` (+ `avaje-inject-generator` APT) | 12.6 | Compile-time DI: generated wiring, **zero runtime reflection** (§2.2-safe) — see §2.4. |
 | Planning engine      | [Timefold Solver](https://timefold.ai/solver) `ai.timefold.solver:timefold-solver-core` | 2.x | JPMS-supported since 2.0 |
 | Build system         | Gradle (Kotlin DSL) + [GradleX](https://gradlex.org/) plugins | Gradle 9.x | JabRef-style setup (see §5) |
 | Native compilation   | GraalVM Native Image via GluonFX Gradle plugin (or `org.graalvm.buildtools.native` + Gluon static JavaFX libs) | latest | **Final milestone (M7) only.** Until then: just don't block it (§2.2) |
@@ -43,34 +43,31 @@ The application is **multilingual from the start** (German + English; parish con
 | Code style           | JabRef code style, enforced via Checkstyle | —                     | See §8 |
 | Testing              | JUnit 5, TestFX (UI), Timefold test API  | latest                  | `org.gradlex.java-module-testing` |
 
-### 2.1 View layer decision: FxmlKit, with FXML/2 parked for later
+### 2.1 View layer: plain Java, no FXML
 
-FxmlKit is the view layer. FXML/2 was considered as a replacement (compile-time views, no
-reflection) but **rejected for now because it is pre-1.0** (0.14.0) — a pre-1.0 dialect compiler
-under the entire UI is foundation risk: breaking changes, small community, unknown JavaFX 25 /
-JPMS / resource-binding edge cases. FxmlKit wins on maturity and ecosystem:
+Views are ordinary JavaFX `Parent` subclasses assembled in their constructors, taking their
+collaborators as parameters. There is no FXML in the project and no FXML library on the class path.
 
-1. **Standard FXML** — SceneBuilder works, every JavaFX FXML resource applies.
-2. **Hot reload** of FXML + CSS — fastest UI iteration loop for the UI-heavy milestones M1–M5.
-3. **Convention wiring** (view ↔ fxml ↔ controller by name) with optional DI hook — controllers
-   are resolved from the Avaje Inject `BeanScope` (§2.4), so views get services via constructor
-   injection.
-4. Actively maintained (1.5.1, 2026), same vendor as GemsFX (also used here).
+Every screen is a `ShellModule`, and the two shared base classes (`CrudModule`, `AppShell`) are
+parameterised by behavior rather than layout — which columns, which toolbar buttons, which editor a
+row gets — which is not something markup expresses. The screens with the most UI in them build
+their structure from the data at runtime anyway (a tile per service, a slot row per role, a
+checkbox per live role).
 
-Accepted cost: runtime `FXMLLoader` = reflection in the view layer (§2.2 consumer #3) →
-reachability metadata for every view in M7. Acceptable: tracing agent generates it, and M7 is
-optional anyway (jpackage ships in M6).
+What this buys:
 
-`docs/adr/001-view-layer.md` (written in M0) records this decision and parks **FXML/2**
-(`org.jfxcore.fxmlplugin`) as the future alternative, with revisit triggers:
+1. **No reflection in the view layer at all** — §2.2's allowed consumers drop to two (Jackson,
+   Timefold), and there is no FXML reachability metadata to maintain if M7 is revisited.
+2. **A closed JPMS module** — `org.mindis.gui` opens only its root package, only to
+   `javafx.graphics`, only because the JavaFX launcher instantiates `Application` reflectively.
+3. **One localization mechanism** — `Localization.lang(...)` everywhere, no `%key` markup
+   attributes for the extraction task to also understand.
+4. **Layout errors at compile time** rather than as load-time exceptions.
 
-1. FXML/2 reaches a stable 1.x with a compatibility story.
-2. M7 native-image FXML metadata churn becomes chronic (FXML/2 would eliminate it).
-3. FxmlKit abandonment or blocking bugs.
+Accepted cost: no SceneBuilder, and no hot reload of a view without a restart.
 
-**M0 spike (blocking, cheap):** hello-world FxmlKit view — JPMS module path, JavaFX 25,
-`%`-resource binding with full-text keys (§2.3), hot reload. Problems → resolve or escalate
-before M1.
+`docs/adr/001-view-layer.md` records the decision, the alternatives (runtime FXML via FxmlKit;
+compiled FXML via jfxcore FXML/2) and the revisit triggers.
 
 ### 2.2 Don't-block-native rules (coding style only — no native tooling before M7)
 
@@ -80,8 +77,8 @@ patterns that would make M7 hard, because GraalVM Native Image is a closed-world
 
 1. **No dynamic classloading / `Class.forName` on computed names.** Service lookup via explicit
    registration, not classpath scanning.
-2. **Keep reflection confined to three known consumers:** JavaFX `FXMLLoader` (via FxmlKit,
-   §2.1), Jackson, and Timefold. Nothing else may reflect — no hand-rolled reflective utilities.
+2. **Keep reflection confined to two known consumers:** Jackson and Timefold. Nothing else may
+   reflect — no hand-rolled reflective utilities.
 3. **Prefer reflection-free alternatives where cheap:** Jackson with explicit
    `@JsonCreator`/records; Timefold constraint streams (no drools); avoid
    `java.util.ServiceLoader` where a direct call works.
@@ -118,14 +115,15 @@ Implementation (in `mindis-core` or a tiny `org.mindis.l10n` package in gui):
 - A build check (Gradle task, like JabRef's localization tests) verifies: every
   `Localization.lang("...")` literal exists in the bundles, no unused/duplicate entries,
   parameter counts match.
-- FXML: standard `%`-resource binding with full-text keys (`text="%Save plan"`) — exactly what
-  JabRef does in its FXML files; verify FxmlKit passes the bundle through in the M0 spike (§2.1).
+- One mechanism only: every user-visible string goes through `Localization.lang(...)` in Java.
+  There is no markup layer with its own `%key` binding (§2.1), so the extraction task has one
+  syntax to understand.
   Fallback: set strings from the controller via `Localization.lang(...)`.
 - Rule from M1 on: **no hardcoded user-visible string** outside `Localization.lang(...)` calls.
   Locale switchable in Settings at runtime.
 - `Localization` lives in **`mindis-core`** — a future web module (§2.5) reuses it unchanged.
 
-### 2.4 Dependency injection: Avaje Inject, plugged into FxmlKit
+### 2.4 Dependency injection: Avaje Inject
 
 [Avaje Inject](https://avaje.io/inject/) is the DI framework from M0 on. Chosen because it is
 the only mainstream option that satisfies §2.2: wiring is generated by an annotation processor
@@ -140,9 +138,10 @@ Usage pattern:
   `@Bean` methods.
 - One `BeanScope` created in `MinDisApp.start()`; closed on shutdown (`AutoCloseable` beans get
   lifecycle for free).
-- **FxmlKit bridge:** FxmlKit's DI hook is a controller-factory callback — implement it as
-  `beanScope.get(controllerClass)`, registered once at startup. Controllers are then plain
-  `@Singleton`/`@Prototype` beans with constructor injection; FXML wiring stays FxmlKit's job.
+- **No framework bridge:** the composition root resolves what a screen needs with
+  `beanScope.get(...)` and passes it to the view's constructor. View models are plain
+  `@Singleton`/`@Prototype` beans with constructor injection; nothing resolves a dependency by
+  reaching for a global.
 - Each JPMS module with beans declares the processor; `module-info` gets
   `requires io.avaje.inject;`. Verify processor-on-module-path setup in the M0 spike.
 - Tests: `avaje-inject-test` for scope-per-test with mock overrides (`@InjectTest`).
@@ -157,7 +156,7 @@ M0–M7 — but the module cut is chosen now so a web module can be added later 
 
 1. **`mindis-core` must not depend on JavaFX UI modules.** `javafx.base` (properties,
    observable collections — headless-safe) is allowed; `javafx.controls`, `javafx.graphics`,
-   `javafx.fxml` etc. are banned — enforced by Checkstyle `IllegalImport` (UI packages) and
+   `javafx.scene` etc. are banned — enforced by Checkstyle `IllegalImport` (UI packages) and
    module-info review. Domain model stays plain Java/records — **records are always immutable
    and never carry properties or observables**; `mindis-gui` wraps domain objects in its own
    observable view models.
@@ -299,11 +298,11 @@ mindis/
 │       # opens org.mindis.core.model, .planning to timefold + jackson
 ├── mindis-gui/                       # module: org.mindis.gui  (main application)
 │   └── src/main/java/module-info.java
-│       # requires org.mindis.core, javafx.controls, javafx.fxml, atlantafx.base,
-│       #          com.dlsc.fxmlkit, com.dlsc.gemsfx, io.avaje.inject
+│       # requires org.mindis.core, javafx.controls, atlantafx.base,
+│       #          com.dlsc.gemsfx, io.avaje.inject
 │       # contains org.mindis.gui.shell (AppShell/ShellModule/CrudModule) and
 │       #          org.mindis.gui.data (LiveStore/CsvIO)
-│       # opens view/controller packages to javafx.fxml + com.dlsc.fxmlkit
+│       # opens only its root package to javafx.graphics (Application launcher)
 │
 └── (future, NOT created now: mindis-web — org.mindis.web, requires org.mindis.core; §2.5)
 ```
@@ -363,8 +362,8 @@ Key elements copied from the JabRef approach:
    - `org.gradlex.jvm-dependency-conflict-resolution` — sane conflict handling.
    - `org.gradlex.java-module-packaging` — jpackage-based platform installers (primary
      shipping path through M6).
-4. **FxmlKit** — regular dependency of `mindis-gui` (`com.dlsc.fxmlkit`); FXML files live next
-   to their views per FxmlKit convention; hot reload active in dev runs.
+4. **No view-layer library** — views are plain Java (§2.1), so `mindis-gui` carries no FXML or
+   view-framework dependency at all.
 4a. **Avaje Inject** — `avaje-inject` as dependency, `avaje-inject-generator` on
    `annotationProcessor` path of `mindis-core` and `mindis-gui` (wired in a convention plugin;
    mind processor-with-JPMS setup). `avaje-inject-test` for tests.
@@ -387,9 +386,9 @@ Key elements copied from the JabRef approach:
 
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
-| FxmlKit single-vendor dependency (DLSC) | Abandonment would strand view layer | Standard FXML underneath — controllers/FXML survive a swap to plain `FXMLLoader` or FXML/2 (ADR-001 revisit triggers); keep FxmlKit-specific API surface thin. |
+| GemsFX single-vendor dependency (DLSC) | Abandonment would strand the date/time pickers, chips and the PowerPane overlays | Each is used behind a thin local wrapper (`CalendarPickers`, `TimePickers`, `ShellOverlays`), so a swap is contained; plain JavaFX equivalents exist for all of them. |
 | Bespoke shell = own maintenance burden | Bug fixes on us forever | Keep it minimal (§4.1) — ~300 lines, no features beyond what a screen actually needs; TestFX coverage on shell behavior once the headless harness is solved. |
-| **GraalVM (all M7):** JavaFX native fragility, Timefold AOT (Quarkus-tested, plain-Java less trodden), FXMLLoader + Jackson reflection | M7 fails or slips | Whole risk deferred to M7 by design — **jpackage (M6) is the shipping path and stays regardless**, so native is pure upside. In M7: GluonFX plugin, tracing-agent metadata over every view, headless solver spike first; if FXML metadata churn is chronic, revisit FXML/2 per ADR-001. Rules §2.2 keep M0–M6 code from making it worse. |
+| **GraalVM (all M7):** JavaFX native fragility, Timefold AOT (Quarkus-tested, plain-Java less trodden), Jackson reflection | M7 fails or slips | Whole risk deferred to M7 by design — **jpackage (M6) is the shipping path and stays regardless**, so native is pure upside. In M7: GluonFX plugin, tracing-agent metadata, headless solver spike first. Views are plain Java (§2.1), so they contribute no reachability metadata. Rules §2.2 keep M0–M6 code from making it worse. |
 | Full-text keys clash with properties format (spaces, `=`, `:` need escaping) | Messy bundle files | Exactly JabRef's trade-off — proven workable; localization check task (§5) catches drift; consider JabRef's tooling for bundle maintenance. |
 | Timefold under JPMS | Reflection failures at runtime | `opens org.mindis.core.model, org.mindis.core.planning to ai.timefold.solver.core;` — covered by solver smoke test in CI. |
 | **Timefold enterprise gating**: `SolutionManager.analyze()`, `diff()`, `recommendAssignment()`, multithreaded solving are commercial-only in 2.x — fail at runtime with `IllegalStateException`, not at compile time | Silent feature landmines | Discovered in M4. Community-safe substitutes in use: `SolutionManager.update()` for scores, own `ViolationChecker` (mirrors hard/medium constraints, shared name constants, unit-tested) for per-assignment display. Rule: any new SolutionManager/solver feature gets a runtime smoke test before UI wiring. |
@@ -406,15 +405,15 @@ Key elements copied from the JabRef approach:
    JabRef-derived Checkstyle config. No native tooling of any kind.
 2. Create `mindis-core`, `mindis-gui` with `module-info.java` stubs; wire
    `java-module-dependencies` mapping for all libraries.
-3. **FxmlKit + Avaje spike (blocking, §2.1/§2.4):** hello-world view in `mindis-gui` — JavaFX
+3. **Avaje spike (blocking, §2.4):** hello-world view in `mindis-gui` — JavaFX
    25, module path, `%` full-text resource keys, hot reload, controller resolved from
-   `BeanScope` via FxmlKit's DI hook with one injected `@Singleton` service from `mindis-core`.
+   `BeanScope` with one injected `@Singleton` service from `mindis-core`.
    Record outcome in `docs/adr/001-view-layer.md`.
 4. `Localization` class (in `mindis-core`) + `MinDis_en/de.properties` + localization check
    task (§2.3).
 5. Seed `docs/adr/003-web-ui-path.md`: web UI deferred; §2.5 rules active from now; candidate
    stacks listed, decision postponed.
-6. **Done when:** `./gradlew build run` launches a stage showing one localized FxmlKit view
+6. **Done when:** `./gradlew build run` launches a stage showing one localized view
    with DI-injected controller from the module path; `check` runs Checkstyle (incl. core
    `javafx.*` import ban) + localization task.
 
@@ -440,7 +439,7 @@ Key elements copied from the JabRef approach:
 1. Implement `mindis-core` model (§3, without Timefold annotations yet) + Jackson JSON
    repository storing under user data dir (`%APPDATA%/MinDis` / XDG equivalent), records +
    explicit creators (§2.2 rule 3), unit tests.
-2. Build *Servers* module UI with FxmlKit (`FxmlView` + controller convention, controllers as
+2. Build *Servers* module UI in Java (view class plus view model, both as
    Avaje beans): table, CRUD form (qualifications, family, availability editor). Observable
    view models in gui wrap plain core domain (§2.5).
 3. Build *Services* module UI: service list per horizon, CRUD form, role-slot editor,
@@ -495,7 +494,7 @@ Key elements copied from the JabRef approach:
    **As built (2026-07-06):** done. OpenPDF 3.0.5 (packages `org.openpdf.*`, automatic module
    `com.github.librepdf.openpdf`); `PlanExportService` in core (services chronological +
    per-server summary, fully localized); export button in Planning with FileChooser.
-   Dashboard = FxmlKit view (next services with staffing state from accepted plan,
+   Dashboard = plain Java view (next services with staffing state from accepted plan,
    unassigned count, per-server load), rebuilt on every activation. M0 hello spike and
    GreetingService removed; `EnumDisplay` moved to core l10n (shared by GUI + PDF).
 
@@ -532,8 +531,7 @@ vs. JIT is acceptable. Same release pipeline ships both artifacts.
    (`-agentlib:native-image-agent=config-merge-dir=...`) over a scripted flow covering every
    view + one solve + JSON round-trip; commit under
    `mindis-gui/src/main/resources/META-INF/native-image/org.mindis/`. Expect metadata for
-   FXMLLoader (every view), Jackson, Timefold, JavaFX internals. If FXML metadata proves
-   unmanageable, revisit FXML/2 per ADR-001.
+   Jackson, Timefold, JavaFX internals — views are plain Java and contribute none.
 4. Full-app native build; smoke test: launch, open all modules, solve, export PDF.
 5. CI: native job on tag (Windows first).
 6. **Done when:** native Windows binary passes the smoke test — or ADR-002 documents why
@@ -681,7 +679,7 @@ Reviewers/agents: cite the violated principle or item when rejecting code.
 ### Localization
 
 - Every user-visible string: `Localization.lang("Full English sentence")` — full text as key,
-  never abstract keys (§2.3). Applies to code, FXML (`%` keys), dialogs, PDF export.
+  never abstract keys (§2.3). Applies to code, dialogs and PDF export alike.
 - New strings land in `MinDis_en.properties` in the same PR; `de` translation may follow, the
   English fallback keeps the UI intact.
 - Localization check task must pass in `check`.
@@ -689,7 +687,7 @@ Reviewers/agents: cite the violated principle or item when rejecting code.
 ### General
 
 - One ADR per significant decision in `docs/adr/NNN-title.md`. Seeded: `001-view-layer`
-  (FxmlKit vs FXML/2), `002-packaging` (native vs jpackage, written in M7), `003-web-ui-path`
+  (plain Java vs FXML), `002-packaging` (native vs jpackage, written in M7), `003-web-ui-path`
   (web module deferred, §2.5), `004-preferences` (own JSON store, §2.6, written in M1).
 - **New user-facing setting = new field in `MinDisPreferences`** with default value; bump the
   record's `version` and add explicit migration when shape changes. No ad-hoc config files,
@@ -702,6 +700,6 @@ Reviewers/agents: cite the violated principle or item when rejecting code.
 - All versions only in `versions/build.gradle.kts` (plus `javafxVersion` in gradle.properties);
   module-name ↔ coordinate mappings in `gradle/modules.properties`. No version catalog.
 - Don't-block-native rules (§2.2) apply to every PR: new reflection outside
-  FXMLLoader/Jackson/Timefold needs justification. No native tooling before M7.
+  Jackson/Timefold needs justification. No native tooling before M7.
 - No third-party source is vendored, so there is no NOTICE obligation; if any is ever lifted, upstream copyright headers and a NOTICE entry become mandatory (§4.1).
 - Every Timefold constraint has a `ConstraintVerifier` test before it ships.

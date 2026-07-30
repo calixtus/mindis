@@ -2,7 +2,6 @@ package org.mindis.gui;
 
 import atlantafx.base.theme.NordDark;
 import atlantafx.base.theme.NordLight;
-import com.dlsc.fxmlkit.fxml.FxmlKit;
 import com.dlsc.gemsfx.PowerPane;
 
 import io.avaje.inject.BeanScope;
@@ -35,7 +34,7 @@ import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.persistence.TemplateRepository;
 import org.mindis.core.planning.PlanningService;
 import org.mindis.core.preferences.PreferencesService;
-import org.mindis.gui.di.AvajeDiAdapter;
+import org.mindis.gui.dashboard.DashboardViewModel;
 import org.mindis.gui.logging.AlertOnErrorHandler;
 import org.mindis.gui.logging.LogConsoleHandler;
 import org.mindis.gui.logging.LogConsoleModel;
@@ -137,13 +136,6 @@ public class MinDisApp extends Application {
 
         applyAppearance();
 
-        // Deliberate DIP exception (documented in ADR-001): FxmlKit's Tier-2
-        // integration is a global DiAdapter - effectively a service locator
-        // for FXML controllers. Confined to this composition root; everything
-        // else uses constructor injection.
-        FxmlKit.setDiAdapter(new AvajeDiAdapter(beanScope));
-        FxmlKit.setResourceBundle(Localization.getBundle());
-
         stage.getIcons().addAll(loadAppIcons());
         // The PowerPane is the scene root and holds the overlay layers
         // (dialogs, info center, bottom drawer); the shell is its content.
@@ -218,7 +210,8 @@ public class MinDisApp extends Application {
         CollectionSwitcher switcher = new CollectionSwitcher(documentSession, liveDatabase,
                 servicesModule.solvingProperty());
         AppShell.Builder builder = AppShell.builder(
-                                new DashboardModule(Localization.lang("Dashboard")),
+                                new DashboardModule(Localization.lang("Dashboard"),
+                                        beanScope.get(DashboardViewModel.class)),
                                 new RolesModule(Localization.lang("Roles"),
                                         liveDatabase.roles(),
                                         beanScope.get(RoleRepository.class), overlays),
@@ -278,7 +271,6 @@ public class MinDisApp extends Application {
     /// language change; modules are recreated so every label is rebuilt.
     private void rebuildUi() {
         Localization.setLocale(preferencesService.get().locale());
-        FxmlKit.setResourceBundle(Localization.getBundle());
         // Preserve the active module across the rebuild instead of snapping back
         // to Dashboard; by module class, since names change with the locale.
         String activeModuleClass = shell == null ? null : shell.getActiveModuleClassName();
