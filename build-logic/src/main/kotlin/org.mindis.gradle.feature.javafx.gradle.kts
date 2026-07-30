@@ -7,5 +7,5 @@ plugins {
 // Version comes from the 'javafxVersion' Gradle property (also used by :versions).
 javafx {
     version = providers.gradleProperty("javafxVersion").getOrElse("26.0.1")
-    modules = listOf("javafx.base", "javafx.graphics", "javafx.controls", "javafx.fxml")
+    modules = listOf("javafx.base", "javafx.graphics", "javafx.controls")
 }
