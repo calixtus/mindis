@@ -1,6 +1,5 @@
 package org.mindis.gui.modules;
 
-import ai.timefold.solver.core.api.score.HardMediumSoftScore;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -14,14 +13,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.function.Supplier;
 
-import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -33,11 +29,7 @@ import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar.ButtonData;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.OverrunStyle;
@@ -78,7 +70,6 @@ import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServiceCsvMapper;
 import org.mindis.core.persistence.TemplateRepository;
 import org.mindis.core.planning.AssignmentKey;
-import org.mindis.core.planning.Autofill;
 import org.mindis.core.planning.ServiceArchiver;
 import org.mindis.core.planning.ServicePlan;
 import org.jspecify.annotations.Nullable;
@@ -145,7 +136,6 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
     private final CalendarPicker toPicker = CalendarPickers.create();
     /// The currently running solve job, if any - View-local bookkeeping so the
     /// abort action knows what to cancel.
-    private @Nullable UUID jobId;
 
     // A tile's rendered text depends on more than its own service record: the
     // role and server display names come from the roster stores. Those are the
@@ -157,6 +147,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
     // (a pick, a solve, an archive) already replaces or removes the row's own
     // item, which re-renders that row on its own.
     private final Subscription tileDependencySubscription;
+    private final ServicesSolverController solver;
 
     public ServicesModule(String name, LiveStore<LiturgicalService> serviceStore, LiveStore<Role> roleStore,
                           LiveStore<Server> serverStore, TemplateRepository templateRepository,
@@ -167,6 +158,8 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
         this.planningViewModel = planningViewModel;
         this.roleStore = roleStore;
         this.serverStore = serverStore;
+        this.solver = new ServicesSolverController(planningViewModel,
+                () -> store().items(), this::mergeLive, () -> table().getScene().getWindow());
 
         // The table is used as a single-column tile list: each row's cell
         // renders the whole date/type/location + role-slot summary.
@@ -232,7 +225,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
         solveProgressBar.visibleProperty().bind(solving);
         solveProgressBar.setCursor(Cursor.HAND);
         Tooltip.install(solveProgressBar, new Tooltip(Localization.lang("Abort autofill")));
-        solveProgressBar.setOnMouseClicked(event -> confirmAbort());
+        solveProgressBar.setOnMouseClicked(event -> solver.confirmAbort());
         autofillSlot.getChildren().addAll(autofillButton, solveProgressBar);
         Button exportPlanButton = Toolbars.button(Localization.lang("Export..."), "mdi2e-export");
         exportPlanButton.disableProperty().bind(solving.or(Bindings.isEmpty(store().items())));
@@ -318,7 +311,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
         Button solveAllButton = new Button(Localization.lang("Solve all"));
         solveAllButton.setOnAction(event -> {
             popup.hide();
-            onSolveAll();
+            solver.solveAll();
         });
         Button okButton = new Button(Localization.lang("Autofill"));
         okButton.setOnAction(event -> {
@@ -408,28 +401,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
         if (planningViewModel.solvingProperty().get()) {
             return;
         }
-        List<LiturgicalService> services = List.copyOf(store().items());
-        ServicePlan problem = planningViewModel.buildProblem();
-        Autofill.Scope scope = planningViewModel.beginWindowAutofill(problem, from, to, overwrite);
-        if (scope.eligibleIds().isEmpty()) {
-            LOGGER.info(Localization.lang("Nothing to autofill"));
-            return;
-        }
-        planningViewModel.updateProgress(problem);
-        planningViewModel.beginSolve();
-        LOGGER.info(Localization.lang("Solving..."));
-        jobId = planningViewModel.solveAsync(problem,
-                best -> Platform.runLater(() -> planningViewModel.updateProgress(best)),
-                finalBest -> Platform.runLater(() -> {
-                    planningViewModel.finishAutofill(finalBest, scope);
-                    applySolution(finalBest, services);
-                    planningViewModel.finishSolve();
-                    LOGGER.info(Localization.lang("Solving finished"));
-                }),
-                error -> Platform.runLater(() -> {
-                    planningViewModel.failSolve();
-                    LOGGER.error(Localization.lang("Solving failed: %0", error.getMessage()), error);
-                }));
+        solver.autofillWindow(from, to, overwrite);
     }
 
     @Override
@@ -537,7 +509,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
             Button autoFillButton = new Button(null, new FontIcon("mdi2a-auto-fix"));
             autoFillButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
             autoFillButton.disableProperty().bind(planningViewModel.solvingProperty());
-            autoFillButton.setOnAction(event -> onAutoFillService(service));
+            autoFillButton.setOnAction(event -> solver.autofillService(service));
             Tooltip.install(autoFillButton, new Tooltip(Localization.lang("Auto-fill")));
             ProgressIndicator autoFillIndicator = new ProgressIndicator();
             autoFillIndicator.setPrefSize(16, 16);
@@ -711,7 +683,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
             liveSlots = updated;
             pushLive();
             refreshAssignmentSection();
-            refreshScoreAndStatus();
+            solver.refreshScore();
         }
 
         /// Clears every slot of this service - empties the server and drops the
@@ -725,7 +697,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
             liveSlots = cleared;
             pushLive();
             refreshAssignmentSection();
-            refreshScoreAndStatus();
+            solver.refreshScore();
         }
 
         /// Whether [#liveSlots]' assignments (server + pin per slot id)
@@ -916,98 +888,6 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
         return new AssignedCount(filled, service.totalSlots());
     }
 
-    private void onSolveAll() {
-        List<LiturgicalService> services = List.copyOf(store().items());
-        ServicePlan problem = planningViewModel.buildProblem();
-        if (problem.getAssignments().isEmpty()) {
-            return;
-        }
-        planningViewModel.updateProgress(problem);
-        planningViewModel.beginSolve();
-        LOGGER.info(Localization.lang("Solving..."));
-        jobId = planningViewModel.solveAsync(problem,
-                best -> Platform.runLater(() -> planningViewModel.updateProgress(best)),
-                finalBest -> Platform.runLater(() -> {
-                    applySolution(finalBest, services);
-                    planningViewModel.finishSolve();
-                    LOGGER.info(Localization.lang("Solving finished"));
-                }),
-                error -> Platform.runLater(() -> {
-                    planningViewModel.failSolve();
-                    LOGGER.error(Localization.lang("Solving failed: %0", error.getMessage()), error);
-                }));
-    }
-
-    /// Solves only `service`'s open slots: every other slot is pinned for
-    /// the duration of the solve, then restored afterward (see
-    /// [PlanningViewModel#beginServiceAutofill]).
-    private void onAutoFillService(LiturgicalService service) {
-        if (planningViewModel.solvingProperty().get()) {
-            return;
-        }
-        ServicePlan problem = planningViewModel.buildProblem();
-        Autofill.Scope scope = planningViewModel.beginServiceAutofill(problem, service.id());
-        if (scope.eligibleIds().isEmpty()) {
-            return;
-        }
-        planningViewModel.updateProgress(problem);
-        planningViewModel.beginSolve();
-        LOGGER.info(Localization.lang("Solving..."));
-        jobId = planningViewModel.solveAsync(problem, AUTO_FILL_TIME_BUDGET,
-                best -> Platform.runLater(() -> planningViewModel.updateProgress(best)),
-                finalBest -> Platform.runLater(() -> {
-                    planningViewModel.finishAutofill(finalBest, scope);
-                    applySolution(finalBest, List.of(service));
-                    planningViewModel.finishSolve();
-                    LOGGER.info(Localization.lang("Solving finished"));
-                }),
-                error -> Platform.runLater(() -> {
-                    planningViewModel.failSolve();
-                    LOGGER.error(Localization.lang("Solving failed: %0", error.getMessage()), error);
-                }));
-    }
-
-    /// Writes `solved`'s assignments back onto `services` and stages
-    /// the updated records into the live store (saving the document persists them).
-    private void applySolution(ServicePlan solved, List<LiturgicalService> services) {
-        // mergeLive replaces each solved service's row item, which re-renders
-        // its tile on its own - no explicit table refresh needed.
-        mergeLive(planningViewModel.writeBack(solved, services));
-        refreshScoreAndStatus();
-    }
-
-    private void onStop() {
-        if (jobId != null) {
-            planningViewModel.stopSolving(jobId);
-        }
-    }
-
-    /// Confirms aborting the running solve. The prompt auto-dismisses if the
-    /// solve finishes on its own before the user answers (the toolbar returns
-    /// to its Autofill button on its own via the `solving` bindings), so
-    /// a just-completed solve is never cancelled by a stale click.
-    private void confirmAbort() {
-        if (!planningViewModel.solvingProperty().get()) {
-            return;
-        }
-        Alert confirm = new Alert(AlertType.CONFIRMATION);
-        confirm.setTitle(Localization.lang("Abort autofill"));
-        confirm.setHeaderText(Localization.lang("Really abort the running autofill?"));
-        confirm.initOwner(table().getScene().getWindow());
-        ChangeListener<Boolean> autoDismiss = (obs, wasSolving, isSolving) -> {
-            if (!isSolving) {
-                confirm.close();
-            }
-        };
-        planningViewModel.solvingProperty().addListener(autoDismiss);
-        Optional<ButtonType> result = confirm.showAndWait();
-        planningViewModel.solvingProperty().removeListener(autoDismiss);
-        if (result.isPresent() && result.get().getButtonData() == ButtonData.OK_DONE
-                && planningViewModel.solvingProperty().get()) {
-            onStop();
-        }
-    }
-
     /// Whether the solver is currently running - the global Save action stays disabled while
     /// true.
     public ReadOnlyBooleanProperty solvingProperty() {
@@ -1065,23 +945,4 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
         }
     }
 
-    private void refreshScoreAndStatus() {
-        ServicePlan plan = planningViewModel.buildProblem();
-        if (plan.getAssignments().isEmpty()) {
-            return;
-        }
-        logScore(planningViewModel.scoreOf(plan));
-    }
-
-    /// The score is solver-internal detail, logged rather than shown permanently in the
-    /// toolbar.
-    private void logScore(@Nullable HardMediumSoftScore score) {
-        if (score == null) {
-            return;
-        }
-        String feasibility = score.hardScore() == 0 && score.mediumScore() == 0
-                ? Localization.lang("Feasible")
-                : Localization.lang("Has violations");
-        LOGGER.info("{}: {} ({})", Localization.lang("Score"), score, feasibility);
-    }
 }
