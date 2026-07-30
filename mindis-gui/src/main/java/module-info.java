@@ -3,7 +3,6 @@
 /// access to views and controllers.
 open module org.mindis.gui {
     requires org.mindis.core;
-    requires org.mindis.workbench;
     requires org.jspecify;
 
     requires javafx.controls;

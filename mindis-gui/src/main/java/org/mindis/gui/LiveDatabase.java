@@ -33,17 +33,17 @@ import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.persistence.TemplateRepository;
-import org.mindis.workbench.LiveStore;
+import org.mindis.gui.data.LiveStore;
 
-/// The GUI's view of the open document: one long-lived {@link LiveStore} per
-/// entity type (write-through mirrors of the {@link AppDatabase} repositories),
-/// plus the document actions. Constructed once in {@code MinDisApp.start()} and
+/// The GUI's view of the open document: one long-lived [LiveStore] per
+/// entity type (write-through mirrors of the [AppDatabase] repositories),
+/// plus the document actions. Constructed once in `MinDisApp.start()` and
 /// reused across UI rebuilds, so unsaved cross-module edits and dirty counts
 /// survive a language switch.
 ///
 /// <p>Every document action re-mirrors and re-baselines all stores afterwards,
 /// so an open or a new document resets the dirty state and a save clears it.
-/// {@link #dirty()} is the one "has unsaved work" signal the toolbar, the
+/// [#dirty()] is the one "has unsaved work" signal the toolbar, the
 /// window title and the close guard all bind to: the per-row dirty counts of
 /// the four live stores plus the archive's own staged-change flag, which no
 /// row-level tracking covers.
@@ -118,7 +118,7 @@ public final class LiveDatabase {
         return Optional.ofNullable(documentPath.get());
     }
 
-    /// The open collection's identity (name + logo); never {@code null}.
+    /// The open collection's identity (name + logo); never `null`.
     public ReadOnlyObjectProperty<CollectionMeta> metaProperty() {
         return meta;
     }
@@ -144,7 +144,7 @@ public final class LiveDatabase {
         return dirty.get();
     }
 
-    /// Whether the archive holds staged changes - part of {@link #dirtyProperty()}.
+    /// Whether the archive holds staged changes - part of [#dirtyProperty()].
     public ReadOnlyBooleanProperty archiveDirtyProperty() {
         return archiveDirty;
     }
@@ -157,20 +157,20 @@ public final class LiveDatabase {
         afterDocumentChange();
     }
 
-    /// Opens {@code file}; staged edits of the previous document are discarded.
+    /// Opens `file`; staged edits of the previous document are discarded.
     public void open(Path file) throws IOException {
         database.open(file);
         afterDocumentChange();
     }
 
     /// Writes the open document back to its own file. Only valid once it has
-    /// one - callers route an untitled document to {@link #saveAs(Path)}.
+    /// one - callers route an untitled document to [#saveAs(Path)].
     public void save() throws IOException {
         database.save();
         afterDocumentChange();
     }
 
-    /// Writes the open document to {@code file}, which becomes its file.
+    /// Writes the open document to `file`, which becomes its file.
     public void saveAs(Path file) throws IOException {
         database.saveAs(file);
         afterDocumentChange();
@@ -182,7 +182,7 @@ public final class LiveDatabase {
         afterDocumentChange();
     }
 
-    /// Sum of all stores' dirty counts; the row-level half of {@link #dirtyProperty()}.
+    /// Sum of all stores' dirty counts; the row-level half of [#dirtyProperty()].
     public NumberBinding totalDirtyCount() {
         return IntegerExpression.integerExpression(roles.dirtyCountProperty())
                 .add(servers.dirtyCountProperty())

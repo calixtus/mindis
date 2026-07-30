@@ -31,7 +31,7 @@ The application is **multilingual from the start** (German + English; parish con
 |----------------------|------------------------------------------|-------------------------|-------|
 | Language / JDK       | Java (LTS)                               | 25                      | Toolchain-managed via Gradle; GraalVM toolchain only in M7 |
 | UI toolkit           | JavaFX                                   | 26.0.1                  | Module path; platform jars via `org.openjfx.javafxplugin` (no Gradle metadata upstream) |
-| Window/shell UI      | **`mindis-workbench` — in-repo fork of [WorkbenchFX](https://github.com/dlsc-software-consulting-gmbh/WorkbenchFX)** | forked from 11.3.1 | Apache-2.0, attribution kept (see §4.1). No external workbench dependency. |
+| Window/shell UI      | **Bespoke shell** in `org.mindis.gui.shell`, wrapped in a GemsFX [`PowerPane`](https://github.com/dlsc-software-consulting-gmbh/GemsFX) for dialogs/notifications/drawer | — | No WorkbenchFX dependency; see ADR 005 and §4.1. |
 | Theme                | [AtlantaFX](https://mkpaz.github.io/atlantafx/) `io.github.mkpaz:atlantafx-base` | 2.x | Proper JPMS module `atlantafx.base` |
 | View layer           | **[FxmlKit](https://github.com/dlsc-software-consulting-gmbh/FxmlKit)** `com.dlsc.fxmlkit:fxmlkit` | 1.5.1 | Standard FXML at runtime, convention wiring, hot reload. **Sole view mechanism** — see §2.1. |
 | Dependency injection | [Avaje Inject](https://avaje.io/inject/) `io.avaje:avaje-inject` (+ `avaje-inject-generator` APT) | 12.6 | Compile-time DI: generated wiring, **zero runtime reflection** (§2.2-safe). Plugged into FxmlKit's DI hook — see §2.4. |
@@ -55,7 +55,7 @@ JPMS / resource-binding edge cases. FxmlKit wins on maturity and ecosystem:
 3. **Convention wiring** (view ↔ fxml ↔ controller by name) with optional DI hook — controllers
    are resolved from the Avaje Inject `BeanScope` (§2.4), so views get services via constructor
    injection.
-4. Actively maintained (1.5.1, 2026), same vendor as the workbench code we fork.
+4. Actively maintained (1.5.1, 2026), same vendor as GemsFX (also used here).
 
 Accepted cost: runtime `FXMLLoader` = reflection in the view layer (§2.2 consumer #3) →
 reachability metadata for every view in M7. Acceptable: tracing agent generates it, and M7 is
@@ -188,7 +188,7 @@ window geometry) are handled by a small core-owned mechanism — **no preference
   same serializer, same directory as the M2 repositories. Corrupt/missing file ⇒ defaults +
   warning, never a crash.
 - GUI: thin adapter wraps `PreferencesService` into JavaFX properties for bindings; Settings
-  workbench module edits them. Locale + theme are applied at startup before the first scene.
+  shell edits them. Locale + theme are applied at startup before the first scene.
 - Versioning: record carries a `version` field; migrations are explicit code, no magic.
 
 **Architecture refined (2026-07-06, ADR-006):** gui side is a `PreferenceValue<T>` registry
@@ -291,8 +291,6 @@ mindis/
 ├── docs/adr/                         # architecture decision records
 │   ├── 001-view-layer.md             # FxmlKit primary, FXML/2 parked (§2.1)
 │   └── 003-web-ui-path.md            # future web module options, decision deferred (§2.5)
-├── mindis-workbench/                 # module: org.mindis.workbench (WorkbenchFX fork, §4.1)
-│   └── src/main/java/module-info.java
 ├── mindis-core/                      # module: org.mindis.core — UI-AGNOSTIC (§2.5)
 │   └── src/main/java/module-info.java
 │       # exports model, planning, persistence API, localization, preferences
@@ -301,41 +299,44 @@ mindis/
 │       # opens org.mindis.core.model, .planning to timefold + jackson
 ├── mindis-gui/                       # module: org.mindis.gui  (main application)
 │   └── src/main/java/module-info.java
-│       # requires org.mindis.core, org.mindis.workbench, javafx.controls, javafx.fxml,
-│       #          atlantafx.base, com.dlsc.fxmlkit, io.avaje.inject
+│       # requires org.mindis.core, javafx.controls, javafx.fxml, atlantafx.base,
+│       #          com.dlsc.fxmlkit, com.dlsc.gemsfx, io.avaje.inject
+│       # contains org.mindis.gui.shell (AppShell/ShellModule/CrudModule) and
+│       #          org.mindis.gui.data (LiveStore/CsvIO)
 │       # opens view/controller packages to javafx.fxml + com.dlsc.fxmlkit
 │
 └── (future, NOT created now: mindis-web — org.mindis.web, requires org.mindis.core; §2.5)
 ```
 
-### 4.1 `mindis-workbench` — in-repo WorkbenchFX fork
-> **As built (M1):** bespoke shell instead of source fork — see ADR-005. The section below is
-> kept as the original intent; its constraints (own module, AtlantaFX tokens, no
-> FontAwesomeFX, minimal surface) all hold for the bespoke implementation too.
+### 4.1 Application shell — bespoke, in `mindis-gui`
 
-WorkbenchFX is unmaintained (last release Jan 2022, Java 11 era, no `module-info`). Instead of
-depending on the jar and patching it, its useful core is **forked into this repo** as a proper
-JPMS module we own. License: Apache-2.0 — keep the original license text and a NOTICE entry
-("contains code derived from WorkbenchFX, © DLSC Software & Consulting GmbH, Apache-2.0"), and
-retain per-file copyright headers on derived files.
+The shell is written in-repo rather than taken from a library. WorkbenchFX, the obvious candidate,
+is unmaintained (last release Jan 2022, Java 11 era, no `module-info`) and MinDis needs a fraction
+of it; GemsFX's `HiddenSidesPane` is an overlay tray, not a resizable persistent sidebar. Full
+rationale and the rejected alternatives: ADR 005.
 
-Fork scope — take only what MinDis needs:
+It lives in `mindis-gui`, not a module of its own: one consumer, no third-party code to isolate.
 
-- `Workbench` container + builder, `WorkbenchModule` lifecycle (`init/activate/deactivate/destroy`)
-- Tab bar, add-module ("+") tile page, navigation drawer, toolbar
-- Dialog + drawer system
+- `org.mindis.gui.shell` — `AppShell` container + builder, `ShellModule` lifecycle
+  (`activate/deactivate/destroy/dispose`), `CrudModule` (shared table+editor screen),
+  `ShellOverlays`.
+- `org.mindis.gui.data` — `LiveStore`, `CsvIO`, `CsvRowMapper` (staging layer, shell-independent).
 
-Deliberate changes vs. upstream:
+Constraints:
 
-- Real `module-info.java` (`org.mindis.workbench`), compiled against JavaFX 25.
-- **Drop FontAwesomeFX** (unmaintained, JPMS-hostile) → replace icons with Ikonli
-  (`org.kordamp.ikonli` — modular, actively maintained) or plain SVG paths.
-- Rewrite CSS against AtlantaFX design tokens (CSS variables) instead of WorkbenchFX's own
-  palette — kills the theme-clash problem at the root; light/dark follows AtlantaFX theme.
-- All user-visible strings through `Localization.lang(...)` (§2.3).
-- Delete unused upstream features aggressively (keep the fork small — it is now our maintenance
-  burden).
+- Dialogs, notifications and the bottom drawer come from GemsFX's `PowerPane`, which wraps the
+  shell as the scene root. `ShellOverlays` is the access path, constructed in the composition root
+  and injected — never a static or an ambient lookup.
+- Icons via Ikonli (`org.kordamp.ikonli` — modular, actively maintained), never FontAwesomeFX
+  (unmaintained, JPMS-hostile).
+- CSS against AtlantaFX design tokens (CSS variables), so light/dark follows the AtlantaFX theme
+  with no bridge layer.
+- All user-visible strings through `Localization.lang(...)` (§2.3) — in the module that owns the
+  screen; the shell scaffolding itself carries no text.
 - No reflection, no resource-bundle magic (keeps §2.2 rules trivially satisfied).
+- No WorkbenchFX code is used, so no Apache-2.0 attribution or NOTICE obligation. If any is ever
+  lifted, keep the upstream license text, a NOTICE entry ("contains code derived from WorkbenchFX,
+  © DLSC Software & Consulting GmbH, Apache-2.0") and per-file copyright headers on derived files.
 
 ---
 
@@ -353,12 +354,11 @@ Key elements copied from the JabRef approach:
 3. **GradleX plugins** (applied in convention plugins):
    - `org.gradlex.java-module-dependencies` — derive Gradle dependencies from `module-info.java`
      (`requires` ⇒ dependency); custom module-name→GA mappings in `gradle/modules.properties`.
-     **As built (M0): project-plugin mode** — project names are `core`/`gui`/`workbench`
-     (dirs `mindis-*`) so `group + name = module name` holds.
+     **As built (M0): project-plugin mode** — project names are `core`/`gui` (dirs `mindis-*`)
+     so `group + name = module name` holds.
    - `org.gradlex.jvm-dependency-conflict-resolution` — wires the `:versions` platform into all
      resolution (`consistentResolution`), applied in the module convention plugin.
-   - `org.gradlex.extra-java-module-info` — patch remaining non-modular jars (fewer now that
-     WorkbenchFX is forked; still likely needed for transitive bits).
+   - `org.gradlex.extra-java-module-info` — patch remaining non-modular jars.
    - `org.gradlex.java-module-testing` — whitebox module testing with JUnit 5.
    - `org.gradlex.jvm-dependency-conflict-resolution` — sane conflict handling.
    - `org.gradlex.java-module-packaging` — jpackage-based platform installers (primary
@@ -388,8 +388,7 @@ Key elements copied from the JabRef approach:
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
 | FxmlKit single-vendor dependency (DLSC) | Abandonment would strand view layer | Standard FXML underneath — controllers/FXML survive a swap to plain `FXMLLoader` or FXML/2 (ADR-001 revisit triggers); keep FxmlKit-specific API surface thin. |
-| Workbench fork = own maintenance burden | Bug fixes on us forever | Keep fork minimal (§4.1); delete unused features; TestFX coverage on shell behavior. |
-| Fork effort underestimated (WorkbenchFX internals tangled) | M1 overruns | Timebox: if extraction exceeds ~1 week, fall back to writing a small bespoke shell (tabs + drawer + dialogs on plain JavaFX) — MinDis needs only a subset anyway. |
+| Bespoke shell = own maintenance burden | Bug fixes on us forever | Keep it minimal (§4.1) — ~300 lines, no features beyond what a screen actually needs; TestFX coverage on shell behavior once the headless harness is solved. |
 | **GraalVM (all M7):** JavaFX native fragility, Timefold AOT (Quarkus-tested, plain-Java less trodden), FXMLLoader + Jackson reflection | M7 fails or slips | Whole risk deferred to M7 by design — **jpackage (M6) is the shipping path and stays regardless**, so native is pure upside. In M7: GluonFX plugin, tracing-agent metadata over every view, headless solver spike first; if FXML metadata churn is chronic, revisit FXML/2 per ADR-001. Rules §2.2 keep M0–M6 code from making it worse. |
 | Full-text keys clash with properties format (spaces, `=`, `:` need escaping) | Messy bundle files | Exactly JabRef's trade-off — proven workable; localization check task (§5) catches drift; consider JabRef's tooling for bundle maintenance. |
 | Timefold under JPMS | Reflection failures at runtime | `opens org.mindis.core.model, org.mindis.core.planning to ai.timefold.solver.core;` — covered by solver smoke test in CI. |
@@ -405,7 +404,7 @@ Key elements copied from the JabRef approach:
 1. `settings.gradle.kts`, root `build.gradle.kts`, wrapper (Gradle 9.x),
    `gradle/libs.versions.toml`, `.gitignore`, `build-logic` with convention plugins (§5),
    JabRef-derived Checkstyle config. No native tooling of any kind.
-2. Create `mindis-workbench`, `mindis-core`, `mindis-gui` with `module-info.java` stubs; wire
+2. Create `mindis-core`, `mindis-gui` with `module-info.java` stubs; wire
    `java-module-dependencies` mapping for all libraries.
 3. **FxmlKit + Avaje spike (blocking, §2.1/§2.4):** hello-world view in `mindis-gui` — JavaFX
    25, module path, `%` full-text resource keys, hot reload, controller resolved from
@@ -419,28 +418,23 @@ Key elements copied from the JabRef approach:
    with DI-injected controller from the module path; `check` runs Checkstyle (incl. core
    `javafx.*` import ban) + localization task.
 
-### M1 — Workbench fork + theme
-1. Fork WorkbenchFX core into `mindis-workbench` (§4.1): import sources, add license headers +
-   NOTICE, strip to needed feature set, replace FontAwesomeFX with Ikonli, add `module-info.java`,
-   compile against JavaFX 25. **Timebox — bespoke-shell fallback per §6.**
-   **As built: fallback executed** — bespoke shell with WorkbenchFX-inspired API
-   (`WorkbenchModule` lifecycle, builder, home tiles + tabs), AtlantaFX-token CSS, no
-   WorkbenchFX code imported. Rationale + consequences: `docs/adr/005-workbench-shell.md`.
-   Drawer/dialogs deferred to demand (M2+); Ikonli deferred until real icons needed.
-2. Rewrite workbench CSS against AtlantaFX tokens; apply `PrimerLight` user-agent stylesheet;
+### M1 — Shell + theme
+1. Build the shell in `org.mindis.gui.shell` (§4.1): `AppShell` container + builder, `ShellModule`
+   lifecycle, sidebar navigation, Ikonli icons, AtlantaFX-token CSS. Dialogs, notifications and the
+   drawer come from GemsFX's `PowerPane` wrapped around it, reached through an injected
+   `ShellOverlays`. Rationale + consequences: `docs/adr/005-shell.md`.
+2. Rewrite shell CSS against AtlantaFX tokens; apply `PrimerLight` user-agent stylesheet;
    light/dark toggle.
-3. `MinDisApp`: build `Workbench` with placeholder modules: *Dashboard*, *Servers*, *Services*,
+3. `MinDisApp`: build the shell with placeholder modules: *Dashboard*, *Servers*, *Services*,
    *Planning*, *Settings*. All strings via `Localization.lang(...)`; language switch in Settings.
 4. Preferences (§2.6): `MinDisPreferences` record + `PreferencesService` in core (Jackson,
    atomic write); gui adapter; locale, theme and window geometry persisted and applied at
    startup. Write `docs/adr/004-preferences.md`.
-5. TestFX smoke tests for shell (open/close modules, drawer, dialog).
-   **As built: deferred** — TestFX needs a headless-toolkit harness (Monocle) that fights
-   JPMS; preferences covered by unit tests instead. TestFX harness revisited in M2 when the
-   first real views land.
+5. TestFX smoke tests for shell (open/close modules, drawer, dialog). Blocked on a
+   headless-toolkit harness (Monocle) that fights JPMS; shell behavior is covered by plain
+   JUnit tests driving the FX thread until that is solved.
 6. **Done when:** app starts, five modules open/close, theme + language switch (en↔de) work
-   **and survive restart**, `mindis-workbench` has no dependency on `com.dlsc.workbenchfx`
-   artifacts.
+   **and survive restart**, with no dependency on `com.dlsc.workbenchfx` artifacts.
 
 ### M2 — Domain model + persistence + first real views
 1. Implement `mindis-core` model (§3, without Timefold annotations yet) + Jackson JSON
@@ -559,7 +553,7 @@ vs. JIT is acceptable. Same release pipeline ships both artifacts.
   from `MinDisConstraintProvider.defaultSoftWeights()`), Settings shows five spinners,
   `buildProblem` applies them via `ConstraintWeightOverrides` on the solution.
 - Sidebar icons via Ikonli (proper JPMS modules, jlink-safe): `ikonli-javafx` +
-  materialdesign2 pack; `WorkbenchModule` carries an optional icon literal.
+  materialdesign2 pack; `ShellModule` carries an optional icon literal.
 - **Not built — reactive repository→UI layer:** activation-refresh covers every observable
   case in a single-window app; an event/ObservableList layer would add machinery with no
   visible behavior change (YAGNI). Revisit only if multi-window or background imports arrive.
@@ -644,10 +638,10 @@ Checkstyle config in `config/checkstyle/checkstyle.xml` (derived from JabRef's):
 - *Single responsibility*: one reason to change per class — repositories persist, services
   decide, controllers bind UI; never mixed (the existing core/gui cut enforces the biggest
   instance of this).
-- *Open/closed*: extend via new `WorkbenchModule`s, new constraints, new preferences fields —
+- *Open/closed*: extend via new `ShellModule`s, new constraints, new preferences fields —
   not by modifying shell/solver/persistence internals.
 - *Liskov substitution*: subtypes honor the contract of their base (e.g. every
-  `WorkbenchModule` must tolerate repeated `activate()`/`deactivate()` cycles).
+  `ShellModule` must tolerate repeated `activate()`/`deactivate()` cycles).
 - *Interface segregation*: keep injected dependencies narrow; if a controller needs one query,
   don't hand it a fat service. Introduce interfaces when a second implementation or test
   double exists or is imminent — not speculatively.
@@ -659,13 +653,13 @@ Checkstyle config in `config/checkstyle/checkstyle.xml` (derived from JabRef's):
 - Minimize mutability (Item 17): domain = records, defensive copies in compact constructors
   (as in `Server`, `LiturgicalService`).
 - Static factories over constructors where they clarify (Item 1); builders for many optional
-  params (Item 2, e.g. `Workbench.builder`).
+  params (Item 2, e.g. `AppShell.builder`).
 - Enforce noninstantiability of utility classes with private constructors (Item 4).
 - Prefer dependency injection to hardwiring resources (Item 5) — Avaje everywhere.
 - `Optional` for absent return values, never for fields/params (Item 55); empty collections,
   never `null` returns (Item 54).
 - Design and document for inheritance or prohibit it (Item 19): classes `final` by default,
-  lifecycle hooks documented (`WorkbenchModule`).
+  lifecycle hooks documented (`ShellModule`).
 - Prefer enums + `switch` expressions with exhaustiveness over string/int codes (Items 34-38,
   e.g. `EnumDisplay`).
 - Fail fast with precondition checks in constructors/compact constructors (Item 49).
@@ -709,5 +703,5 @@ Reviewers/agents: cite the violated principle or item when rejecting code.
   module-name ↔ coordinate mappings in `gradle/modules.properties`. No version catalog.
 - Don't-block-native rules (§2.2) apply to every PR: new reflection outside
   FXMLLoader/Jackson/Timefold needs justification. No native tooling before M7.
-- Derived WorkbenchFX code keeps upstream copyright headers; NOTICE file maintained.
+- No third-party source is vendored, so there is no NOTICE obligation; if any is ever lifted, upstream copyright headers and a NOTICE entry become mandatory (§4.1).
 - Every Timefold constraint has a `ConstraintVerifier` test before it ships.

@@ -1,4 +1,4 @@
-package org.mindis.workbench;
+package org.mindis.gui.shell;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,8 +20,6 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableView;
@@ -39,17 +37,22 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/// Base {@link WorkbenchModule} for the common "table on the left, editor on
+import org.mindis.gui.data.CsvIO;
+import org.mindis.gui.data.CsvRowMapper;
+import org.mindis.gui.data.LiveStore;
+
+/// Base [ShellModule] for the common "table on the left, editor on
 /// the right" CRUD screen (see Roles/Servers/Services/Templates): a toolbar,
 /// a table of items, and an editor pane for the selected item. This class has
-/// no localized text anywhere (it can't reach {@code Localization} across the
-/// workbench/core module boundary) - every button, its label and its wiring
-/// belongs to the subclass.
+/// no localized text anywhere - every button, its label and its wiring belongs
+/// to the subclass. Deliberate, not a limitation: `Localization` is reachable
+/// from here, but keeping the scaffolding text-free keeps each screen's wording
+/// in the one place that knows what the button does.
 ///
-/// <p><b>State lives in the {@link LiveStore}</b>, not here: the store is a
+/// <p><b>State lives in the [LiveStore]</b>, not here: the store is a
 /// long-lived shared mirror of one repository's staged in-memory state (see
 /// its class docs), passed in at construction; this class is a view shell
-/// that binds a {@code TableView} to {@code store.items()} and translates
+/// that binds a `TableView` to `store.items()` and translates
 /// user actions into store calls. Several modules may share one store (an
 /// owning module edits it, consuming modules read it), and the store - with
 /// all unsaved edits and dirty counts - survives this module being rebuilt
@@ -57,62 +60,63 @@ import org.slf4j.LoggerFactory;
 ///
 /// <p><b>Wiring a subclass:</b>
 /// <ul>
-///   <li>{@link #table()} - configure columns; do not call
-///       {@code setItems} on it, it is bound to the store's live list.
-///   <li>{@link #toolbarExtras()} - build the toolbar's buttons (localized
-///       text, own {@code setOnAction}) and push them here, in display order;
-///       bind {@link #newItem()}/{@link #deleteSelected()}/
-///       {@link #exportCsv(CsvRowMapper)}/{@link #importCsv(CsvRowMapper,
-///       BiFunction)} as their actions. Push them in the subclass constructor,
-///       since the toolbar is built once on first {@link #activate()}.
-///   <li>{@link #editorProperty()} - the editor {@link Node} currently shown,
-///       set automatically from {@link #buildEditor(Object)}'s result; the
+///   <li>[#table()] - configure columns; do not call
+///       `setItems` on it, it is bound to the store's live list.
+///   <li>[#toolbarExtras()] - build the toolbar's buttons (localized
+///       text, own `setOnAction`) and push them here, in display order;
+///       bind [#newItem()]/[#deleteSelected()]/
+///       [#exportCsv(CsvRowMapper)]/[#importCsv(CsvRowMapper, BiFunction)] as their actions.
+///       Push them in the subclass constructor,
+///       since the toolbar is built once on first [#activate()].
+///   <li>[#editorProperty()] - the editor [Node] currently shown,
+///       set automatically from [#buildEditor(Object)]'s result; the
 ///       editor container is disabled while no row is selected.
-///   <li>{@link #onActivate()} - optional per-activation hook (the module was
+///   <li>[#onActivate()] - optional per-activation hook (the module was
 ///       selected in the sidebar). Do <em>not</em> refresh the store from it:
 ///       re-baselining on a tab switch would wipe every module's dirty state.
-///   <li>{@link #dispose()} - overriders must call {@code super.dispose()}.
+///   <li>[#dispose()] - overriders must call `super.dispose()`.
 /// </ul>
 ///
 /// <p><b>The editor is a facade, not a snapshot render.</b>
-/// {@link #buildEditor(Object)} runs once per row selection - it wires each
-/// control's change listener to call {@link #updateLive(Object)} (writing
+/// [#buildEditor(Object)] runs once per row selection - it wires each
+/// control's change listener to call [#updateLive(Object)] (writing
 /// through to the repository immediately, visible to every other reader), and
-/// returns an {@link EditorBinding} bundling the built {@link Node} with a
-/// {@code refresh} callback and a {@code dispose} callback. This class calls
-/// {@code refresh} - not {@code buildEditor} again - whenever the selected
+/// returns an [EditorBinding] bundling the built [Node] with a
+/// `refresh` callback and a `dispose` callback. This class calls
+/// `refresh` - not `buildEditor` again - whenever the selected
 /// row's value changes for a reason other than the editor's own edit (e.g. a
 /// Save/Open re-baselining the store, or another module editing the same
 /// row): the subclass updates its controls' values in place instead of losing
-/// focus/cursor position to a full teardown-and-rebuild. {@code dispose} runs
+/// focus/cursor position to a full teardown-and-rebuild. `dispose` runs
 /// when the editor is replaced (a different row selected) or the module itself
 /// is discarded - detach any subscription the editor set up on a longer-lived
 /// object here (an entity-level equivalent of a control's own listener).
 /// Subclasses whose editor depends on external reactive state (another
 /// module's live store, a plan object) should subscribe directly to that state
-/// inside {@link #buildEditor(Object)} and rebuild just the affected part of
+/// inside [#buildEditor(Object)] and rebuild just the affected part of
 /// the editor when it fires - never require a caller elsewhere to remember to
 /// "refresh" this editor; that class of bug is exactly what this contract
 /// exists to rule out structurally.
 ///
-/// <p><b>New/live-edit lifecycle:</b> {@link #newItem()} calls
-/// {@link #createStub()} and inserts+selects it as a live row - an ordinary
+/// <p><b>New/live-edit lifecycle:</b> [#newItem()] calls
+/// [#createStub()] and inserts+selects it as a live row - an ordinary
 /// row from that point on, displayed exactly like any other (no "unsaved" row
 /// styling - the table always just shows the live store's current values).
 /// Nothing here writes to disk - flushing belongs to the global Save,
-/// which re-baselines the store via {@link LiveStore#refresh()}.
-/// {@link #deleteSelected()} likewise stages the removal; {@link
-/// #importCsv(CsvRowMapper, BiFunction)} merges parsed rows as dirty live
-/// rows via {@link #mergeLive(List)}.
+/// which re-baselines the store via [LiveStore#refresh()].
+/// [#deleteSelected()] likewise stages the removal; [#importCsv(CsvRowMapper, BiFunction)]
+/// merges parsed rows as dirty live
+/// rows via [#mergeLive(List)].
 ///
 /// @param <T> the item type; must have a stable identity (the store's
-///            identity function, e.g. a record's {@code id()}), used to
+///            identity function, e.g. a record's `id()`), used to
 ///            re-select a row after the store re-baselines
-public abstract class CrudModule<T> extends WorkbenchModule {
+public abstract class CrudModule<T> extends ShellModule {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CrudModule.class);
 
     private final LiveStore<T> store;
+    private final ShellOverlays overlays;
     private final TableView<T> table = new TableView<>();
     private final ObservableList<Node> toolbarExtras = FXCollections.observableArrayList();
     private final ObjectProperty<Node> editor = new SimpleObjectProperty<>();
@@ -124,9 +128,10 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     private @Nullable EditorBinding<T> currentBinding;
     private boolean suppressEditorRebuild;
 
-    protected CrudModule(String name, String iconLiteral, LiveStore<T> store) {
+    protected CrudModule(String name, String iconLiteral, LiveStore<T> store, ShellOverlays overlays) {
         super(name, iconLiteral);
         this.store = store;
+        this.overlays = overlays;
         // Remember the selection's identity while one exists (a store
         // re-baseline replaces the whole list, which clears the selection
         // before anything can capture it) so it can be restored afterward.
@@ -161,24 +166,24 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     }
 
     /// The table of items; configure columns here. The item list is
-    /// {@link #tableItems()} (the store's full list by default).
+    /// [#tableItems()] (the store's full list by default).
     protected final TableView<T> table() {
         return table;
     }
 
-    /// The list bound to {@link #table()} - the store's full live list by
+    /// The list bound to [#table()] - the store's full live list by
     /// default. Override to show a derived view instead, e.g. one page's
-    /// worth of a windowed/paginated list (see {@code ServicesModule}) - the
-    /// rest of this class (selection restore, {@link #newItem()}, {@link
-    /// #mergeLive(List)}) still reads the full list via {@link #store()},
+    /// worth of a windowed/paginated list (see `ServicesModule`) - the
+    /// rest of this class (selection restore, [#newItem()], [#mergeLive(List)]) still reads the
+    /// full list via [#store()],
     /// only the table's own rendering is affected.
     protected ObservableList<T> tableItems() {
         return store.items();
     }
 
-    /// An optional node shown directly below {@link #table()} - {@code null}
+    /// An optional node shown directly below [#table()] - `null`
     /// (nothing added) by default. Override to attach paging controls or
-    /// similar (see {@code ServicesModule}).
+    /// similar (see `ServicesModule`).
     protected @Nullable Node belowTable() {
         return null;
     }
@@ -196,17 +201,17 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     /// A blank/default item for the New action; staged but not yet flushed.
     protected abstract T createStub();
 
-    /// Builds the editor for {@code item}: called once whenever the table
+    /// Builds the editor for `item`: called once whenever the table
     /// selection changes to a non-null item (including a freshly created
-    /// stub) - not on every value change afterward, see {@link EditorBinding}.
+    /// stub) - not on every value change afterward, see [EditorBinding].
     protected abstract EditorBinding<T> buildEditor(T item);
 
-    /// An editor built for one row selection: the {@link Node} shown, a
-    /// {@code refresh} callback this class invokes in place of rebuilding
+    /// An editor built for one row selection: the [Node] shown, a
+    /// `refresh` callback this class invokes in place of rebuilding
     /// (see class docs) when the row's value changes for a reason other than
-    /// the editor's own edit, and a {@code dispose} callback run when the
+    /// the editor's own edit, and a `dispose` callback run when the
     /// editor is discarded (row deselected, or the module itself torn down) -
-    /// detach any subscription {@code buildEditor} set up on longer-lived
+    /// detach any subscription `buildEditor` set up on longer-lived
     /// state (another store, a plan property) here.
     public record EditorBinding<T>(Node node, Consumer<T> refresh, Runnable dispose) {
 
@@ -240,24 +245,24 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     }
 
     /// Number of rows differing from their last-flushed snapshot (see
-    /// {@link LiveStore#dirtyCountProperty()}).
+    /// [LiveStore#dirtyCountProperty()]).
     protected final ReadOnlyIntegerProperty dirtyCountProperty() {
         return store.dirtyCountProperty();
     }
 
-    /// The last-flushed value for the row sharing {@code item}'s identity, or
-    /// {@code null} if it has none yet (a not-yet-flushed new row). Useful as
+    /// The last-flushed value for the row sharing `item`'s identity, or
+    /// `null` if it has none yet (a not-yet-flushed new row). Useful as
     /// an editor's dirty-comparison baseline instead of the (possibly already
-    /// live-edited) {@code item} passed into {@link #buildEditor(Object)} -
-    /// comparing against {@code item} itself would always read "unchanged"
+    /// live-edited) `item` passed into [#buildEditor(Object)] -
+    /// comparing against `item` itself would always read "unchanged"
     /// once a live edit has updated it, even though it still differs from
     /// disk.
     protected final @Nullable T savedSnapshot(T item) {
         return store.savedSnapshot(item);
     }
 
-    /// Left border accent on {@code label} while {@code property}'s current
-    /// value differs from {@code original.get()} (the last-flushed value) - a
+    /// Left border accent on `label` while `property`'s current
+    /// value differs from `original.get()` (the last-flushed value) - a
     /// lightweight "you have unsaved changes here" cue that needs no
     /// field-by-field "was this the one that changed" bookkeeping: each field
     /// just watches its own drift from where it started, and clears itself
@@ -265,28 +270,28 @@ public abstract class CrudModule<T> extends WorkbenchModule {
     /// typo). On the field's own label, not the field itself - keeps the
     /// accent out of the way of a field's own focus/validation styling.
     ///
-    /// <p>{@code original} is a supplier, not a fixed value: a Save all moves
+    /// <p>`original` is a supplier, not a fixed value: a Save all moves
     /// "the last-flushed value" without necessarily changing what the control
     /// displays (the row was already showing its own just-saved content), so
     /// no property change fires to re-evaluate the accent on its own - a fixed
     /// snapshot captured once at editor-build time would leave the accent
     /// stuck "dirty" forever after the first save. Re-reading the supplier on
     /// every future control edit keeps the listener correct going forward;
-    /// {@link EditorBinding}'s {@code refresh} callback additionally
+    /// [EditorBinding]'s `refresh` callback additionally
     /// re-invokes this method's initial check after a Save/Open, since
     /// that path changes no control value and so triggers no listener at all.
     ///
-    /// <p>{@code original} is typically {@code () -> savedSnapshot(item)}-
-    /// derived (falling back to {@code item} for a not-yet-saved new row) -
-    /// see any {@code buildEditor(Object)} override for the pattern.
+    /// <p>`original` is typically `() -> savedSnapshot(item)`-
+    /// derived (falling back to `item` for a not-yet-saved new row) -
+    /// see any `buildEditor(Object)` override for the pattern.
     protected static <T> void markDirtyOnChange(ObservableValue<T> property, Supplier<T> original, Region label) {
         property.addListener((obs, oldValue, newValue) -> recomputeFieldChanged(property, original, label));
         recomputeFieldChanged(property, original, label);
     }
 
-    /// The comparison {@link #markDirtyOnChange} reruns on every control
-    /// change - factored out so an {@link EditorBinding}'s {@code refresh}
-    /// callback (a Save/Open, which moves {@code original} without
+    /// The comparison [#markDirtyOnChange] reruns on every control
+    /// change - factored out so an [EditorBinding]'s `refresh`
+    /// callback (a Save/Open, which moves `original` without
     /// necessarily changing what the control displays, so no listener fires
     /// on its own) can re-invoke just the comparison without registering a
     /// second listener.
@@ -294,7 +299,8 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         setFieldChanged(label, !Objects.equals(property.getValue(), original.get()));
     }
 
-    /// Toggles the left-border "unsaved change" accent (see {@code .field-changed} in the app's theme stylesheet) on or off.
+    /// Toggles the left-border "unsaved change" accent (see `.field-changed` in the app's theme
+    /// stylesheet) on or off.
     protected static void setFieldChanged(Region label, boolean changed) {
         if (changed) {
             if (!label.getStyleClass().contains("field-changed")) {
@@ -305,10 +311,10 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         }
     }
 
-    /// Pushes a freshly rebuilt value for the row sharing {@code updated}'s
+    /// Pushes a freshly rebuilt value for the row sharing `updated`'s
     /// identity into the live store (which stages it into the repository - no
     /// disk write). Call from every control's change listener in
-    /// {@link #buildEditor(Object)}. Does not rebuild the open editor (the
+    /// [#buildEditor(Object)]. Does not rebuild the open editor (the
     /// edit originated there).
     protected final void updateLive(T updated) {
         suppressEditorRebuild = true;
@@ -329,9 +335,9 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         }
     }
 
-    /// Merges {@code items} into the live store (see
-    /// {@link LiveStore#mergeLive(List)}) - ordinary dirty live rows, same as
-    /// a manual edit or {@link #newItem()}, preserving the table selection.
+    /// Merges `items` into the live store (see
+    /// [LiveStore#mergeLive(List)]) - ordinary dirty live rows, same as
+    /// a manual edit or [#newItem()], preserving the table selection.
     /// For a subclass's own bulk-generate/import action; does not touch disk.
     protected final void mergeLive(List<T> items) {
         T selected = table.getSelectionModel().getSelectedItem();
@@ -415,7 +421,7 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         return new VBox(toolbar, split);
     }
 
-    /// Inserts and selects a new {@link #createStub()} row - a normal live row
+    /// Inserts and selects a new [#createStub()] row - a normal live row
     /// from this point on (see class docs), immediately editable and included
     /// in the next flush. Bind to the New button's action.
     protected final void newItem() {
@@ -444,7 +450,8 @@ public abstract class CrudModule<T> extends WorkbenchModule {
         }
     }
 
-    /// Prompts for a file and writes every row via {@code mapper}. Bind to the Export button's action.
+    /// Prompts for a file and writes every row via `mapper`. Bind to the Export button's
+    /// action.
     protected final void exportCsv(CsvRowMapper<T> mapper) {
         FileChooser chooser = new FileChooser();
         chooser.setTitle(getName());
@@ -462,14 +469,14 @@ public abstract class CrudModule<T> extends WorkbenchModule {
             CsvIO.write(writer, mapper.header(), rows);
         } catch (IOException e) {
             LOGGER.warn("CSV export failed: {}", target, e);
-            new Alert(AlertType.ERROR, e.getMessage()).showAndWait();
+            overlays.dialogs().showError(getName(), e.getMessage(), e);
         }
     }
 
     /// Prompts for a file and merges every parsed row into the live store (via
-    /// {@link #mergeLive(List)} - staged, not written to disk until the next
-    /// global Save all), then shows {@code summaryMessage.apply(imported,
-    /// total)} (e.g. localized "12 of 14 rows imported" text - this class has
+    /// [#mergeLive(List)] - staged, not written to disk until the next
+    /// global Save all), then shows `summaryMessage.apply(imported,
+    /// total)` (e.g. localized "12 of 14 rows imported" text - this class has
     /// no localized text of its own). Bind to the Import button's action.
     protected final void importCsv(CsvRowMapper<T> mapper, BiFunction<Integer, Integer, String> summaryMessage) {
         FileChooser chooser = new FileChooser();
@@ -490,10 +497,12 @@ public abstract class CrudModule<T> extends WorkbenchModule {
                 }
             }
             mergeLive(imported);
-            new Alert(AlertType.INFORMATION, summaryMessage.apply(imported.size(), dataRows.size())).showAndWait();
+            // A count of imported rows is an outcome, not a question - post it
+            // to the info center instead of blocking on an OK button.
+            overlays.notify(getName(), summaryMessage.apply(imported.size(), dataRows.size()));
         } catch (IOException e) {
             LOGGER.warn("CSV import failed: {}", source, e);
-            new Alert(AlertType.ERROR, e.getMessage()).showAndWait();
+            overlays.dialogs().showError(getName(), e.getMessage(), e);
         }
     }
 

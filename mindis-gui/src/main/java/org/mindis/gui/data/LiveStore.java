@@ -1,4 +1,4 @@
-package org.mindis.workbench;
+package org.mindis.gui.data;
 
 import java.util.HashMap;
 import java.util.List;
@@ -21,23 +21,23 @@ import org.jspecify.annotations.Nullable;
 /// rebuilds), so unsaved edits made in one module are immediately visible in
 /// every other module bound to the same store.
 ///
-/// <p><b>Write-through</b>: every mutation ({@link #updateLive}, {@link
-/// #insertFirst}, {@link #remove}, {@link #mergeLive}) updates {@link #items()}
+/// <p><b>Write-through</b>: every mutation ([#updateLive], [#insertFirst], [#remove],
+/// [#mergeLive]) updates [#items()]
 /// <em>and</em> stages the change into the repository cache in the same call -
 /// the repository stays the single source of truth for non-GUI readers (the
 /// solver, CSV mappers, generators). None of these touch disk; flushing and
 /// reloading happen at the repository level (global Save/Open), after
-/// which {@link #refresh()} re-mirrors and re-baselines this store.
+/// which [#refresh()] re-mirrors and re-baselines this store.
 ///
 /// <p><b>Dirty tracking</b> (same algorithm as the former per-module
 /// bookkeeping): a row is dirty when it differs from its snapshot in the
-/// last-<em>flushed</em> baseline (per the {@code equivalence} predicate) or
+/// last-<em>flushed</em> baseline (per the `equivalence` predicate) or
 /// has no snapshot yet (a new row); each removal of a previously-flushed row
 /// also counts until the next flush. The baseline moves only in
-/// {@link #refresh()}.
+/// [#refresh()].
 ///
 /// @param <T> the item type; must have a stable identity via the
-///            {@code identity} function (e.g. a record's {@code id()})
+///            `identity` function (e.g. a record's `id()`)
 public final class LiveStore<T> {
 
     private final ObservableList<T> items = FXCollections.observableArrayList();
@@ -58,11 +58,11 @@ public final class LiveStore<T> {
     private final BiPredicate<T, T> equivalence;
 
     /// @param loader      reads the repository's current staged state
-    ///                    (e.g. {@code repo::findAll})
+    ///                    (e.g. `repo::findAll`)
     /// @param stage       stages an upsert into the repository cache
-    ///                    (e.g. {@code repo::save} - cache-only, no disk I/O)
+    ///                    (e.g. `repo::save` - cache-only, no disk I/O)
     /// @param unstage     stages a removal into the repository cache
-    ///                    (e.g. {@code item -> repo.delete(item.id())})
+    ///                    (e.g. `item -> repo.delete(item.id())`)
     /// @param identity    stable key for a row across edits and reloads
     /// @param equivalence whether two values count as "unchanged" for dirty
     ///                    tracking (natural equality unless a field's order
@@ -84,19 +84,19 @@ public final class LiveStore<T> {
 
     /// Number of rows whose live value differs from its last-flushed snapshot
     /// (or is a not-yet-flushed new row), plus removals of previously-flushed
-    /// rows. Bind a "Save all" button's {@code disableProperty} to a sum of
+    /// rows. Bind a "Save all" button's `disableProperty` to a sum of
     /// these reaching 0.
     public ReadOnlyIntegerProperty dirtyCountProperty() {
         return dirtyCount.getReadOnlyProperty();
     }
 
-    /// The item's stable identity key (the {@code identity} function applied to it).
+    /// The item's stable identity key (the `identity` function applied to it).
     public Object identityOf(T item) {
         return identity.apply(item);
     }
 
-    /// The last-flushed value for the row sharing {@code item}'s identity, or
-    /// {@code null} if it has none yet (a not-yet-flushed new row). Use as an
+    /// The last-flushed value for the row sharing `item`'s identity, or
+    /// `null` if it has none yet (a not-yet-flushed new row). Use as an
     /// editor's dirty-comparison baseline instead of the (possibly already
     /// live-edited) current value.
     public @Nullable T savedSnapshot(T item) {
@@ -104,10 +104,10 @@ public final class LiveStore<T> {
     }
 
     /// Pushes a freshly rebuilt value for the row identified by
-    /// {@code identityOf(updated)} into the live list and stages it into the
+    /// `identityOf(updated)` into the live list and stages it into the
     /// repository - no disk write.
     ///
-    /// @return the row's index in {@link #items()}, or {@code -1} if no row
+    /// @return the row's index in [#items()], or `-1` if no row
     ///         with that identity exists (nothing changed)
     public int updateLive(T updated) {
         Object key = identity.apply(updated);
@@ -144,7 +144,7 @@ public final class LiveStore<T> {
         recomputeDirtyCount();
     }
 
-    /// Merges {@code incoming} into the live list: an item sharing an existing
+    /// Merges `incoming` into the live list: an item sharing an existing
     /// row's identity replaces it in place, everything else is appended - each
     /// staged into the repository, same as a manual edit. For bulk
     /// generate/import actions; does not touch disk.
@@ -169,7 +169,7 @@ public final class LiveStore<T> {
     }
 
     /// Re-mirrors the repository's current staged state and re-baselines the
-    /// dirty tracking against it, then bumps {@link #refreshTickProperty()}.
+    /// dirty tracking against it, then bumps [#refreshTickProperty()].
     /// Only meaningful right after a repository-level flush or reload (when
     /// staged state and disk agree) - calling it at any other moment would
     /// wrongly re-baseline unflushed edits as clean.
@@ -190,15 +190,15 @@ public final class LiveStore<T> {
         refreshTick.set(refreshTick.get() + 1);
     }
 
-    /// Increments by 1 at the end of every {@link #refresh()} (i.e. after a
+    /// Increments by 1 at the end of every [#refresh()] (i.e. after a
     /// global Save all or Load re-baselined this store) - subscribe with a
-    /// plain {@code refreshTickProperty().subscribe(...)} or
-    /// {@code addListener(...)}. A counter, not the re-baselined value itself,
+    /// plain `refreshTickProperty().subscribe(...)` or
+    /// `addListener(...)`. A counter, not the re-baselined value itself,
     /// so a standard JavaFX property change is guaranteed to fire every time
     /// (a monotonic increment is never equal to its previous value); the store
     /// outlives UI rebuilds - a subscriber that is itself rebuilt (e.g. a
-    /// workbench module) must unsubscribe (the {@link javafx.util.Subscription}
-    /// returned by {@code subscribe(...)}) when discarded, or it leaks.
+    /// shell module) must unsubscribe (the [javafx.util.Subscription]
+    /// returned by `subscribe(...)`) when discarded, or it leaks.
     public ReadOnlyIntegerProperty refreshTickProperty() {
         return refreshTick.getReadOnlyProperty();
     }

@@ -67,12 +67,13 @@ import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.gui.util.CalendarPickers;
 import org.mindis.gui.util.SearchFields;
 import org.mindis.gui.util.TimePickers;
-import org.mindis.workbench.CrudModule;
-import org.mindis.workbench.CsvRowMapper;
-import org.mindis.workbench.LiveStore;
+import org.mindis.gui.shell.CrudModule;
+import org.mindis.gui.shell.ShellOverlays;
+import org.mindis.gui.data.CsvRowMapper;
+import org.mindis.gui.data.LiveStore;
 
 /// Altar server roster module: personal details, role qualifications and
-/// unavailability periods (both part of the {@link Server} model). The
+/// unavailability periods (both part of the [Server] model). The
 /// qualifications checklist binds to the shared live role list, so roles
 /// created or edited (even unsaved) in the Roles module appear immediately.
 public class ServersModule extends CrudModule<Server> {
@@ -92,8 +93,8 @@ public class ServersModule extends CrudModule<Server> {
 
     public ServersModule(String name, LiveStore<Server> serverStore, LiveStore<Role> roleStore,
                          ServerRepository serverRepository, RoleRepository roleRepository,
-                         UiPreferences uiPreferences) {
-        super(name, "mdi2a-account-group", serverStore);
+                         UiPreferences uiPreferences, ShellOverlays overlays) {
+        super(name, "mdi2a-account-group", serverStore, overlays);
         this.viewModel = new ServersViewModel(serverRepository, roleRepository);
         this.uiPreferences = uiPreferences;
         this.roleStore = roleStore;
@@ -505,10 +506,10 @@ public class ServersModule extends CrudModule<Server> {
         });
     }
 
-    /// Rebuilds {@code flow} from {@code times} - one closable {@link ChipView}
-    /// per entry, plus {@code inputGroup} (the time picker + add button) as the
+    /// Rebuilds `flow` from `times` - one closable [ChipView]
+    /// per entry, plus `inputGroup` (the time picker + add button) as the
     /// trailing entry, so both chips and the input group share one
-    /// {@link FlowPane}. A {@code FlowPane} (not a {@code TilePane}) so each
+    /// [FlowPane]. A `FlowPane` (not a `TilePane`) so each
     /// chip stays sized to its own text instead of stretching to match the
     /// wider input group's cell width.
     private void refreshPreferredTimeChips(FlowPane flow, ObservableList<LocalTime> times, Node inputGroup) {
@@ -534,7 +535,7 @@ public class ServersModule extends CrudModule<Server> {
     /// Free-text field with autocomplete over family ids already used by other
     /// servers, so a sibling gets linked to an existing family instead of a
     /// typo'd new one. A brand-new id (no match) is still accepted as-is via
-    /// {@link SearchField#setNewItemProducer} - otherwise {@code commit()}
+    /// [SearchField#setNewItemProducer] - otherwise `commit()`
     /// would silently clear whatever the user typed.
     private SearchField<String> buildFamilyIdField(@Nullable String familyId) {
         SearchField<String> field = new SearchField<>();

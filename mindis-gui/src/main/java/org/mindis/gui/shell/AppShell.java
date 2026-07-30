@@ -1,4 +1,4 @@
-package org.mindis.workbench;
+package org.mindis.gui.shell;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -24,18 +24,20 @@ import javafx.scene.layout.VBox;
 import org.jspecify.annotations.Nullable;
 import org.kordamp.ikonli.javafx.FontIcon;
 
-/// Minimal workbench shell: a permanent left sidebar with one navigation entry
-/// per module (bottom-pinned entries supported, e.g. Settings) and the active
-/// module's content on the right. API modeled on WorkbenchFX (Apache-2.0),
-/// implemented from scratch against JavaFX 26 and AtlantaFX styling
-/// (see docs/adr/005-workbench-shell.md).
+/// Minimal application shell: a permanent left sidebar with one navigation
+/// entry per module (bottom-pinned entries supported, e.g. Settings) and the
+/// active module's content on the right. Written from scratch against JavaFX 26
+/// and AtlantaFX styling (see docs/adr/005-shell.md).
+///
+/// <p>Wrapped by a [com.dlsc.gemsfx.PowerPane] in `MinDisApp`,
+/// which layers dialogs, notifications and a bottom drawer over this content.
 ///
 /// <p>The sidebar is resizable: drag the handle on its right edge to change its
-/// width. Dragged below {@link #COLLAPSE_THRESHOLD} it snaps to an icon-only
+/// width. Dragged below [#COLLAPSE_THRESHOLD] it snaps to an icon-only
 /// rail (labels hidden, module name shown as a tooltip); a chevron toggle at the
 /// top expands it back to a labelled width. Inspired by FXComponents'
 /// NavigationPane shrunken/unshrunken width model.
-public final class Workbench extends BorderPane {
+public final class AppShell extends BorderPane {
 
     /// Icon-only rail width.
     private static final double COLLAPSED_WIDTH = 60;
@@ -49,47 +51,47 @@ public final class Workbench extends BorderPane {
     /// Drag narrower than this and the sidebar snaps to the icon-only rail.
     private static final double COLLAPSE_THRESHOLD = 120;
 
-    private final Map<WorkbenchModule, ToggleButton> navButtons = new LinkedHashMap<>();
+    private final Map<ShellModule, ToggleButton> navButtons = new LinkedHashMap<>();
     private final ToggleGroup navGroup = new ToggleGroup();
     private final StackPane contentPane = new StackPane();
-    private final List<WorkbenchModule> modules;
+    private final List<ShellModule> modules;
 
     private final VBox sidebar = new VBox();
     private final FontIcon toggleIcon = new FontIcon();
     private final Tooltip toggleTooltip = new Tooltip();
 
-    private @Nullable WorkbenchModule activeModule;
+    private @Nullable ShellModule activeModule;
     private boolean collapsed;
-    /// Observable mirror of {@link #collapsed} so a sidebar header (e.g. the
+    /// Observable mirror of [#collapsed] so a sidebar header (e.g. the
     /// collection switcher) can adapt to the icon-only rail.
     private final ReadOnlyBooleanWrapper collapsedProperty = new ReadOnlyBooleanWrapper(this, "collapsed");
     private double dragStartSceneX;
     private double dragStartWidth;
     private double currentWidth;
 
-    private Workbench(Builder builder) {
-        List<WorkbenchModule> all = new ArrayList<>(builder.modules);
+    private AppShell(Builder builder) {
+        List<ShellModule> all = new ArrayList<>(builder.modules);
         all.addAll(builder.bottomModules);
         this.modules = List.copyOf(all);
-        getStyleClass().add("workbench");
-        getStylesheets().add(Workbench.class.getResource("workbench.css").toExternalForm());
+        getStyleClass().add("shell");
+        getStylesheets().add(AppShell.class.getResource("shell.css").toExternalForm());
 
-        sidebar.getStyleClass().add("workbench-sidebar");
+        sidebar.getStyleClass().add("shell-sidebar");
         // Chevron on top of everything, then the sidebar header (collection
         // switcher), then the navigation entries.
         sidebar.getChildren().add(createToggleButton());
         if (builder.sidebarHeader != null) {
-            builder.sidebarHeader.getStyleClass().add("workbench-sidebar-header");
+            builder.sidebarHeader.getStyleClass().add("shell-sidebar-header");
             sidebar.getChildren().add(builder.sidebarHeader);
         }
-        for (WorkbenchModule module : builder.modules) {
+        for (ShellModule module : builder.modules) {
             sidebar.getChildren().add(createNavButton(module));
         }
         if (!builder.bottomModules.isEmpty()) {
             Region spacer = new Region();
             VBox.setVgrow(spacer, Priority.ALWAYS);
             sidebar.getChildren().add(spacer);
-            for (WorkbenchModule module : builder.bottomModules) {
+            for (ShellModule module : builder.bottomModules) {
                 sidebar.getChildren().add(createNavButton(module));
             }
         }
@@ -113,16 +115,16 @@ public final class Workbench extends BorderPane {
         }
     }
 
-    public static Builder builder(WorkbenchModule... modules) {
+    public static Builder builder(ShellModule... modules) {
         return new Builder(modules);
     }
 
     /// Every module, top and bottom-pinned alike (e.g. for disposing them all on a UI rebuild).
-    public List<WorkbenchModule> getModules() {
+    public List<ShellModule> getModules() {
         return modules;
     }
 
-    public @Nullable WorkbenchModule getActiveModule() {
+    public @Nullable ShellModule getActiveModule() {
         return activeModule;
     }
 
@@ -139,14 +141,14 @@ public final class Workbench extends BorderPane {
     }
 
     /// Selects the module in the sidebar (activating it).
-    public void openModule(WorkbenchModule module) {
+    public void openModule(ShellModule module) {
         ToggleButton button = navButtons.get(module);
         if (button != null) {
             button.setSelected(true);
         }
     }
 
-    /// Fully-qualified class name of the active module, or {@code null} if none.
+    /// Fully-qualified class name of the active module, or `null` if none.
     /// Stable across a UI rebuild (module instances are recreated) and
     /// independent of the localized module names, so it survives a language
     /// change - unlike a name or the module instance itself.
@@ -159,7 +161,7 @@ public final class Workbench extends BorderPane {
         if (className == null) {
             return;
         }
-        for (Map.Entry<WorkbenchModule, ToggleButton> entry : navButtons.entrySet()) {
+        for (Map.Entry<ShellModule, ToggleButton> entry : navButtons.entrySet()) {
             if (entry.getKey().getClass().getName().equals(className)) {
                 entry.getValue().setSelected(true);
                 return;
@@ -168,11 +170,11 @@ public final class Workbench extends BorderPane {
     }
 
     private Button createToggleButton() {
-        toggleIcon.getStyleClass().add("workbench-nav-icon");
+        toggleIcon.getStyleClass().add("shell-nav-icon");
         Button button = new Button();
         button.setGraphic(toggleIcon);
         button.setTooltip(toggleTooltip);
-        button.getStyleClass().add("workbench-toggle-button");
+        button.getStyleClass().add("shell-toggle-button");
         button.setMaxWidth(Double.MAX_VALUE);
         // Collapsed -> expand to a labelled width; expanded -> collapse to rail.
         button.setOnAction(_ -> setSidebarWidth(collapsed ? EXPANDED_WIDTH : COLLAPSED_WIDTH));
@@ -181,7 +183,7 @@ public final class Workbench extends BorderPane {
 
     private Region createResizeHandle() {
         Region handle = new Region();
-        handle.getStyleClass().add("workbench-resize-handle");
+        handle.getStyleClass().add("shell-resize-handle");
         handle.setCursor(Cursor.H_RESIZE);
         handle.setMinWidth(6);
         handle.setPrefWidth(6);
@@ -197,7 +199,7 @@ public final class Workbench extends BorderPane {
 
     /// Pins the sidebar to a width (min == pref == max so it never flexes in the
     /// enclosing HBox) and derives collapsed state from it: narrower than
-    /// {@link #COLLAPSE_THRESHOLD} snaps to the icon-only rail.
+    /// [#COLLAPSE_THRESHOLD] snaps to the icon-only rail.
     private void setSidebarWidth(double width) {
         boolean shouldCollapse = width < COLLAPSE_THRESHOLD;
         double applied = shouldCollapse
@@ -225,15 +227,15 @@ public final class Workbench extends BorderPane {
         toggleTooltip.setText(collapsed ? "Expand" : "Collapse");
     }
 
-    private ToggleButton createNavButton(WorkbenchModule module) {
+    private ToggleButton createNavButton(ShellModule module) {
         ToggleButton button = new ToggleButton();
         if (module.getIconLiteral() != null) {
             FontIcon icon = new FontIcon(module.getIconLiteral());
-            icon.getStyleClass().add("workbench-nav-icon");
+            icon.getStyleClass().add("shell-nav-icon");
             button.setGraphic(icon);
             button.setGraphicTextGap(10);
         }
-        button.getStyleClass().add("workbench-nav-button");
+        button.getStyleClass().add("shell-nav-button");
         button.setToggleGroup(navGroup);
         button.setMaxWidth(Double.MAX_VALUE);
         button.selectedProperty().subscribe(selected -> {
@@ -248,20 +250,20 @@ public final class Workbench extends BorderPane {
 
     /// Shows or hides the module label per collapsed state; when collapsed the
     /// name moves to a tooltip so the icon-only rail stays legible.
-    private void applyButtonMode(WorkbenchModule module, ToggleButton button) {
+    private void applyButtonMode(ShellModule module, ToggleButton button) {
         boolean iconOnly = collapsed && module.getIconLiteral() != null;
-        button.getStyleClass().remove("workbench-nav-button-collapsed");
+        button.getStyleClass().remove("shell-nav-button-collapsed");
         if (iconOnly) {
             button.setText(null);
             button.setTooltip(new Tooltip(module.getName()));
-            button.getStyleClass().add("workbench-nav-button-collapsed");
+            button.getStyleClass().add("shell-nav-button-collapsed");
         } else {
             button.setText(module.getName());
             button.setTooltip(null);
         }
     }
 
-    private void activateModule(WorkbenchModule module) {
+    private void activateModule(ShellModule module) {
         if (activeModule == module) {
             return;
         }
@@ -274,18 +276,18 @@ public final class Workbench extends BorderPane {
 
     public static final class Builder {
 
-        private final List<WorkbenchModule> modules;
-        private final List<WorkbenchModule> bottomModules = new ArrayList<>();
+        private final List<ShellModule> modules;
+        private final List<ShellModule> bottomModules = new ArrayList<>();
         private double initialSidebarWidth = EXPANDED_WIDTH;
         private @Nullable Node sidebarHeader;
 
-        private Builder(WorkbenchModule... modules) {
+        private Builder(ShellModule... modules) {
             this.modules = List.of(modules);
         }
 
         /// Places a node at the very top of the sidebar, above the collapse
         /// toggle and the navigation entries (e.g. the collection switcher).
-        /// Gets the {@code workbench-sidebar-header} style class.
+        /// Gets the `shell-sidebar-header` style class.
         public Builder sidebarHeader(Node header) {
             this.sidebarHeader = header;
             return this;
@@ -293,22 +295,22 @@ public final class Workbench extends BorderPane {
 
         /// Pins a module to the bottom of the sidebar, below a spacer. Call
         /// order is preserved (e.g. About above Settings).
-        public Builder bottomModule(WorkbenchModule module) {
+        public Builder bottomModule(ShellModule module) {
             this.bottomModules.add(module);
             return this;
         }
 
         /// Sidebar width to start with (e.g. a previously persisted width);
-        /// defaults to {@link #EXPANDED_WIDTH}. Clamped and collapse-checked
+        /// defaults to [#EXPANDED_WIDTH]. Clamped and collapse-checked
         /// the same as a drag, so any value (including a stale one from before
-        /// {@link #MIN_EXPANDED_WIDTH}/{@link #MAX_WIDTH} changed) is safe.
+        /// [#MIN_EXPANDED_WIDTH]/[#MAX_WIDTH] changed) is safe.
         public Builder initialSidebarWidth(double width) {
             this.initialSidebarWidth = width;
             return this;
         }
 
-        public Workbench build() {
-            return new Workbench(this);
+        public AppShell build() {
+            return new AppShell(this);
         }
     }
 }

@@ -12,11 +12,11 @@ import org.mindis.core.l10n.Localization;
 import org.mindis.core.planning.MinDisConstraintProvider;
 
 /// All user-facing settings (PLAN.md section 2.6). Immutable; use the wither
-/// methods and {@link PreferencesService#update} for changes.
+/// methods and [PreferencesService#update] for changes.
 ///
 /// <p>New user-facing setting = new component with a default here. Bump
-/// {@link #CURRENT_VERSION} and add an explicit migration in
-/// {@link PreferencesService} when the shape changes incompatibly.
+/// [#CURRENT_VERSION] and add an explicit migration in
+/// [PreferencesService] when the shape changes incompatibly.
 public record MinDisPreferences(
         int version,
         String languageTag,
@@ -45,8 +45,8 @@ public record MinDisPreferences(
     public static final int MIN_FONT_SIZE = 10;
     public static final int MAX_FONT_SIZE = 24;
 
-    /// Light/dark choice. {@link #SYSTEM} follows the OS colour scheme live;
-    /// the GUI resolves it to a concrete {@link #LIGHT}/{@link #DARK} before
+    /// Light/dark choice. [#SYSTEM] follows the OS colour scheme live;
+    /// the GUI resolves it to a concrete [#LIGHT]/[#DARK] before
     /// styling.
     public enum Theme implements PreferenceEnumValue {
         LIGHT("Light"),
@@ -67,7 +67,7 @@ public record MinDisPreferences(
         }
     }
 
-    /// Last main window geometry; {@code null} until the first shutdown.
+    /// Last main window geometry; `null` until the first shutdown.
     public record WindowBounds(double x, double y, double width, double height, boolean maximized) {
     }
 
@@ -168,7 +168,7 @@ public record MinDisPreferences(
                 dashboardWidgets);
     }
 
-    /// Directory the plan export {@code FileChooser} last saved into; {@code null} until the first export.
+    /// Directory the plan export `FileChooser` last saved into; `null` until the first export.
     public MinDisPreferences withLastExportDirectory(String newLastExportDirectory) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
@@ -176,7 +176,7 @@ public record MinDisPreferences(
                 dashboardWidgets);
     }
 
-    /// Sidebar width; {@code null} until the first shutdown (the workbench then uses its own default).
+    /// Sidebar width; `null` until the first shutdown (the shell then uses its own default).
     public MinDisPreferences withSidebarWidth(double newSidebarWidth) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
@@ -185,7 +185,7 @@ public record MinDisPreferences(
     }
 
     /// Path of the document last opened or saved, reopened on the next start;
-    /// {@code null} when no document has been opened yet, or after the user
+    /// `null` when no document has been opened yet, or after the user
     /// worked in an untitled one.
     public MinDisPreferences withLastDocument(@Nullable String newLastDocument) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
@@ -194,9 +194,9 @@ public record MinDisPreferences(
                 dashboardWidgets);
     }
 
-    /// Records {@code recent} as the most-recently-used collection: moved to the
+    /// Records `recent` as the most-recently-used collection: moved to the
     /// front, any earlier entry for the same path removed (its cached name/logo
-    /// refreshed), and the list trimmed to {@link #MAX_RECENT_COLLECTIONS}.
+    /// refreshed), and the list trimmed to [#MAX_RECENT_COLLECTIONS].
     public MinDisPreferences withRecentCollection(RecentCollection recent) {
         List<RecentCollection> updated = new ArrayList<>();
         updated.add(recent);
@@ -214,7 +214,7 @@ public record MinDisPreferences(
                 toolbarButtonDisplay, dashboardWidgets);
     }
 
-    /// Drops the recent entry for {@code path} (e.g. a document that has since
+    /// Drops the recent entry for `path` (e.g. a document that has since
     /// vanished from disk); a no-op when none matches.
     public MinDisPreferences withoutRecentCollection(String path) {
         List<RecentCollection> updated = new ArrayList<>();
@@ -229,8 +229,8 @@ public record MinDisPreferences(
                 toolbarButtonDisplay, dashboardWidgets);
     }
 
-    /// How the module toolbar buttons render (text/icon/both); default {@link
-    /// ToolbarButtonDisplay#BOTH}.
+    /// How the module toolbar buttons render (text/icon/both); default
+    /// [ToolbarButtonDisplay#BOTH].
     public MinDisPreferences withToolbarButtonDisplay(ToolbarButtonDisplay newToolbarButtonDisplay) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
@@ -238,8 +238,8 @@ public record MinDisPreferences(
                 newToolbarButtonDisplay, dashboardWidgets);
     }
 
-    /// Persisted dashboard widget layout (positions and grid spans); {@code
-    /// null} until the user first arranges the board, when the dashboard uses
+    /// Persisted dashboard widget layout (positions and grid spans); `
+    /// null` until the user first arranges the board, when the dashboard uses
     /// its default arrangement. An empty list is a deliberately-cleared board.
     public MinDisPreferences withDashboardWidgets(List<DashboardWidgetLayout> newDashboardWidgets) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,

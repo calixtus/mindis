@@ -1,6 +1,6 @@
-/* Workbench styling on top of AtlantaFX design tokens (-color-*). */
+/* App shell styling on top of AtlantaFX design tokens (-color-*). */
 
-.workbench-sidebar {
+.shell-sidebar {
     -fx-background-color: -color-bg-subtle;
     -fx-padding: 12 8 12 8;
     -fx-spacing: 4;
@@ -9,12 +9,12 @@
 /* Collection switcher pinned at the very top of the sidebar: the current
    collection's logo + name with a save button, and a dropdown of recents and
    document actions. */
-.workbench-sidebar-header {
+.shell-sidebar-header {
     -fx-padding: 0 0 8 0;
     -fx-spacing: 4;
 }
 
-.workbench-collection-switcher .collection-button {
+.shell-collection-switcher .collection-button {
     -fx-background-color: transparent;
     -fx-background-radius: 6;
     -fx-padding: 4 6 4 6;
@@ -24,42 +24,42 @@
     -fx-min-height: 58;
 }
 
-.workbench-collection-switcher .collection-button:hover,
-.workbench-collection-switcher .collection-button:showing {
+.shell-collection-switcher .collection-button:hover,
+.shell-collection-switcher .collection-button:showing {
     -fx-background-color: -color-bg-inset;
 }
 
-.workbench-collection-switcher .collection-name {
+.shell-collection-switcher .collection-name {
     -fx-font-weight: bold;
     -fx-text-fill: -color-fg-default;
 }
 
-.workbench-collection-switcher .collection-dirty-dot {
+.shell-collection-switcher .collection-dirty-dot {
     -fx-text-fill: -color-accent-emphasis;
     -fx-font-size: 0.8em;
 }
 
-.workbench-collection-switcher .collection-subtitle {
+.shell-collection-switcher .collection-subtitle {
     -fx-font-size: 0.8em;
     -fx-text-fill: -color-fg-muted;
 }
 
-.workbench-collection-switcher .collection-logo-placeholder {
+.shell-collection-switcher .collection-logo-placeholder {
     -fx-icon-color: -color-fg-muted;
 }
 
-.workbench-collection-switcher .collection-save-button {
+.shell-collection-switcher .collection-save-button {
     -fx-background-color: transparent;
     -fx-background-radius: 6;
     -fx-padding: 4 6 4 6;
     -fx-cursor: hand;
 }
 
-.workbench-collection-switcher .collection-save-button:hover {
+.shell-collection-switcher .collection-save-button:hover {
     -fx-background-color: -color-bg-inset;
 }
 
-.workbench-collection-switcher .collection-save-button .ikonli-font-icon {
+.shell-collection-switcher .collection-save-button .ikonli-font-icon {
     -fx-icon-color: -color-fg-muted;
 }
 
@@ -68,13 +68,13 @@
    arrow is shown when expanded but removed here: visibility hides the arrow
    graphic (min-width:0 alone only clips the box, the arrow still paints) and
    the zero widths reclaim its space so nothing crowds the divider. */
-.workbench-collection-switcher:collapsed .collection-button {
+.shell-collection-switcher:collapsed .collection-button {
     -fx-padding: 0;
     -fx-min-height: 0;
     -fx-alignment: center;
 }
 
-.workbench-collection-switcher:collapsed .collection-button > .arrow-button {
+.shell-collection-switcher:collapsed .collection-button > .arrow-button {
     visibility: hidden;
     -fx-min-width: 0;
     -fx-pref-width: 0;
@@ -82,26 +82,26 @@
     -fx-padding: 0;
 }
 
-.workbench-collection-switcher:collapsed .collection-button > .label {
+.shell-collection-switcher:collapsed .collection-button > .label {
     -fx-alignment: center;
     -fx-padding: 0;
 }
 
 /* Module toolbar buttons render text, icon, or both per the user setting - a
-   mode style class on the workbench root drives -fx-content-display. */
-.workbench.toolbar-mode-text .toolbar-button {
+   mode style class on the shell root drives -fx-content-display. */
+.shell.toolbar-mode-text .toolbar-button {
     -fx-content-display: text-only;
 }
 
-.workbench.toolbar-mode-icon .toolbar-button {
+.shell.toolbar-mode-icon .toolbar-button {
     -fx-content-display: graphic-only;
 }
 
-.workbench.toolbar-mode-both .toolbar-button {
+.shell.toolbar-mode-both .toolbar-button {
     -fx-content-display: left;
 }
 
-.workbench-nav-button {
+.shell-nav-button {
     -fx-background-color: transparent;
     -fx-alignment: CENTER_LEFT;
     -fx-padding: 8 12 8 12;
@@ -111,14 +111,14 @@
     -fx-cursor: hand;
 }
 
-.workbench-nav-button:hover {
+.shell-nav-button:hover {
     -fx-background-color: -color-bg-inset;
 }
 
 /* Active entry: accent background + bold text, plus a solid accent bar down
    the left edge so the selection reads without relying on color alone
    (color-blind / low-contrast safe). */
-.workbench-nav-button:selected {
+.shell-nav-button:selected {
     -fx-background-color: -color-accent-subtle;
     -fx-text-fill: -color-accent-fg;
     -fx-font-weight: bold;
@@ -127,23 +127,23 @@
     -fx-border-radius: 6 0 0 6;
 }
 
-.workbench-nav-button .workbench-nav-icon {
+.shell-nav-button .shell-nav-icon {
     -fx-icon-size: 18;
     -fx-icon-color: -color-fg-muted;
 }
 
 /* Icon-only rail: center the icon once labels are hidden. */
-.workbench-nav-button.workbench-nav-button-collapsed {
+.shell-nav-button.shell-nav-button-collapsed {
     -fx-alignment: CENTER;
     -fx-padding: 8;
 }
 
-.workbench-nav-button:selected .workbench-nav-icon {
+.shell-nav-button:selected .shell-nav-icon {
     -fx-icon-color: -color-accent-fg;
 }
 
 /* Chevron toggle that collapses/expands the sidebar. */
-.workbench-toggle-button {
+.shell-toggle-button {
     -fx-background-color: transparent;
     -fx-alignment: CENTER_RIGHT;
     -fx-padding: 4 8 4 8;
@@ -151,11 +151,11 @@
     -fx-cursor: hand;
 }
 
-.workbench-toggle-button:hover {
+.shell-toggle-button:hover {
     -fx-background-color: -color-bg-inset;
 }
 
-.workbench-toggle-button .workbench-nav-icon {
+.shell-toggle-button .shell-nav-icon {
     -fx-icon-size: 18;
     -fx-icon-color: -color-fg-muted;
 }
@@ -163,13 +163,13 @@
 /* Draggable divider between sidebar and content: same fill as the sidebar
    (so the two read as one surface, no seam) with the boundary line on its
    right edge, against the content pane. */
-.workbench-resize-handle {
+.shell-resize-handle {
     -fx-background-color: -color-bg-subtle;
     -fx-border-color: transparent -color-border-default transparent transparent;
     -fx-border-width: 0 1 0 0;
 }
 
-.workbench-resize-handle:hover {
+.shell-resize-handle:hover {
     -fx-border-color: transparent -color-accent-emphasis transparent transparent;
     -fx-border-width: 0 2 0 0;
 }

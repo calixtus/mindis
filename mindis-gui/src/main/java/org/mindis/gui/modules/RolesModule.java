@@ -28,12 +28,13 @@ import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
 import org.mindis.core.persistence.RoleCsvMapper;
 import org.mindis.core.persistence.RoleRepository;
-import org.mindis.workbench.CrudModule;
-import org.mindis.workbench.CsvRowMapper;
-import org.mindis.workbench.LiveStore;
+import org.mindis.gui.shell.CrudModule;
+import org.mindis.gui.shell.ShellOverlays;
+import org.mindis.gui.data.CsvRowMapper;
+import org.mindis.gui.data.LiveStore;
 
 /// Liturgical role management module: name plus an optional minimum/maximum
-/// age requirement (years). Reference implementation of {@link CrudModule}.
+/// age requirement (years). Reference implementation of [CrudModule].
 public class RolesModule extends CrudModule<Role> {
 
     private static final int MIN_AGE = 1;
@@ -41,8 +42,9 @@ public class RolesModule extends CrudModule<Role> {
 
     private final RolesViewModel viewModel;
 
-    public RolesModule(String name, LiveStore<Role> roleStore, RoleRepository roleRepository) {
-        super(name, "mdi2t-tag-multiple", roleStore);
+    public RolesModule(String name, LiveStore<Role> roleStore, RoleRepository roleRepository,
+                       ShellOverlays overlays) {
+        super(name, "mdi2t-tag-multiple", roleStore, overlays);
         this.viewModel = new RolesViewModel(roleRepository);
 
         TableColumn<Role, String> nameColumn = new TableColumn<>(Localization.lang("Name"));
@@ -202,8 +204,8 @@ public class RolesModule extends CrudModule<Role> {
         });
     }
 
-    /// Formats a role's age range for the table: {@code "min-max"}, or one-sided
-    /// ({@code "min-"} / {@code "-max"}) when only one bound is set, or empty when
+    /// Formats a role's age range for the table: `"min-max"`, or one-sided
+    /// (`"min-"` / `"-max"`) when only one bound is set, or empty when
     /// neither is. Uses an en dash, the typographic range separator.
     private static String ageRange(@Nullable Integer min, @Nullable Integer max) {
         if (min == null && max == null) {
@@ -231,10 +233,10 @@ public class RolesModule extends CrudModule<Role> {
         }
     }
 
-    /// Editable integer spinner factory where a blank editor means {@code null}
+    /// Editable integer spinner factory where a blank editor means `null`
     /// ("no age bound"). The converter maps blank &harr; null so committing an
-    /// empty editor keeps it blank; the arrows step up to {@link #MAX_AGE} and
-    /// collapse to blank below the (dynamic) {@code floor}. A dynamic floor
+    /// empty editor keeps it blank; the arrows step up to [#MAX_AGE] and
+    /// collapse to blank below the (dynamic) `floor`. A dynamic floor
     /// supplier lets the max-age spinner track the current min age.
     private static final class NullableAgeSpinnerValueFactory extends SpinnerValueFactory<Integer> {
 

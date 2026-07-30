@@ -40,16 +40,17 @@ import org.mindis.core.model.ServiceType;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.TemplateCsvMapper;
 import org.mindis.gui.util.TimePickers;
-import org.mindis.workbench.CrudModule;
-import org.mindis.workbench.CsvRowMapper;
-import org.mindis.workbench.LiveStore;
+import org.mindis.gui.shell.CrudModule;
+import org.mindis.gui.shell.ShellOverlays;
+import org.mindis.gui.data.CsvRowMapper;
+import org.mindis.gui.data.LiveStore;
 
 /// Recurring service templates ("every Sunday 10:00 at St. Mary"), expanded
 /// into concrete services from the Services module.
 ///
 /// <p>A template's date pattern is a full
-/// {@link org.mindis.core.model.ServiceSchedule}, edited through
-/// {@link ScheduleEditor} (weekly, monthly, yearly, feast-day or a rule
+/// [org.mindis.core.model.ServiceSchedule], edited through
+/// [ScheduleEditor] (weekly, monthly, yearly, feast-day or a rule
 /// written out in text) and shown in the table as localized prose.
 public class TemplatesModule extends CrudModule<ServiceTemplate> {
 
@@ -59,8 +60,8 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
     private final LiveStore<Role> roleStore;
 
     public TemplatesModule(String name, LiveStore<ServiceTemplate> templateStore, LiveStore<Role> roleStore,
-                           RoleRepository roleRepository) {
-        super(name, "mdi2c-calendar-sync", templateStore);
+                           RoleRepository roleRepository, ShellOverlays overlays) {
+        super(name, "mdi2c-calendar-sync", templateStore, overlays);
         this.viewModel = new TemplatesViewModel(roleRepository);
         this.roleStore = roleStore;
 

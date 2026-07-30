@@ -3,6 +3,7 @@ package org.mindis.gui;
 import atlantafx.base.theme.NordDark;
 import atlantafx.base.theme.NordLight;
 import com.dlsc.fxmlkit.fxml.FxmlKit;
+import com.dlsc.gemsfx.PowerPane;
 
 import io.avaje.inject.BeanScope;
 
@@ -48,10 +49,11 @@ import org.mindis.gui.modules.TemplatesModule;
 import org.mindis.gui.planning.PlanningViewModel;
 import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.gui.theme.ThemeStyler;
-import org.mindis.workbench.Workbench;
-import org.mindis.workbench.WorkbenchModule;
+import org.mindis.gui.shell.AppShell;
+import org.mindis.gui.shell.ShellModule;
+import org.mindis.gui.shell.ShellOverlays;
 
-/// Application entry point. Owns the Avaje {@link BeanScope} (single scope per
+/// Application entry point. Owns the Avaje [BeanScope] (single scope per
 /// application, PLAN.md section 2.4), applies preferences (locale, theme,
 /// window geometry) before the first scene and rebuilds the UI on language
 /// change.
@@ -68,7 +70,9 @@ public class MinDisApp extends Application {
     private LiveDatabase liveDatabase;
     private DocumentSession documentSession;
     private Stage stage;
-    private Workbench workbench;
+    private AppShell shell;
+    private PowerPane powerPane;
+    private ShellOverlays overlays;
     private final LogConsoleModel logConsole = new LogConsoleModel();
 
     public static void main(String[] args) {
@@ -86,7 +90,7 @@ public class MinDisApp extends Application {
         preferencesService = beanScope.get(PreferencesService.class);
         uiPreferences = beanScope.get(UiPreferences.class);
         // Built exactly once: the stores (and any unsaved edits in them)
-        // survive UI rebuilds - buildWorkbench() only rewires views to them.
+        // survive UI rebuilds - buildShell() only rewires views to them.
         liveDatabase = new LiveDatabase(beanScope.get(AppDatabase.class),
                 beanScope.get(RoleRepository.class),
                 beanScope.get(ServerRepository.class),
@@ -111,8 +115,8 @@ public class MinDisApp extends Application {
         uiPreferences.fontFamilyProperty().subscribe((_, _) -> applyAppearance());
         uiPreferences.fontSizeProperty().subscribe((_, _) -> applyAppearance());
         uiPreferences.toolbarButtonDisplayProperty().subscribe((_, _) -> {
-            if (workbench != null) {
-                applyToolbarButtonDisplay(workbench);
+            if (shell != null) {
+                applyToolbarButtonDisplay(shell);
             }
         });
         // Follow the OS light/dark scheme live while the theme is SYSTEM.
@@ -141,8 +145,20 @@ public class MinDisApp extends Application {
         FxmlKit.setResourceBundle(Localization.getBundle());
 
         stage.getIcons().addAll(loadAppIcons());
-        workbench = buildWorkbench();
-        Scene scene = new Scene(workbench, 960, 640);
+        // The PowerPane is the scene root and holds the overlay layers
+        // (dialogs, info center, bottom drawer); the shell is its content.
+        // Built before the shell because the modules take ShellOverlays as a
+        // constructor dependency.
+        powerPane = new PowerPane();
+        // Author-origin: the overlay panes each override
+        // getUserAgentStylesheet(), so only an author stylesheet outranks the
+        // literals they hardcode (see power-pane.css and ThemeStyler).
+        powerPane.getStylesheets().add(
+                AppShell.class.getResource("power-pane.css").toExternalForm());
+        overlays = new ShellOverlays(powerPane);
+        shell = buildShell();
+        powerPane.setContent(shell);
+        Scene scene = new Scene(powerPane, 960, 640);
         addDocumentAccelerators(scene);
         stage.setScene(scene);
         stage.titleProperty().bind(documentSession.titleBinding());
@@ -177,11 +193,11 @@ public class MinDisApp extends Application {
         }
     }
 
-    private Workbench buildWorkbench() {
-        Double sidebarWidth = workbench == null
+    private AppShell buildShell() {
+        Double sidebarWidth = shell == null
                 ? preferencesService.get().sidebarWidth()
-                : Double.valueOf(workbench.getSidebarWidth());
-        // Built before the Workbench (not inline in the varargs list below) so
+                : Double.valueOf(shell.getSidebarWidth());
+        // Built before the AppShell (not inline in the varargs list below) so
         // buildGlobalToolbar(...) can bind to this exact instance afterward.
         ServicesModule servicesModule = new ServicesModule(Localization.lang("Services"),
                 liveDatabase.services(), liveDatabase.roles(), liveDatabase.servers(),
@@ -191,7 +207,8 @@ public class MinDisApp extends Application {
                         beanScope.get(PlanningService.class),
                         preferencesService,
                         beanScope.get(PlanExportService.class),
-                        beanScope.get(ArchivedServiceRepository.class)));
+                        beanScope.get(ArchivedServiceRepository.class)),
+                overlays);
         // The collection switcher (sidebar top) owns the document actions now:
         // switching collection is opening a file, and its dropdown carries New,
         // Open other, Save as and Edit collection. An assignment pick dirties
@@ -200,18 +217,18 @@ public class MinDisApp extends Application {
         // for the whole document.
         CollectionSwitcher switcher = new CollectionSwitcher(documentSession, liveDatabase,
                 servicesModule.solvingProperty());
-        Workbench.Builder builder = Workbench.builder(
+        AppShell.Builder builder = AppShell.builder(
                                 new DashboardModule(Localization.lang("Dashboard")),
                                 new RolesModule(Localization.lang("Roles"),
                                         liveDatabase.roles(),
-                                        beanScope.get(RoleRepository.class)),
+                                        beanScope.get(RoleRepository.class), overlays),
                                 new ServersModule(Localization.lang("Servers"),
                                         liveDatabase.servers(), liveDatabase.roles(),
                                         beanScope.get(ServerRepository.class),
-                                        beanScope.get(RoleRepository.class), uiPreferences),
+                                        beanScope.get(RoleRepository.class), uiPreferences, overlays),
                                 new TemplatesModule(Localization.lang("Templates"),
                                         liveDatabase.templates(), liveDatabase.roles(),
-                                        beanScope.get(RoleRepository.class)),
+                                        beanScope.get(RoleRepository.class), overlays),
                                 servicesModule)
                         .sidebarHeader(switcher)
                         .bottomModule(new AboutModule(Localization.lang("About"), getHostServices(), logConsole))
@@ -219,17 +236,17 @@ public class MinDisApp extends Application {
         if (sidebarWidth != null) {
             builder.initialSidebarWidth(sidebarWidth);
         }
-        Workbench built = builder.build();
+        AppShell built = builder.build();
         switcher.bindCollapsed(built.collapsedProperty());
         applyToolbarButtonDisplay(built);
         return built;
     }
 
     /// Applies the "text / icon / both" toolbar-button setting by tagging the
-    /// workbench root with a mode style class the CSS keys off (see
-    /// {@code workbench.css}). Reapplied on a rebuild and when the setting
+    /// shell root with a mode style class the CSS keys off (see
+    /// `shell.css`). Reapplied on a rebuild and when the setting
     /// changes.
-    private void applyToolbarButtonDisplay(Workbench target) {
+    private void applyToolbarButtonDisplay(AppShell target) {
         target.getStyleClass().removeAll("toolbar-mode-text", "toolbar-mode-icon", "toolbar-mode-both");
         target.getStyleClass().add(switch (uiPreferences.toolbarButtonDisplayProperty().get()) {
             case TEXT -> "toolbar-mode-text";
@@ -264,24 +281,26 @@ public class MinDisApp extends Application {
         FxmlKit.setResourceBundle(Localization.getBundle());
         // Preserve the active module across the rebuild instead of snapping back
         // to Dashboard; by module class, since names change with the locale.
-        String activeModuleClass = workbench == null ? null : workbench.getActiveModuleClassName();
-        Workbench oldWorkbench = workbench;
-        workbench = buildWorkbench();
+        String activeModuleClass = shell == null ? null : shell.getActiveModuleClassName();
+        AppShell oldShell = shell;
+        shell = buildShell();
         // The discarded modules registered listeners on the long-lived
         // stores; detach them or every rebuild leaks a full module graph.
-        if (oldWorkbench != null) {
-            oldWorkbench.getModules().forEach(WorkbenchModule::dispose);
+        if (oldShell != null) {
+            oldShell.getModules().forEach(ShellModule::dispose);
         }
-        stage.getScene().setRoot(workbench);
-        workbench.openModule(activeModuleClass);
+        // Only the PowerPane's content is swapped, not the scene root: the
+        // overlay layers (and anything currently showing in them) survive.
+        powerPane.setContent(shell);
+        shell.openModule(activeModuleClass);
         // Rebound, not re-set: the binding's own text is localized, so it has
         // to be rebuilt under the new locale.
         stage.titleProperty().bind(documentSession.titleBinding());
     }
 
     /// The effective light/dark mode: the OS color scheme when the theme is
-    /// {@link MinDisPreferences.Theme#SYSTEM}, otherwise the explicit choice.
-    /// Never returns {@code SYSTEM}.
+    /// [MinDisPreferences.Theme#SYSTEM], otherwise the explicit choice.
+    /// Never returns `SYSTEM`.
     private MinDisPreferences.Theme resolveTheme() {
         MinDisPreferences.Theme theme = uiPreferences.themeProperty().get();
         if (theme == MinDisPreferences.Theme.SYSTEM) {
@@ -293,8 +312,8 @@ public class MinDisApp extends Application {
     }
 
     /// Applies theme, accent and font as a single user-agent stylesheet: the
-    /// base AtlantaFX theme {@code @import}ed, with the accent/font
-    /// {@code .root} overrides appended. One UA stylesheet (rather than a UA
+    /// base AtlantaFX theme `@import`ed, with the accent/font
+    /// `.root` overrides appended. One UA stylesheet (rather than a UA
     /// theme plus a Scene override layer) keeps design tokens consistent in
     /// ComboBox popups and other popup windows, which only see the UA stylesheet
     /// - avoiding stale-token CSS warnings when the theme is switched at runtime.
@@ -313,8 +332,8 @@ public class MinDisApp extends Application {
                 uiPreferences.fontSizeProperty().get()));
     }
 
-    /// The base accent hex to apply: a named color's own hex, or - for {@link
-    /// AccentColor#DEFAULT} - the OS accent color from JavaFX platform
+    /// The base accent hex to apply: a named color's own hex, or - for [AccentColor#DEFAULT] -
+    /// the OS accent color from JavaFX platform
     /// preferences.
     // NullAway: AccentColor.baseHex() is @Nullable only for DEFAULT, excluded
     // by the branch above it - an invariant tied to the enum, not the type.
@@ -351,10 +370,10 @@ public class MinDisApp extends Application {
     }
 
     private void saveSidebarWidth() {
-        if (workbench == null || preferencesService == null) {
+        if (shell == null || preferencesService == null) {
             return;
         }
-        double width = workbench.getSidebarWidth();
+        double width = shell.getSidebarWidth();
         preferencesService.update(p -> p.withSidebarWidth(width));
     }
 }

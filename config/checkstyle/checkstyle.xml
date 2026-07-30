@@ -24,7 +24,7 @@
         <module name="UnusedImports"/>
         <!-- Web-readiness (PLAN.md §2.5): mindis-core must stay free of JavaFX UI
              packages; javafx.base (beans/collections) is allowed. Suppressed for
-             mindis-gui and mindis-workbench via suppressions.xml. -->
+             mindis-gui via suppressions.xml. -->
         <module name="IllegalImport">
             <property name="illegalPkgs"
                       value="javafx.scene, javafx.stage, javafx.fxml, javafx.application,

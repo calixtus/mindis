@@ -4,7 +4,7 @@ The window the user actually works in: navigation, settings, appearance, languag
 visibility.
 
 Design decisions: [ADR 001 — view layer (FxmlKit)](../adr/001-view-layer.md),
-[ADR 005 — workbench shell](../adr/005-workbench-shell.md),
+[ADR 005 — application shell](../adr/005-shell.md),
 [ADR 004 — preferences store](../adr/004-preferences.md),
 [ADR 006 — preferences architecture](../adr/006-preferences-architecture.md),
 [ADR 002 — packaging](../adr/002-packaging.md),
@@ -16,7 +16,7 @@ Design decisions: [ADR 001 — view layer (FxmlKit)](../adr/001-view-layer.md),
 `req~workbench-shell~1`
 
 The application presents its areas — dashboard, servers, roles, templates, services, settings,
-about — as modules of one workbench window with a sidebar. The sidebar top carries the collection
+about — as modules of one shell window with a sidebar. The sidebar top carries the collection
 switcher (below), which owns the application-wide document actions (New, Open, Save, Save as — see
 [persistence.md](persistence.md)); there is no separate global toolbar.
 
@@ -116,18 +116,25 @@ Covers:
 
 ## Design
 
-### Workbench and modules
+### Shell and modules
 `dsn~workbench-modules~1`
 
-`mindis-workbench` is an in-repo fork of WorkbenchFX (Apache-2.0, attribution kept; ADR 005).
-`MinDisApp` builds a `Workbench` from `DashboardModule`, `ServersModule`, `RolesModule`,
-`TemplatesModule`, `ServicesModule`, `SettingsModule` and `AboutModule`. The four data screens
-extend `CrudModule` (table left, editor right, toolbar on top); `CrudModule` holds no localized text
-itself — every button and its wiring belongs to the subclass — and holds no state either, binding
-its table to a shared `LiveStore` (see [persistence.md](persistence.md)). Toolbar buttons are built
-through `Toolbars`, which gives each an icon and the `toolbar-button` style class; a mode class on the
-workbench root (from the `toolbarButtonDisplay` setting) drives `-fx-content-display` so they show
-text, icon, or both. Import always precedes Export in a module's toolbar.
+`org.mindis.gui.shell` holds the bespoke shell (ADR 005). `MinDisApp` builds an `AppShell` from `DashboardModule`, `ServersModule`,
+`RolesModule`, `TemplatesModule`, `ServicesModule`, `SettingsModule` and `AboutModule`. The four data
+screens extend `CrudModule` (table left, editor right, toolbar on top); `CrudModule` holds no
+localized text itself — every button and its wiring belongs to the subclass — and holds no state
+either, binding its table to a shared `LiveStore` (`org.mindis.gui.data`, see
+[persistence.md](persistence.md)). Toolbar buttons are built through `Toolbars`, which gives each an
+icon and the `toolbar-button` style class; a mode class on the shell root (from the
+`toolbarButtonDisplay` setting) drives `-fx-content-display` so they show text, icon, or both.
+Import always precedes Export in a module's toolbar.
+
+The shell is the content of a GemsFX `PowerPane`, which is the scene root and supplies the overlay
+layers above it — modal dialogs, an info center for transient notifications, and a bottom drawer.
+`ShellOverlays` reaches them from any node in the scene. A language rebuild swaps only the
+`PowerPane`'s content, so those layers survive it. `HiddenSidesPane` (`PowerPane`'s fourth layer) is
+deliberately unused for navigation: it overlays rather than pushes content, hides on mouse-exit, and
+cannot be resized (ADR 005).
 
 Covers:
 - req~workbench-shell~1
@@ -135,7 +142,7 @@ Covers:
 ### Collection switcher
 `dsn~collection-switcher~1`
 
-`CollectionSwitcher` (GUI) sits in the sidebar-header slot the `Workbench` builder exposes. It binds
+`CollectionSwitcher` (GUI) sits in the sidebar-header slot the `AppShell` builder exposes. It binds
 its name to `DocumentSession.collectionDisplayName()` and its logo to the open collection's
 `CollectionMeta` (a `mdi2c-church` placeholder when there is none), shows a dirty dot bound to
 `LiveDatabase.dirtyProperty()`, an active-server count recomputed live off
@@ -147,7 +154,7 @@ Its `MenuButton` dropdown is rebuilt on each open (recents change with every sav
 recent collections excluding the current one — each switching via `DocumentSession.switchTo` — then
 Open other (`onOpen`), Save as (`onSaveAs`, disabled while solving), Edit collection
 (`CollectionMetaDialog` → `updateMetadata`) and New collection (`onNew`). It follows the
-`Workbench.collapsedProperty()` so the icon-only rail shows just the logo. `CollectionMetaDialog`
+`AppShell.collapsedProperty()` so the icon-only rail shows just the logo. `CollectionMetaDialog`
 edits name, logo and backdrop with a live preview. Logo and icon are one control: clicking the logo
 tile opens a popover (a `ContextMenu` of `LogoIcons` glyphs with a "Select custom image" button at
 the bottom); picking an icon or an image replaces the other, so there is no separate remove action.
@@ -265,7 +272,7 @@ Covers:
 
 `MinDisApp` sets the locale from preferences before the first scene — and before the startup
 document is opened, so a new document's seeded roles get localized names — and a language change
-rebuilds the workbench (FXML resource bundles are bound at load time). `LiveDatabase`, the
+rebuilds the shell (FXML resource bundles are bound at load time). `LiveDatabase`, the
 `LiveStore`s and the `DocumentSession` are *not* rebuilt, so the open document, its unsaved
 cross-module edits and its dirty counts survive the switch; only the title binding is rebuilt, since
 its own text is localized.

@@ -162,7 +162,7 @@ Covers:
 ### Observable mirror with dirty tracking
 `dsn~live-store~2`
 
-`LiveStore<T>` (workbench) is one long-lived JavaFX-observable mirror per entity type, constructed
+`LiveStore<T>` (`org.mindis.gui.data`) is one long-lived JavaFX-observable mirror per entity type, constructed
 once at startup and surviving UI rebuilds. Every mutation (`updateLive`, `insertFirst`, `remove`,
 `mergeLive`) is **write-through**: it updates the observable list *and* the repository in the same
 call, so non-GUI readers (solver, CSV mappers, generators) always see current state. A row counts as

@@ -1,0 +1,56 @@
+/* Author-origin overrides for the GemsFX PowerPane's overlay layers, on top of
+   AtlantaFX design tokens (-color-*).
+
+   Same problem CalendarPickers/TimePickers already solve for their controls,
+   different pane set: DialogPane, InfoCenterView and DrawerStackPane each
+   override getUserAgentStylesheet(), so their bundled rules are a per-node
+   user-agent stylesheet that the application-wide one (ThemeStyler) loses
+   property-for-property ties against. Token substitutions do cross that
+   boundary and live in ThemeStyler's MODENA_COMPAT_CSS; what is left here is
+   only what GemsFX hardcodes as a literal, which no token can reach. Attached
+   as an author-origin stylesheet on the PowerPane, which outranks any
+   user-agent rule regardless of which node declared it or how specific it is.
+
+   Not covered on purpose: .glass-pane's black backdrop and the drop shadows -
+   those are deliberate scrims, correct in both light and dark. */
+
+/* Bottom drawer: gemsfx paints '#e0e0e0, white' (a 1px border layer under a
+   white fill), which is a light-theme literal and stays white in dark mode. */
+.drawer-stackpane > .drawer {
+    -fx-background-color: -color-border-default, -color-bg-overlay;
+}
+
+/* The drawer's header buttons: '#3b424c' fill with 'white' text, likewise
+   fixed regardless of theme. */
+.drawer-stackpane > .drawer > .top > .header > .tool-bar > .container > .button {
+    -fx-background-color: -color-accent-emphasis;
+    -fx-text-fill: -color-fg-emphasis;
+}
+
+/* Notification severities: gemsfx uses the raw 'yellow'/'red'/'green'
+   keywords, which are unreadable against either theme's foreground and ignore
+   the accent entirely. AtlantaFX's own semantic surface tokens instead, with
+   the matching foreground so the title/summary text stays legible. */
+.info-center-view .notification-view.warning > .content {
+    -fx-background-color: -color-warning-subtle;
+}
+
+.info-center-view .notification-view.warning > .content .label {
+    -fx-text-fill: -color-warning-fg;
+}
+
+.info-center-view .notification-view.danger > .content {
+    -fx-background-color: -color-danger-subtle;
+}
+
+.info-center-view .notification-view.danger > .content .label {
+    -fx-text-fill: -color-danger-fg;
+}
+
+.info-center-view .notification-view.success > .content {
+    -fx-background-color: -color-success-subtle;
+}
+
+.info-center-view .notification-view.success > .content .label {
+    -fx-text-fill: -color-success-fg;
+}

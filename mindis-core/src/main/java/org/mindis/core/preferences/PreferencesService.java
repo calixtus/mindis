@@ -21,11 +21,11 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/// Loads and stores {@link MinDisPreferences} as JSON in the user data
+/// Loads and stores [MinDisPreferences] as JSON in the user data
 /// directory (PLAN.md section 2.6). Writes are atomic (temp file + move).
 /// A corrupt or missing file yields defaults, never a crash.
 ///
-/// <p>Change listeners use a plain {@link Consumer} - no JavaFX types in core
+/// <p>Change listeners use a plain [Consumer] - no JavaFX types in core
 /// (PLAN.md section 2.5). UI adapters bridge to observable properties.
 @Singleton
 public class PreferencesService {
@@ -109,7 +109,7 @@ public class PreferencesService {
         // v6 -> v7: lastExportDirectory added; absent field deserializes as
         // null, which is the intended default (no remembered directory yet).
         // v7 -> v8: sidebarWidth added; absent field deserializes as null,
-        // which is the intended default (the workbench falls back to its own
+        // which is the intended default (the shell falls back to its own
         // default width).
         // v8 -> v9: lastDocument added (data moved from per-entity files in the
         // data directory into one user-chosen document). Absent field

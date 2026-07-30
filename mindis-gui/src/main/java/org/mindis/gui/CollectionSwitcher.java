@@ -38,12 +38,12 @@ import org.mindis.core.preferences.RecentCollection;
 /// collection, New collection).
 ///
 /// <p>All data lives in one document = one collection (a parish), so switching
-/// collection is opening a file - the dropdown is where {@link DocumentSession}'s
+/// collection is opening a file - the dropdown is where [DocumentSession]'s
 /// file actions live now, in place of the old global toolbar.
 ///
-/// <p>A {@link MenuButton} hosts the dropdown (it opens reliably on click). Its
+/// <p>A [MenuButton] hosts the dropdown (it opens reliably on click). Its
 /// natural minimum width - driven by the dropdown arrow - is neutralized with
-/// {@code minWidth 0} so it never overflows the collapsed icon rail into the
+/// `minWidth 0` so it never overflows the collapsed icon rail into the
 /// sidebar divider, and on the rail the arrow is hidden by CSS so only the logo
 /// shows, like an icon-only nav button.
 public final class CollectionSwitcher extends HBox {
@@ -78,7 +78,7 @@ public final class CollectionSwitcher extends HBox {
         this.session = session;
         this.liveDatabase = liveDatabase;
         this.solving = solving;
-        getStyleClass().add("workbench-collection-switcher");
+        getStyleClass().add("shell-collection-switcher");
         setAlignment(Pos.CENTER_LEFT);
 
         nameLabel.getStyleClass().add("collection-name");
@@ -247,8 +247,8 @@ public final class CollectionSwitcher extends HBox {
     }
 
     /// Inline style for a logo backdrop (rounded, padded), shared with
-    /// {@link CollectionMetaDialog}. Inline rather than a CSS class because the
-    /// dialog is a popup window that does not load the workbench stylesheet.
+    /// [CollectionMetaDialog]. Inline rather than a CSS class because the
+    /// dialog is a popup window that does not load the shell stylesheet.
     static String logoBackgroundStyle(CollectionMeta.LogoBackground background) {
         return switch (background) {
             case LIGHT -> "-fx-background-color: white; -fx-background-radius: 6; -fx-padding: 3;";
@@ -266,7 +266,7 @@ public final class CollectionSwitcher extends HBox {
         return view;
     }
 
-    /// Decodes a Base64 PNG logo into an image, or {@code null} when there is
+    /// Decodes a Base64 PNG logo into an image, or `null` when there is
     /// none or it cannot be decoded (a bad cached thumbnail must never break the
     /// switcher).
     private static @Nullable Image imageFromBase64(@Nullable String base64) {

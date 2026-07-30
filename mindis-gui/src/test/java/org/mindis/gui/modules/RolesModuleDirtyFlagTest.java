@@ -6,6 +6,8 @@ import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.dlsc.gemsfx.PowerPane;
+
 import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
@@ -21,7 +23,8 @@ import org.junit.jupiter.api.Test;
 
 import org.mindis.core.model.Role;
 import org.mindis.core.persistence.RoleRepository;
-import org.mindis.workbench.LiveStore;
+import org.mindis.gui.data.LiveStore;
+import org.mindis.gui.shell.ShellOverlays;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -44,7 +47,8 @@ class RolesModuleDirtyFlagTest {
                     role -> staged.removeIf(r -> r.id().equals(role.id())),
                     Role::id, Objects::equals);
 
-            RolesModule module = new RolesModule("Roles", store, dummyRoleRepository());
+            RolesModule module = new RolesModule("Roles", store, dummyRoleRepository(),
+                    new ShellOverlays(new PowerPane()));
             Node content = module.activate();
 
             TableView<Role> table = find(content, TableView.class);

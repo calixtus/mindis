@@ -5,6 +5,6 @@
 
 <suppressions>
     <!-- The JavaFX import ban (IllegalImport) only guards mindis-core (PLAN.md §2.5).
-         UI modules use JavaFX by design. -->
-    <suppress checks="IllegalImport" files="[\\/]mindis-(gui|workbench)[\\/]"/>
+         The UI module uses JavaFX by design. -->
+    <suppress checks="IllegalImport" files="[\\/]mindis-gui[\\/]"/>
 </suppressions>

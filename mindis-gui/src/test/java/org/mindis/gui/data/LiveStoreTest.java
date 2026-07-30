@@ -1,4 +1,4 @@
-package org.mindis.workbench;
+package org.mindis.gui.data;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -14,8 +14,8 @@ import org.junit.jupiter.api.Test;
 /// Unit tests for the write-through/dirty-tracking engine every CRUD module
 /// (Roles/Servers/Templates/Services) shares - a bug here silently corrupts
 /// every screen, so it's covered directly rather than only through whichever
-/// GUI module happens to exercise it. {@code repo} stands in for a real
-/// repository's cache: {@code stage}/{@code unstage} write straight into it
+/// GUI module happens to exercise it. `repo` stands in for a real
+/// repository's cache: `stage`/`unstage` write straight into it
 /// (no disk I/O, matching a repository's own save()/delete()), so assertions
 /// can check "did this write through" the same way a solver or CSV mapper
 /// reading the repository directly would observe it.

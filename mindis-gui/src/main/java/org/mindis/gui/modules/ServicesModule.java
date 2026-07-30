@@ -90,21 +90,22 @@ import org.mindis.gui.planning.PlanExportChooser;
 import org.mindis.gui.planning.PlanningViewModel;
 import org.mindis.gui.util.CalendarPickers;
 import org.mindis.gui.util.TimePickers;
-import org.mindis.workbench.CrudModule;
-import org.mindis.workbench.CsvRowMapper;
-import org.mindis.workbench.LiveStore;
+import org.mindis.gui.shell.CrudModule;
+import org.mindis.gui.shell.ShellOverlays;
+import org.mindis.gui.data.CsvRowMapper;
+import org.mindis.gui.data.LiveStore;
 
 /// Liturgical services module: individual date/time services (plus generation
 /// from weekly templates), filling their role slots either manually or by
 /// running the solver, and the solve/export/archive workflow around that.
 ///
-/// <p>An assignment lives directly on its {@link Slot} (see that class and
-/// {@link org.mindis.core.planning.PlanningService}), so a service <em>is</em>
+/// <p>An assignment lives directly on its [Slot] (see that class and
+/// [org.mindis.core.planning.PlanningService]), so a service <em>is</em>
 /// its own plan: picking a server, auto-filling, or solving just rewrites the
-/// service's slots and stages them into the shared {@link LiveStore} like any
+/// service's slots and stages them into the shared [LiveStore] like any
 /// other service edit - one Save of the document persists them. There is no
 /// separate plan object, no plan-dirty state and no date-range bookkeeping.
-/// A {@link ServicePlan} is built transiently only when the solver runs (or to
+/// A [ServicePlan] is built transiently only when the solver runs (or to
 /// compute a score / per-slot violations) and discarded once its results are
 /// written back onto the services.
 public class ServicesModule extends CrudModule<LiturgicalService> {
@@ -124,7 +125,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             -fx-border-radius: 4;
             -fx-background-radius: 4;
             """;
-    /// How many masses {@link #table()} shows at once - paged because this list
+    /// How many masses [#table()] shows at once - paged because this list
     /// can grow into the hundreds once a year or more has been generated.
     private static final int PAGE_SIZE = 20;
 
@@ -159,8 +160,9 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
     public ServicesModule(String name, LiveStore<LiturgicalService> serviceStore, LiveStore<Role> roleStore,
                           LiveStore<Server> serverStore, TemplateRepository templateRepository,
-                          RoleRepository roleRepository, PlanningViewModel planningViewModel) {
-        super(name, "mdi2c-church", serviceStore);
+                          RoleRepository roleRepository, PlanningViewModel planningViewModel,
+                          ShellOverlays overlays) {
+        super(name, "mdi2c-church", serviceStore, overlays);
         this.viewModel = new ServicesViewModel(templateRepository, roleRepository);
         this.planningViewModel = planningViewModel;
         this.roleStore = roleStore;
@@ -256,8 +258,8 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     }
 
     /// Lightweight popup for "Generate from templates", anchored under the
-    /// toolbar button. {@code ServiceGenerator} only proposes occurrences not
-    /// already present, and {@link #mergeLive} only ever appends unmatched
+    /// toolbar button. `ServiceGenerator` only proposes occurrences not
+    /// already present, and [#mergeLive] only ever appends unmatched
     /// rows, so this never touches an existing service's slots or assignments.
     private void showGenerateFromTemplatesPopup(Node anchor) {
         CalendarPicker popupFrom = CalendarPickers.create();
@@ -408,7 +410,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
     /// Runs a windowed Autofill: builds a problem over every live service (so
     /// spacing/fairness see the whole board), leaves only the eligible slots
-    /// free (in {@code [from, to]}, and either open or - if {@code overwrite} -
+    /// free (in `[from, to]`, and either open or - if `overwrite` -
     /// already assigned), solves, then writes the results back onto the
     /// services. A blank bound is treated as unbounded.
     private void onAutofill(@Nullable LocalDate from, @Nullable LocalDate to, boolean overwrite) {
@@ -449,7 +451,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         return pagingControls;
     }
 
-    /// Recomputes {@link #pageItems} for the current page, clamping the page
+    /// Recomputes [#pageItems] for the current page, clamping the page
     /// down if a deletion left it past the new last page.
     private void refreshPageItems() {
         int total = sortedServices.size();
@@ -640,7 +642,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                     liveSlots, noteField.getText().strip()));
         }
 
-        /// One editable server dropdown per slot of {@link #liveSlots}, seeded
+        /// One editable server dropdown per slot of [#liveSlots], seeded
         /// with the slot's current server and its constraint violations (a
         /// warning icon). Because an assignment lives on the slot itself, a
         /// slot just added by the count editor is immediately assignable - no
@@ -706,8 +708,8 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             return rows;
         }
 
-        /// Applies a manual pick: rewrites the slot's server on {@link
-        /// #liveSlots}, stages the service, and refreshes the rows/score/table.
+        /// Applies a manual pick: rewrites the slot's server on [#liveSlots], stages the
+        /// service, and refreshes the rows/score/table.
         private void onPickServer(Slot slot, @Nullable Server newServer) {
             List<Slot> updated = new ArrayList<>(liveSlots.size());
             for (Slot existing : liveSlots) {
@@ -735,7 +737,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
             refreshScoreAndStatus();
         }
 
-        /// Whether {@link #liveSlots}' assignments (server + pin per slot id)
+        /// Whether [#liveSlots]' assignments (server + pin per slot id)
         /// differ from the last-saved baseline - the per-row unsaved accent.
         private boolean assignmentsChanged() {
             Map<String, Slot> baseline = new HashMap<>();
@@ -858,7 +860,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         return grid;
     }
 
-    /// {@code slots}, grouped by role in first-encountered order.
+    /// `slots`, grouped by role in first-encountered order.
     private static Map<String, List<Slot>> slotsByRole(List<Slot> slots) {
         Map<String, List<Slot>> byRole = new LinkedHashMap<>();
         for (Slot slot : slots) {
@@ -877,13 +879,13 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
     }
 
     /// Reconciles a role's slot count edit, keeping a filled/pinned slot as
-    /// long as possible - the {@code isFilled} seam is now the slot's own
+    /// long as possible - the `isFilled` seam is now the slot's own
     /// stored assignment, no plan lookup needed.
     private List<Slot> reconcileSlots(List<Slot> existing, Map<String, Integer> counts) {
         return SlotReconciler.reconcile(existing, counts, slot -> slot.serverId() != null || slot.pinned());
     }
 
-    /// Slot counts per role, for the {@link SlotCountEditor}.
+    /// Slot counts per role, for the [SlotCountEditor].
     private static Map<String, Integer> countsByRole(List<Slot> slots) {
         Map<String, Integer> counts = new LinkedHashMap<>();
         for (Slot slot : slots) {
@@ -945,9 +947,9 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                 }));
     }
 
-    /// Solves only {@code service}'s open slots: every other slot is pinned for
-    /// the duration of the solve, then restored afterward (see {@link
-    /// PlanningViewModel#beginServiceAutofill}).
+    /// Solves only `service`'s open slots: every other slot is pinned for
+    /// the duration of the solve, then restored afterward (see
+    /// [PlanningViewModel#beginServiceAutofill]).
     private void onAutoFillService(LiturgicalService service) {
         if (planningViewModel.solvingProperty().get()) {
             return;
@@ -974,7 +976,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
                 }));
     }
 
-    /// Writes {@code solved}'s assignments back onto {@code services} and stages
+    /// Writes `solved`'s assignments back onto `services` and stages
     /// the updated records into the live store (saving the document persists them).
     private void applySolution(ServicePlan solved, List<LiturgicalService> services) {
         // mergeLive replaces each solved service's row item, which re-renders
@@ -991,7 +993,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
 
     /// Confirms aborting the running solve. The prompt auto-dismisses if the
     /// solve finishes on its own before the user answers (the toolbar returns
-    /// to its Autofill button on its own via the {@code solving} bindings), so
+    /// to its Autofill button on its own via the `solving` bindings), so
     /// a just-completed solve is never cancelled by a stale click.
     private void confirmAbort() {
         if (!planningViewModel.solvingProperty().get()) {
@@ -1015,12 +1017,13 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         }
     }
 
-    /// Whether the solver is currently running - the global Save action stays disabled while true.
+    /// Whether the solver is currently running - the global Save action stays disabled while
+    /// true.
     public ReadOnlyBooleanProperty solvingProperty() {
         return planningViewModel.solvingProperty();
     }
 
-    /// Freezes live services up to {@code cutoff} into self-contained archived
+    /// Freezes live services up to `cutoff` into self-contained archived
     /// snapshots and removes them from the live list (saving the document
     /// commits both). Returns whether anything was archived. Supplied to the
     /// Archived Plans dialog as its archive action.
@@ -1041,7 +1044,7 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         return true;
     }
 
-    /// Live services whose date falls within {@code [from, to]}, either bound
+    /// Live services whose date falls within `[from, to]`, either bound
     /// blank meaning unbounded on that side (same convention as the Autofill
     /// window).
     private List<LiturgicalService> servicesInRange(@Nullable LocalDate from, @Nullable LocalDate to) {
@@ -1079,7 +1082,8 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         logScore(planningViewModel.scoreOf(plan));
     }
 
-    /// The score is solver-internal detail, logged rather than shown permanently in the toolbar.
+    /// The score is solver-internal detail, logged rather than shown permanently in the
+    /// toolbar.
     private void logScore(@Nullable HardMediumSoftScore score) {
         if (score == null) {
             return;
