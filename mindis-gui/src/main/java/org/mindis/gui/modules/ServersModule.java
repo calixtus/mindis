@@ -24,7 +24,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
-import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
@@ -33,7 +32,6 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
-import javafx.scene.control.Separator;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.CheckBoxListCell;
@@ -69,7 +67,6 @@ import org.mindis.gui.util.SearchFields;
 import org.mindis.gui.util.TimePickers;
 import org.mindis.gui.shell.CrudModule;
 import org.mindis.gui.shell.ShellOverlays;
-import org.mindis.gui.data.CsvRowMapper;
 import org.mindis.gui.data.LiveStore;
 
 /// Altar server roster module: personal details, role qualifications and
@@ -121,22 +118,7 @@ public class ServersModule extends CrudModule<Server> {
         table().getColumns().add(qualificationsColumn);
         table().getColumns().add(activeColumn);
 
-        Button newButton = Toolbars.button(Localization.lang("New"), "mdi2p-plus");
-        newButton.setOnAction(event -> newItem());
-        Button deleteButton = Toolbars.button(Localization.lang("Delete"), "mdi2d-delete");
-        deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
-        deleteButton.setOnAction(event -> deleteSelected());
-
-        ServerCsvMapper serverCsvMapper = new ServerCsvMapper(roleRepository);
-        CsvRowMapper<Server> csvMapper =
-                CsvRowMapper.of(serverCsvMapper::header, serverCsvMapper::toRow, serverCsvMapper::fromRow);
-        Button importButton = Toolbars.button(Localization.lang("Import"), "mdi2i-import");
-        importButton.setOnAction(event -> importCsv(csvMapper,
-                (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
-        Button exportButton = Toolbars.button(Localization.lang("Export"), "mdi2e-export");
-        exportButton.setOnAction(event -> exportCsv(csvMapper));
-
-        toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL), importButton, exportButton);
+        addStandardToolbar(new ServerCsvMapper(roleRepository));
     }
 
     @Override
@@ -162,7 +144,7 @@ public class ServersModule extends CrudModule<Server> {
         // needs that, not markDirtyOnChange's single-property model (the
         // same reasoning ServicesModule's own slot-count editor already
         // follows for its one label).
-        Supplier<Server> baselineSupplier = () -> Objects.requireNonNullElse(savedSnapshot(server), server);
+        Supplier<Server> baselineSupplier = baseline(server);
 
         TextField firstNameField = new TextField(server.firstName());
         TextField lastNameField = new TextField(server.lastName());
@@ -343,13 +325,12 @@ public class ServersModule extends CrudModule<Server> {
         // chain, corrupting JavaFX's internal ListChangeBuilder (observed as
         // an UnmodifiableList.add crash deep in ListChangeBuilder.nextRemove
         // - see RolesModule for the same fix).
-        boolean[] suppressPushLive = new boolean[1];
 
         // Facade write path: every control's change listener below rebuilds a
         // fresh Server from current control values and pushes it straight into
         // the table's live state (no editor-owned Save button).
         Runnable pushLive = () -> {
-            if (suppressPushLive[0]) {
+            if (isSuppressingLiveUpdates()) {
                 return;
             }
             Set<String> qualifications = new HashSet<>();
@@ -471,8 +452,7 @@ public class ServersModule extends CrudModule<Server> {
         // refresh: the row's value changed externally (e.g. an Open or a revert reverted
         // this server) - push every field back to the new value in place.
         return EditorBinding.of(content, updated -> {
-            suppressPushLive[0] = true;
-            try {
+            withoutLiveUpdates(() -> {
                 firstNameField.setText(updated.firstName());
                 lastNameField.setText(updated.lastName());
                 contactField.setText(updated.contact());
@@ -485,9 +465,7 @@ public class ServersModule extends CrudModule<Server> {
                 unavailabilityList.getItems().setAll(updated.unavailabilities());
                 experiencedCheck.setSelected(updated.experienced());
                 activeCheck.setSelected(updated.active());
-            } finally {
-                suppressPushLive[0] = false;
-            }
+            });
             // None of the sets above necessarily changed what a control
             // displays (a Save moves the baseline, not the live value),
             // so their own listeners may not have fired - recompute

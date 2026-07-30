@@ -21,7 +21,7 @@ import org.mindis.core.model.UnavailabilityPeriod;
 /// Servers import/export (currently the GUI's Servers module; PLAN.md's
 /// future web module gets the same for free).
 @NullMarked
-public final class ServerCsvMapper {
+public final class ServerCsvMapper implements CsvRowMapper<Server> {
 
     private final RoleRepository roleRepository;
 
@@ -29,11 +29,13 @@ public final class ServerCsvMapper {
         this.roleRepository = roleRepository;
     }
 
+    @Override
     public List<String> header() {
         return List.of("id", "firstName", "lastName", "contact", "birthDate", "familyId",
                 "qualifications", "unavailabilities", "preferredTimes", "experienced", "active");
     }
 
+    @Override
     public List<String> toRow(Server server) {
         return List.of(
                 server.id(),
@@ -51,6 +53,7 @@ public final class ServerCsvMapper {
     }
 
     /// Blank first+last name rows are skipped; a blank id gets a fresh one.
+    @Override
     public @Nullable Server fromRow(List<String> row) {
         String firstName = CsvFields.at(row, 1);
         String lastName = CsvFields.at(row, 2);

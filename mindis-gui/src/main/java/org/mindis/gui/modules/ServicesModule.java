@@ -92,7 +92,7 @@ import org.mindis.gui.util.CalendarPickers;
 import org.mindis.gui.util.TimePickers;
 import org.mindis.gui.shell.CrudModule;
 import org.mindis.gui.shell.ShellOverlays;
-import org.mindis.gui.data.CsvRowMapper;
+import org.mindis.gui.shell.Toolbars;
 import org.mindis.gui.data.LiveStore;
 
 /// Liturgical services module: individual date/time services (plus generation
@@ -208,18 +208,9 @@ public class ServicesModule extends CrudModule<LiturgicalService> {
         Button generateButton = Toolbars.button(Localization.lang("Generate from templates"), "mdi2c-calendar-plus");
         generateButton.setOnAction(event -> showGenerateFromTemplatesPopup(generateButton));
 
-        Button newButton = Toolbars.button(Localization.lang("New"), "mdi2p-plus");
-        newButton.setOnAction(event -> newItem());
-        Button deleteButton = Toolbars.button(Localization.lang("Delete"), "mdi2d-delete");
-        deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
-        deleteButton.setOnAction(event -> deleteSelected());
-
-        ServiceCsvMapper serviceCsvMapper = new ServiceCsvMapper(roleRepository);
-        CsvRowMapper<LiturgicalService> csvMapper =
-                CsvRowMapper.of(serviceCsvMapper::header, serviceCsvMapper::toRow, serviceCsvMapper::fromRow);
-        Button importButton = Toolbars.button(Localization.lang("Import"), "mdi2i-import");
-        importButton.setOnAction(event -> importCsv(csvMapper,
-                (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
+        Button newButton = newButton();
+        Button deleteButton = deleteButton();
+        Button importButton = importButton(new ServiceCsvMapper(roleRepository));
 
         ReadOnlyBooleanProperty solving = planningViewModel.solvingProperty();
         // While solving, the Autofill button is swapped for a progress bar

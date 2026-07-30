@@ -4,19 +4,15 @@ import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
-import javafx.geometry.Orientation;
 import javafx.geometry.VPos;
-import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.Separator;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.ColumnConstraints;
@@ -42,7 +38,6 @@ import org.mindis.core.persistence.TemplateCsvMapper;
 import org.mindis.gui.util.TimePickers;
 import org.mindis.gui.shell.CrudModule;
 import org.mindis.gui.shell.ShellOverlays;
-import org.mindis.gui.data.CsvRowMapper;
 import org.mindis.gui.data.LiveStore;
 
 /// Recurring service templates ("every Sunday 10:00 at St. Mary"), expanded
@@ -87,22 +82,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         table().getColumns().add(typeColumn);
         table().getColumns().add(locationColumn);
 
-        Button newButton = Toolbars.button(Localization.lang("New"), "mdi2p-plus");
-        newButton.setOnAction(event -> newItem());
-        Button deleteButton = Toolbars.button(Localization.lang("Delete"), "mdi2d-delete");
-        deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
-        deleteButton.setOnAction(event -> deleteSelected());
-
-        TemplateCsvMapper templateCsvMapper = new TemplateCsvMapper(roleRepository);
-        CsvRowMapper<ServiceTemplate> csvMapper =
-                CsvRowMapper.of(templateCsvMapper::header, templateCsvMapper::toRow, templateCsvMapper::fromRow);
-        Button importButton = Toolbars.button(Localization.lang("Import"), "mdi2i-import");
-        importButton.setOnAction(event -> importCsv(csvMapper,
-                (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
-        Button exportButton = Toolbars.button(Localization.lang("Export"), "mdi2e-export");
-        exportButton.setOnAction(event -> exportCsv(csvMapper));
-
-        toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL), importButton, exportButton);
+        addStandardToolbar(new TemplateCsvMapper(roleRepository));
     }
 
     @Override
@@ -114,7 +94,7 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
     protected EditorBinding<ServiceTemplate> buildEditor(ServiceTemplate template) {
         // Compares against the last-flushed value, not template itself - see
         // CrudModule#markDirtyOnChange.
-        Supplier<ServiceTemplate> baselineSupplier = () -> Objects.requireNonNullElse(savedSnapshot(template), template);
+        Supplier<ServiceTemplate> baselineSupplier = baseline(template);
 
         ScheduleEditor scheduleEditor = new ScheduleEditor(template.schedule());
 
@@ -170,9 +150,8 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         // while an outer one is still unwinding through its own listener
         // chain, corrupting JavaFX's internal ListChangeBuilder (see
         // RolesModule for the same fix).
-        boolean[] suppressPushLive = new boolean[1];
         Runnable pushLive = () -> {
-            if (suppressPushLive[0]) {
+            if (isSuppressingLiveUpdates()) {
                 return;
             }
             LocalTime time = timeField.getTime();
@@ -232,16 +211,13 @@ public class TemplatesModule extends CrudModule<ServiceTemplate> {
         // this template) - push the new value into every control in place,
         // no rebuild, so the row survives without losing focus/scroll state.
         return new EditorBinding<>(content, updated -> {
-            suppressPushLive[0] = true;
-            try {
+            withoutLiveUpdates(() -> {
                 scheduleEditor.setSchedule(updated.schedule());
                 timeField.setTime(updated.time());
                 typeBox.getSelectionModel().select(updated.type());
                 locationField.setText(updated.location());
                 slotsEditor.setCounts(countsByRole(updated.slots()));
-            } finally {
-                suppressPushLive[0] = false;
-            }
+            });
             // None of the sets above necessarily changed what a control
             // displays (a Save moves the baseline, not the live value),
             // so their own listeners may not have fired - recompute

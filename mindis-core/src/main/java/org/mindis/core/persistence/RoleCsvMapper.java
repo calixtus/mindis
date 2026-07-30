@@ -11,7 +11,7 @@ import org.mindis.core.model.Role;
 /// Roles import/export (currently the GUI's Roles module; PLAN.md's future
 /// web module gets the same for free).
 @NullMarked
-public final class RoleCsvMapper {
+public final class RoleCsvMapper implements CsvRowMapper<Role> {
 
     private final RoleRepository roleRepository;
 
@@ -19,10 +19,12 @@ public final class RoleCsvMapper {
         this.roleRepository = roleRepository;
     }
 
+    @Override
     public List<String> header() {
         return List.of("id", "name", "minAge", "maxAge", "sortOrder");
     }
 
+    @Override
     public List<String> toRow(Role role) {
         return List.of(
                 role.id(),
@@ -33,6 +35,7 @@ public final class RoleCsvMapper {
     }
 
     /// Blank name rows are skipped; a blank id gets a fresh one.
+    @Override
     public @Nullable Role fromRow(List<String> row) {
         String name = CsvFields.at(row, 1);
         if (name.isEmpty()) {

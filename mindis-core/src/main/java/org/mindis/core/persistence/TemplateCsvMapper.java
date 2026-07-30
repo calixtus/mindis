@@ -19,7 +19,7 @@ import org.mindis.core.model.ServiceType;
 /// that offers Templates import/export (currently the GUI's Templates
 /// module; PLAN.md's future web module gets the same for free).
 @NullMarked
-public final class TemplateCsvMapper {
+public final class TemplateCsvMapper implements CsvRowMapper<ServiceTemplate> {
 
     private static final int DEFAULT_DURATION_MINUTES = 60;
 
@@ -29,11 +29,13 @@ public final class TemplateCsvMapper {
         this.roleRepository = roleRepository;
     }
 
+    @Override
     public List<String> header() {
         return List.of("id", "recurrence", "time", "durationMinutes", "location", "type", "slots",
                 "validFrom", "validUntil", "skipDates");
     }
 
+    @Override
     public List<String> toRow(ServiceTemplate template) {
         ServiceSchedule schedule = template.schedule();
         return List.of(
@@ -54,6 +56,7 @@ public final class TemplateCsvMapper {
     /// after `slots` is a template without a window or cancellations,
     /// and an unreadable date in them is dropped rather than failing the row,
     /// mirroring the per-field tolerance of every other importer.
+    @Override
     public @Nullable ServiceTemplate fromRow(List<String> row) {
         RecurrenceRule recurrence = RecurrenceCodec.parse(CsvFields.at(row, 1));
         LocalTime time = CsvFields.parseTime(CsvFields.at(row, 2));

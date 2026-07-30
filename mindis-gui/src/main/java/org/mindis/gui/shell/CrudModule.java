@@ -19,8 +19,11 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.Separator;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableView;
 import javafx.scene.control.ToolBar;
@@ -37,17 +40,22 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.mindis.core.l10n.Localization;
+import org.mindis.core.persistence.CsvRowMapper;
 import org.mindis.gui.data.CsvIO;
-import org.mindis.gui.data.CsvRowMapper;
 import org.mindis.gui.data.LiveStore;
 
 /// Base [ShellModule] for the common "table on the left, editor on
 /// the right" CRUD screen (see Roles/Servers/Services/Templates): a toolbar,
-/// a table of items, and an editor pane for the selected item. This class has
-/// no localized text anywhere - every button, its label and its wiring belongs
-/// to the subclass. Deliberate, not a limitation: `Localization` is reachable
-/// from here, but keeping the scaffolding text-free keeps each screen's wording
-/// in the one place that knows what the button does.
+/// a table of items, and an editor pane for the selected item.
+///
+/// The four actions every CRUD screen has - New, Delete, Import, Export - are
+/// built here ([#newButton()] and friends, or [#addStandardToolbar] for a
+/// screen that needs nothing else), including their labels: they are the same
+/// words on every screen, so declaring them per subclass only invited them to
+/// drift apart. Anything screen-specific - an Autofill button, a Generate
+/// action, every field label in the editor - is the subclass's, wording
+/// included.
 ///
 /// <p><b>State lives in the [LiveStore]</b>, not here: the store is a
 /// long-lived shared mirror of one repository's staged in-memory state (see
@@ -62,12 +70,10 @@ import org.mindis.gui.data.LiveStore;
 /// <ul>
 ///   <li>[#table()] - configure columns; do not call
 ///       `setItems` on it, it is bound to the store's live list.
-///   <li>[#toolbarExtras()] - build the toolbar's buttons (localized
-///       text, own `setOnAction`) and push them here, in display order;
-///       bind [#newItem()]/[#deleteSelected()]/
-///       [#exportCsv(CsvRowMapper)]/[#importCsv(CsvRowMapper, BiFunction)] as their actions.
-///       Push them in the subclass constructor,
-///       since the toolbar is built once on first [#activate()].
+///   <li>[#addStandardToolbar] for the plain New/Delete/Import/Export bar, or
+///       [#toolbarExtras()] plus the individual button factories to interleave
+///       screen-specific buttons. Either way, do it in the subclass
+///       constructor - the toolbar is built once on first [#activate()].
 ///   <li>[#editorProperty()] - the editor [Node] currently shown,
 ///       set automatically from [#buildEditor(Object)]'s result; the
 ///       editor container is disabled while no row is selected.
@@ -127,6 +133,7 @@ public abstract class CrudModule<T> extends ShellModule {
     private @Nullable Object lastSelectedKey;
     private @Nullable EditorBinding<T> currentBinding;
     private boolean suppressEditorRebuild;
+    private boolean suppressLiveUpdates;
 
     protected CrudModule(String name, String iconLiteral, LiveStore<T> store, ShellOverlays overlays) {
         super(name, iconLiteral);
@@ -225,6 +232,55 @@ public abstract class CrudModule<T> extends ShellModule {
     protected void onActivate() {
     }
 
+    // --- Standard toolbar actions -------------------------------------------
+    //
+    // The four actions every CRUD screen has, wired to this class's own
+    // newItem/deleteSelected/importCsv/exportCsv. Their labels are the same
+    // words on every screen ("New", "Delete", ...), so they are localized here
+    // rather than re-declared four times; screen-specific buttons (Autofill,
+    // Generate from templates, ...) still belong to the subclass, which builds
+    // them with Toolbars.button and arranges everything itself.
+
+    /// New button, wired to [#newItem()].
+    protected final Button newButton() {
+        Button button = Toolbars.button(Localization.lang("New"), "mdi2p-plus");
+        button.setOnAction(_ -> newItem());
+        return button;
+    }
+
+    /// Delete button, wired to [#deleteSelected()] and disabled while no row
+    /// is selected.
+    protected final Button deleteButton() {
+        Button button = Toolbars.button(Localization.lang("Delete"), "mdi2d-delete");
+        button.disableProperty().bind(table.getSelectionModel().selectedItemProperty().isNull());
+        button.setOnAction(_ -> deleteSelected());
+        return button;
+    }
+
+    /// Import button, wired to [#importCsv] with the shared "n of m rows
+    /// imported" summary.
+    protected final Button importButton(CsvRowMapper<T> mapper) {
+        Button button = Toolbars.button(Localization.lang("Import"), "mdi2i-import");
+        button.setOnAction(_ -> importCsv(mapper,
+                (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
+        return button;
+    }
+
+    /// Export button, wired to [#exportCsv].
+    protected final Button exportButton(CsvRowMapper<T> mapper) {
+        Button button = Toolbars.button(Localization.lang("Export"), "mdi2e-export");
+        button.setOnAction(_ -> exportCsv(mapper));
+        return button;
+    }
+
+    /// The plain CRUD toolbar - New, Delete, separator, Import, Export - for a
+    /// screen that needs nothing else. A screen that interleaves its own
+    /// buttons (see `ServicesModule`) composes the factories above instead.
+    protected final void addStandardToolbar(CsvRowMapper<T> mapper) {
+        toolbarExtras().addAll(newButton(), deleteButton(), new Separator(Orientation.VERTICAL),
+                importButton(mapper), exportButton(mapper));
+    }
+
     @Override
     public final Node activate() {
         Node content = view;
@@ -259,6 +315,46 @@ public abstract class CrudModule<T> extends ShellModule {
     /// disk.
     protected final @Nullable T savedSnapshot(T item) {
         return store.savedSnapshot(item);
+    }
+
+    /// The dirty-comparison baseline for `item`: its last-flushed value, or
+    /// `item` itself while it has none (a new row that was never saved).
+    /// A supplier, not a value, for the reason spelled out on
+    /// [#markDirtyOnChange] - a Save moves the baseline without changing what
+    /// any control displays, so it has to be re-read rather than captured.
+    protected final Supplier<T> baseline(T item) {
+        return () -> Objects.requireNonNullElse(savedSnapshot(item), item);
+    }
+
+    /// Runs `programmaticEdit` with [#updateLive] pushes suppressed - for
+    /// control sets an editor makes itself (an [EditorBinding]'s `refresh`,
+    /// or one field dragging another along, e.g. a min bound pushing a max
+    /// bound up).
+    ///
+    /// Without it, such a set re-enters `updateLive` and mutates the shared
+    /// store list while an outer mutation is still unwinding through its own
+    /// listener chain. That corrupts JavaFX's internal `ListChangeBuilder`
+    /// (seen as an `UnmodifiableList.add` failure deep inside
+    /// `ListChangeBuilder.nextRemove`), so this is a correctness guard, not a
+    /// tidiness one.
+    ///
+    /// Callers read the flag through [#isSuppressingLiveUpdates()]; nesting is
+    /// not supported (no counter) because no editor needs it.
+    protected final void withoutLiveUpdates(Runnable programmaticEdit) {
+        suppressLiveUpdates = true;
+        try {
+            programmaticEdit.run();
+        } finally {
+            suppressLiveUpdates = false;
+        }
+    }
+
+    /// Whether a [#withoutLiveUpdates] block is currently running, i.e. the
+    /// control change a listener just saw is this editor's own programmatic
+    /// set rather than a user edit. Listeners that write back must bail out on
+    /// `true`.
+    protected final boolean isSuppressingLiveUpdates() {
+        return suppressLiveUpdates;
     }
 
     /// Left border accent on `label` while `property`'s current

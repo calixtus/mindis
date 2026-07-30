@@ -15,7 +15,7 @@ import org.mindis.core.model.Slot;
 /// that offers Services import/export (currently the GUI's Services module;
 /// PLAN.md's future web module gets the same for free).
 @NullMarked
-public final class ServiceCsvMapper {
+public final class ServiceCsvMapper implements CsvRowMapper<LiturgicalService> {
 
     private static final int DEFAULT_DURATION_MINUTES = 60;
 
@@ -25,10 +25,12 @@ public final class ServiceCsvMapper {
         this.roleRepository = roleRepository;
     }
 
+    @Override
     public List<String> header() {
         return List.of("id", "date", "time", "durationMinutes", "location", "type", "slots", "note");
     }
 
+    @Override
     public List<String> toRow(LiturgicalService service) {
         return List.of(
                 service.id(),
@@ -42,6 +44,7 @@ public final class ServiceCsvMapper {
     }
 
     /// Rows with an unparsable date/time are skipped; a blank id gets a fresh one.
+    @Override
     public @Nullable LiturgicalService fromRow(List<String> row) {
         LocalDate date = CsvFields.parseDate(CsvFields.at(row, 1));
         LocalTime time = CsvFields.parseTime(CsvFields.at(row, 2));

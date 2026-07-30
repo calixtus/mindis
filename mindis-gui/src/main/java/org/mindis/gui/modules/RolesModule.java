@@ -8,10 +8,7 @@ import java.util.function.Supplier;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
-import javafx.geometry.Orientation;
-import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.Separator;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TableColumn;
@@ -30,7 +27,6 @@ import org.mindis.core.persistence.RoleCsvMapper;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.gui.shell.CrudModule;
 import org.mindis.gui.shell.ShellOverlays;
-import org.mindis.gui.data.CsvRowMapper;
 import org.mindis.gui.data.LiveStore;
 
 /// Liturgical role management module: name plus an optional minimum/maximum
@@ -59,21 +55,7 @@ public class RolesModule extends CrudModule<Role> {
         table().getColumns().add(nameColumn);
         table().getColumns().add(ageRangeColumn);
 
-        Button newButton = Toolbars.button(Localization.lang("New"), "mdi2p-plus");
-        newButton.setOnAction(event -> newItem());
-        Button deleteButton = Toolbars.button(Localization.lang("Delete"), "mdi2d-delete");
-        deleteButton.disableProperty().bind(table().getSelectionModel().selectedItemProperty().isNull());
-        deleteButton.setOnAction(event -> deleteSelected());
-
-        RoleCsvMapper roleCsvMapper = new RoleCsvMapper(roleRepository);
-        CsvRowMapper<Role> csvMapper = CsvRowMapper.of(roleCsvMapper::header, roleCsvMapper::toRow, roleCsvMapper::fromRow);
-        Button importButton = Toolbars.button(Localization.lang("Import"), "mdi2i-import");
-        importButton.setOnAction(event -> importCsv(csvMapper,
-                (imported, total) -> Localization.lang("%0 of %1 rows imported", imported, total)));
-        Button exportButton = Toolbars.button(Localization.lang("Export"), "mdi2e-export");
-        exportButton.setOnAction(event -> exportCsv(csvMapper));
-
-        toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL), importButton, exportButton);
+        addStandardToolbar(new RoleCsvMapper(roleRepository));
     }
 
     @Override
@@ -90,7 +72,7 @@ public class RolesModule extends CrudModule<Role> {
         // one-time snapshot, so it reflects the post-Save baseline on a
         // later call, not whatever was last flushed when this editor was
         // built (see CrudModule#markDirtyOnChange).
-        Supplier<Role> baselineSupplier = () -> Objects.requireNonNullElse(savedSnapshot(role), role);
+        Supplier<Role> baselineSupplier = baseline(role);
 
         TextField nameField = new TextField(role.name());
 
@@ -114,9 +96,8 @@ public class RolesModule extends CrudModule<Role> {
         // unwinding through its own listener chain, which corrupts
         // JavaFX's internal ListChangeBuilder (observed as an
         // UnmodifiableList.add crash deep in ListChangeBuilder.nextRemove).
-        boolean[] suppressPushLive = new boolean[1];
         Runnable pushLive = () -> {
-            if (suppressPushLive[0]) {
+            if (isSuppressingLiveUpdates()) {
                 return;
             }
             updateLive(new Role(role.id(), nameField.getText().strip(),
@@ -130,17 +111,12 @@ public class RolesModule extends CrudModule<Role> {
         // list (e.g. TableView reselecting a row mid-delete), that immediate
         // call would run pushLive() (via the nested maxAge set below) while
         // the outer list change was still unwinding - the same reentrant
-        // items.set() corruption the suppressPushLive guard elsewhere in
-        // this file targets, but from construction rather than refresh().
+        // items.set() corruption withoutLiveUpdates guards against, but from
+        // construction rather than refresh().
         minAgeSpinner.valueProperty().addListener((obs, oldMin, newMin) -> {
             Integer max = maxAgeSpinner.getValue();
             if (newMin != null && max != null && max < newMin) {
-                suppressPushLive[0] = true;
-                try {
-                    maxAgeSpinner.getValueFactory().setValue(newMin);
-                } finally {
-                    suppressPushLive[0] = false;
-                }
+                withoutLiveUpdates(() -> maxAgeSpinner.getValueFactory().setValue(newMin));
             }
             pushLive.run();
         });
@@ -187,14 +163,11 @@ public class RolesModule extends CrudModule<Role> {
         // property compares by reference - not equals() - so even
         // "unchanged" Integer values can still fire the field's own listener.
         return EditorBinding.of(content, updated -> {
-            suppressPushLive[0] = true;
-            try {
+            withoutLiveUpdates(() -> {
                 nameField.setText(updated.name());
                 minAgeSpinner.getValueFactory().setValue(updated.minAge());
                 maxAgeSpinner.getValueFactory().setValue(updated.maxAge());
-            } finally {
-                suppressPushLive[0] = false;
-            }
+            });
             // None of the sets above necessarily changed what a control
             // displays (a Save moves the baseline, not the live value),
             // so their own listeners may not have fired - recompute
