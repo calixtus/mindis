@@ -43,11 +43,19 @@ public final class RoleCsvMapper implements CsvRowMapper<Role> {
         }
         String id = CsvFields.at(row, 0);
         Integer sortOrder = CsvFields.parseInt(CsvFields.at(row, 4));
+        Integer minAge = CsvFields.parseInt(CsvFields.at(row, 2));
+        Integer maxAge = CsvFields.parseInt(CsvFields.at(row, 3));
+        // Role rejects an inverted range. A hand-edited file is exactly where
+        // one shows up, and this importer is best-effort per row (see
+        // CsvFields), so clamp rather than let one bad row abort the import.
+        if (minAge != null && maxAge != null && minAge > maxAge) {
+            maxAge = minAge;
+        }
         return new Role(
                 id.isEmpty() ? Role.newId() : id,
                 name,
-                CsvFields.parseInt(CsvFields.at(row, 2)),
-                CsvFields.parseInt(CsvFields.at(row, 3)),
+                minAge,
+                maxAge,
                 sortOrder == null ? roleRepository.nextSortOrder() : sortOrder);
     }
 }

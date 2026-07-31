@@ -28,6 +28,16 @@ public record Role(
 
     public Role {
         name = name == null ? "" : name.strip();
+        // An inverted range is not a harmless typo: no server can ever satisfy
+        // it, so every slot for this role silently stays unfillable and the
+        // solver reports an infeasible plan with no hint why. Rejected here
+        // rather than in each editor, so no caller can construct one - the UI
+        // keeps the spinners in order and the CSV importer clamps, both at
+        // their own boundary.
+        if (minAge != null && maxAge != null && minAge > maxAge) {
+            throw new IllegalArgumentException(
+                    "Role '" + name + "' has minAge " + minAge + " above maxAge " + maxAge);
+        }
     }
 
     public static String newId() {

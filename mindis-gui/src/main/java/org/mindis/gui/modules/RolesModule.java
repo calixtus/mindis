@@ -225,7 +225,14 @@ public final class RolesModule extends CrudModule<Role> {
 
                 @Override
                 public @Nullable Integer fromString(@Nullable String text) {
-                    return parseAge(text);
+                    // Through normalize(), not just parseAge(): the spinner is
+                    // editable, so a typed value has to clear the same floor
+                    // the arrows enforce. Without this, typing a max age below
+                    // the min age builds an inverted range, which Role rejects
+                    // - from inside a control listener, where the exception
+                    // has nowhere useful to go.
+                    Integer parsed = parseAge(text);
+                    return parsed == null ? null : normalize(parsed);
                 }
             });
         }
