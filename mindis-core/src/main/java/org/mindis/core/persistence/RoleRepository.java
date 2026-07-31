@@ -2,16 +2,14 @@ package org.mindis.core.persistence;
 
 import jakarta.inject.Singleton;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
 
-/// Role storage: the roles of the currently open document. Upsert by id.
-/// Purely in-memory; disk I/O happens exclusively in [AppDatabase].
+/// Role storage: the roles of the currently open document, ordered by the
+/// user's own sort order (see [InMemoryRepository]).
 ///
 /// <p>The five built-in default roles are seeded into a <em>new</em> document
 /// ([AppDatabase#newDocument()]), not whenever the list happens to be
@@ -19,48 +17,20 @@ import org.mindis.core.model.Role;
 /// empty. Their ids match the former `Role` enum constants, so data
 /// referencing those names still resolves.
 @Singleton
-public final class RoleRepository {
+public final class RoleRepository extends InMemoryRepository<Role> {
 
     private static final int SORT_ORDER_STEP = 10;
 
-    private final List<Role> roles = new ArrayList<>();
-
-    public synchronized List<Role> findAll() {
-        return List.copyOf(roles);
-    }
-
-    public synchronized Optional<Role> findById(String id) {
-        return roles.stream().filter(role -> role.id().equals(id)).findFirst();
-    }
-
-    public synchronized void save(Role role) {
-        roles.removeIf(existing -> existing.id().equals(role.id()));
-        roles.add(role);
-        sort(roles);
-    }
-
-    public synchronized void delete(String id) {
-        roles.removeIf(existing -> existing.id().equals(id));
-    }
-
-    /// Replaces the whole content with a freshly opened document's roles.
-    /// Only [AppDatabase] calls this.
-    synchronized void replaceAll(List<Role> items) {
-        roles.clear();
-        roles.addAll(items);
-        sort(roles);
+    public RoleRepository() {
+        super(Role::id, Comparator.comparingInt(Role::sortOrder).thenComparing(Role::name));
     }
 
     /// The next free sort order (current max + a step), for a role not yet in the store.
     public synchronized int nextSortOrder() {
-        return roles.stream()
+        return findAll().stream()
                 .mapToInt(Role::sortOrder)
                 .max()
                 .orElse(-SORT_ORDER_STEP) + SORT_ORDER_STEP;
-    }
-
-    private static void sort(List<Role> list) {
-        list.sort(Comparator.comparingInt(Role::sortOrder).thenComparing(Role::name));
     }
 
     /// Built-in roles seeded into a new document. Names are localized at seed
