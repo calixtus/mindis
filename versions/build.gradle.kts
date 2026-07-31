@@ -24,7 +24,7 @@ dependencies.constraints {
     api("org.openjfx:javafx-graphics:$javafx")
     api("org.openjfx:javafx-controls:$javafx")
 
-    api("com.dlsc.gemsfx:gemsfx:4.2.2")
+    api("com.dlsc.gemsfx:gemsfx:4.3.2")
     api("io.github.mkpaz:atlantafx-base:2.1.0")
 
     api("io.avaje:avaje-inject:$avajeInject")
