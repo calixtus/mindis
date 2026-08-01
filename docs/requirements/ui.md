@@ -13,7 +13,7 @@ Design decisions: [ADR 001 — view layer](../adr/001-view-layer.md),
 ## Requirements
 
 ### Module-based main window
-`req~workbench-shell~1`
+`req~app-shell~1`
 
 The application presents its areas — dashboard, servers, roles, templates, services, settings,
 about — as modules of one shell window with a sidebar. The sidebar top carries the collection
@@ -117,7 +117,7 @@ Covers:
 ## Design
 
 ### Shell and modules
-`dsn~workbench-modules~1`
+`dsn~shell-modules~1`
 
 `org.mindis.gui.shell` holds the bespoke shell (ADR 005). `MinDisApp` builds an `AppShell` from `DashboardModule`, `ServersModule`,
 `RolesModule`, `TemplatesModule`, `ServicesModule`, `SettingsModule` and `AboutModule`. The four data
@@ -137,7 +137,7 @@ deliberately unused for navigation: it overlays rather than pushes content, hide
 cannot be resized (ADR 005).
 
 Covers:
-- req~workbench-shell~1
+- req~app-shell~1
 
 ### Collection switcher
 `dsn~collection-switcher~1`
@@ -168,7 +168,7 @@ actions (the scene survives a language rebuild, so they do too).
 
 Covers:
 - req~collection-switcher~1
-- req~workbench-shell~1
+- req~app-shell~1
 
 ### Composition root and DI
 `dsn~composition-root~1`
@@ -179,7 +179,7 @@ stores and their unsaved edits survive a UI rebuild, and hands every module its 
 constructor. There is no view-layer DI hook and no service locator (ADR 001).
 
 Covers:
-- req~workbench-shell~1
+- req~app-shell~1
 
 ### Dashboard view model
 `dsn~dashboard-viewmodel~1`

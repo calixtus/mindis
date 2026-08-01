@@ -70,7 +70,7 @@ hover-reveal-and-hide is the wanted behavior.
 
 - Full control over shell behavior and styling; the maintenance burden is ours, but the shell is
   ~300 lines.
-- `com.dlsc.workbenchfx` is not a dependency.
+- No third-party shell library is a dependency.
 - GemsFX's overlay panes each override `getUserAgentStylesheet()`, so the application-wide
   user-agent stylesheet (`ThemeStyler`) loses property-for-property ties against them — the same
   constraint `CalendarPickers` and `TimePickers` already work around. Two mechanisms, applied by

@@ -433,7 +433,7 @@ Key elements copied from the JabRef approach:
    headless-toolkit harness (Monocle) that fights JPMS; shell behavior is covered by plain
    JUnit tests driving the FX thread until that is solved.
 6. **Done when:** app starts, five modules open/close, theme + language switch (en↔de) work
-   **and survive restart**, with no dependency on `com.dlsc.workbenchfx` artifacts.
+   **and survive restart**, with no third-party shell library on the class path.
 
 ### M2 — Domain model + persistence + first real views
 1. Implement `mindis-core` model (§3, without Timefold annotations yet) + Jackson JSON
