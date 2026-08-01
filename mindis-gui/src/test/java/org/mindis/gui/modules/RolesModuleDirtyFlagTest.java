@@ -48,7 +48,7 @@ class RolesModuleDirtyFlagTest {
                     Role::id, Objects::equals);
 
             RolesModule module = new RolesModule("Roles", store, dummyRoleRepository(),
-                    new ShellOverlays(new PowerPane()));
+                    new ShellOverlays(() -> new PowerPane()));
             Node content = module.activate();
 
             TableView<Role> table = find(content, TableView.class);

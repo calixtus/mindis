@@ -1,6 +1,7 @@
 package org.mindis.gui.shell;
 
 import java.time.ZonedDateTime;
+import java.util.function.Supplier;
 
 import com.dlsc.gemsfx.DialogPane;
 import com.dlsc.gemsfx.PowerPane;
@@ -14,8 +15,12 @@ import com.dlsc.gemsfx.infocenter.NotificationGroup;
 /// Constructed once in the composition root ([org.mindis.gui.MinDisApp]) and
 /// handed to whoever needs it, like every other collaborator: an instance, not
 /// static methods reaching for an ambient pane. That keeps callers honest about
-/// their dependency and lets a test pass its own [PowerPane] instead of having
-/// to build a whole shell around the object under test.
+/// their dependency.
+///
+/// The pane arrives as a [Supplier] and is never touched at construction, for
+/// two reasons: the composition root is then free to build the shell before the
+/// pane that wraps it, and a test for something that merely *holds* an overlay
+/// reference does not have to boot the JavaFX toolkit to construct one.
 ///
 /// Outlives a language rebuild, which swaps only the [PowerPane]'s content, so
 /// a holder may keep the reference it was given.
@@ -25,9 +30,9 @@ public final class ShellOverlays {
     /// affects how the info center stacks entries, not their appearance.
     public static final String DEFAULT_GROUP = "MinDis";
 
-    private final PowerPane powerPane;
+    private final Supplier<PowerPane> powerPane;
 
-    public ShellOverlays(PowerPane powerPane) {
+    public ShellOverlays(Supplier<PowerPane> powerPane) {
         this.powerPane = powerPane;
     }
 
@@ -37,7 +42,7 @@ public final class ShellOverlays {
     ///
     /// `overlays.dialogs().showConfirmation(title, message).onClose(...)`
     public DialogPane dialogs() {
-        return powerPane.getDialogPane();
+        return powerPane.get().getDialogPane();
     }
 
     /// Posts a transient notification into the info center. Adding it makes
@@ -51,7 +56,7 @@ public final class ShellOverlays {
 
     /// As [#notify(String, String)], into a named group.
     public void notify(String groupName, String title, String summary) {
-        InfoCenterView view = powerPane.getInfoCenterPane().getInfoCenterView();
+        InfoCenterView view = powerPane.get().getInfoCenterPane().getInfoCenterView();
         group(view, groupName).getNotifications()
                 .add(new Notification<>(title, summary, ZonedDateTime.now()));
     }

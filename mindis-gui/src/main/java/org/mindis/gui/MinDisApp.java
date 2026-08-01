@@ -147,7 +147,7 @@ public class MinDisApp extends Application {
         // literals they hardcode (see power-pane.css and ThemeStyler).
         powerPane.getStylesheets().add(
                 AppShell.class.getResource("power-pane.css").toExternalForm());
-        overlays = new ShellOverlays(powerPane);
+        overlays = new ShellOverlays(() -> powerPane);
         shell = buildShell();
         powerPane.setContent(shell);
         Scene scene = new Scene(powerPane, 960, 640);

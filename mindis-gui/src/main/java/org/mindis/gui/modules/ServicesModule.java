@@ -158,7 +158,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
         this.roleStore = roleStore;
         this.serverStore = serverStore;
         this.solver = new ServicesSolverController(planningViewModel,
-                () -> store().items(), this::mergeLive, () -> table().getScene().getWindow());
+                () -> store().items(), this::mergeLive, overlays);
 
         // The table is used as a single-column tile list: each row's cell
         // renders the whole date/type/location + role-slot summary.

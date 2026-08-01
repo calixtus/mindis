@@ -28,6 +28,7 @@ import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.planning.PlanningService;
 import org.mindis.core.preferences.PreferencesService;
 import org.mindis.gui.planning.PlanningViewModel;
+import org.mindis.gui.shell.ShellOverlays;
 
 /// Covers the guard paths of the solver controller - the branches that decide
 /// *not* to start a solve. Those are what collapsing three near-identical
@@ -70,10 +71,11 @@ class ServicesSolverControllerTest {
         return new ServicesSolverController(planningViewModel,
                 services::findAll,
                 applied::add,
-                // Only ever read by confirmAbort, which these tests do not reach.
-                () -> {
-                    throw new AssertionError("no window expected in this test");
-                });
+                // Only ever resolved by confirmAbort, which these tests do
+                // not reach - so no toolkit is needed to build one.
+                new ShellOverlays(() -> {
+                    throw new AssertionError("no overlay expected in this test");
+                }));
     }
 
     @Test

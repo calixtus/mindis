@@ -3,20 +3,18 @@ package org.mindis.gui.modules;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import ai.timefold.solver.core.api.score.HardMediumSoftScore;
 
+import com.dlsc.gemsfx.DialogPane.Dialog;
+
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
-import javafx.stage.Window;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -27,6 +25,7 @@ import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.planning.Autofill;
 import org.mindis.core.planning.ServicePlan;
 import org.mindis.gui.planning.PlanningViewModel;
+import org.mindis.gui.shell.ShellOverlays;
 
 /// Drives the solver on behalf of [ServicesModule]: solve everything, autofill
 /// a date window, autofill one service, abort a running solve, and report the
@@ -55,21 +54,21 @@ final class ServicesSolverController {
     private final PlanningViewModel planningViewModel;
     private final Supplier<List<LiturgicalService>> liveServices;
     private final Consumer<List<LiturgicalService>> applySolved;
-    private final Supplier<Window> owner;
+    private final ShellOverlays overlays;
 
     private @Nullable UUID jobId;
 
     /// @param liveServices the services currently in the module's store
     /// @param applySolved  stages solved services back into that store
-    /// @param owner        window to own the abort prompt
+    /// @param overlays     the window's dialog layer, for the abort prompt
     ServicesSolverController(PlanningViewModel planningViewModel,
                              Supplier<List<LiturgicalService>> liveServices,
                              Consumer<List<LiturgicalService>> applySolved,
-                             Supplier<Window> owner) {
+                             ShellOverlays overlays) {
         this.planningViewModel = planningViewModel;
         this.liveServices = liveServices;
         this.applySolved = applySolved;
-        this.owner = owner;
+        this.overlays = overlays;
     }
 
     /// Solves every open slot in the document.
@@ -159,25 +158,32 @@ final class ServicesSolverController {
     /// solve finishes on its own before the user answers (the toolbar returns
     /// to its Autofill button on its own via the `solving` bindings), so a
     /// just-completed solve is never cancelled by a stale click.
+    ///
+    /// Non-blocking, unlike the `Alert` it replaces: the in-window dialog
+    /// answers through a callback, so the decision is applied there rather than
+    /// after a `showAndWait` returns. The auto-dismiss listener is detached on
+    /// both exits - the user answering, and the solve finishing first.
     void confirmAbort() {
         if (!isSolving()) {
             return;
         }
-        Alert confirm = new Alert(AlertType.CONFIRMATION);
-        confirm.setTitle(Localization.lang("Abort autofill"));
-        confirm.setHeaderText(Localization.lang("Really abort the running autofill?"));
-        confirm.initOwner(owner.get());
-        ChangeListener<Boolean> autoDismiss = (obs, wasSolving, isSolving) -> {
-            if (!isSolving) {
-                confirm.close();
+        Dialog<ButtonType> confirm = overlays.dialogs().showConfirmation(
+                Localization.lang("Abort autofill"),
+                Localization.lang("Really abort the running autofill?"));
+        ChangeListener<Boolean> autoDismiss = (obs, wasSolving, stillSolving) -> {
+            if (!stillSolving) {
+                confirm.cancel();
             }
         };
         planningViewModel.solvingProperty().addListener(autoDismiss);
-        Optional<ButtonType> result = confirm.showAndWait();
-        planningViewModel.solvingProperty().removeListener(autoDismiss);
-        if (result.isPresent() && result.get().getButtonData() == ButtonData.OK_DONE && isSolving()) {
-            stop();
-        }
+        confirm.onClose(answer -> {
+            planningViewModel.solvingProperty().removeListener(autoDismiss);
+            // Re-checked rather than trusted: the solve may have finished
+            // between the click and this callback.
+            if (answer != null && answer.getButtonData() == ButtonData.OK_DONE && isSolving()) {
+                stop();
+            }
+        });
     }
 
     /// Recomputes and logs the current plan's score. Called after a solve and
