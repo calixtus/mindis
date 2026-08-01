@@ -3,26 +3,21 @@ package org.mindis.gui.modules;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.dlsc.gemsfx.PowerPane;
 
-import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Pane;
 
-import org.jspecify.annotations.Nullable;
 
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import org.mindis.core.model.Role;
 import org.mindis.core.persistence.RoleRepository;
+import org.mindis.gui.FxTest;
 import org.mindis.gui.data.LiveStore;
 import org.mindis.gui.shell.ShellOverlays;
 
@@ -37,7 +32,7 @@ class RolesModuleDirtyFlagTest {
 
     @Test
     void dirtyAccentClearsRightAfterSaveAll() throws Exception {
-        runOnFxThreadAndWait(() -> {
+        FxTest.runAndWait(() -> {
             List<Role> staged = new ArrayList<>();
             staged.add(new Role("R1", "Acolyte", null, null, 0));
 
@@ -48,13 +43,13 @@ class RolesModuleDirtyFlagTest {
                     Role::id, Objects::equals);
 
             RolesModule module = new RolesModule("Roles", store, dummyRoleRepository(),
-                    new ShellOverlays(() -> new PowerPane()));
+                    new ShellOverlays(PowerPane::new));
             Node content = module.activate();
 
-            TableView<Role> table = find(content, TableView.class);
+            TableView<Role> table = FxTest.find(content, TableView.class);
             table.getSelectionModel().selectFirst();
 
-            GridPane grid = find(content, GridPane.class);
+            GridPane grid = FxTest.find(content, GridPane.class);
             TextField nameField = (TextField) grid.getChildren().get(1);
             Label nameLabel = (Label) grid.getChildren().getFirst();
 
@@ -80,77 +75,7 @@ class RolesModuleDirtyFlagTest {
 
     private static RoleRepository dummyRoleRepository() {
         // buildEditor doesn't touch the repository directly, only the CSV
-        // mapper wiring in the constructor needs a non-null instance.
+        // mapper wiring in the constructor needs an instance.
         return new RoleRepository();
-    }
-
-    /// Finds the first node of the given type, or throws — a missing node means
-    /// the view changed shape and the test's assumptions are stale.
-    private static <T extends Node> T find(Node root, Class<T> type) {
-        T found = findOrNull(root, type);
-        if (found == null) {
-            throw new AssertionError("no " + type.getSimpleName() + " in scene graph");
-        }
-        return found;
-    }
-
-    private static <T extends Node> @Nullable T findOrNull(Node root, Class<T> type) {
-        if (type.isInstance(root)) {
-            return type.cast(root);
-        }
-        if (root instanceof Pane pane) {
-            for (Node child : pane.getChildrenUnmodifiable()) {
-                T found = findOrNull(child, type);
-                if (found != null) {
-                    return found;
-                }
-            }
-        }
-        if (root instanceof javafx.scene.control.ScrollPane scrollPane) {
-            return findOrNull(scrollPane.getContent(), type);
-        }
-        if (root instanceof javafx.scene.control.SplitPane splitPane) {
-            for (Node child : splitPane.getItems()) {
-                T found = findOrNull(child, type);
-                if (found != null) {
-                    return found;
-                }
-            }
-        }
-        return null;
-    }
-
-    private static final AtomicBoolean FX_STARTED = new AtomicBoolean(false);
-    private static volatile boolean fxAvailable = true;
-
-    private static void runOnFxThreadAndWait(Runnable body) throws Exception {
-        if (FX_STARTED.compareAndSet(false, true)) {
-            try {
-                Platform.startup(() -> { });
-            } catch (IllegalStateException alreadyRunning) {
-                // Toolkit already booted by another test in this JVM; fine.
-            } catch (UnsupportedOperationException noToolkit) {
-                // Headless environment with no JavaFX platform (e.g. Linux CI
-                // without a display or Monocle). Can't run a UI test here.
-                fxAvailable = false;
-            }
-        }
-        Assumptions.assumeTrue(fxAvailable,
-                "JavaFX toolkit unavailable (headless); skipping UI test");
-        CountDownLatch latch = new CountDownLatch(1);
-        Throwable[] error = new Throwable[1];
-        Platform.runLater(() -> {
-            try {
-                body.run();
-            } catch (Throwable t) {
-                error[0] = t;
-            } finally {
-                latch.countDown();
-            }
-        });
-        latch.await();
-        if (error[0] != null) {
-            throw new AssertionError(error[0]);
-        }
     }
 }

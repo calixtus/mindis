@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import javafx.beans.binding.Bindings;
@@ -24,7 +23,6 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
@@ -36,11 +34,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.cell.CheckBoxListCell;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
@@ -66,6 +61,7 @@ import org.mindis.gui.util.DateTimes;
 import org.mindis.gui.util.SearchFields;
 import org.mindis.gui.util.TimePickers;
 import org.mindis.gui.shell.CrudModule;
+import org.mindis.gui.shell.EditorForm;
 import org.mindis.gui.shell.ShellOverlays;
 import org.mindis.gui.data.LiveStore;
 
@@ -133,17 +129,12 @@ public final class ServersModule extends CrudModule<Server> {
 
     @Override
     protected EditorBinding<Server> buildEditor(Server server) {
-        // Compares against the last-flushed value, not server itself - see
-        // CrudModule#markDirtyOnChange. The scalar fields below (name/
-        // contact/birth date/family/experienced/active) use markDirtyOnChange
-        // directly; the collection-backed ones (qualifications, preferred
-        // times, unavailable periods) each get their own recompute*Changed
-        // Runnable instead, re-diffing the *whole* live set/list against the
-        // baseline on every mutation - a single label spanning a whole list
-        // needs that, not markDirtyOnChange's single-property model (the
-        // same reasoning ServicesModule's own slot-count editor already
-        // follows for its one label).
-        Supplier<Server> baselineSupplier = baseline(server);
+        // The scalar rows below are declared once each on the form; the
+        // collection-backed ones (qualifications, preferred times, unavailable
+        // periods) are sections, because one label spanning a whole list has
+        // to re-diff the entire live set against the baseline rather than
+        // watch a single property.
+        EditorForm<Server> form = editorForm(server);
 
         TextField firstNameField = new TextField(server.firstName());
         TextField lastNameField = new TextField(server.lastName());
@@ -217,42 +208,23 @@ public final class ServersModule extends CrudModule<Server> {
                 () -> uiPreferences.fontSizeProperty().get() * CELL_SIZE_FONT_FACTOR,
                 uiPreferences.fontSizeProperty());
 
-        // Deferred pushLive reference: the checkbox properties (and their
-        // listeners) are created before pushLive itself can exist, and the
-        // cell factory keeps creating properties lazily for roles added
-        // while this editor is open - each must push edits live too, so the
-        // listener attaches inside the shared factory function.
-        Runnable[] pushLiveHolder = new Runnable[1];
         Map<String, BooleanProperty> qualificationSelected = new HashMap<>();
-        // A single label covers the whole checklist - unlike markDirtyOnChange
-        // (one property, one label), this must re-diff the *entire* live
-        // qualification set against the baseline on every checkbox toggle,
-        // since any one of them flipping can change whether the set as a
-        // whole still matches what's on disk.
-        Runnable recomputeQualificationsChanged = () -> {
-            Set<String> liveQualifications = new HashSet<>();
-            qualificationSelected.forEach((roleId, ticked) -> {
-                if (ticked.get()) {
-                    liveQualifications.add(roleId);
-                }
-            });
-            setFieldChanged(qualificationsLabel, !liveQualifications.equals(baselineSupplier.get().qualifications()));
-        };
         Function<String, BooleanProperty> qualificationProperty = roleId -> {
             SimpleBooleanProperty ticked = new SimpleBooleanProperty(server.qualifications().contains(roleId));
-            ticked.addListener((obs, oldValue, newValue) -> {
-                pushLiveHolder[0].run();
-                recomputeQualificationsChanged.run();
-            });
+            // Reported through the form: the write-through callback reads
+            // every control, so it does not exist yet when the first checkbox
+            // property is built (and the cell factory keeps building more for
+            // roles added while this editor is open).
+            ticked.addListener((obs, oldValue, newValue) -> form.edited());
             return ticked;
         };
-        // Seed eagerly for every current role: pushLive rebuilds the
+        // Seed eagerly for every current role: the write-through rebuilds the
         // qualification set from this map, so a checked role whose cell was
         // never rendered (scrolled out of view) must still be represented.
         for (Role role : roleStore.items()) {
             qualificationSelected.computeIfAbsent(role.id(), qualificationProperty);
         }
-        recomputeQualificationsChanged.run();
+
         // The store's own live list - not a copy - so roles created, renamed
         // or deleted anywhere (even unsaved) appear here immediately.
         ListView<Role> qualificationsList = new ListView<>(roleStore.items());
@@ -306,29 +278,63 @@ public final class ServersModule extends CrudModule<Server> {
             }
         });
 
-        // Same "whole list vs baseline" reasoning as recomputeQualificationsChanged
-        // above - compared as sets, order isn't semantically significant for
-        // either field.
-        Runnable recomputePreferredTimesChanged = () -> setFieldChanged(preferredTimesLabel,
-                !new HashSet<>(preferredTimesItems).equals(baselineSupplier.get().preferredTimes()));
-        Runnable recomputeUnavailabilityChanged = () -> setFieldChanged(unavailabilityLabel,
-                !new HashSet<>(unavailabilityList.getItems()).equals(new HashSet<>(baselineSupplier.get().unavailabilities())));
-        recomputePreferredTimesChanged.run();
-        recomputeUnavailabilityChanged.run();
+        form.field(Localization.lang("First name"), firstNameField, firstNameField.textProperty(),
+                Server::firstName, firstNameField::setText);
+        form.field(Localization.lang("Last name"), lastNameField, lastNameField.textProperty(),
+                Server::lastName, lastNameField::setText);
+        form.field(Localization.lang("Contact"), contactField, contactField.textProperty(),
+                Server::contact, contactField::setText);
+        form.field(Localization.lang("Birth date"), birthDatePicker, birthDatePicker.valueProperty(),
+                Server::birthDate, birthDatePicker::setValue);
+        form.field(Localization.lang("Family"), familyIdField, familyIdField.textProperty(),
+                candidate -> Objects.requireNonNullElse(candidate.familyId(), ""),
+                familyIdField::setSelectedItem);
+        form.section(Localization.lang("Preferred times"), preferredTimesTiles,
+                label -> setFieldChanged(label,
+                        !new HashSet<>(preferredTimesItems).equals(form.baseline().get().preferredTimes())),
+                updated -> {
+                    preferredTimesItems.setAll(updated.preferredTimes().stream().sorted().toList());
+                    refreshPreferredTimeChips(preferredTimesTiles, preferredTimesItems, preferredTimeInputGroup);
+                }).topAligned();
+        form.field(Localization.lang("Experienced"), experiencedCheck, experiencedCheck.selectedProperty(),
+                Server::experienced, experiencedCheck::setSelected);
+        form.field(Localization.lang("Active"), activeCheck, activeCheck.selectedProperty(),
+                Server::active, activeCheck::setSelected);
+        form.section(Localization.lang("Qualifications"), qualificationsList,
+                label -> {
+                    Set<String> live = new HashSet<>();
+                    qualificationSelected.forEach((roleId, ticked) -> {
+                        if (ticked.get()) {
+                            live.add(roleId);
+                        }
+                    });
+                    setFieldChanged(label, !live.equals(form.baseline().get().qualifications()));
+                },
+                updated -> qualificationSelected.forEach(
+                        (roleId, ticked) -> ticked.set(updated.qualifications().contains(roleId))))
+                .listAligned().growing();
+        // FlowPane, not HBox - From/To/Add/Remove wrap onto a second line
+        // instead of forcing the whole editor pane to a wide minimum width
+        // when the window is narrow. Unlike Controls, plain layout panes have
+        // no default "-fx-max-width: infinity", so without explicit max widths
+        // neither the VBox nor the FlowPane grows past its own preferred width
+        // and the FlowPane wraps narrow regardless of free column space.
+        FlowPane periodControls = new FlowPane(8, 8,
+                periodFromPicker, periodToPicker, addPeriodButton, removePeriodButton);
+        periodControls.setMaxWidth(Double.MAX_VALUE);
+        VBox unavailabilityBox = new VBox(8, unavailabilityList, periodControls);
+        unavailabilityBox.setMaxWidth(Double.MAX_VALUE);
+        periodControls.prefWrapLengthProperty().bind(unavailabilityBox.widthProperty());
+        form.section(Localization.lang("Unavailable periods"), unavailabilityBox,
+                label -> setFieldChanged(label, !new HashSet<>(unavailabilityList.getItems())
+                        .equals(new HashSet<>(form.baseline().get().unavailabilities()))),
+                updated -> unavailabilityList.getItems().setAll(updated.unavailabilities()))
+                .listAligned().growing();
 
-        // Guards every control's change listener against firing while the
-        // refresh callback below is pushing an externally-changed value into
-        // the controls - without it, a refresh's programmatic set can
-        // trigger a *second*, reentrant items.set() on the shared store list
-        // while an outer one is still unwinding through its own listener
-        // chain, corrupting JavaFX's internal ListChangeBuilder (observed as
-        // an UnmodifiableList.add crash deep in ListChangeBuilder.nextRemove
-        // - see RolesModule for the same fix).
-
-        // Facade write path: every control's change listener below rebuilds a
-        // fresh Server from current control values and pushes it straight into
-        // the table's live state (no editor-owned Save button).
-        Runnable pushLive = () -> {
+        // Facade write path: rebuilds a fresh Server from the current control
+        // values and pushes it straight into the table's live state (no
+        // editor-owned Save button).
+        form.onEdit(() -> {
             if (isSuppressingLiveUpdates()) {
                 return;
             }
@@ -351,136 +357,19 @@ public final class ServersModule extends CrudModule<Server> {
                     new HashSet<>(preferredTimesItems),
                     experiencedCheck.isSelected(),
                     activeCheck.isSelected()));
-        };
-        pushLiveHolder[0] = pushLive;
-        firstNameField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
-        lastNameField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
-        contactField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
-        birthDatePicker.valueProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
-        familyIdField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
-        experiencedCheck.selectedProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
-        activeCheck.selectedProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
-        preferredTimesItems.addListener((ListChangeListener<LocalTime>) change -> {
-            pushLive.run();
-            recomputePreferredTimesChanged.run();
         });
-        unavailabilityList.getItems().addListener((ListChangeListener<UnavailabilityPeriod>) change -> {
-            pushLive.run();
-            recomputeUnavailabilityChanged.run();
-        });
+        // The two list-backed sections mutate their lists directly rather than
+        // through a watched property, so they report edits themselves.
+        preferredTimesItems.addListener((ListChangeListener<LocalTime>) change -> form.edited());
+        unavailabilityList.getItems().addListener(
+                (ListChangeListener<UnavailabilityPeriod>) change -> form.edited());
 
-        GridPane grid = new GridPane();
-        grid.setHgap(8);
-        grid.setVgap(8);
-        ColumnConstraints labelColumn = new ColumnConstraints();
-        labelColumn.setMinWidth(110);
-        ColumnConstraints fieldColumn = new ColumnConstraints();
-        fieldColumn.setHgrow(Priority.ALWAYS);
-        grid.getColumnConstraints().addAll(labelColumn, fieldColumn);
-
-        Label firstNameLabel = new Label(Localization.lang("First name"));
-        Label lastNameLabel = new Label(Localization.lang("Last name"));
-        Label contactLabel = new Label(Localization.lang("Contact"));
-        Label birthDateLabel = new Label(Localization.lang("Birth date"));
-        Label familyLabel = new Label(Localization.lang("Family"));
-        Label experiencedLabel = new Label(Localization.lang("Experienced"));
-        Label activeLabel = new Label(Localization.lang("Active"));
-
-        int row = 0;
-        grid.add(firstNameLabel, 0, row);
-        grid.add(firstNameField, 1, row++);
-        grid.add(lastNameLabel, 0, row);
-        grid.add(lastNameField, 1, row++);
-        grid.add(contactLabel, 0, row);
-        grid.add(contactField, 1, row++);
-        grid.add(birthDateLabel, 0, row);
-        grid.add(birthDatePicker, 1, row++);
-        grid.add(familyLabel, 0, row);
-        grid.add(familyIdField, 1, row++);
-        GridPane.setValignment(preferredTimesLabel, VPos.TOP);
-        grid.add(preferredTimesLabel, 0, row);
-        grid.add(preferredTimesTiles, 1, row++);
-        grid.add(experiencedLabel, 0, row);
-        grid.add(experiencedCheck, 1, row++);
-        grid.add(activeLabel, 0, row);
-        grid.add(activeCheck, 1, row++);
-
-        GridPane.setValignment(qualificationsLabel, VPos.TOP);
-        // The list's first row isn't flush with its own top edge (border +
-        // cell padding), so a plain top-aligned label sits a few pixels
-        // above it - nudge the label down to match.
-        qualificationsLabel.setPadding(new Insets(4, 0, 0, 0));
-        grid.add(qualificationsLabel, 0, row);
-        GridPane.setVgrow(qualificationsList, Priority.ALWAYS);
-        grid.add(qualificationsList, 1, row++);
-
-        GridPane.setValignment(unavailabilityLabel, VPos.TOP);
-        unavailabilityLabel.setPadding(new Insets(4, 0, 0, 0));
-        grid.add(unavailabilityLabel, 0, row);
-        // FlowPane, not HBox - From/To/Add/Remove wrap onto a second line
-        // instead of forcing the whole editor pane to a wide minimum width
-        // when the window is narrow. Unlike Controls (ListView, TextField,
-        // ...), plain layout panes have no default "-fx-max-width: infinity"
-        // - without explicit max widths, neither the VBox nor the FlowPane
-        // grows past its own computed preferred width, so GridPane has
-        // nothing wider to give them and the FlowPane wraps at a narrow
-        // width regardless of how much column space is actually free.
-        // Growing both, then binding prefWrapLength to the now-genuinely-
-        // stretched VBox width, makes wrapping track the real available space.
-        FlowPane periodControls = new FlowPane(8, 8,
-                periodFromPicker, periodToPicker, addPeriodButton, removePeriodButton);
-        periodControls.setMaxWidth(Double.MAX_VALUE);
-        VBox unavailabilityBox = new VBox(8, unavailabilityList, periodControls);
-        unavailabilityBox.setMaxWidth(Double.MAX_VALUE);
-        periodControls.prefWrapLengthProperty().bind(unavailabilityBox.widthProperty());
-        GridPane.setVgrow(unavailabilityBox, Priority.ALWAYS);
-        grid.add(unavailabilityBox, 1, row++);
-
-        VBox content = new VBox(10, grid);
+        VBox content = new VBox(10, form.grid());
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
-        markDirtyOnChange(firstNameField.textProperty(), () -> baselineSupplier.get().firstName(), firstNameLabel);
-        markDirtyOnChange(lastNameField.textProperty(), () -> baselineSupplier.get().lastName(), lastNameLabel);
-        markDirtyOnChange(contactField.textProperty(), () -> baselineSupplier.get().contact(), contactLabel);
-        markDirtyOnChange(birthDatePicker.valueProperty(), () -> baselineSupplier.get().birthDate(), birthDateLabel);
-        markDirtyOnChange(familyIdField.textProperty(),
-                () -> Objects.requireNonNullElse(baselineSupplier.get().familyId(), ""), familyLabel);
-        markDirtyOnChange(experiencedCheck.selectedProperty(), () -> baselineSupplier.get().experienced(), experiencedLabel);
-        markDirtyOnChange(activeCheck.selectedProperty(), () -> baselineSupplier.get().active(), activeLabel);
-
-        // refresh: the row's value changed externally (e.g. an Open or a revert reverted
-        // this server) - push every field back to the new value in place.
-        return EditorBinding.of(content, updated -> {
-            withoutLiveUpdates(() -> {
-                firstNameField.setText(updated.firstName());
-                lastNameField.setText(updated.lastName());
-                contactField.setText(updated.contact());
-                birthDatePicker.setValue(updated.birthDate());
-                String updatedFamilyId = updated.familyId();
-                familyIdField.setSelectedItem(updatedFamilyId == null ? "" : updatedFamilyId);
-                qualificationSelected.forEach((roleId, ticked) -> ticked.set(updated.qualifications().contains(roleId)));
-                preferredTimesItems.setAll(updated.preferredTimes().stream().sorted().toList());
-                refreshPreferredTimeChips(preferredTimesTiles, preferredTimesItems, preferredTimeInputGroup);
-                unavailabilityList.getItems().setAll(updated.unavailabilities());
-                experiencedCheck.setSelected(updated.experienced());
-                activeCheck.setSelected(updated.active());
-            });
-            // None of the sets above necessarily changed what a control
-            // displays (a Save moves the baseline, not the live value),
-            // so their own listeners may not have fired - recompute
-            // explicitly rather than relying on one.
-            recomputeFieldChanged(firstNameField.textProperty(), () -> baselineSupplier.get().firstName(), firstNameLabel);
-            recomputeFieldChanged(lastNameField.textProperty(), () -> baselineSupplier.get().lastName(), lastNameLabel);
-            recomputeFieldChanged(contactField.textProperty(), () -> baselineSupplier.get().contact(), contactLabel);
-            recomputeFieldChanged(birthDatePicker.valueProperty(), () -> baselineSupplier.get().birthDate(), birthDateLabel);
-            recomputeFieldChanged(familyIdField.textProperty(),
-                    () -> Objects.requireNonNullElse(baselineSupplier.get().familyId(), ""), familyLabel);
-            recomputeFieldChanged(experiencedCheck.selectedProperty(), () -> baselineSupplier.get().experienced(), experiencedLabel);
-            recomputeFieldChanged(activeCheck.selectedProperty(), () -> baselineSupplier.get().active(), activeLabel);
-            recomputeQualificationsChanged.run();
-            recomputePreferredTimesChanged.run();
-            recomputeUnavailabilityChanged.run();
-        });
+        // refresh: the row's value changed externally (e.g. an Open, or a
+        // revert) - the form pushes every declared row back into its control.
+        return EditorBinding.of(content, form.refresh());
     }
 
     /// Rebuilds `flow` from `times` - one closable [ChipView]

@@ -4,7 +4,6 @@ import atlantafx.base.layout.InputGroup;
 
 import java.util.Objects;
 import java.util.function.IntSupplier;
-import java.util.function.Supplier;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
@@ -13,9 +12,6 @@ import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
@@ -26,6 +22,7 @@ import org.mindis.core.model.Role;
 import org.mindis.core.persistence.RoleCsvMapper;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.gui.shell.CrudModule;
+import org.mindis.gui.shell.EditorForm;
 import org.mindis.gui.shell.ShellOverlays;
 import org.mindis.gui.data.LiveStore;
 
@@ -65,14 +62,7 @@ public final class RolesModule extends CrudModule<Role> {
 
     @Override
     protected EditorBinding<Role> buildEditor(Role role) {
-        // Compares against the last-flushed value, not role itself - role
-        // may already be a live (unsaved) edit from a previous visit to this
-        // row, and comparing against itself would always read "unchanged"
-        // even though it still differs from disk. A supplier, not a
-        // one-time snapshot, so it reflects the post-Save baseline on a
-        // later call, not whatever was last flushed when this editor was
-        // built (see CrudModule#markDirtyOnChange).
-        Supplier<Role> baselineSupplier = baseline(role);
+        EditorForm<Role> form = editorForm(role);
 
         TextField nameField = new TextField(role.name());
 
@@ -88,14 +78,25 @@ public final class RolesModule extends CrudModule<Role> {
         minAgeSpinner.getValueFactory().setValue(role.minAge());
         maxAgeSpinner.getValueFactory().setValue(role.maxAge());
 
-        // Guards every programmatic control set below (the refresh callback,
-        // and the min-age listener's own nested max-age bump) against
-        // re-firing pushLive - without it, a value push here can trigger a
-        // *second*, reentrant items.set() on the shared store list while an
-        // outer one (e.g. a sibling row's edit, or this same edit) is still
-        // unwinding through its own listener chain, which corrupts
-        // JavaFX's internal ListChangeBuilder (observed as an
-        // UnmodifiableList.add crash deep in ListChangeBuilder.nextRemove).
+        form.field(Localization.lang("Name"), nameField, nameField.textProperty(),
+                Role::name, nameField::setText);
+        // One label covers both spinners, so the accent is a section: dirty if
+        // either differs from the baseline, not just the one whose own
+        // listener last fired (two independent field() rows sharing a label
+        // would let an unchanged spinner's recompute clobber the accent set by
+        // the other one still differing).
+        form.section(Localization.lang("Age range"),
+                new InputGroup(minAgeSpinner, new Label("–"), maxAgeSpinner),
+                label -> {
+                    Role saved = form.baseline().get();
+                    setFieldChanged(label, !Objects.equals(minAgeSpinner.getValue(), saved.minAge())
+                            || !Objects.equals(maxAgeSpinner.getValue(), saved.maxAge()));
+                },
+                updated -> {
+                    minAgeSpinner.getValueFactory().setValue(updated.minAge());
+                    maxAgeSpinner.getValueFactory().setValue(updated.maxAge());
+                });
+
         Runnable pushLive = () -> {
             if (isSuppressingLiveUpdates()) {
                 return;
@@ -103,16 +104,18 @@ public final class RolesModule extends CrudModule<Role> {
             updateLive(new Role(role.id(), nameField.getText().strip(),
                     minAgeSpinner.getValue(), maxAgeSpinner.getValue(), role.sortOrder()));
         };
+        form.onEdit(pushLive);
 
+        // The age-range section wires its own listeners (see EditorForm#section):
+        // both spinners push live and both recompute the shared accent.
+        //
         // Raising the min age above the max age drags the max age up with it.
-        // addListener, not subscribe(): subscribe() fires immediately with
-        // the current value at registration - since buildEditor can run
-        // synchronously nested inside another mutation of the shared store
-        // list (e.g. TableView reselecting a row mid-delete), that immediate
-        // call would run pushLive() (via the nested maxAge set below) while
-        // the outer list change was still unwinding - the same reentrant
-        // items.set() corruption withoutLiveUpdates guards against, but from
-        // construction rather than refresh().
+        // addListener, not subscribe(): subscribe() fires immediately at
+        // registration - and buildEditor can run nested inside another
+        // mutation of the shared store list (a TableView reselecting a row
+        // mid-delete), so that immediate call would push live while the outer
+        // list change is still unwinding, the same reentrancy
+        // withoutLiveUpdates guards against but from construction.
         minAgeSpinner.valueProperty().addListener((obs, oldMin, newMin) -> {
             Integer max = maxAgeSpinner.getValue();
             if (newMin != null && max != null && max < newMin) {
@@ -121,60 +124,10 @@ public final class RolesModule extends CrudModule<Role> {
             pushLive.run();
         });
         maxAgeSpinner.valueProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
-        nameField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
 
-        GridPane grid = new GridPane();
-        grid.setHgap(8);
-        grid.setVgap(8);
-        ColumnConstraints labelColumn = new ColumnConstraints();
-        labelColumn.setMinWidth(110);
-        ColumnConstraints fieldColumn = new ColumnConstraints();
-        fieldColumn.setHgrow(Priority.ALWAYS);
-        grid.getColumnConstraints().addAll(labelColumn, fieldColumn);
-
-        Label nameLabel = new Label(Localization.lang("Name"));
-        Label ageRangeLabel = new Label(Localization.lang("Age range"));
-        grid.add(nameLabel, 0, 0);
-        grid.add(nameField, 1, 0);
-        grid.add(ageRangeLabel, 0, 1);
-        grid.add(new InputGroup(minAgeSpinner, new Label("–"), maxAgeSpinner), 1, 1);
-
-        VBox content = new VBox(12, grid);
+        VBox content = new VBox(12, form.grid());
         content.setPadding(new Insets(12));
-
-        markDirtyOnChange(nameField.textProperty(), () -> baselineSupplier.get().name(), nameLabel);
-        // One label covers both spinners - dirty if either differs from the
-        // baseline, not just the one whose own listener last fired (two
-        // independent markDirtyOnChange calls sharing a label would let an
-        // unchanged spinner's own recompute clobber the accent set by the
-        // other one still differing).
-        Runnable recomputeAgeRangeChanged = () -> setFieldChanged(ageRangeLabel,
-                !Objects.equals(minAgeSpinner.getValue(), baselineSupplier.get().minAge())
-                        || !Objects.equals(maxAgeSpinner.getValue(), baselineSupplier.get().maxAge()));
-        minAgeSpinner.valueProperty().addListener((obs, oldValue, newValue) -> recomputeAgeRangeChanged.run());
-        maxAgeSpinner.valueProperty().addListener((obs, oldValue, newValue) -> recomputeAgeRangeChanged.run());
-        recomputeAgeRangeChanged.run();
-
-        // refresh: the row's value changed externally (e.g. an Open or a revert reverted
-        // this role, or an unrelated row's edit elsewhere ran CrudModule's
-        // generic re-sync - see line141 in CrudModule) - push the new value
-        // into every control in place. Suppressed the same way as above:
-        // these are programmatic sets, not a user edit, and Spinner's value
-        // property compares by reference - not equals() - so even
-        // "unchanged" Integer values can still fire the field's own listener.
-        return EditorBinding.of(content, updated -> {
-            withoutLiveUpdates(() -> {
-                nameField.setText(updated.name());
-                minAgeSpinner.getValueFactory().setValue(updated.minAge());
-                maxAgeSpinner.getValueFactory().setValue(updated.maxAge());
-            });
-            // None of the sets above necessarily changed what a control
-            // displays (a Save moves the baseline, not the live value),
-            // so their own listeners may not have fired - recompute
-            // explicitly rather than relying on one.
-            recomputeFieldChanged(nameField.textProperty(), () -> baselineSupplier.get().name(), nameLabel);
-            recomputeAgeRangeChanged.run();
-        });
+        return EditorBinding.of(content, form.refresh());
     }
 
     /// Formats a role's age range for the table: `"min-max"`, or one-sided

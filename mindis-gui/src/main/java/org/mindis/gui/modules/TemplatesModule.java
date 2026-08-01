@@ -4,21 +4,13 @@ import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
-import javafx.geometry.VPos;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
@@ -37,6 +29,7 @@ import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.TemplateCsvMapper;
 import org.mindis.gui.util.TimePickers;
 import org.mindis.gui.shell.CrudModule;
+import org.mindis.gui.shell.EditorForm;
 import org.mindis.gui.shell.ShellOverlays;
 import org.mindis.gui.data.LiveStore;
 
@@ -94,7 +87,7 @@ public final class TemplatesModule extends CrudModule<ServiceTemplate> {
     protected EditorBinding<ServiceTemplate> buildEditor(ServiceTemplate template) {
         // Compares against the last-flushed value, not template itself - see
         // CrudModule#markDirtyOnChange.
-        Supplier<ServiceTemplate> baselineSupplier = baseline(template);
+        EditorForm<ServiceTemplate> form = editorForm(template);
 
         ScheduleEditor scheduleEditor = new ScheduleEditor(template.schedule());
 
@@ -117,40 +110,30 @@ public final class TemplatesModule extends CrudModule<ServiceTemplate> {
 
         TextField locationField = new TextField(template.location());
 
-        Runnable[] pushLiveHolder = new Runnable[1];
-        // Recomputed from baselineSupplier on every call (not captured once)
-        // for the same reason baselineSupplier itself is a supplier - it
-        // must reflect the post-Save baseline, not whatever was last flushed
-        // when this editor was built.
-        Function<Map<String, Integer>, Boolean> slotsChanged =
-                liveCounts -> !liveCounts.equals(countsByRole(baselineSupplier.get().slots()));
-        // SlotCountEditor's onChange callback needs to mark its own label
-        // dirty, but that label (slotsEditor.label) doesn't exist until the
-        // SlotCountEditor constructor - which is where the callback itself
-        // gets built - returns. A one-element array sidesteps the
-        // chicken-and-egg: the callback only runs later, in response to a
-        // spinner change, well after the array's single slot is filled in
-        // right below the constructor call.
-        Region[] slotsLabelHolder = new Region[1];
-        // Bound directly to the shared live role list - a role added,
-        // renamed or removed anywhere shows up in this editor's slot rows on
-        // its own, no rebuild call from here needed.
+        // Bound directly to the shared live role list - a role added, renamed
+        // or removed anywhere shows up in this editor's slot rows on its own,
+        // no rebuild call from here needed. Its spinners report through
+        // form.edited(), which reaches the write-through callback built below.
         SlotCountEditor slotsEditor = new SlotCountEditor(roleStore.items(), countsByRole(template.slots()),
-                counts -> {
-                    setFieldChanged(slotsLabelHolder[0], slotsChanged.apply(counts));
-                    pushLiveHolder[0].run();
-                });
-        slotsLabelHolder[0] = slotsEditor.label;
-        setFieldChanged(slotsEditor.label, slotsChanged.apply(slotsEditor.collectCounts()));
+                counts -> form.edited());
 
-        // Guards every control's change listener against firing while the
-        // refresh callback below is pushing an externally-changed value into
-        // the controls - without it, a refresh's programmatic set can
-        // trigger a *second*, reentrant items.set() on the shared store list
-        // while an outer one is still unwinding through its own listener
-        // chain, corrupting JavaFX's internal ListChangeBuilder (see
-        // RolesModule for the same fix).
-        Runnable pushLive = () -> {
+        form.field(Localization.lang("Recurrence"), scheduleEditor.node(), scheduleEditor.scheduleProperty(),
+                ServiceTemplate::schedule, scheduleEditor::setSchedule).topAligned();
+        form.field(Localization.lang("Time"), timeField, timeField.timeProperty(),
+                ServiceTemplate::time, timeField::setTime);
+        form.field(Localization.lang("Type"), typeBox, typeBox.getSelectionModel().selectedItemProperty(),
+                ServiceTemplate::type, typeBox.getSelectionModel()::select);
+        form.field(Localization.lang("Location"), locationField, locationField.textProperty(),
+                ServiceTemplate::location, locationField::setText);
+        // One label spans the whole role/count list, so its accent re-diffs
+        // every count against the baseline rather than watching one property.
+        form.section(slotsEditor.label, slotsEditor.list(),
+                label -> setFieldChanged(label,
+                        !slotsEditor.collectCounts().equals(countsByRole(form.baseline().get().slots()))),
+                updated -> slotsEditor.setCounts(countsByRole(updated.slots())))
+                .topAligned().growing();
+
+        form.onEdit(() -> {
             if (isSuppressingLiveUpdates()) {
                 return;
             }
@@ -162,72 +145,12 @@ public final class TemplatesModule extends CrudModule<ServiceTemplate> {
                     locationField.getText().strip(),
                     typeBox.getValue() == null ? ServiceType.SUNDAY_MASS : typeBox.getValue(),
                     toRoleSlots(slotsEditor.collectCounts())));
-        };
-        pushLiveHolder[0] = pushLive;
-        scheduleEditor.scheduleProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
-        timeField.timeProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
-        typeBox.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
-        locationField.textProperty().addListener((obs, oldValue, newValue) -> pushLive.run());
+        });
 
-        GridPane grid = new GridPane();
-        grid.setHgap(8);
-        grid.setVgap(8);
-        ColumnConstraints labelColumn = new ColumnConstraints();
-        labelColumn.setMinWidth(110);
-        ColumnConstraints fieldColumn = new ColumnConstraints();
-        fieldColumn.setHgrow(Priority.ALWAYS);
-        grid.getColumnConstraints().addAll(labelColumn, fieldColumn);
-
-        Label dayLabel = new Label(Localization.lang("Recurrence"));
-        Label timeLabel = new Label(Localization.lang("Time"));
-        Label typeLabel = new Label(Localization.lang("Type"));
-        Label locationLabel = new Label(Localization.lang("Location"));
-
-        int row = 0;
-        GridPane.setValignment(dayLabel, VPos.TOP);
-        grid.add(dayLabel, 0, row);
-        grid.add(scheduleEditor.node(), 1, row++);
-        grid.add(timeLabel, 0, row);
-        grid.add(timeField, 1, row++);
-        grid.add(typeLabel, 0, row);
-        grid.add(typeBox, 1, row++);
-        grid.add(locationLabel, 0, row);
-        grid.add(locationField, 1, row++);
-
-        GridPane.setValignment(slotsEditor.label, VPos.TOP);
-        grid.add(slotsEditor.label, 0, row);
-        GridPane.setVgrow(slotsEditor.list(), Priority.ALWAYS);
-        grid.add(slotsEditor.list(), 1, row++);
-
-        VBox content = new VBox(10, grid);
+        VBox content = new VBox(10, form.grid());
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
-        markDirtyOnChange(scheduleEditor.scheduleProperty(), () -> baselineSupplier.get().schedule(), dayLabel);
-        markDirtyOnChange(timeField.timeProperty(), () -> baselineSupplier.get().time(), timeLabel);
-        markDirtyOnChange(typeBox.getSelectionModel().selectedItemProperty(), () -> baselineSupplier.get().type(), typeLabel);
-        markDirtyOnChange(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
-
-        // refresh: the row's value changed externally (e.g. an Open or a revert reverted
-        // this template) - push the new value into every control in place,
-        // no rebuild, so the row survives without losing focus/scroll state.
-        return new EditorBinding<>(content, updated -> {
-            withoutLiveUpdates(() -> {
-                scheduleEditor.setSchedule(updated.schedule());
-                timeField.setTime(updated.time());
-                typeBox.getSelectionModel().select(updated.type());
-                locationField.setText(updated.location());
-                slotsEditor.setCounts(countsByRole(updated.slots()));
-            });
-            // None of the sets above necessarily changed what a control
-            // displays (a Save moves the baseline, not the live value),
-            // so their own listeners may not have fired - recompute
-            // explicitly rather than relying on one.
-            recomputeFieldChanged(scheduleEditor.scheduleProperty(), () -> baselineSupplier.get().schedule(), dayLabel);
-            recomputeFieldChanged(timeField.timeProperty(), () -> baselineSupplier.get().time(), timeLabel);
-            recomputeFieldChanged(typeBox.getSelectionModel().selectedItemProperty(), () -> baselineSupplier.get().type(), typeLabel);
-            recomputeFieldChanged(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
-            setFieldChanged(slotsEditor.label, slotsChanged.apply(countsByRole(updated.slots())));
-        }, slotsEditor::dispose);
+        return new EditorBinding<>(content, form.refresh(), slotsEditor::dispose);
     }
 
     private static Map<String, Integer> countsByRole(List<RoleSlot> slots) {

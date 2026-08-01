@@ -326,6 +326,14 @@ public abstract class CrudModule<T> extends ShellModule {
         return () -> Objects.requireNonNullElse(savedSnapshot(item), item);
     }
 
+    /// A label/control grid for `item`'s editor, pre-wired to this module's
+    /// baseline and write-through suppression. Declare one row per field and
+    /// finish with [EditorForm#onEdit]; see [EditorForm] for why the editors
+    /// are built this way.
+    protected final EditorForm<T> editorForm(T item) {
+        return new EditorForm<>(baseline(item), this::withoutLiveUpdates);
+    }
+
     /// Runs `programmaticEdit` with [#updateLive] pushes suppressed - for
     /// control sets an editor makes itself (an [EditorBinding]'s `refresh`,
     /// or one field dragging another along, e.g. a min bound pushing a max
