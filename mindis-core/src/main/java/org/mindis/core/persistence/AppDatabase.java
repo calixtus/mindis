@@ -4,10 +4,13 @@ import jakarta.inject.Singleton;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.jspecify.annotations.Nullable;
 
+import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.CollectionMeta;
+import org.mindis.core.model.Role;
 
 /// The open document: aggregates the five repositories, whose caches are the
 /// single source of truth every reader (GUI stores, solver, CSV mappers) sees
@@ -70,7 +73,22 @@ public final class AppDatabase {
     /// built-in default roles so it is usable out of the box.
     public synchronized void newDocument() {
         apply(MinDisDocument.empty(), null);
-        roles.replaceAll(RoleRepository.defaults());
+        roles.replaceAll(defaultRoles());
+    }
+
+    /// The built-in roles a new document starts with. Seed data for one
+    /// document, so it belongs with document creation rather than in
+    /// [RoleRepository], which otherwise knows nothing about display text.
+    /// Names are localized once, here, and stay user-editable afterwards; the
+    /// ids match the former `Role` enum constants so older data referencing
+    /// those names still resolves.
+    public static List<Role> defaultRoles() {
+        return List.of(
+                new Role(Role.ACOLYTE, Localization.lang("Acolyte"), null, null, 0),
+                new Role(Role.CROSS_BEARER, Localization.lang("Cross bearer"), null, null, 1),
+                new Role(Role.THURIFER, Localization.lang("Thurifer"), null, null, 2),
+                new Role(Role.BOAT_BEARER, Localization.lang("Boat bearer"), null, null, 3),
+                new Role(Role.MASTER_OF_CEREMONIES, Localization.lang("Master of ceremonies"), null, null, 4));
     }
 
     /// Opens `file` and replaces the open document with its content.

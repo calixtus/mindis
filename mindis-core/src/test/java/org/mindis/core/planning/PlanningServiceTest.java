@@ -21,6 +21,7 @@ import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
+import org.mindis.core.persistence.AppDatabase;
 import org.mindis.core.persistence.ArchivedServiceRepository;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
@@ -48,7 +49,7 @@ class PlanningServiceTest {
         // Roles are document content now, no longer seeded on first access -
         // give this document the built-in defaults the slots below reference.
         RoleRepository roles = new RoleRepository();
-        RoleRepository.defaults().forEach(roles::save);
+        AppDatabase.defaultRoles().forEach(roles::save);
         planning = new PlanningService(servers, services, roles,
                 new PreferencesService(new DataDirectory(tempDir)), archived);
     }

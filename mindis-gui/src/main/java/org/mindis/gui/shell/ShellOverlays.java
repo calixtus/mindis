@@ -3,7 +3,6 @@ package org.mindis.gui.shell;
 import java.time.ZonedDateTime;
 
 import com.dlsc.gemsfx.DialogPane;
-import com.dlsc.gemsfx.DrawerStackPane;
 import com.dlsc.gemsfx.PowerPane;
 import com.dlsc.gemsfx.infocenter.InfoCenterView;
 import com.dlsc.gemsfx.infocenter.Notification;
@@ -39,12 +38,6 @@ public final class ShellOverlays {
     /// `overlays.dialogs().showConfirmation(title, message).onClose(...)`
     public DialogPane dialogs() {
         return powerPane.getDialogPane();
-    }
-
-    /// The bottom drawer layer, for a log or detail tray that slides up over
-    /// the content.
-    public DrawerStackPane drawer() {
-        return powerPane.getDrawerStackPane();
     }
 
     /// Posts a transient notification into the info center. Adding it makes

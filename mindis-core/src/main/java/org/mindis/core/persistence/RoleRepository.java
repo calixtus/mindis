@@ -3,9 +3,7 @@ package org.mindis.core.persistence;
 import jakarta.inject.Singleton;
 
 import java.util.Comparator;
-import java.util.List;
 
-import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
 
 /// Role storage: the roles of the currently open document, ordered by the
@@ -31,16 +29,5 @@ public final class RoleRepository extends InMemoryRepository<Role> {
                 .mapToInt(Role::sortOrder)
                 .max()
                 .orElse(-SORT_ORDER_STEP) + SORT_ORDER_STEP;
-    }
-
-    /// Built-in roles seeded into a new document. Names are localized at seed
-    /// time and remain user-editable afterwards.
-    public static List<Role> defaults() {
-        return List.of(
-                new Role(Role.ACOLYTE, Localization.lang("Acolyte"), null, null, 0),
-                new Role(Role.CROSS_BEARER, Localization.lang("Cross bearer"), null, null, 1),
-                new Role(Role.THURIFER, Localization.lang("Thurifer"), null, null, 2),
-                new Role(Role.BOAT_BEARER, Localization.lang("Boat bearer"), null, null, 3),
-                new Role(Role.MASTER_OF_CEREMONIES, Localization.lang("Master of ceremonies"), null, null, 4));
     }
 }

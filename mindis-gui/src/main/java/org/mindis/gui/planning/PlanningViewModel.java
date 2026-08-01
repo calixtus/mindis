@@ -49,8 +49,6 @@ public final class PlanningViewModel {
     private final ArchivedServiceRepository archivedServiceRepository;
 
     private final BooleanProperty solving = new SimpleBooleanProperty(false);
-    /// Fraction (0..1) of the board's slots that are filled - the value a solve
-    /// progress bar binds to. Recomputed from each improved solution.
     private final DoubleProperty solveProgress = new SimpleDoubleProperty(0);
 
     public PlanningViewModel(PlanningService planningService,
