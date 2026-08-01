@@ -29,8 +29,9 @@ import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.preferences.DataDirectory;
 import org.mindis.core.preferences.PreferencesService;
 
-/// Non-solving planning behavior: problem building, write-back onto slots, and
-/// archiving. The solver itself is exercised by [PlanningEndToEndTest].
+/// Non-solving planning behavior: problem building and write-back onto slots.
+/// The solver itself is exercised by [PlanningEndToEndTest], archiving by
+/// [ArchiveServiceTest].
 class PlanningServiceTest {
 
     @TempDir
@@ -38,20 +39,19 @@ class PlanningServiceTest {
 
     private ServerRepository servers;
     private ServiceRepository services;
-    private ArchivedServiceRepository archived;
     private PlanningService planning;
 
     @BeforeEach
     void setUp() {
         servers = new ServerRepository();
         services = new ServiceRepository();
-        archived = new ArchivedServiceRepository();
         // Roles are document content now, no longer seeded on first access -
         // give this document the built-in defaults the slots below reference.
         RoleRepository roles = new RoleRepository();
         AppDatabase.defaultRoles().forEach(roles::save);
         planning = new PlanningService(servers, services, roles,
-                new PreferencesService(new DataDirectory(tempDir)), archived);
+                new PreferencesService(new DataDirectory(tempDir)),
+                new ArchiveService(roles, servers, services, new ArchivedServiceRepository()));
     }
 
     @AfterEach
@@ -93,42 +93,6 @@ class PlanningServiceTest {
 
         Slot slot = updated.getFirst().slots().getFirst();
         assertEquals("srv", slot.serverId());
-    }
-
-    @Test
-    void archiveSnapshotsPastServicesAndReturnsRemovedIds() {
-        addServer();
-        addService("jul", LocalDate.of(2026, 7, 5), new Slot("s1", Role.ACOLYTE, "srv", false));
-        addService("aug", LocalDate.of(2026, 8, 5), new Slot("s2", Role.ACOLYTE, null, false));
-
-        ServiceArchiver.Result result = planning.archive(LocalDate.of(2026, 7, 31));
-
-        assertEquals(List.of("jul"), result.removedServiceIds());
-        assertEquals(1, archived.findAll().size());
-        assertEquals("Anna B", archived.findAll().getFirst().slots().getFirst().serverName());
-    }
-
-    @Test
-    void priorFromArchivedBridgesSpacingAcrossTheBoundary() {
-        addServer();
-        // Archive a service the day before the window start.
-        addService("prev", LocalDate.of(2026, 7, 31), new Slot("s1", Role.ACOLYTE, "srv", false));
-        planning.archive(LocalDate.of(2026, 7, 31));
-
-        List<PriorAssignment> prior = planning.priorFromArchived(LocalDate.of(2026, 8, 1));
-
-        assertEquals(1, prior.size());
-        assertEquals("srv", prior.getFirst().server().id());
-    }
-
-    @Test
-    void priorFromArchivedIgnoresServicesOutsideTheSpacingTail() {
-        addServer();
-        addService("old", LocalDate.of(2026, 7, 1), new Slot("s1", Role.ACOLYTE, "srv", false));
-        planning.archive(LocalDate.of(2026, 7, 1));
-
-        // Aug 1 is well past the 1-day spacing tail of a July 1 service.
-        assertTrue(planning.priorFromArchived(LocalDate.of(2026, 8, 1)).isEmpty());
     }
 
     @Test

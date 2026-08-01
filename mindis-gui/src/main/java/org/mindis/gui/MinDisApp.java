@@ -26,6 +26,7 @@ import org.mindis.core.l10n.Localization;
 import org.mindis.core.logging.LoggingBootstrap;
 import org.mindis.core.persistence.AppDatabase;
 import org.mindis.core.persistence.ArchivedServiceRepository;
+import org.mindis.core.planning.ArchiveService;
 import org.mindis.core.preferences.AccentColor;
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.persistence.RoleRepository;
@@ -199,7 +200,7 @@ public class MinDisApp extends Application {
                         beanScope.get(PlanningService.class),
                         preferencesService,
                         beanScope.get(PlanExportService.class),
-                        beanScope.get(ArchivedServiceRepository.class)),
+                        beanScope.get(ArchiveService.class)),
                 overlays);
         // The collection switcher (sidebar top) owns the document actions now:
         // switching collection is opening a file, and its dropdown carries New,

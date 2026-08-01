@@ -11,7 +11,6 @@ import ai.timefold.solver.core.config.solver.termination.TerminationConfig;
 import jakarta.inject.Singleton;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,12 +21,10 @@ import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
 
-import org.mindis.core.model.ArchivedService;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.Slot;
-import org.mindis.core.persistence.ArchivedServiceRepository;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
@@ -53,7 +50,7 @@ public final class PlanningService implements AutoCloseable {
     private final ServiceRepository serviceRepository;
     private final RoleRepository roleRepository;
     private final PreferencesService preferencesService;
-    private final ArchivedServiceRepository archivedServiceRepository;
+    private final ArchiveService archiveService;
     private final SolverManager<ServicePlan> solverManager;
     private final SolutionManager<ServicePlan, HardMediumSoftScore> solutionManager;
 
@@ -61,12 +58,12 @@ public final class PlanningService implements AutoCloseable {
                            ServiceRepository serviceRepository,
                            RoleRepository roleRepository,
                            PreferencesService preferencesService,
-                           ArchivedServiceRepository archivedServiceRepository) {
+                           ArchiveService archiveService) {
         this.serverRepository = serverRepository;
         this.serviceRepository = serviceRepository;
         this.roleRepository = roleRepository;
         this.preferencesService = preferencesService;
-        this.archivedServiceRepository = archivedServiceRepository;
+        this.archiveService = archiveService;
         this.solverManager = SolverManager.create(solverConfig());
         this.solutionManager = SolutionManager.create(solverManager);
     }
@@ -100,7 +97,7 @@ public final class PlanningService implements AutoCloseable {
     /// cross-boundary spacing facts from the archive.
     public ServicePlan buildProblem() {
         List<LiturgicalService> services = serviceRepository.findAll();
-        return buildProblem(services, priorFromArchived(earliestDate(services)));
+        return buildProblem(services, archiveService.priorFromArchived(earliestDate(services)));
     }
 
     /// Builds a problem from an explicit service set with explicit prior facts
@@ -159,57 +156,6 @@ public final class PlanningService implements AutoCloseable {
             }
             result.add(service.withSlots(newSlots));
         }
-        return result;
-    }
-
-    /// [PriorAssignment] facts drawn from the archive: any archived slot
-    /// whose service date lies in the [MinDisConstraintProvider#SPACING_THRESHOLD_DAYS]-day
-    /// tail immediately
-    /// before `earliest` and whose server still exists, so the solver is
-    /// penalized for scheduling that server again right up against the frozen
-    /// history. Empty when there are no live services to place.
-    public List<PriorAssignment> priorFromArchived(@Nullable LocalDate earliest) {
-        if (earliest == null) {
-            return List.of();
-        }
-        LocalDate cutoff = earliest.minusDays(MinDisConstraintProvider.SPACING_THRESHOLD_DAYS);
-        Map<String, Server> serversById = new HashMap<>();
-        serverRepository.findAll().forEach(server -> serversById.put(server.id(), server));
-        List<PriorAssignment> result = new ArrayList<>();
-        for (ArchivedService archived : archivedServiceRepository.findAll()) {
-            LocalDate date = archived.dateTime().toLocalDate();
-            if (date.isBefore(cutoff) || !date.isBefore(earliest)) {
-                continue;
-            }
-            for (ArchivedService.ArchivedSlot slot : archived.slots()) {
-                if (slot.serverId() == null) {
-                    continue;
-                }
-                Server server = serversById.get(slot.serverId());
-                if (server != null) {
-                    result.add(new PriorAssignment(date, server));
-                }
-            }
-        }
-        return result;
-    }
-
-    /// Freezes every live service dated on or before `cutoff` into a
-    /// self-contained [ArchivedService] snapshot (role/server names
-    /// resolved now), persists the snapshots immediately, and returns the ids
-    /// of the live services to drop. The caller removes those from the live
-    /// list and Save-alls to commit the removal. Empty result if the cutoff
-    /// freezes nothing.
-    public ServiceArchiver.Result archive(LocalDate cutoff) {
-        Map<String, Role> rolesById = new HashMap<>();
-        roleRepository.findAll().forEach(role -> rolesById.put(role.id(), role));
-        Map<String, Server> serversById = new HashMap<>();
-        serverRepository.findAll().forEach(server -> serversById.put(server.id(), server));
-        ServiceArchiver.Result result = ServiceArchiver.archive(
-                serviceRepository.findAll(), cutoff, Instant.now(),
-                roleId -> rolesById.containsKey(roleId) ? rolesById.get(roleId).name() : null,
-                serverId -> serversById.containsKey(serverId) ? serversById.get(serverId).displayName() : null);
-        archivedServiceRepository.addAll(result.archived());
         return result;
     }
 

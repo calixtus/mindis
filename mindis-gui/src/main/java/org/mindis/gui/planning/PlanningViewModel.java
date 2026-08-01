@@ -24,8 +24,8 @@ import org.mindis.core.export.PlanExportFormat;
 import org.mindis.core.export.PlanExportService;
 import org.mindis.core.model.ArchivedService;
 import org.mindis.core.model.LiturgicalService;
-import org.mindis.core.persistence.ArchivedServiceRepository;
 import org.mindis.core.planning.Assignment;
+import org.mindis.core.planning.ArchiveService;
 import org.mindis.core.planning.Autofill;
 import org.mindis.core.planning.PlanningService;
 import org.mindis.core.planning.ServiceArchiver;
@@ -46,7 +46,7 @@ public final class PlanningViewModel {
     private final PlanningService planningService;
     private final PreferencesService preferencesService;
     private final PlanExportService planExportService;
-    private final ArchivedServiceRepository archivedServiceRepository;
+    private final ArchiveService archiveService;
 
     private final BooleanProperty solving = new SimpleBooleanProperty(false);
     private final DoubleProperty solveProgress = new SimpleDoubleProperty(0);
@@ -54,11 +54,11 @@ public final class PlanningViewModel {
     public PlanningViewModel(PlanningService planningService,
                              PreferencesService preferencesService,
                              PlanExportService planExportService,
-                             ArchivedServiceRepository archivedServiceRepository) {
+                             ArchiveService archiveService) {
         this.planningService = planningService;
         this.preferencesService = preferencesService;
         this.planExportService = planExportService;
-        this.archivedServiceRepository = archivedServiceRepository;
+        this.archiveService = archiveService;
     }
 
     // --- Solve state ---
@@ -177,18 +177,18 @@ public final class PlanningViewModel {
 
     /// Freezes live services up to `cutoff` into self-contained archived
     /// snapshots (persisted immediately) and returns the ids to drop from the
-    /// live list - see [PlanningService#archive].
+    /// live list - see [ArchiveService#archive].
     public ServiceArchiver.Result archive(LocalDate cutoff) {
-        return planningService.archive(cutoff);
+        return archiveService.archive(cutoff);
     }
 
     /// Every archived service, newest first.
     public List<ArchivedService> listArchived() {
-        return archivedServiceRepository.findAll();
+        return archiveService.listArchived();
     }
 
     public void deleteArchived(ArchivedService service) {
-        archivedServiceRepository.delete(service.id());
+        archiveService.deleteArchived(service.id());
     }
 
     // --- Export ---
