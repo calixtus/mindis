@@ -87,6 +87,31 @@ final class Charts {
         return configure(chart, false);
     }
 
+    /// Horizontal bars grouped per category, one bar per series - for comparing
+    /// two figures about the same thing (a role's open slots against the
+    /// servers qualified for it).
+    static Node horizontalBar(List<String> categoryLabels, List<Series> series, String valueAxisLabel) {
+        if (categoryLabels.isEmpty() || series.isEmpty()) {
+            return empty();
+        }
+        List<String> bottomUp = categoryLabels.reversed();
+        BarChart<Number, String> chart = new BarChart<>(valueAxis(valueAxisLabel),
+                categoryAxis(bottomUp, bottomUp.size()));
+        for (Series row : series) {
+            XYChart.Series<Number, String> plotted = new XYChart.Series<>();
+            plotted.setName(row.name());
+            for (int i = 0; i < categoryLabels.size() && i < row.values().size(); i++) {
+                String label = categoryLabels.get(i);
+                double value = row.values().get(i);
+                XYChart.Data<Number, String> point = new XYChart.Data<>(value, label);
+                plotted.getData().add(point);
+                installTooltip(point.nodeProperty(), new Slice(row.name() + " - " + label, value));
+            }
+            chart.getData().add(plotted);
+        }
+        return configure(chart, series.size() > 1);
+    }
+
     /// One stacked bar per category, one stack segment per series.
     static Node stackedBar(List<String> categoryLabels, List<Series> series, String valueAxisLabel) {
         if (categoryLabels.isEmpty() || series.isEmpty()) {

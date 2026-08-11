@@ -5,6 +5,7 @@ import io.avaje.inject.Prototype;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Year;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -53,6 +54,10 @@ public final class DashboardViewModel {
     /// How far the "away soon" widget looks ahead - roughly the horizon within
     /// which an absence still changes who can be assigned.
     private static final int ABSENCE_HORIZON_DAYS = 60;
+
+    /// How far the same widget looks *back* for birthdays: about two weeks, so
+    /// one that has just passed can still be caught up on.
+    private static final int BIRTHDAY_LOOKBACK_DAYS = 14;
 
     /// Months the archive history spans, ending with the current one.
     private static final int HISTORY_MONTHS = 12;
@@ -129,30 +134,31 @@ public final class DashboardViewModel {
     ///        [#upcomingServices()], which is capped at what the "next
     ///        services" widget can show
     public record Snapshot(int unassignedSlots, int totalSlots,
+                           int openSlotsAhead, int slotsAhead,
                            int upcomingServiceCount, int activeServers, int roles,
                            List<UpcomingService> upcomingServices,
                            List<ServerLoad> serverLoad,
-                           List<RoleOpenSlots> openSlotsByRole,
+                           List<RoleStatus> roleStatus,
                            List<ServiceTypeCount> serviceTypeMix,
                            List<WeekCoverage> coverageTrend,
-                           List<RoleQualification> qualificationCoverage,
                            List<Absence> absencesAhead,
-                           List<RosterIssue> rosterIssues,
+                           List<Birthday> birthdaysAround,
                            List<ArchiveMonth> archiveHistory,
                            List<ProblemCount> problems,
+                           List<RosterIssue> rosterIssues,
                            boolean problemsChecked) {
 
         public Snapshot {
             upcomingServices = List.copyOf(upcomingServices);
             serverLoad = List.copyOf(serverLoad);
-            openSlotsByRole = List.copyOf(openSlotsByRole);
+            roleStatus = List.copyOf(roleStatus);
             serviceTypeMix = List.copyOf(serviceTypeMix);
             coverageTrend = List.copyOf(coverageTrend);
-            qualificationCoverage = List.copyOf(qualificationCoverage);
             absencesAhead = List.copyOf(absencesAhead);
-            rosterIssues = List.copyOf(rosterIssues);
+            birthdaysAround = List.copyOf(birthdaysAround);
             archiveHistory = List.copyOf(archiveHistory);
             problems = List.copyOf(problems);
+            rosterIssues = List.copyOf(rosterIssues);
         }
 
         /// Whether the document holds no plan at all yet (no slots anywhere).
@@ -164,10 +170,24 @@ public final class DashboardViewModel {
             return totalSlots - unassignedSlots;
         }
 
-        /// Share of slots that have a server, 0-100. An empty document counts
-        /// as zero rather than as fully covered.
+        public int assignedSlotsAhead() {
+            return slotsAhead - openSlotsAhead;
+        }
+
+        /// Share of the slots still ahead that have a server, 0-100. Counted
+        /// over the upcoming services only, like every other "open slots"
+        /// figure on the board: a slot in a service that has already happened
+        /// cannot be filled any more, so counting it would report work that
+        /// nobody can do. Nothing planned counts as zero rather than as fully
+        /// covered.
         public int coveragePercent() {
-            return totalSlots == 0 ? 0 : Math.round(assignedSlots() * 100f / totalSlots);
+            return slotsAhead == 0 ? 0 : Math.round(assignedSlotsAhead() * 100f / slotsAhead);
+        }
+
+        /// Everything the problems widget lists: the assignments violating a
+        /// constraint plus the roster issues.
+        public int problemCount() {
+            return problems.stream().mapToInt(ProblemCount::assignments).sum() + rosterIssues.size();
         }
     }
 
@@ -180,30 +200,38 @@ public final class DashboardViewModel {
     public record ServerLoad(String serverName, long assignments) {
     }
 
-    /// One entry of the "open slots by role" widget: how many slots for that
-    /// role are still unfilled, across the services that are still ahead.
-    public record RoleOpenSlots(String roleName, int openSlots) {
-    }
-
     /// One entry of the "service types" widget: how many of the upcoming
     /// services are of that kind.
     public record ServiceTypeCount(ServiceType type, int count) {
     }
 
-    /// One entry of the "qualified servers per role" widget: how many active
-    /// servers may fill that role, against the most slots a single upcoming
-    /// service needs for it. Fewer qualified servers than that peak means the
-    /// role cannot be staffed for that service, however the solver shuffles.
-    public record RoleQualification(String roleName, int qualifiedServers, int peakSlots) {
+    /// One role on the "roles" widget: how many of its slots are still unfilled
+    /// across the upcoming services, how many active servers may fill it, and
+    /// the most slots a single upcoming service needs for it.
+    ///
+    /// The two numbers belong together: open slots say how much work is left,
+    /// qualified servers say whether that work can be done at all. Fewer
+    /// qualified servers than the peak need means the role cannot be staffed
+    /// for that service, however the solver shuffles.
+    public record RoleStatus(String roleName, int openSlots, int qualifiedServers, int peakSlots) {
 
         public boolean isShort() {
             return qualifiedServers < peakSlots;
         }
     }
 
-    /// One entry of the "away soon" widget: an active server unavailable during
-    /// (part of) the window the widget looks ahead over.
+    /// One entry of the "away and birthdays" widget: an active server
+    /// unavailable during (part of) the window the widget looks ahead over.
     public record Absence(String serverName, LocalDate start, LocalDate end) {
+    }
+
+    /// A birthday of an active server near today - within the same window as
+    /// the absences, plus a short look back so one that has just passed is
+    /// still there to congratulate on.
+    ///
+    /// @param date the birthday's occurrence in that window, not the birth date
+    /// @param age the age reached on `date`
+    public record Birthday(String serverName, LocalDate date, int age) {
     }
 
     /// What can be wrong with the roster, as far as the dashboard can see.
@@ -254,11 +282,17 @@ public final class DashboardViewModel {
         List<LiturgicalService> ahead = services.stream()
                 .filter(service -> service.dateTime().isAfter(LocalDateTime.now()))
                 .toList();
-        return new Snapshot(unassigned, totalSlots, upcomingCount, activeServers, roleRepository.findAll().size(),
+        int slotsAhead = ahead.stream().mapToInt(service -> service.slots().size()).sum();
+        int openAhead = (int) ahead.stream()
+                .flatMap(service -> service.slots().stream())
+                .filter(slot -> slot.serverId() == null)
+                .count();
+        return new Snapshot(unassigned, totalSlots, openAhead, slotsAhead,
+                upcomingCount, activeServers, roleRepository.findAll().size(),
                 upcomingServices(services), serverLoad(services),
-                openSlotsByRole(ahead), serviceTypeMix(ahead), coverageTrend(ahead),
-                qualificationCoverage(ahead), absencesAhead(), rosterIssues(ahead), archiveHistory(),
-                problems(services, totalSlots), totalSlots <= MAX_CHECKED_SLOTS);
+                roleStatus(ahead), serviceTypeMix(ahead), coverageTrend(ahead),
+                absencesAhead(), birthdaysAround(), archiveHistory(),
+                problems(services, totalSlots), rosterIssues(ahead), totalSlots <= MAX_CHECKED_SLOTS);
     }
 
     /// Assignments per violated constraint, worst first - the same checks the
@@ -317,29 +351,48 @@ public final class DashboardViewModel {
         return history;
     }
 
-    /// Per configured role: how many active servers may fill it, against the
-    /// most slots one upcoming service needs for it. Every role is listed, so a
-    /// role nobody is qualified for is visible rather than absent.
-    private List<RoleQualification> qualificationCoverage(List<LiturgicalService> ahead) {
+    /// Per role: open slots, qualified active servers and the peak need, over
+    /// the services still ahead - an open slot in a service that has already
+    /// happened cannot be staffed any more.
+    ///
+    /// Every configured role is listed, so a role nobody is qualified for is
+    /// visible rather than absent; a role id no configured role matches (used
+    /// by a slot but since deleted) is appended under its raw id, as the server
+    /// load does with server ids.
+    private List<RoleStatus> roleStatus(List<LiturgicalService> ahead) {
         List<Server> active = serverRepository.findAll().stream().filter(Server::active).toList();
-        List<RoleQualification> coverage = new ArrayList<>();
-        for (Role role : roleRepository.findAll()) {
-            int qualified = (int) active.stream()
-                    .filter(server -> server.qualifications().contains(role.id()))
-                    .count();
-            int peak = ahead.stream()
-                    .mapToInt(service -> (int) service.slots().stream()
-                            .filter(slot -> slot.role().equals(role.id()))
-                            .count())
-                    .max()
-                    .orElse(0);
-            coverage.add(new RoleQualification(role.displayName(), qualified, peak));
+        Map<String, Integer> openByRole = new LinkedHashMap<>();
+        Map<String, Integer> peakByRole = new LinkedHashMap<>();
+        for (LiturgicalService service : ahead) {
+            Map<String, Integer> perService = new LinkedHashMap<>();
+            for (Slot slot : service.slots()) {
+                perService.merge(slot.role(), 1, Integer::sum);
+                if (slot.serverId() == null) {
+                    openByRole.merge(slot.role(), 1, Integer::sum);
+                }
+            }
+            perService.forEach((role, count) -> peakByRole.merge(role, count, Math::max));
         }
-        // Roles that cannot be staffed first, then the tightest ones.
-        return coverage.stream()
-                .sorted(Comparator.comparing(RoleQualification::isShort).reversed()
+        List<RoleStatus> status = new ArrayList<>();
+        Set<String> known = new LinkedHashSet<>();
+        for (Role role : roleRepository.findAll()) {
+            known.add(role.id());
+            status.add(new RoleStatus(role.displayName(),
+                    openByRole.getOrDefault(role.id(), 0),
+                    (int) active.stream().filter(server -> server.qualifications().contains(role.id())).count(),
+                    peakByRole.getOrDefault(role.id(), 0)));
+        }
+        peakByRole.keySet().stream()
+                .filter(roleId -> !known.contains(roleId))
+                .forEach(roleId -> status.add(new RoleStatus(roleId, openByRole.getOrDefault(roleId, 0), 0,
+                        peakByRole.getOrDefault(roleId, 0))));
+        // Roles that cannot be staffed at all first, then the tightest ones,
+        // then the ones with the most work left.
+        return status.stream()
+                .sorted(Comparator.comparing(RoleStatus::isShort).reversed()
                         .thenComparingInt(entry -> entry.qualifiedServers() - entry.peakSlots())
-                        .thenComparing(RoleQualification::roleName))
+                        .thenComparing(Comparator.comparingInt(RoleStatus::openSlots).reversed())
+                        .thenComparing(RoleStatus::roleName))
                 .toList();
     }
 
@@ -363,6 +416,41 @@ public final class DashboardViewModel {
         return absences.stream()
                 .sorted(Comparator.comparing(Absence::start).thenComparing(Absence::serverName))
                 .toList();
+    }
+
+    /// Birthdays of active servers near today, earliest first: the same window
+    /// the absences use, plus [#BIRTHDAY_LOOKBACK_DAYS] behind, so one
+    /// that has just gone by is still visible.
+    private List<Birthday> birthdaysAround() {
+        LocalDate today = LocalDate.now();
+        LocalDate from = today.minusDays(BIRTHDAY_LOOKBACK_DAYS);
+        LocalDate until = today.plusDays(ABSENCE_HORIZON_DAYS);
+        List<Birthday> birthdays = new ArrayList<>();
+        for (Server server : serverRepository.findAll()) {
+            LocalDate birthDate = server.birthDate();
+            if (!server.active() || birthDate == null) {
+                continue;
+            }
+            // Both this year's and next year's occurrence, since the window
+            // can straddle the turn of the year.
+            for (int year = from.getYear(); year <= until.getYear(); year++) {
+                LocalDate occurrence = occurrenceIn(birthDate, year);
+                if (!occurrence.isBefore(from) && !occurrence.isAfter(until)) {
+                    birthdays.add(new Birthday(server.displayName(), occurrence,
+                            occurrence.getYear() - birthDate.getYear()));
+                }
+            }
+        }
+        return birthdays.stream()
+                .sorted(Comparator.comparing(Birthday::date).thenComparing(Birthday::serverName))
+                .toList();
+    }
+
+    /// A birth date's occurrence in `year` - 29 February lands on the
+    /// 28th in a common year rather than being skipped.
+    private static LocalDate occurrenceIn(LocalDate birthDate, int year) {
+        int day = Math.min(birthDate.getDayOfMonth(), birthDate.getMonth().length(Year.isLeap(year)));
+        return LocalDate.of(year, birthDate.getMonth(), day);
     }
 
     /// What the roster itself gets wrong - the checks a planner would otherwise
@@ -402,27 +490,6 @@ public final class DashboardViewModel {
         return issues.stream()
                 .distinct()
                 .sorted(Comparator.comparing(RosterIssue::kind).thenComparing(RosterIssue::serverName))
-                .toList();
-    }
-
-    /// Open slots per role, most-open first. Only services still ahead count:
-    /// a slot left open in a service that has already happened cannot be
-    /// staffed any more, so it is history, not a task.
-    private List<RoleOpenSlots> openSlotsByRole(List<LiturgicalService> ahead) {
-        Map<String, String> roleNames = new LinkedHashMap<>();
-        roleRepository.findAll().forEach(role -> roleNames.put(role.id(), role.displayName()));
-        Map<String, Integer> openByRole = new LinkedHashMap<>();
-        ahead.stream()
-                .flatMap(service -> service.slots().stream())
-                .filter(slot -> slot.serverId() == null)
-                .forEach(slot -> openByRole.merge(slot.role(), 1, Integer::sum));
-        return openByRole.entrySet().stream()
-                // A role id with no role left (deleted while still used) falls
-                // back to the raw id, as the server load does with server ids.
-                .map(entry -> new RoleOpenSlots(roleNames.getOrDefault(entry.getKey(), entry.getKey()),
-                        entry.getValue()))
-                .sorted(Comparator.comparingInt(RoleOpenSlots::openSlots).reversed()
-                        .thenComparing(RoleOpenSlots::roleName))
                 .toList();
     }
 

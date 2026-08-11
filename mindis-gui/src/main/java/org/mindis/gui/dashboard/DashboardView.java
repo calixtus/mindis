@@ -1,6 +1,8 @@
 package org.mindis.gui.dashboard;
 
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
@@ -10,6 +12,7 @@ import java.util.Map;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
@@ -17,6 +20,7 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
@@ -117,35 +121,45 @@ public final class DashboardView extends StackPane {
             case SUMMARY -> summaryContent(mode);
             case NEXT_SERVICES -> upcomingContent(mode);
             case SERVER_LOAD -> serverLoadContent(mode);
-            case OPEN_SLOTS_BY_ROLE -> openSlotsByRoleContent(mode);
+            case ROLES -> rolesContent(mode);
             case SERVICE_TYPE_MIX -> serviceTypeMixContent(mode);
             case COVERAGE_TREND -> coverageTrendContent(mode);
-            case QUALIFICATION_COVERAGE -> qualificationContent(mode);
-            case ABSENCES_AHEAD -> absencesContent(mode);
-            case ROSTER_HEALTH -> rosterHealthContent(mode);
+            case PEOPLE_AHEAD -> peopleAheadContent(mode);
             case ARCHIVE_HISTORY -> archiveHistoryContent(mode);
             case PROBLEMS -> problemsContent(mode);
         };
     }
 
+    /// Everything wrong the board can see: the assignments violating a
+    /// constraint, and what is wrong with the roster itself. Both belong in one
+    /// place - to the planner they are one question, "what needs fixing?".
     private Node problemsContent(WidgetViewMode mode) {
-        if (!snapshot.problemsChecked()) {
-            return message(Localization.lang("Too many services to check for conflicts here"));
-        }
         List<DashboardViewModel.ProblemCount> problems = snapshot.problems();
+        List<DashboardViewModel.RosterIssue> issues = snapshot.rosterIssues();
         if (mode == WidgetViewMode.BAR) {
-            return Charts.horizontalBar(problems.stream()
-                    // Constraint names double as localization keys.
-                    .map(problem -> new Charts.Slice(Localization.lang(problem.constraintName()),
-                            problem.assignments()))
-                    .toList(), Localization.lang("Assignments"));
+            List<Charts.Slice> slices = new ArrayList<>();
+            // Constraint names double as localization keys.
+            problems.forEach(problem -> slices.add(
+                    new Charts.Slice(Localization.lang(problem.constraintName()), problem.assignments())));
+            Map<DashboardViewModel.RosterIssueKind, Long> countByKind =
+                    new EnumMap<>(DashboardViewModel.RosterIssueKind.class);
+            issues.forEach(issue -> countByKind.merge(issue.kind(), 1L, Long::sum));
+            countByKind.forEach((kind, count) -> slices.add(new Charts.Slice(describe(kind), count)));
+            return Charts.horizontalBar(slices.stream()
+                    .sorted(Comparator.comparingDouble(Charts.Slice::value).reversed())
+                    .toList(), Localization.lang("Count"));
         }
-        if (problems.isEmpty()) {
-            return message(Localization.lang("No conflicts"));
+        List<String> rows = new ArrayList<>();
+        problems.forEach(problem -> rows.add(
+                Localization.lang(problem.constraintName()) + ": " + problem.assignments()));
+        if (!snapshot.problemsChecked()) {
+            rows.add(Localization.lang("Too many services to check for conflicts here"));
         }
-        return listView(problems.stream()
-                .map(problem -> Localization.lang(problem.constraintName()) + ": " + problem.assignments())
-                .toList());
+        issues.forEach(issue -> rows.add(issue.serverName() + ": " + describe(issue.kind())));
+        if (rows.isEmpty()) {
+            return message(Localization.lang("Nothing to fix"));
+        }
+        return listView(rows);
     }
 
     /// A widget body that is a sentence rather than data.
@@ -173,23 +187,40 @@ public final class DashboardView extends StackPane {
         };
     }
 
-    private Node qualificationContent(WidgetViewMode mode) {
-        List<DashboardViewModel.RoleQualification> coverage = snapshot.qualificationCoverage();
-        if (mode == WidgetViewMode.LIST) {
-            return listView(coverage.stream()
-                    .map(entry -> entry.roleName() + ": "
-                            + Localization.lang("%0 qualified, %1 needed at once",
-                                    String.valueOf(entry.qualifiedServers()), String.valueOf(entry.peakSlots()))
-                            + (entry.isShort() ? "  !" : ""))
+    /// Both role questions at once: how much work is left for a role (open
+    /// slots) and whether it can be done at all (qualified servers, against the
+    /// peak one service needs).
+    private Node rolesContent(WidgetViewMode mode) {
+        List<DashboardViewModel.RoleStatus> roles = snapshot.roleStatus();
+        return switch (mode) {
+            // The pie is about work left, so a role with nothing open has no
+            // slice - a zero slice would be an invisible entry in the legend.
+            case PIE -> Charts.pie(Charts.topWithOthers(roles.stream()
+                    .filter(role -> role.openSlots() > 0)
+                    .map(role -> new Charts.Slice(role.roleName(), role.openSlots()))
+                    .sorted(Comparator.comparingDouble(Charts.Slice::value).reversed())
+                    .toList(), Charts.MAX_PIE_SLICES));
+            case LIST -> listView(roles.stream()
+                    .map(role -> role.roleName() + ": "
+                            + Localization.lang("%0 open, %1 qualified, %2 needed at once",
+                                    String.valueOf(role.openSlots()), String.valueOf(role.qualifiedServers()),
+                                    String.valueOf(role.peakSlots()))
+                            + (role.isShort() ? "  !" : ""))
                     .toList());
-        }
-        return Charts.horizontalBar(coverage.stream()
-                .map(entry -> new Charts.Slice(entry.roleName(), entry.qualifiedServers()))
-                .toList(), Localization.lang("Qualified servers"));
+            default -> Charts.horizontalBar(roles.stream().map(DashboardViewModel.RoleStatus::roleName).toList(),
+                    List.of(new Charts.Series(Localization.lang("Open slots"),
+                                    roles.stream().map(role -> (double) role.openSlots()).toList()),
+                            new Charts.Series(Localization.lang("Qualified servers"),
+                                    roles.stream().map(role -> (double) role.qualifiedServers()).toList())),
+                    Localization.lang("Count"));
+        };
     }
 
-    private Node absencesContent(WidgetViewMode mode) {
+    /// Who is away and whose birthday it is - the two things about the people
+    /// themselves that a planner needs to see coming.
+    private Node peopleAheadContent(WidgetViewMode mode) {
         List<DashboardViewModel.Absence> absences = snapshot.absencesAhead();
+        List<DashboardViewModel.Birthday> birthdays = snapshot.birthdaysAround();
         if (mode == WidgetViewMode.BAR) {
             // Per server rather than per absence: two short holidays and one
             // long one are the same question - how long is this server gone?
@@ -204,29 +235,20 @@ public final class DashboardView extends StackPane {
                     .toList();
             return Charts.horizontalBar(slices, Localization.lang("Days away"));
         }
-        return listView(absences.stream()
-                .map(absence -> absence.serverName() + ": "
-                        + Localization.lang("from %0 until %1",
-                                DateTimes.date(absence.start()), DateTimes.date(absence.end())))
-                .toList());
-    }
-
-    private Node rosterHealthContent(WidgetViewMode mode) {
-        List<DashboardViewModel.RosterIssue> issues = snapshot.rosterIssues();
-        if (mode == WidgetViewMode.BAR) {
-            Map<DashboardViewModel.RosterIssueKind, Long> countByKind =
-                    new EnumMap<>(DashboardViewModel.RosterIssueKind.class);
-            issues.forEach(issue -> countByKind.merge(issue.kind(), 1L, Long::sum));
-            return Charts.horizontalBar(countByKind.entrySet().stream()
-                    .map(entry -> new Charts.Slice(describe(entry.getKey()), entry.getValue()))
-                    .sorted(Comparator.comparingDouble(Charts.Slice::value).reversed())
-                    .toList(), Localization.lang("Servers"));
+        // One chronological list of both kinds: what matters is what is coming
+        // up next, not whether it is a holiday or a birthday.
+        record Entry(LocalDate date, String text) {
         }
-        if (issues.isEmpty()) {
-            return message(Localization.lang("Nothing to fix"));
-        }
-        return listView(issues.stream()
-                .map(issue -> issue.serverName() + ": " + describe(issue.kind()))
+        List<Entry> entries = new ArrayList<>();
+        absences.forEach(absence -> entries.add(new Entry(absence.start(), absence.serverName() + ": "
+                + Localization.lang("from %0 until %1",
+                        DateTimes.date(absence.start()), DateTimes.date(absence.end())))));
+        birthdays.forEach(birthday -> entries.add(new Entry(birthday.date(), birthday.serverName() + ": "
+                + Localization.lang("turns %0 on %1",
+                        String.valueOf(birthday.age()), DateTimes.date(birthday.date())))));
+        return listView(entries.stream()
+                .sorted(Comparator.comparing(Entry::date).thenComparing(Entry::text))
+                .map(Entry::text)
                 .toList());
     }
 
@@ -236,19 +258,6 @@ public final class DashboardView extends StackPane {
             case NO_QUALIFICATIONS -> Localization.lang("No qualifications");
             case NO_UPCOMING_DUTY -> Localization.lang("No upcoming duty");
             case ASSIGNED_WHILE_UNAVAILABLE -> Localization.lang("Assigned while unavailable");
-        };
-    }
-
-    private Node openSlotsByRoleContent(WidgetViewMode mode) {
-        List<Charts.Slice> slices = snapshot.openSlotsByRole().stream()
-                .map(entry -> new Charts.Slice(entry.roleName(), entry.openSlots()))
-                .toList();
-        return switch (mode) {
-            case PIE -> Charts.pie(Charts.topWithOthers(slices, Charts.MAX_PIE_SLICES));
-            case LIST -> listView(snapshot.openSlotsByRole().stream()
-                    .map(entry -> entry.roleName() + ": " + entry.openSlots())
-                    .toList());
-            default -> Charts.horizontalBar(slices, Localization.lang("Open slots"));
         };
     }
 
@@ -293,19 +302,55 @@ public final class DashboardView extends StackPane {
         }
         if (mode == WidgetViewMode.DONUT) {
             return Charts.donut(
-                    List.of(new Charts.Slice(Localization.lang("Assigned"), snapshot.assignedSlots()),
-                            new Charts.Slice(Localization.lang("Open"), snapshot.unassignedSlots())),
+                    List.of(new Charts.Slice(Localization.lang("Assigned"), snapshot.assignedSlotsAhead()),
+                            new Charts.Slice(Localization.lang("Open"), snapshot.openSlotsAhead())),
                     snapshot.coveragePercent() + "%", Localization.lang("Slots assigned"));
         }
-        FlowPane tiles = new FlowPane(12, 12,
+        FlowPane tiles = new FlowPane(12, 8,
                 tile(String.valueOf(snapshot.upcomingServiceCount()), Localization.lang("Upcoming services"), ""),
-                tile(String.valueOf(snapshot.unassignedSlots()), Localization.lang("Open slots"),
-                        snapshot.unassignedSlots() == 0 ? "dashboard-tile-good" : "dashboard-tile-warn"),
+                tile(String.valueOf(snapshot.openSlotsAhead()), Localization.lang("Open slots"),
+                        snapshot.openSlotsAhead() == 0 ? "dashboard-tile-good" : "dashboard-tile-warn"),
                 tile(snapshot.coveragePercent() + "%", Localization.lang("Slots assigned"), ""),
+                tile(problemTileValue(), Localization.lang("Problems"),
+                        snapshot.problemCount() == 0 ? "dashboard-tile-good" : "dashboard-tile-warn"),
                 tile(String.valueOf(snapshot.activeServers()), Localization.lang("Active servers"), ""),
                 tile(String.valueOf(snapshot.roles()), Localization.lang("Roles"), ""));
         tiles.getStyleClass().add("dashboard-tiles");
-        return tiles;
+        return scaled(tiles);
+    }
+
+    /// The conflict count is only as complete as the check that produced it;
+    /// when the document was too big to check, the roster issues are all that
+    /// is known, and the figure says so rather than claiming to be the total.
+    private String problemTileValue() {
+        return snapshot.problemsChecked()
+                ? String.valueOf(snapshot.problemCount())
+                : snapshot.problemCount() + "+";
+    }
+
+    /// Key figures shrink with the widget instead of spilling out of it: the
+    /// tiles keep their layout and are scaled down as one, so the summary stays
+    /// readable in a one-row card and does not need a scrollbar. Only shrinking
+    /// - blowing the numbers up in a tall widget would look like a different
+    /// design.
+    private static Node scaled(Region content) {
+        Group group = new Group(content);
+        StackPane holder = new StackPane(group);
+        StackPane.setAlignment(group, Pos.CENTER_LEFT);
+        holder.setAlignment(Pos.CENTER_LEFT);
+        holder.layoutBoundsProperty().subscribe(bounds -> {
+            content.applyCss();
+            content.layout();
+            double width = content.prefWidth(-1);
+            double height = content.prefHeight(width);
+            if (width <= 0 || height <= 0 || bounds.getWidth() <= 0 || bounds.getHeight() <= 0) {
+                return;
+            }
+            double factor = Math.min(1, Math.min(bounds.getWidth() / width, bounds.getHeight() / height));
+            group.setScaleX(factor);
+            group.setScaleY(factor);
+        });
+        return holder;
     }
 
     /// One key figure: the number big, its meaning small underneath.

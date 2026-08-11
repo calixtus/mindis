@@ -155,7 +155,26 @@ class DashboardViewModelTest {
                 () -> assertEquals(1, snapshot.activeServers()),
                 () -> assertEquals(1, snapshot.roles()),
                 () -> assertEquals(2, snapshot.assignedSlots()),
-                () -> assertEquals(50, snapshot.coveragePercent()));
+                // The past service's filled slot is not part of the work
+                // ahead, so coverage is one of three upcoming slots.
+                () -> assertEquals(3, snapshot.slotsAhead()),
+                () -> assertEquals(2, snapshot.openSlotsAhead()),
+                () -> assertEquals(1, snapshot.assignedSlotsAhead()),
+                () -> assertEquals(33, snapshot.coveragePercent()));
+    }
+
+    /// Every "open slots" figure on the board counts the same thing - the work
+    /// still ahead - so editing a service in the past moves none of them.
+    @Test
+    void loadSnapshot_openSlotsAhead_ignoresServicesThatHavePassed() {
+        services.save(service("past", inDays(-1), List.of(Slot.open("ACOLYTE"), Slot.open("ACOLYTE"))));
+        services.save(service("s1", inDays(1), List.of(Slot.open("ACOLYTE"))));
+
+        DashboardViewModel.Snapshot snapshot = newViewModel().loadSnapshot();
+
+        assertAll(
+                () -> assertEquals(1, snapshot.openSlotsAhead()),
+                () -> assertEquals(3, snapshot.unassignedSlots()));
     }
 
     /// Nothing planned is not "everything covered": an empty document reports
@@ -186,22 +205,24 @@ class DashboardViewModelTest {
     /// Only services still ahead count here: an open slot in a service that has
     /// already happened cannot be staffed any more.
     @Test
-    void loadSnapshot_openSlotsByRole_countsFutureOpenSlotsAndUsesRoleNames() {
+    void loadSnapshot_roleStatus_countsFutureOpenSlotsAndUsesRoleNames() {
         roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
         services.save(service("past", inDays(-1), List.of(Slot.open("ACOLYTE"))));
         services.save(service("s1", inDays(1),
                 List.of(Slot.open("ACOLYTE"), Slot.open("ACOLYTE"), filled("ACOLYTE", "srv1"))));
         services.save(service("s2", inDays(2), List.of(Slot.open("THURIFER"))));
 
-        List<DashboardViewModel.RoleOpenSlots> open = newViewModel().loadSnapshot().openSlotsByRole();
+        List<DashboardViewModel.RoleStatus> status = newViewModel().loadSnapshot().roleStatus();
 
         assertAll(
-                () -> assertEquals(2, open.size()),
-                () -> assertEquals("Acolyte", open.getFirst().roleName()),
-                () -> assertEquals(2, open.getFirst().openSlots()),
-                // No role saved under that id, so the raw id stands in.
-                () -> assertEquals("THURIFER", open.get(1).roleName()),
-                () -> assertEquals(1, open.get(1).openSlots()));
+                () -> assertEquals(2, status.size()),
+                () -> assertEquals("Acolyte", status.getFirst().roleName()),
+                () -> assertEquals(2, status.getFirst().openSlots()),
+                () -> assertEquals(3, status.getFirst().peakSlots()),
+                // A role id no configured role matches keeps its raw id, as the
+                // server load does with server ids.
+                () -> assertEquals("THURIFER", status.get(1).roleName()),
+                () -> assertEquals(1, status.get(1).openSlots()));
     }
 
     @Test
@@ -248,7 +269,7 @@ class DashboardViewModelTest {
     /// The comparison is against the *peak* need - the most slots one service
     /// asks of that role - because that is what has to be covered at once.
     @Test
-    void loadSnapshot_qualificationCoverage_comparesQualifiedServersWithThePeakNeed() {
+    void loadSnapshot_roleStatus_comparesQualifiedServersWithThePeakNeed() {
         roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
         roles.save(new Role("THURIFER", "Thurifer", null, null, 1));
         servers.save(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE"));
@@ -256,18 +277,42 @@ class DashboardViewModelTest {
         services.save(service("s1", inDays(1), List.of(Slot.open("ACOLYTE"), Slot.open("ACOLYTE"))));
         services.save(service("s2", inDays(2), List.of(Slot.open("ACOLYTE"))));
 
-        List<DashboardViewModel.RoleQualification> coverage = newViewModel().loadSnapshot()
-                .qualificationCoverage();
+        List<DashboardViewModel.RoleStatus> status = newViewModel().loadSnapshot().roleStatus();
 
         assertAll(
-                () -> assertEquals(2, coverage.size()),
+                () -> assertEquals(2, status.size()),
                 // Short roles come first: one active qualified server, two
                 // needed at once - the inactive one does not count.
-                () -> assertEquals("Acolyte", coverage.getFirst().roleName()),
-                () -> assertEquals(1, coverage.getFirst().qualifiedServers()),
-                () -> assertEquals(2, coverage.getFirst().peakSlots()),
-                () -> assertTrue(coverage.getFirst().isShort()),
-                () -> assertTrue(!coverage.get(1).isShort()));
+                () -> assertEquals("Acolyte", status.getFirst().roleName()),
+                () -> assertEquals(1, status.getFirst().qualifiedServers()),
+                () -> assertEquals(2, status.getFirst().peakSlots()),
+                () -> assertEquals(3, status.getFirst().openSlots()),
+                () -> assertTrue(status.getFirst().isShort()),
+                // A role nothing asks for cannot be short, however few servers
+                // are qualified for it.
+                () -> assertTrue(!status.get(1).isShort()));
+    }
+
+    @Test
+    void loadSnapshot_birthdaysAround_coverTheWindowAndTheRecentPast() {
+        LocalDate today = LocalDate.now();
+        servers.save(withBirthDate(server("srv1", "Anna", "Becker"), today.minusYears(14).minusDays(3)));
+        servers.save(withBirthDate(server("srv2", "Ben", "Meier"), today.minusYears(20).plusDays(10)));
+        servers.save(withBirthDate(server("srv3", "Cara", "Vogt"), today.minusYears(12).minusDays(40)));
+        servers.save(inactive(withBirthDate(server("srv4", "Dana", "Roth"), today.minusYears(30))));
+        servers.save(server("srv5", "Eva", "Klein"));
+
+        List<DashboardViewModel.Birthday> birthdays = newViewModel().loadSnapshot().birthdaysAround();
+
+        assertAll(
+                // Three days ago and ten days ahead are in; forty days ago is
+                // past the look-back, the inactive server and the one without a
+                // birth date are out.
+                () -> assertEquals(2, birthdays.size()),
+                () -> assertTrue(birthdays.getFirst().serverName().contains("Becker")),
+                () -> assertEquals(14, birthdays.getFirst().age()),
+                () -> assertEquals(today.minusDays(3), birthdays.getFirst().date()),
+                () -> assertEquals(20, birthdays.get(1).age()));
     }
 
     @Test
@@ -443,6 +488,12 @@ class DashboardViewModelTest {
     private static Server qualified(Server server, String... roleIds) {
         return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), server.birthDate(),
                 server.familyId(), Set.of(roleIds), server.unavailabilities(), server.preferredTimes(),
+                server.experienced(), server.active());
+    }
+
+    private static Server withBirthDate(Server server, LocalDate birthDate) {
+        return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), birthDate,
+                server.familyId(), server.qualifications(), server.unavailabilities(), server.preferredTimes(),
                 server.experienced(), server.active());
     }
 

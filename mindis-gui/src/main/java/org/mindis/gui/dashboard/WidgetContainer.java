@@ -15,6 +15,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.Rectangle;
 
 import org.jspecify.annotations.Nullable;
 
@@ -77,6 +78,13 @@ final class WidgetContainer extends StackPane {
 
         content.getStyleClass().add("dashboard-widget-content");
         VBox.setVgrow(content, Priority.ALWAYS);
+        // Content that cannot shrink far enough (a chart at its minimum, a row
+        // of key figures) must stop at the card's edge instead of drawing over
+        // the widget below it - JavaFX panes do not clip their children.
+        Rectangle contentClip = new Rectangle();
+        contentClip.widthProperty().bind(content.widthProperty());
+        contentClip.heightProperty().bind(content.heightProperty());
+        content.setClip(contentClip);
 
         VBox body = new VBox(header, content);
         body.getStyleClass().add("dashboard-widget-body");

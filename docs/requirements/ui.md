@@ -43,11 +43,15 @@ Covers:
 ### Overview at a glance
 `req~dashboard~1`
 
-The dashboard summarizes the current state on a board of widgets the user arranges: key figures,
-the upcoming services, the per-server duty load, open slots per role, the mix of service types, the
-coverage of the weeks ahead, how many servers are qualified for each role, who is away soon, what is
-wrong with the roster, the archived services per month, and the conflicts in the current
-assignments. Everything is derived from the live services, servers, roles and the archive.
+The dashboard summarizes the current state on a board of widgets the user arranges: key figures, the
+upcoming services, the per-server duty load, per role its open slots and qualified servers, the mix
+of service types, the coverage of the weeks ahead, who is away soon and whose birthday is near, the
+archived services per month, and the problems — both the conflicts in the current assignments and
+what is wrong with the roster. Everything is derived from the live services, servers, roles and the
+archive.
+
+Anything counted as "open" or "still to do" covers the services that are still ahead; a slot in a
+service that has already happened cannot be filled any more, so it is history rather than work.
 
 Each widget renders its data either as a list or as a diagram; the user picks which from the
 widget's header, and the choice is remembered with the layout.
@@ -193,10 +197,14 @@ Covers:
 `DashboardViewModel` owns every repository call and every aggregation, computed straight off the
 live services, servers, roles and the archive (assignments live on their slots, so there is no plan
 to read). It returns one `Snapshot` of plain data — slot counts and coverage, `UpcomingService`,
-`ServerLoad`, `RoleOpenSlots`, `ServiceTypeCount`, `WeekCoverage`, `RoleQualification`, `Absence`,
-`RosterIssue`, `ArchiveMonth`, `ProblemCount` — and `DashboardView` decides how to word, format and
+`ServerLoad`, `RoleStatus`, `ServiceTypeCount`, `WeekCoverage`, `Absence`, `Birthday`,
+`ArchiveMonth`, `ProblemCount`, `RosterIssue` — and `DashboardView` decides how to word, format and
 draw it; dates go through `DateTimes`, which follows the active language. The view is a plain
 JavaFX `StackPane` built in Java, like every other screen (ADR 001).
+
+A widget's body is clipped to its card, so content that cannot shrink any further stops at the edge
+instead of drawing over its neighbour; the summary's key figures additionally scale down as one
+group, so they stay readable in a one-row card without a scrollbar.
 
 Everything the aggregations look forward over is bounded by a constant on the view model: the next
 services shown, the eight weeks of the coverage trend, the absence horizon, the twelve months of

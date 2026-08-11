@@ -20,22 +20,18 @@ public enum WidgetType {
             WidgetViewMode.LIST, WidgetViewMode.STACKED_BAR),
     SERVER_LOAD("server-load", "Assignments per server", 6, 1, 6, 3,
             WidgetViewMode.LIST, WidgetViewMode.BAR, WidgetViewMode.PIE),
-    OPEN_SLOTS_BY_ROLE("open-slots-by-role", "Open slots by role", 0, 4, 6, 3,
+    ROLES("roles", "Roles", 0, 4, 6, 3,
             WidgetViewMode.BAR, WidgetViewMode.PIE, WidgetViewMode.LIST),
     SERVICE_TYPE_MIX("service-type-mix", "Service types", 6, 4, 6, 3,
             WidgetViewMode.PIE, WidgetViewMode.BAR, WidgetViewMode.LIST),
     COVERAGE_TREND("coverage-trend", "Coverage by week", 0, 7, 12, 3,
             WidgetViewMode.STACKED_BAR, WidgetViewMode.LINE, WidgetViewMode.AREA, WidgetViewMode.LIST),
-    QUALIFICATION_COVERAGE("qualification-coverage", "Qualified servers per role", 0, 10, 6, 3,
-            WidgetViewMode.BAR, WidgetViewMode.LIST),
-    ABSENCES_AHEAD("absences-ahead", "Away soon", 6, 10, 6, 3,
+    PEOPLE_AHEAD("absences-ahead", "Away and birthdays", 0, 10, 6, 3,
             WidgetViewMode.LIST, WidgetViewMode.BAR),
-    ROSTER_HEALTH("roster-health", "Roster health", 0, 13, 12, 3,
+    PROBLEMS("problems", "Problems", 6, 10, 6, 3,
             WidgetViewMode.LIST, WidgetViewMode.BAR),
-    ARCHIVE_HISTORY("archive-history", "Archived services", 0, 16, 12, 3,
-            WidgetViewMode.LINE, WidgetViewMode.BAR, WidgetViewMode.LIST),
-    PROBLEMS("problems", "Problems", 0, 19, 12, 3,
-            WidgetViewMode.LIST, WidgetViewMode.BAR);
+    ARCHIVE_HISTORY("archive-history", "Archived services", 0, 13, 12, 3,
+            WidgetViewMode.LINE, WidgetViewMode.BAR, WidgetViewMode.LIST);
 
     private final String id;
     private final String titleKey;
