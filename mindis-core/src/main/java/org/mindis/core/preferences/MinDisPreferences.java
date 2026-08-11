@@ -34,7 +34,7 @@ public record MinDisPreferences(
         ToolbarButtonDisplay toolbarButtonDisplay,
         @Nullable List<DashboardWidgetLayout> dashboardWidgets) {
 
-    public static final int CURRENT_VERSION = 13;
+    public static final int CURRENT_VERSION = 14;
     /// Most-recent collections kept for the switcher dropdown (UX guidance:
     /// show up to five recents).
     public static final int MAX_RECENT_COLLECTIONS = 5;

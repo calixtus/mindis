@@ -106,8 +106,8 @@ final class WidgetBoard extends Region {
     private void installDrag(WidgetContainer widget) {
         double[] start = new double[2];
         widget.header().addEventHandler(MouseEvent.MOUSE_PRESSED, event -> {
-            // Pressing the close button must not begin a drag.
-            if (isWithin(widget.closeButton(), event.getTarget())) {
+            // Pressing a header control (close, view mode) must not begin a drag.
+            if (isHeaderControl(widget, event.getTarget())) {
                 return;
             }
             start[0] = event.getSceneX();
@@ -117,7 +117,7 @@ final class WidgetBoard extends Region {
             event.consume();
         });
         widget.header().addEventHandler(MouseEvent.MOUSE_DRAGGED, event -> {
-            if (isWithin(widget.closeButton(), event.getTarget())) {
+            if (isHeaderControl(widget, event.getTarget())) {
                 return;
             }
             widget.setTranslateX(event.getSceneX() - start[0]);
@@ -259,6 +259,15 @@ final class WidgetBoard extends Region {
 
     private static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private static boolean isHeaderControl(WidgetContainer widget, Object target) {
+        for (Node control : widget.headerControls()) {
+            if (isWithin(control, target)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isWithin(Node ancestor, Object target) {

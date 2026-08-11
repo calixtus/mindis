@@ -160,15 +160,34 @@ class PreferencesServiceTest {
         assertNull(service.get().dashboardWidgets());
 
         service.update(p -> p.withDashboardWidgets(java.util.List.of(
-                new DashboardWidgetLayout("summary", 0, 0, 12, 1),
-                new DashboardWidgetLayout("next-services", 0, 1, 6, 3))));
+                new DashboardWidgetLayout("summary", 0, 0, 12, 1, "tiles"),
+                new DashboardWidgetLayout("next-services", 0, 1, 6, 3, "list"))));
 
         PreferencesService reloaded = new PreferencesService(preferencesFile());
         assertEquals(
                 java.util.List.of(
-                        new DashboardWidgetLayout("summary", 0, 0, 12, 1),
-                        new DashboardWidgetLayout("next-services", 0, 1, 6, 3)),
+                        new DashboardWidgetLayout("summary", 0, 0, 12, 1, "tiles"),
+                        new DashboardWidgetLayout("next-services", 0, 1, 6, 3, "list")),
                 reloaded.get().dashboardWidgets());
+    }
+
+    /// A layout written before widgets could switch their rendering carries no
+    /// view mode; it must still load, with the mode left absent for the
+    /// dashboard to fill in with the widget type's default.
+    @Test
+    void migrationKeepsDashboardWidgetsWithoutAViewMode() throws IOException {
+        Files.writeString(preferencesFile(), """
+                { "version": 13, "languageTag": "en", "theme": "LIGHT",
+                  "dashboardWidgets": [
+                    { "widgetId": "server-load", "col": 6, "row": 1, "colSpan": 6, "rowSpan": 3 }
+                  ] }
+                """);
+
+        PreferencesService service = new PreferencesService(preferencesFile());
+
+        assertEquals(
+                java.util.List.of(new DashboardWidgetLayout("server-load", 6, 1, 6, 3, null)),
+                service.get().dashboardWidgets());
     }
 
     @Test

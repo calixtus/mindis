@@ -47,9 +47,7 @@ public final class DashboardView extends StackPane {
         getStylesheets().add(DashboardView.class.getResource("dashboard.css").toExternalForm());
 
         for (WidgetPlacement placement : viewModel.loadLayout()) {
-            WidgetContainer widget = new WidgetContainer(placement);
-            widget.content().getChildren().add(buildContent(placement.type()));
-            board.restoreWidget(widget);
+            board.restoreWidget(newWidget(placement));
         }
 
         ScrollPane boardScroll = new ScrollPane(board);
@@ -83,9 +81,22 @@ public final class DashboardView extends StackPane {
     }
 
     private void addWidget(WidgetType type) {
-        WidgetContainer widget = new WidgetContainer(type.defaultPlacement());
-        widget.content().getChildren().add(buildContent(type));
-        board.placeNewWidget(widget);
+        board.placeNewWidget(newWidget(type.defaultPlacement()));
+    }
+
+    /// A container for `placement`, filled and wired so that picking
+    /// another view mode refills just this widget and persists the choice.
+    private WidgetContainer newWidget(WidgetPlacement placement) {
+        WidgetContainer widget = new WidgetContainer(placement, changed -> {
+            fillContent(changed);
+            persistLayout();
+        });
+        fillContent(widget);
+        return widget;
+    }
+
+    private void fillContent(WidgetContainer widget) {
+        widget.content().getChildren().setAll(buildContent(widget.type(), widget.mode()));
     }
 
     private void persistLayout() {
@@ -93,7 +104,7 @@ public final class DashboardView extends StackPane {
         addWidgetButton.setDisable(board.placedTypes().size() == WidgetType.values().length);
     }
 
-    private Node buildContent(WidgetType type) {
+    private Node buildContent(WidgetType type, WidgetViewMode mode) {
         return switch (type) {
             case SUMMARY -> {
                 Label label = new Label(summaryText());

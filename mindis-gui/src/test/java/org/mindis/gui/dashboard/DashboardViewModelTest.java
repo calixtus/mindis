@@ -18,6 +18,7 @@ import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
+import org.mindis.core.preferences.DashboardWidgetLayout;
 import org.mindis.core.preferences.PreferencesService;
 
 /// Covers the aggregation the dashboard is built from. Possible as a plain unit
@@ -127,6 +128,43 @@ class DashboardViewModelTest {
         List<WidgetPlacement> layout = newViewModel().loadLayout();
 
         assertEquals(List.of(WidgetType.values()), layout.stream().map(WidgetPlacement::type).toList());
+    }
+
+    @Test
+    void loadLayout_neverArranged_usesEachTypesDefaultMode() {
+        for (WidgetPlacement placement : newViewModel().loadLayout()) {
+            assertEquals(placement.type().defaultMode(), placement.mode());
+        }
+    }
+
+    @Test
+    void saveLayout_thenLoadLayout_keepsGeometryAndViewMode() {
+        DashboardViewModel viewModel = newViewModel();
+        WidgetPlacement saved = new WidgetPlacement(WidgetType.SERVER_LOAD, 3, 2, 4, 5,
+                WidgetType.SERVER_LOAD.defaultMode());
+
+        viewModel.saveLayout(List.of(saved));
+
+        assertEquals(List.of(saved), viewModel.loadLayout());
+    }
+
+    /// A layout entry whose stored mode this version does not know - written by
+    /// a newer version, or by one that offered a mode since dropped - must not
+    /// lose the widget; it falls back to the type's default mode.
+    @Test
+    void loadLayout_unknownOrUnsupportedMode_fallsBackToTheDefault() {
+        PreferencesService preferences = new TestablePreferencesService(tempDir.resolve("preferences.json"));
+        preferences.update(p -> p.withDashboardWidgets(List.of(
+                new DashboardWidgetLayout(WidgetType.SERVER_LOAD.id(), 0, 0, 6, 3, "sunburst"),
+                new DashboardWidgetLayout(WidgetType.NEXT_SERVICES.id(), 0, 3, 6, 3, null))));
+        DashboardViewModel viewModel = new DashboardViewModel(services, servers, preferences);
+
+        List<WidgetPlacement> layout = viewModel.loadLayout();
+
+        assertAll(
+                () -> assertEquals(2, layout.size()),
+                () -> assertEquals(WidgetType.SERVER_LOAD.defaultMode(), layout.getFirst().mode()),
+                () -> assertEquals(WidgetType.NEXT_SERVICES.defaultMode(), layout.get(1).mode()));
     }
 
     private static LocalDateTime inDays(int days) {

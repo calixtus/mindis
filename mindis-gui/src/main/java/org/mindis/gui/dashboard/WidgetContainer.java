@@ -1,27 +1,41 @@
 package org.mindis.gui.dashboard;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+
 import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuButton;
+import javafx.scene.control.MenuItem;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
+import org.jspecify.annotations.Nullable;
+
 import org.kordamp.ikonli.javafx.FontIcon;
 
 /// One widget on the dashboard board: a titled card with a drag handle (the
-/// header), a close button, a body holding the widget content, and a
-/// bottom-right resize grip. It only builds and exposes these parts; all drag,
-/// resize, add and remove behaviour lives in [WidgetBoard], which sizes
-/// and positions the container on the grid. The current grid geometry is held
-/// here so the board can read and update it in place.
+/// header), a view-mode menu, a close button, a body holding the widget content,
+/// and a bottom-right resize grip. It only builds and exposes these parts; all
+/// drag, resize, add and remove behaviour lives in [WidgetBoard], which
+/// sizes and positions the container on the grid. The current grid geometry and
+/// view mode are held here so the board can read and update them in place.
+///
+/// The mode menu is built only for a [WidgetType] that offers more than
+/// one [WidgetViewMode] - a widget with a single rendering shows no
+/// chooser at all.
 final class WidgetContainer extends StackPane {
 
     private final WidgetType type;
     private final HBox header;
     private final Button closeButton;
+    private final @Nullable MenuButton modeButton;
     private final StackPane content = new StackPane();
     private final Region resizeGrip;
 
@@ -29,13 +43,18 @@ final class WidgetContainer extends StackPane {
     private int row;
     private int colSpan;
     private int rowSpan;
+    private WidgetViewMode mode;
 
-    WidgetContainer(WidgetPlacement placement) {
+    /// @param onModeChanged called with this container after it has adopted a
+    ///        newly picked mode, so the view can refill the content and persist
+    ///        the layout
+    WidgetContainer(WidgetPlacement placement, Consumer<WidgetContainer> onModeChanged) {
         this.type = placement.type();
         this.col = placement.col();
         this.row = placement.row();
         this.colSpan = placement.colSpan();
         this.rowSpan = placement.rowSpan();
+        this.mode = placement.mode();
 
         getStyleClass().add("dashboard-widget");
 
@@ -48,7 +67,11 @@ final class WidgetContainer extends StackPane {
         closeButton.setGraphic(new FontIcon("mdi2c-close"));
         closeButton.getStyleClass().add("dashboard-widget-close");
 
-        header = new HBox(title, closeButton);
+        modeButton = type.modes().size() > 1 ? buildModeButton(onModeChanged) : null;
+
+        header = modeButton == null
+                ? new HBox(title, closeButton)
+                : new HBox(title, modeButton, closeButton);
         header.getStyleClass().add("dashboard-widget-header");
         header.setCursor(Cursor.MOVE);
 
@@ -68,8 +91,31 @@ final class WidgetContainer extends StackPane {
         getChildren().addAll(body, resizeGrip);
     }
 
+    private MenuButton buildModeButton(Consumer<WidgetContainer> onModeChanged) {
+        MenuButton button = new MenuButton();
+        button.getStyleClass().add("dashboard-widget-mode");
+        button.setGraphic(new FontIcon(mode.iconCode()));
+        for (WidgetViewMode candidate : type.modes()) {
+            MenuItem item = new MenuItem(candidate.displayName(), new FontIcon(candidate.iconCode()));
+            item.setOnAction(_ -> {
+                if (candidate == mode) {
+                    return;
+                }
+                mode = candidate;
+                button.setGraphic(new FontIcon(candidate.iconCode()));
+                onModeChanged.accept(this);
+            });
+            button.getItems().add(item);
+        }
+        return button;
+    }
+
     WidgetType type() {
         return type;
+    }
+
+    WidgetViewMode mode() {
+        return mode;
     }
 
     /// The drag handle: pressing and holding here moves the widget.
@@ -79,6 +125,17 @@ final class WidgetContainer extends StackPane {
 
     Button closeButton() {
         return closeButton;
+    }
+
+    /// The header's own controls - a press on any of them must operate the
+    /// control rather than start a drag.
+    List<Node> headerControls() {
+        List<Node> controls = new ArrayList<>();
+        controls.add(closeButton);
+        if (modeButton != null) {
+            controls.add(modeButton);
+        }
+        return controls;
     }
 
     Region resizeGrip() {
@@ -114,6 +171,6 @@ final class WidgetContainer extends StackPane {
     }
 
     WidgetPlacement placement() {
-        return new WidgetPlacement(type, col, row, colSpan, rowSpan);
+        return new WidgetPlacement(type, col, row, colSpan, rowSpan, mode);
     }
 }

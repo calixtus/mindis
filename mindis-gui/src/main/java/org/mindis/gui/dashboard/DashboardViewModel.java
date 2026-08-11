@@ -40,7 +40,9 @@ public final class DashboardViewModel {
 
     /// The persisted widget layout, or - when the user has never arranged the
     /// board (null in preferences) - the default arrangement. An unknown widget
-    /// id (e.g. a removed widget type from a newer version) is skipped.
+    /// id (e.g. a removed widget type from a newer version) is skipped; an
+    /// unknown or no-longer-supported view mode falls back to the widget type's
+    /// default, so an older or newer layout still loads.
     public List<WidgetPlacement> loadLayout() {
         @Nullable List<DashboardWidgetLayout> saved = preferencesService.get().dashboardWidgets();
         if (saved == null) {
@@ -49,17 +51,24 @@ public final class DashboardViewModel {
         List<WidgetPlacement> layout = new ArrayList<>();
         for (DashboardWidgetLayout entry : saved) {
             WidgetType.fromId(entry.widgetId()).ifPresent(type -> layout.add(
-                    new WidgetPlacement(type, entry.col(), entry.row(), entry.colSpan(), entry.rowSpan())));
+                    new WidgetPlacement(type, entry.col(), entry.row(), entry.colSpan(), entry.rowSpan(),
+                            type.resolveMode(modeOf(entry)))));
         }
         return layout;
     }
 
-    /// Persists the current board arrangement (positions and spans).
+    private static @Nullable WidgetViewMode modeOf(DashboardWidgetLayout entry) {
+        @Nullable String saved = entry.viewMode();
+        return saved == null ? null : WidgetViewMode.fromId(saved).orElse(null);
+    }
+
+    /// Persists the current board arrangement (positions, spans and view modes).
     public void saveLayout(List<WidgetPlacement> placements) {
         List<DashboardWidgetLayout> saved = new ArrayList<>();
         for (WidgetPlacement placement : placements) {
             saved.add(new DashboardWidgetLayout(placement.type().id(),
-                    placement.col(), placement.row(), placement.colSpan(), placement.rowSpan()));
+                    placement.col(), placement.row(), placement.colSpan(), placement.rowSpan(),
+                    placement.mode().id()));
         }
         preferencesService.update(preferences -> preferences.withDashboardWidgets(saved));
     }

@@ -132,6 +132,9 @@ public class PreferencesService {
         // was on, promote the theme to SYSTEM.
         // v12 -> v13: dashboardWidgets added; absent field deserializes as null,
         // the intended default (the dashboard falls back to its default layout).
+        // v13 -> v14: each DashboardWidgetLayout gained viewMode (how the widget
+        // renders: list, bar chart, ...). Absent field deserializes as null, and
+        // the dashboard reads null as "the widget type's default mode".
         int solverSeconds = loaded.solverSecondsLimit() > 0
                 ? loaded.solverSecondsLimit()
                 : MinDisPreferences.DEFAULT_SOLVER_SECONDS;

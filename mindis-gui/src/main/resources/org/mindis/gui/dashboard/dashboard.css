@@ -61,6 +61,39 @@
     -fx-icon-color: -color-danger-fg;
 }
 
+/* View-mode chooser: an icon-only menu button that stays quiet in the header
+   until hovered, so it does not compete with the widget title. */
+.dashboard-widget-mode {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6;
+    -fx-padding: 2 4 2 6;
+    -fx-cursor: hand;
+}
+
+.dashboard-widget-mode:hover,
+.dashboard-widget-mode:showing {
+    -fx-background-color: -color-bg-subtle;
+}
+
+.dashboard-widget-mode .ikonli-font-icon {
+    -fx-icon-color: -color-fg-muted;
+    -fx-icon-size: 14;
+}
+
+.dashboard-widget-mode:hover .ikonli-font-icon,
+.dashboard-widget-mode:showing .ikonli-font-icon {
+    -fx-icon-color: -color-accent-fg;
+}
+
+.dashboard-widget-mode > .arrow-button {
+    -fx-padding: 0 0 0 2;
+}
+
+.dashboard-widget-mode > .arrow-button > .arrow {
+    -fx-background-color: -color-fg-muted;
+    -fx-padding: 2 3 2 3;
+}
+
 .dashboard-widget-content {
     -fx-padding: 8;
 }
