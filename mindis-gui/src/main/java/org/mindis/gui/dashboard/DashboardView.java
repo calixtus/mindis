@@ -1,6 +1,11 @@
 package org.mindis.gui.dashboard;
 
+import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
@@ -115,6 +120,77 @@ public final class DashboardView extends StackPane {
             case OPEN_SLOTS_BY_ROLE -> openSlotsByRoleContent(mode);
             case SERVICE_TYPE_MIX -> serviceTypeMixContent(mode);
             case COVERAGE_TREND -> coverageTrendContent(mode);
+            case QUALIFICATION_COVERAGE -> qualificationContent(mode);
+            case ABSENCES_AHEAD -> absencesContent(mode);
+            case ROSTER_HEALTH -> rosterHealthContent(mode);
+        };
+    }
+
+    private Node qualificationContent(WidgetViewMode mode) {
+        List<DashboardViewModel.RoleQualification> coverage = snapshot.qualificationCoverage();
+        if (mode == WidgetViewMode.LIST) {
+            return listView(coverage.stream()
+                    .map(entry -> entry.roleName() + ": "
+                            + Localization.lang("%0 qualified, %1 needed at once",
+                                    String.valueOf(entry.qualifiedServers()), String.valueOf(entry.peakSlots()))
+                            + (entry.isShort() ? "  !" : ""))
+                    .toList());
+        }
+        return Charts.horizontalBar(coverage.stream()
+                .map(entry -> new Charts.Slice(entry.roleName(), entry.qualifiedServers()))
+                .toList(), Localization.lang("Qualified servers"));
+    }
+
+    private Node absencesContent(WidgetViewMode mode) {
+        List<DashboardViewModel.Absence> absences = snapshot.absencesAhead();
+        if (mode == WidgetViewMode.BAR) {
+            // Per server rather than per absence: two short holidays and one
+            // long one are the same question - how long is this server gone?
+            Map<String, Long> daysByServer = new LinkedHashMap<>();
+            for (DashboardViewModel.Absence absence : absences) {
+                daysByServer.merge(absence.serverName(),
+                        ChronoUnit.DAYS.between(absence.start(), absence.end()) + 1, Long::sum);
+            }
+            List<Charts.Slice> slices = daysByServer.entrySet().stream()
+                    .map(entry -> new Charts.Slice(entry.getKey(), entry.getValue()))
+                    .sorted(Comparator.comparingDouble(Charts.Slice::value).reversed())
+                    .toList();
+            return Charts.horizontalBar(slices, Localization.lang("Days away"));
+        }
+        return listView(absences.stream()
+                .map(absence -> absence.serverName() + ": "
+                        + Localization.lang("from %0 until %1",
+                                DateTimes.date(absence.start()), DateTimes.date(absence.end())))
+                .toList());
+    }
+
+    private Node rosterHealthContent(WidgetViewMode mode) {
+        List<DashboardViewModel.RosterIssue> issues = snapshot.rosterIssues();
+        if (mode == WidgetViewMode.BAR) {
+            Map<DashboardViewModel.RosterIssueKind, Long> countByKind =
+                    new EnumMap<>(DashboardViewModel.RosterIssueKind.class);
+            issues.forEach(issue -> countByKind.merge(issue.kind(), 1L, Long::sum));
+            return Charts.horizontalBar(countByKind.entrySet().stream()
+                    .map(entry -> new Charts.Slice(describe(entry.getKey()), entry.getValue()))
+                    .sorted(Comparator.comparingDouble(Charts.Slice::value).reversed())
+                    .toList(), Localization.lang("Servers"));
+        }
+        if (issues.isEmpty()) {
+            Label label = new Label(Localization.lang("Nothing to fix"));
+            label.getStyleClass().add("dashboard-empty");
+            return new StackPane(label);
+        }
+        return listView(issues.stream()
+                .map(issue -> issue.serverName() + ": " + describe(issue.kind()))
+                .toList());
+    }
+
+    private static String describe(DashboardViewModel.RosterIssueKind kind) {
+        return switch (kind) {
+            case INACTIVE_BUT_ASSIGNED -> Localization.lang("Inactive but assigned");
+            case NO_QUALIFICATIONS -> Localization.lang("No qualifications");
+            case NO_UPCOMING_DUTY -> Localization.lang("No upcoming duty");
+            case ASSIGNED_WHILE_UNAVAILABLE -> Localization.lang("Assigned while unavailable");
         };
     }
 

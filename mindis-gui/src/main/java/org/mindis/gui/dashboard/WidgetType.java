@@ -25,7 +25,13 @@ public enum WidgetType {
     SERVICE_TYPE_MIX("service-type-mix", "Service types", 6, 4, 6, 3,
             WidgetViewMode.PIE, WidgetViewMode.BAR, WidgetViewMode.LIST),
     COVERAGE_TREND("coverage-trend", "Coverage by week", 0, 7, 12, 3,
-            WidgetViewMode.STACKED_BAR, WidgetViewMode.LINE, WidgetViewMode.AREA, WidgetViewMode.LIST);
+            WidgetViewMode.STACKED_BAR, WidgetViewMode.LINE, WidgetViewMode.AREA, WidgetViewMode.LIST),
+    QUALIFICATION_COVERAGE("qualification-coverage", "Qualified servers per role", 0, 10, 6, 3,
+            WidgetViewMode.BAR, WidgetViewMode.LIST),
+    ABSENCES_AHEAD("absences-ahead", "Away soon", 6, 10, 6, 3,
+            WidgetViewMode.LIST, WidgetViewMode.BAR),
+    ROSTER_HEALTH("roster-health", "Roster health", 0, 13, 12, 3,
+            WidgetViewMode.LIST, WidgetViewMode.BAR);
 
     private final String id;
     private final String titleKey;

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -18,6 +19,7 @@ import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
+import org.mindis.core.model.UnavailabilityPeriod;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
@@ -236,6 +238,87 @@ class DashboardViewModelTest {
                         .sum()));
     }
 
+    /// The comparison is against the *peak* need - the most slots one service
+    /// asks of that role - because that is what has to be covered at once.
+    @Test
+    void loadSnapshot_qualificationCoverage_comparesQualifiedServersWithThePeakNeed() {
+        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        roles.save(new Role("THURIFER", "Thurifer", null, null, 1));
+        servers.save(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE"));
+        servers.save(inactive(qualified(server("srv2", "Ben", "Meier"), "ACOLYTE")));
+        services.save(service("s1", inDays(1), List.of(Slot.open("ACOLYTE"), Slot.open("ACOLYTE"))));
+        services.save(service("s2", inDays(2), List.of(Slot.open("ACOLYTE"))));
+
+        List<DashboardViewModel.RoleQualification> coverage = newViewModel().loadSnapshot()
+                .qualificationCoverage();
+
+        assertAll(
+                () -> assertEquals(2, coverage.size()),
+                // Short roles come first: one active qualified server, two
+                // needed at once - the inactive one does not count.
+                () -> assertEquals("Acolyte", coverage.getFirst().roleName()),
+                () -> assertEquals(1, coverage.getFirst().qualifiedServers()),
+                () -> assertEquals(2, coverage.getFirst().peakSlots()),
+                () -> assertTrue(coverage.getFirst().isShort()),
+                () -> assertTrue(!coverage.get(1).isShort()));
+    }
+
+    @Test
+    void loadSnapshot_absencesAhead_keepsActiveServersAbsentWithinTheHorizon() {
+        servers.save(absent(server("srv1", "Anna", "Becker"), LocalDate.now().plusDays(3),
+                LocalDate.now().plusDays(10)));
+        servers.save(absent(server("srv2", "Ben", "Meier"), LocalDate.now().plusYears(1),
+                LocalDate.now().plusYears(1).plusDays(3)));
+        servers.save(absent(server("srv3", "Cara", "Vogt"), LocalDate.now().minusDays(20),
+                LocalDate.now().minusDays(10)));
+        servers.save(inactive(absent(server("srv4", "Dana", "Roth"), LocalDate.now(), LocalDate.now())));
+
+        List<DashboardViewModel.Absence> absences = newViewModel().loadSnapshot().absencesAhead();
+
+        assertAll(
+                () -> assertEquals(1, absences.size()),
+                () -> assertTrue(absences.getFirst().serverName().contains("Becker")),
+                () -> assertEquals(LocalDate.now().plusDays(3), absences.getFirst().start()));
+    }
+
+    @Test
+    void loadSnapshot_rosterIssues_reportsEachKind() {
+        servers.save(inactive(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE")));
+        servers.save(server("srv2", "Ben", "Meier"));
+        servers.save(qualified(server("srv3", "Cara", "Vogt"), "ACOLYTE"));
+        servers.save(absent(qualified(server("srv4", "Dana", "Roth"), "ACOLYTE"),
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(2)));
+        services.save(service("s1", inDays(1),
+                List.of(filled("ACOLYTE", "srv1"), filled("ACOLYTE", "srv4"))));
+
+        List<DashboardViewModel.RosterIssue> issues = newViewModel().loadSnapshot().rosterIssues();
+
+        assertAll(
+                () -> assertEquals(4, issues.size()),
+                () -> assertTrue(issues.stream().anyMatch(issue -> issue.kind()
+                        == DashboardViewModel.RosterIssueKind.INACTIVE_BUT_ASSIGNED
+                        && issue.serverName().contains("Becker"))),
+                () -> assertTrue(issues.stream().anyMatch(issue -> issue.kind()
+                        == DashboardViewModel.RosterIssueKind.NO_QUALIFICATIONS
+                        && issue.serverName().contains("Meier"))),
+                () -> assertTrue(issues.stream().anyMatch(issue -> issue.kind()
+                        == DashboardViewModel.RosterIssueKind.NO_UPCOMING_DUTY
+                        && issue.serverName().contains("Vogt"))),
+                () -> assertTrue(issues.stream().anyMatch(issue -> issue.kind()
+                        == DashboardViewModel.RosterIssueKind.ASSIGNED_WHILE_UNAVAILABLE
+                        && issue.serverName().contains("Roth"))));
+    }
+
+    /// A healthy roster reports nothing at all, so the widget can say so rather
+    /// than showing an empty list of unnamed problems.
+    @Test
+    void loadSnapshot_rosterIssues_areEmptyWhenEverythingIsInOrder() {
+        servers.save(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE"));
+        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv1"))));
+
+        assertTrue(newViewModel().loadSnapshot().rosterIssues().isEmpty());
+    }
+
     @Test
     void loadLayout_neverArranged_returnsEveryWidgetTypeOnce() {
         List<WidgetPlacement> layout = newViewModel().loadLayout();
@@ -294,6 +377,18 @@ class DashboardViewModelTest {
 
     private static Server server(String id, String firstName, String lastName) {
         return new Server(id, firstName, lastName, "", null, null, Set.of(), List.of(), Set.of(), false, true);
+    }
+
+    private static Server qualified(Server server, String... roleIds) {
+        return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), server.birthDate(),
+                server.familyId(), Set.of(roleIds), server.unavailabilities(), server.preferredTimes(),
+                server.experienced(), server.active());
+    }
+
+    private static Server absent(Server server, LocalDate start, LocalDate end) {
+        return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), server.birthDate(),
+                server.familyId(), server.qualifications(), List.of(new UnavailabilityPeriod(start, end)),
+                server.preferredTimes(), server.experienced(), server.active());
     }
 
     private static Server inactive(Server server) {
