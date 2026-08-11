@@ -123,6 +123,24 @@ public final class DashboardView extends StackPane {
             case QUALIFICATION_COVERAGE -> qualificationContent(mode);
             case ABSENCES_AHEAD -> absencesContent(mode);
             case ROSTER_HEALTH -> rosterHealthContent(mode);
+            case ARCHIVE_HISTORY -> archiveHistoryContent(mode);
+        };
+    }
+
+    private Node archiveHistoryContent(WidgetViewMode mode) {
+        List<DashboardViewModel.ArchiveMonth> history = snapshot.archiveHistory();
+        List<String> months = history.stream().map(month -> DateTimes.month(month.monthStart())).toList();
+        return switch (mode) {
+            case BAR -> Charts.bar(history.stream()
+                    .map(month -> new Charts.Slice(DateTimes.month(month.monthStart()), month.services()))
+                    .toList(), Localization.lang("Services"));
+            case LIST -> listView(history.stream()
+                    .map(month -> DateTimes.month(month.monthStart()) + ": " + month.services())
+                    .toList());
+            default -> Charts.line(months,
+                    List.of(new Charts.Series(Localization.lang("Services"),
+                            history.stream().map(month -> (double) month.services()).toList())),
+                    Localization.lang("Services"));
         };
     }
 

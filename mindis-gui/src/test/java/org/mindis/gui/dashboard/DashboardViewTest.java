@@ -25,6 +25,7 @@ import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
+import org.mindis.core.persistence.ArchivedServiceRepository;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
@@ -44,6 +45,7 @@ class DashboardViewTest {
     private final ServiceRepository services = new ServiceRepository();
     private final ServerRepository servers = new ServerRepository();
     private final RoleRepository roles = new RoleRepository();
+    private final ArchivedServiceRepository archive = new ArchivedServiceRepository();
 
     @Test
     void onlyWidgetsWithSeveralModesShowAModeChooser() throws InterruptedException {
@@ -128,7 +130,7 @@ class DashboardViewTest {
     }
 
     private DashboardViewModel newViewModel(PreferencesService preferences) {
-        return new DashboardViewModel(services, servers, roles, preferences);
+        return new DashboardViewModel(services, servers, roles, archive, preferences);
     }
 
     private Path preferencesFile() {

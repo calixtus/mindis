@@ -49,6 +49,12 @@ public final class DateTimes {
         return DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).format(value);
     }
 
+    /// A month and its year, e.g. "Juli 2026" / "Jul 2026" - the label a
+    /// per-month chart axis carries.
+    public static String month(LocalDate value) {
+        return DateTimeFormatter.ofLocalizedPattern("yMMM").format(value);
+    }
+
     /// The abbreviated weekday name in the current language, e.g. "Do." / "Thu".
     public static String weekday(LocalDate value) {
         return value.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.getDefault());

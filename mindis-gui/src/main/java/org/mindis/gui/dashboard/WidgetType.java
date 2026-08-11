@@ -31,7 +31,9 @@ public enum WidgetType {
     ABSENCES_AHEAD("absences-ahead", "Away soon", 6, 10, 6, 3,
             WidgetViewMode.LIST, WidgetViewMode.BAR),
     ROSTER_HEALTH("roster-health", "Roster health", 0, 13, 12, 3,
-            WidgetViewMode.LIST, WidgetViewMode.BAR);
+            WidgetViewMode.LIST, WidgetViewMode.BAR),
+    ARCHIVE_HISTORY("archive-history", "Archived services", 0, 16, 12, 3,
+            WidgetViewMode.LINE, WidgetViewMode.BAR, WidgetViewMode.LIST);
 
     private final String id;
     private final String titleKey;

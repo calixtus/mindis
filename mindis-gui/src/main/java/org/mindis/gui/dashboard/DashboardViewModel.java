@@ -16,12 +16,14 @@ import java.util.Set;
 
 import org.jspecify.annotations.Nullable;
 
+import org.mindis.core.model.ArchivedService;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
 import org.mindis.core.model.UnavailabilityPeriod;
+import org.mindis.core.persistence.ArchivedServiceRepository;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
@@ -48,16 +50,22 @@ public final class DashboardViewModel {
     /// which an absence still changes who can be assigned.
     private static final int ABSENCE_HORIZON_DAYS = 60;
 
+    /// Months the archive history spans, ending with the current one.
+    private static final int HISTORY_MONTHS = 12;
+
     private final ServiceRepository serviceRepository;
     private final ServerRepository serverRepository;
     private final RoleRepository roleRepository;
+    private final ArchivedServiceRepository archivedServiceRepository;
     private final PreferencesService preferencesService;
 
     public DashboardViewModel(ServiceRepository serviceRepository, ServerRepository serverRepository,
-                              RoleRepository roleRepository, PreferencesService preferencesService) {
+                              RoleRepository roleRepository, ArchivedServiceRepository archivedServiceRepository,
+                              PreferencesService preferencesService) {
         this.serviceRepository = serviceRepository;
         this.serverRepository = serverRepository;
         this.roleRepository = roleRepository;
+        this.archivedServiceRepository = archivedServiceRepository;
         this.preferencesService = preferencesService;
     }
 
@@ -120,7 +128,8 @@ public final class DashboardViewModel {
                            List<WeekCoverage> coverageTrend,
                            List<RoleQualification> qualificationCoverage,
                            List<Absence> absencesAhead,
-                           List<RosterIssue> rosterIssues) {
+                           List<RosterIssue> rosterIssues,
+                           List<ArchiveMonth> archiveHistory) {
 
         public Snapshot {
             upcomingServices = List.copyOf(upcomingServices);
@@ -131,6 +140,7 @@ public final class DashboardViewModel {
             qualificationCoverage = List.copyOf(qualificationCoverage);
             absencesAhead = List.copyOf(absencesAhead);
             rosterIssues = List.copyOf(rosterIssues);
+            archiveHistory = List.copyOf(archiveHistory);
         }
 
         /// Whether the document holds no plan at all yet (no slots anywhere).
@@ -200,6 +210,12 @@ public final class DashboardViewModel {
     public record RosterIssue(RosterIssueKind kind, String serverName) {
     }
 
+    /// One month of the archive history: how many archived services fall into
+    /// it, and how many of their slots had been filled. Months without archived
+    /// services are kept, so a break in the record stays visible.
+    public record ArchiveMonth(LocalDate monthStart, int services, int assignedSlots) {
+    }
+
     /// One week of the coverage trend: the slots of every service in that week,
     /// split into filled and still open. Weeks with no service are kept, so a
     /// gap in the planning reads as a gap.
@@ -223,7 +239,34 @@ public final class DashboardViewModel {
         return new Snapshot(unassigned, totalSlots, upcomingCount, activeServers, roleRepository.findAll().size(),
                 upcomingServices(services), serverLoad(services),
                 openSlotsByRole(ahead), serviceTypeMix(ahead), coverageTrend(ahead),
-                qualificationCoverage(ahead), absencesAhead(), rosterIssues(ahead));
+                qualificationCoverage(ahead), absencesAhead(), rosterIssues(ahead), archiveHistory());
+    }
+
+    /// Archived services per month, oldest month first, over a fixed span
+    /// ending with the current month - the record of what has actually been
+    /// served, which the live services no longer hold once they are archived.
+    private List<ArchiveMonth> archiveHistory() {
+        LocalDate firstMonth = LocalDate.now().withDayOfMonth(1).minusMonths(HISTORY_MONTHS - 1L);
+        List<ArchivedService> archived = archivedServiceRepository.findAll();
+        List<ArchiveMonth> history = new ArrayList<>();
+        for (int month = 0; month < HISTORY_MONTHS; month++) {
+            LocalDate start = firstMonth.plusMonths(month);
+            LocalDate end = start.plusMonths(1);
+            int count = 0;
+            int assigned = 0;
+            for (ArchivedService service : archived) {
+                LocalDate date = service.dateTime().toLocalDate();
+                if (date.isBefore(start) || !date.isBefore(end)) {
+                    continue;
+                }
+                count++;
+                assigned += (int) service.slots().stream()
+                        .filter(slot -> slot.serverName() != null)
+                        .count();
+            }
+            history.add(new ArchiveMonth(start, count, assigned));
+        }
+        return history;
     }
 
     /// Per configured role: how many active servers may fill it, against the

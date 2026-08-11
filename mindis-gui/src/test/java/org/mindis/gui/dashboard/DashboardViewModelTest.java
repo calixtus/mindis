@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -14,12 +15,16 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import org.jspecify.annotations.Nullable;
+
+import org.mindis.core.model.ArchivedService;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
 import org.mindis.core.model.UnavailabilityPeriod;
+import org.mindis.core.persistence.ArchivedServiceRepository;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
@@ -38,11 +43,12 @@ class DashboardViewModelTest {
     private final ServiceRepository services = new ServiceRepository();
     private final ServerRepository servers = new ServerRepository();
     private final RoleRepository roles = new RoleRepository();
+    private final ArchivedServiceRepository archive = new ArchivedServiceRepository();
 
     private DashboardViewModel newViewModel() {
         // Never read in these tests (only loadLayout/saveLayout touch it), but
         // pointed at a temp file so a stray read cannot reach real preferences.
-        return new DashboardViewModel(services, servers, roles, new TestablePreferencesService(
+        return new DashboardViewModel(services, servers, roles, archive, new TestablePreferencesService(
                 tempDir.resolve("preferences.json")));
     }
 
@@ -319,6 +325,31 @@ class DashboardViewModelTest {
         assertTrue(newViewModel().loadSnapshot().rosterIssues().isEmpty());
     }
 
+    /// A fixed span of months ending with the current one, so a month with
+    /// nothing archived reads as a break in the record.
+    @Test
+    void loadSnapshot_archiveHistory_countsArchivedServicesPerMonth() {
+        LocalDateTime lastMonth = LocalDate.now().withDayOfMonth(1).minusMonths(1).atTime(10, 0);
+        archive.addAll(List.of(
+                archived("a1", lastMonth, "Anna Becker"),
+                archived("a2", lastMonth.plusDays(1), null),
+                archived("old", lastMonth.minusYears(2), "Anna Becker")));
+
+        List<DashboardViewModel.ArchiveMonth> history = newViewModel().loadSnapshot().archiveHistory();
+        DashboardViewModel.ArchiveMonth month = history.stream()
+                .filter(entry -> entry.monthStart().equals(lastMonth.toLocalDate().withDayOfMonth(1)))
+                .findFirst()
+                .orElseThrow();
+
+        assertAll(
+                () -> assertEquals(12, history.size()),
+                () -> assertEquals(2, month.services()),
+                // Only the slot that actually had a server counts as assigned.
+                () -> assertEquals(1, month.assignedSlots()),
+                // The two-year-old entry falls outside the span and is dropped.
+                () -> assertEquals(2, history.stream().mapToInt(DashboardViewModel.ArchiveMonth::services).sum()));
+    }
+
     @Test
     void loadLayout_neverArranged_returnsEveryWidgetTypeOnce() {
         List<WidgetPlacement> layout = newViewModel().loadLayout();
@@ -353,7 +384,7 @@ class DashboardViewModelTest {
         preferences.update(p -> p.withDashboardWidgets(List.of(
                 new DashboardWidgetLayout(WidgetType.SERVER_LOAD.id(), 0, 0, 6, 3, "sunburst"),
                 new DashboardWidgetLayout(WidgetType.NEXT_SERVICES.id(), 0, 3, 6, 3, null))));
-        DashboardViewModel viewModel = new DashboardViewModel(services, servers, roles, preferences);
+        DashboardViewModel viewModel = new DashboardViewModel(services, servers, roles, archive, preferences);
 
         List<WidgetPlacement> layout = viewModel.loadLayout();
 
@@ -377,6 +408,12 @@ class DashboardViewModelTest {
 
     private static Server server(String id, String firstName, String lastName) {
         return new Server(id, firstName, lastName, "", null, null, Set.of(), List.of(), Set.of(), false, true);
+    }
+
+    private static ArchivedService archived(String id, LocalDateTime dateTime, @Nullable String serverName) {
+        return new ArchivedService(id, dateTime, 60, "St. Mary", ServiceType.SUNDAY_MASS, "",
+                List.of(new ArchivedService.ArchivedSlot("Acolyte", serverName == null ? null : "srv1", serverName)),
+                Instant.now());
     }
 
     private static Server qualified(Server server, String... roleIds) {
