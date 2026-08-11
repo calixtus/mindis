@@ -202,9 +202,13 @@ to read). It returns one `Snapshot` of plain data — slot counts and coverage, 
 draw it; dates go through `DateTimes`, which follows the active language. The view is a plain
 JavaFX `StackPane` built in Java, like every other screen (ADR 001).
 
-A widget's body is clipped to its card, so content that cannot shrink any further stops at the edge
-instead of drawing over its neighbour; the summary's key figures additionally scale down as one
-group, so they stay readable in a one-row card without a scrollbar.
+Nothing a widget shows may set a floor for its card: the card, its body and its content pane all
+have a zero minimum, since a `StackPane` cannot resize a child below the child's own minimum and the
+grid — not the content — decides how small a card gets. On top of that the body is clipped to the
+card, so content that has shrunk as far as it can stops at the edge rather than drawing over the
+header or the widget below. The summary's `KeyFigures` handles being squeezed itself: the tiles wrap
+onto further lines as the card narrows, and when even that does not fit, the whole row is set in a
+smaller font (scaled in `em`, so it follows the user's configured font size).
 
 Everything the aggregations look forward over is bounded by a constant on the view model: the next
 services shown, the eight weeks of the coverage trend, the absence horizon, the twelve months of

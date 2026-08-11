@@ -12,15 +12,12 @@ import java.util.Map;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
@@ -306,7 +303,7 @@ public final class DashboardView extends StackPane {
                             new Charts.Slice(Localization.lang("Open"), snapshot.openSlotsAhead())),
                     snapshot.coveragePercent() + "%", Localization.lang("Slots assigned"));
         }
-        FlowPane tiles = new FlowPane(12, 8,
+        return new KeyFigures(
                 tile(String.valueOf(snapshot.upcomingServiceCount()), Localization.lang("Upcoming services"), ""),
                 tile(String.valueOf(snapshot.openSlotsAhead()), Localization.lang("Open slots"),
                         snapshot.openSlotsAhead() == 0 ? "dashboard-tile-good" : "dashboard-tile-warn"),
@@ -315,8 +312,6 @@ public final class DashboardView extends StackPane {
                         snapshot.problemCount() == 0 ? "dashboard-tile-good" : "dashboard-tile-warn"),
                 tile(String.valueOf(snapshot.activeServers()), Localization.lang("Active servers"), ""),
                 tile(String.valueOf(snapshot.roles()), Localization.lang("Roles"), ""));
-        tiles.getStyleClass().add("dashboard-tiles");
-        return scaled(tiles);
     }
 
     /// The conflict count is only as complete as the check that produced it;
@@ -328,39 +323,18 @@ public final class DashboardView extends StackPane {
                 : snapshot.problemCount() + "+";
     }
 
-    /// Key figures shrink with the widget instead of spilling out of it: the
-    /// tiles keep their layout and are scaled down as one, so the summary stays
-    /// readable in a one-row card and does not need a scrollbar. Only shrinking
-    /// - blowing the numbers up in a tall widget would look like a different
-    /// design.
-    private static Node scaled(Region content) {
-        Group group = new Group(content);
-        StackPane holder = new StackPane(group);
-        StackPane.setAlignment(group, Pos.CENTER_LEFT);
-        holder.setAlignment(Pos.CENTER_LEFT);
-        holder.layoutBoundsProperty().subscribe(bounds -> {
-            content.applyCss();
-            content.layout();
-            double width = content.prefWidth(-1);
-            double height = content.prefHeight(width);
-            if (width <= 0 || height <= 0 || bounds.getWidth() <= 0 || bounds.getHeight() <= 0) {
-                return;
-            }
-            double factor = Math.min(1, Math.min(bounds.getWidth() / width, bounds.getHeight() / height));
-            group.setScaleX(factor);
-            group.setScaleY(factor);
-        });
-        return holder;
-    }
-
     /// One key figure: the number big, its meaning small underneath.
     private static Node tile(String value, String caption, String extraStyleClass) {
         Label number = new Label(value);
         number.getStyleClass().add("dashboard-tile-value");
         Label label = new Label(caption);
         label.getStyleClass().add("dashboard-tile-caption");
+        label.setWrapText(true);
         VBox tile = new VBox(number, label);
         tile.getStyleClass().add("dashboard-tile");
+        // A tile never insists on its own width: in a narrow card the row wraps
+        // first, and a caption too long for what is left wraps inside its tile.
+        tile.setMinWidth(0);
         if (!extraStyleClass.isBlank()) {
             tile.getStyleClass().add(extraStyleClass);
         }

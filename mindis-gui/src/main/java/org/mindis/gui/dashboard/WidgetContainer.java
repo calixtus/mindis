@@ -58,6 +58,9 @@ final class WidgetContainer extends StackPane {
         this.mode = placement.mode();
 
         getStyleClass().add("dashboard-widget");
+        // The board sizes the card from the grid, and the grid is the authority
+        // on how small a card may get.
+        setMinSize(0, 0);
 
         Label title = new Label(type.title());
         title.getStyleClass().add("dashboard-widget-title");
@@ -78,6 +81,11 @@ final class WidgetContainer extends StackPane {
 
         content.getStyleClass().add("dashboard-widget-content");
         VBox.setVgrow(content, Priority.ALWAYS);
+        // Nothing a widget shows may set a floor for the card: a StackPane
+        // cannot resize a child below the child's own minimum, so content that
+        // insists on a size (a row of key figures, a chart) would otherwise
+        // push the body out of the card and over the widget below it.
+        content.setMinSize(0, 0);
         // Content that cannot shrink far enough (a chart at its minimum, a row
         // of key figures) must stop at the card's edge instead of drawing over
         // the widget below it - JavaFX panes do not clip their children.
@@ -88,6 +96,7 @@ final class WidgetContainer extends StackPane {
 
         VBox body = new VBox(header, content);
         body.getStyleClass().add("dashboard-widget-body");
+        body.setMinSize(0, 0);
 
         resizeGrip = new Region();
         resizeGrip.getStyleClass().add("dashboard-widget-resize-grip");

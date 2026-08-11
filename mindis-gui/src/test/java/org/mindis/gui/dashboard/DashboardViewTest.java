@@ -17,6 +17,7 @@ import javafx.scene.chart.BarChart;
 import javafx.scene.chart.StackedBarChart;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.Region;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -147,6 +148,61 @@ class DashboardViewTest {
                             "expected exactly one content node for " + type.id() + " in " + mode.id());
                 }
             }
+        });
+    }
+
+    /// The summary must survive being dragged small: rather than running over
+    /// the widget header or past its border, the figures are set smaller until
+    /// they fit. Sized stand-ins stand in for the tiles, since text has no
+    /// measurable size without a window on screen.
+    @Test
+    void keyFiguresShrinkTheirFontWhenTheyDoNotFit() throws InterruptedException {
+        FxTest.runAndWait(() -> {
+            Region tooBig = new Region();
+            tooBig.setPrefSize(300, 200);
+            KeyFigures figures = new KeyFigures(tooBig);
+
+            figures.resize(120, 40);
+            figures.layout();
+
+            assertTrue(figures.getStyle().contains("-fx-font-size"),
+                    "expected the figures to be scaled down, style was: '" + figures.getStyle() + "'");
+        });
+    }
+
+    /// However big the content insists on being, the card stays the size the
+    /// board gives it and its body stays inside - otherwise a widget dragged
+    /// small draws over its neighbours.
+    @Test
+    void aWidgetStaysWithinTheSizeTheBoardGivesIt() throws InterruptedException {
+        FxTest.runAndWait(() -> {
+            WidgetContainer widget = new WidgetContainer(WidgetType.SUMMARY.defaultPlacement(), _ -> { });
+            Region stubborn = new Region();
+            stubborn.setMinSize(400, 300);
+            widget.content().getChildren().add(stubborn);
+
+            widget.resizeRelocate(0, 0, 180, 60);
+            widget.layout();
+
+            assertAll(
+                    () -> assertEquals(180, widget.getWidth()),
+                    () -> assertEquals(60, widget.getHeight()),
+                    () -> assertTrue(widget.content().getBoundsInParent().getMaxY() <= 60.5,
+                            "the body runs past the card: " + widget.content().getBoundsInParent()));
+        });
+    }
+
+    @Test
+    void keyFiguresKeepTheirFontWhenThereIsRoom() throws InterruptedException {
+        FxTest.runAndWait(() -> {
+            Region small = new Region();
+            small.setPrefSize(40, 20);
+            KeyFigures figures = new KeyFigures(small);
+
+            figures.resize(400, 200);
+            figures.layout();
+
+            assertEquals("", figures.getStyle());
         });
     }
 
