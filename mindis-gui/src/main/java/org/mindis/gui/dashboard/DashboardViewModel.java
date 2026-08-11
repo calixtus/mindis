@@ -27,6 +27,10 @@ import org.mindis.core.persistence.ArchivedServiceRepository;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
+import org.mindis.core.planning.MinDisConstraintProvider;
+import org.mindis.core.planning.ServicePlan;
+import org.mindis.core.planning.ServicePlans;
+import org.mindis.core.planning.ViolationChecker;
 import org.mindis.core.preferences.DashboardWidgetLayout;
 import org.mindis.core.preferences.PreferencesService;
 
@@ -52,6 +56,11 @@ public final class DashboardViewModel {
 
     /// Months the archive history spans, ending with the current one.
     private static final int HISTORY_MONTHS = 12;
+
+    /// Above this many slots the dashboard stops checking for conflicts: the
+    /// double-booking check compares every assignment with every other, and
+    /// the board must not stall while it opens.
+    private static final int MAX_CHECKED_SLOTS = 2000;
 
     private final ServiceRepository serviceRepository;
     private final ServerRepository serverRepository;
@@ -129,7 +138,9 @@ public final class DashboardViewModel {
                            List<RoleQualification> qualificationCoverage,
                            List<Absence> absencesAhead,
                            List<RosterIssue> rosterIssues,
-                           List<ArchiveMonth> archiveHistory) {
+                           List<ArchiveMonth> archiveHistory,
+                           List<ProblemCount> problems,
+                           boolean problemsChecked) {
 
         public Snapshot {
             upcomingServices = List.copyOf(upcomingServices);
@@ -141,6 +152,7 @@ public final class DashboardViewModel {
             absencesAhead = List.copyOf(absencesAhead);
             rosterIssues = List.copyOf(rosterIssues);
             archiveHistory = List.copyOf(archiveHistory);
+            problems = List.copyOf(problems);
         }
 
         /// Whether the document holds no plan at all yet (no slots anywhere).
@@ -210,6 +222,12 @@ public final class DashboardViewModel {
     public record RosterIssue(RosterIssueKind kind, String serverName) {
     }
 
+    /// One entry of the "problems" widget: how many assignments violate that
+    /// constraint. `constraintName` is the constraint's own name, which
+    /// doubles as its localization key.
+    public record ProblemCount(String constraintName, int assignments) {
+    }
+
     /// One month of the archive history: how many archived services fall into
     /// it, and how many of their slots had been filled. Months without archived
     /// services are kept, so a break in the record stays visible.
@@ -239,7 +257,37 @@ public final class DashboardViewModel {
         return new Snapshot(unassigned, totalSlots, upcomingCount, activeServers, roleRepository.findAll().size(),
                 upcomingServices(services), serverLoad(services),
                 openSlotsByRole(ahead), serviceTypeMix(ahead), coverageTrend(ahead),
-                qualificationCoverage(ahead), absencesAhead(), rosterIssues(ahead), archiveHistory());
+                qualificationCoverage(ahead), absencesAhead(), rosterIssues(ahead), archiveHistory(),
+                problems(services, totalSlots), totalSlots <= MAX_CHECKED_SLOTS);
+    }
+
+    /// Assignments per violated constraint, worst first - the same checks the
+    /// services screen shows per assignment, counted over the whole document.
+    /// Built through [ServicePlans], not
+    /// [org.mindis.core.planning.PlanningService], so reading the board never
+    /// creates a solver.
+    ///
+    /// The unassigned-slot constraint is left out: the summary and the open
+    /// slots widget already say that, and it would otherwise dwarf every real
+    /// conflict. Skipped entirely above [#MAX_CHECKED_SLOTS], since the
+    /// double-booking check is quadratic in the number of assignments and this
+    /// runs on the FX thread while the dashboard is being built.
+    private List<ProblemCount> problems(List<LiturgicalService> services, int totalSlots) {
+        if (totalSlots > MAX_CHECKED_SLOTS) {
+            return List.of();
+        }
+        ServicePlan plan = ServicePlans.build(services, serverRepository.findAll(), roleRepository.findAll(),
+                List.of());
+        Map<String, Integer> countByConstraint = new LinkedHashMap<>();
+        ViolationChecker.violationsByAssignment(plan).values().stream()
+                .flatMap(List::stream)
+                .filter(constraint -> !constraint.equals(MinDisConstraintProvider.UNASSIGNED))
+                .forEach(constraint -> countByConstraint.merge(constraint, 1, Integer::sum));
+        return countByConstraint.entrySet().stream()
+                .map(entry -> new ProblemCount(entry.getKey(), entry.getValue()))
+                .sorted(Comparator.comparingInt(ProblemCount::assignments).reversed()
+                        .thenComparing(ProblemCount::constraintName))
+                .toList();
     }
 
     /// Archived services per month, oldest month first, over a fixed span

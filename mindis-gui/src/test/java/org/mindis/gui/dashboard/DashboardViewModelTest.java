@@ -28,6 +28,7 @@ import org.mindis.core.persistence.ArchivedServiceRepository;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
+import org.mindis.core.planning.MinDisConstraintProvider;
 import org.mindis.core.preferences.DashboardWidgetLayout;
 import org.mindis.core.preferences.PreferencesService;
 
@@ -348,6 +349,29 @@ class DashboardViewModelTest {
                 () -> assertEquals(1, month.assignedSlots()),
                 // The two-year-old entry falls outside the span and is dropped.
                 () -> assertEquals(2, history.stream().mapToInt(DashboardViewModel.ArchiveMonth::services).sum()));
+    }
+
+    /// Counts the same conflicts the services screen marks per assignment. The
+    /// unassigned-slot one is deliberately not among them: the summary and the
+    /// open-slots widget already carry it.
+    @Test
+    void loadSnapshot_problems_countsConflictsButNotOpenSlots() {
+        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        servers.save(inactive(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE")));
+        servers.save(server("srv2", "Ben", "Meier"));
+        services.save(service("s1", inDays(1),
+                List.of(filled("ACOLYTE", "srv1"), filled("ACOLYTE", "srv2"), Slot.open("ACOLYTE"))));
+
+        DashboardViewModel.Snapshot snapshot = newViewModel().loadSnapshot();
+        List<String> constraints = snapshot.problems().stream()
+                .map(DashboardViewModel.ProblemCount::constraintName)
+                .toList();
+
+        assertAll(
+                () -> assertTrue(snapshot.problemsChecked()),
+                () -> assertTrue(constraints.contains(MinDisConstraintProvider.INACTIVE)),
+                () -> assertTrue(constraints.contains(MinDisConstraintProvider.NOT_QUALIFIED)),
+                () -> assertTrue(!constraints.contains(MinDisConstraintProvider.UNASSIGNED)));
     }
 
     @Test

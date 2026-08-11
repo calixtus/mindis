@@ -124,7 +124,36 @@ public final class DashboardView extends StackPane {
             case ABSENCES_AHEAD -> absencesContent(mode);
             case ROSTER_HEALTH -> rosterHealthContent(mode);
             case ARCHIVE_HISTORY -> archiveHistoryContent(mode);
+            case PROBLEMS -> problemsContent(mode);
         };
+    }
+
+    private Node problemsContent(WidgetViewMode mode) {
+        if (!snapshot.problemsChecked()) {
+            return message(Localization.lang("Too many services to check for conflicts here"));
+        }
+        List<DashboardViewModel.ProblemCount> problems = snapshot.problems();
+        if (mode == WidgetViewMode.BAR) {
+            return Charts.horizontalBar(problems.stream()
+                    // Constraint names double as localization keys.
+                    .map(problem -> new Charts.Slice(Localization.lang(problem.constraintName()),
+                            problem.assignments()))
+                    .toList(), Localization.lang("Assignments"));
+        }
+        if (problems.isEmpty()) {
+            return message(Localization.lang("No conflicts"));
+        }
+        return listView(problems.stream()
+                .map(problem -> Localization.lang(problem.constraintName()) + ": " + problem.assignments())
+                .toList());
+    }
+
+    /// A widget body that is a sentence rather than data.
+    private static Node message(String text) {
+        Label label = new Label(text);
+        label.getStyleClass().add("dashboard-empty");
+        label.setWrapText(true);
+        return new StackPane(label);
     }
 
     private Node archiveHistoryContent(WidgetViewMode mode) {
@@ -194,9 +223,7 @@ public final class DashboardView extends StackPane {
                     .toList(), Localization.lang("Servers"));
         }
         if (issues.isEmpty()) {
-            Label label = new Label(Localization.lang("Nothing to fix"));
-            label.getStyleClass().add("dashboard-empty");
-            return new StackPane(label);
+            return message(Localization.lang("Nothing to fix"));
         }
         return listView(issues.stream()
                 .map(issue -> issue.serverName() + ": " + describe(issue.kind()))

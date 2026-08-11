@@ -22,7 +22,6 @@ import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.model.LiturgicalService;
-import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.Slot;
 import org.mindis.core.persistence.RoleRepository;
@@ -103,33 +102,8 @@ public final class PlanningService implements AutoCloseable {
     /// Builds a problem from an explicit service set with explicit prior facts
     /// - the testable core of [#buildProblem()].
     public ServicePlan buildProblem(List<LiturgicalService> services, List<PriorAssignment> priorAssignments) {
-        List<Server> activeServers = serverRepository.findAll().stream()
-                .filter(Server::active)
-                .toList();
-        Map<String, Server> serversById = new HashMap<>();
-        serverRepository.findAll().forEach(server -> serversById.put(server.id(), server));
-        Map<String, Role> rolesById = new HashMap<>();
-        roleRepository.findAll().forEach(role -> rolesById.put(role.id(), role));
-
-        List<Assignment> assignments = new ArrayList<>();
-        for (LiturgicalService service : services) {
-            for (Slot slot : service.slots()) {
-                Role role = rolesById.get(slot.role());
-                if (role == null) {
-                    // Slot references a deleted role; nothing to assign.
-                    continue;
-                }
-                Assignment assignment = new Assignment(
-                        new AssignmentKey(service.id(), slot.id()).toId(), service, role);
-                if (slot.serverId() != null) {
-                    assignment.setServer(serversById.get(slot.serverId()));
-                }
-                assignment.setPinned(slot.pinned() && assignment.getServer() != null);
-                assignments.add(assignment);
-            }
-        }
-        ServicePlan plan = new ServicePlan(activeServers, assignments);
-        plan.setPriorAssignments(priorAssignments);
+        ServicePlan plan = ServicePlans.build(services, serverRepository.findAll(), roleRepository.findAll(),
+                priorAssignments);
         plan.setConstraintWeightOverrides(weightOverridesFromPreferences());
         return plan;
     }
