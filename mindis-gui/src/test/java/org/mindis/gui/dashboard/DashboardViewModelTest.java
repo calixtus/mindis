@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -171,6 +172,68 @@ class DashboardViewModelTest {
                 () -> assertEquals(1L, load.getFirst().assignments()),
                 () -> assertEquals(0L, load.get(1).assignments()),
                 () -> assertTrue(load.get(1).serverName().contains("Becker")));
+    }
+
+    /// Only services still ahead count here: an open slot in a service that has
+    /// already happened cannot be staffed any more.
+    @Test
+    void loadSnapshot_openSlotsByRole_countsFutureOpenSlotsAndUsesRoleNames() {
+        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        services.save(service("past", inDays(-1), List.of(Slot.open("ACOLYTE"))));
+        services.save(service("s1", inDays(1),
+                List.of(Slot.open("ACOLYTE"), Slot.open("ACOLYTE"), filled("ACOLYTE", "srv1"))));
+        services.save(service("s2", inDays(2), List.of(Slot.open("THURIFER"))));
+
+        List<DashboardViewModel.RoleOpenSlots> open = newViewModel().loadSnapshot().openSlotsByRole();
+
+        assertAll(
+                () -> assertEquals(2, open.size()),
+                () -> assertEquals("Acolyte", open.getFirst().roleName()),
+                () -> assertEquals(2, open.getFirst().openSlots()),
+                // No role saved under that id, so the raw id stands in.
+                () -> assertEquals("THURIFER", open.get(1).roleName()),
+                () -> assertEquals(1, open.get(1).openSlots()));
+    }
+
+    @Test
+    void loadSnapshot_serviceTypeMix_countsUpcomingServicesPerType() {
+        services.save(service("past", inDays(-1), List.of(Slot.open("ACOLYTE"))));
+        services.save(service("s1", inDays(1), List.of(Slot.open("ACOLYTE"))));
+        services.save(service("s2", inDays(2), List.of(Slot.open("ACOLYTE"))));
+        services.save(new LiturgicalService("s3", inDays(3), 60, "St. Mary", ServiceType.WEDDING,
+                List.of(Slot.open("ACOLYTE")), ""));
+
+        List<DashboardViewModel.ServiceTypeCount> mix = newViewModel().loadSnapshot().serviceTypeMix();
+
+        assertAll(
+                () -> assertEquals(2, mix.size()),
+                () -> assertEquals(ServiceType.SUNDAY_MASS, mix.getFirst().type()),
+                () -> assertEquals(2, mix.getFirst().count()),
+                () -> assertEquals(ServiceType.WEDDING, mix.get(1).type()),
+                () -> assertEquals(1, mix.get(1).count()));
+    }
+
+    /// A fixed span of weeks starting with the current one, so a week without
+    /// services shows up as an empty week rather than being skipped.
+    @Test
+    void loadSnapshot_coverageTrend_bucketsSlotsIntoWholeWeeks() {
+        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv1"), Slot.open("ACOLYTE"))));
+
+        List<DashboardViewModel.WeekCoverage> trend = newViewModel().loadSnapshot().coverageTrend();
+        DashboardViewModel.WeekCoverage weekOfTheService = trend.stream()
+                .filter(week -> !week.weekStart().isAfter(inDays(1).toLocalDate())
+                        && week.weekStart().plusWeeks(1).isAfter(inDays(1).toLocalDate()))
+                .findFirst()
+                .orElseThrow();
+
+        assertAll(
+                () -> assertEquals(8, trend.size()),
+                () -> assertEquals(DayOfWeek.MONDAY, trend.getFirst().weekStart().getDayOfWeek()),
+                () -> assertEquals(1, weekOfTheService.assignedSlots()),
+                () -> assertEquals(1, weekOfTheService.openSlots()),
+                () -> assertEquals(2, trend.stream()
+                        .mapToInt(week -> week.assignedSlots() + week.openSlots())
+                        .sum()));
     }
 
     @Test

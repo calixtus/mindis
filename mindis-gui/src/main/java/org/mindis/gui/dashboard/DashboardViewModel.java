@@ -2,9 +2,12 @@ package org.mindis.gui.dashboard;
 
 import io.avaje.inject.Prototype;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +17,7 @@ import org.jspecify.annotations.Nullable;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
+import org.mindis.core.model.Slot;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
@@ -31,6 +35,10 @@ public final class DashboardViewModel {
     /// to fill the widget when it is dragged tall, and to make a stacked bar
     /// chart of the same data worth looking at.
     private static final int MAX_NEXT_SERVICES = 12;
+
+    /// Weeks the coverage trend spans, counted from the current one - about two
+    /// months, which is as far ahead as a parish plan usually reaches.
+    private static final int TREND_WEEKS = 8;
 
     private final ServiceRepository serviceRepository;
     private final ServerRepository serverRepository;
@@ -98,11 +106,17 @@ public final class DashboardViewModel {
     public record Snapshot(int unassignedSlots, int totalSlots,
                            int upcomingServiceCount, int activeServers, int roles,
                            List<UpcomingService> upcomingServices,
-                           List<ServerLoad> serverLoad) {
+                           List<ServerLoad> serverLoad,
+                           List<RoleOpenSlots> openSlotsByRole,
+                           List<ServiceTypeCount> serviceTypeMix,
+                           List<WeekCoverage> coverageTrend) {
 
         public Snapshot {
             upcomingServices = List.copyOf(upcomingServices);
             serverLoad = List.copyOf(serverLoad);
+            openSlotsByRole = List.copyOf(openSlotsByRole);
+            serviceTypeMix = List.copyOf(serviceTypeMix);
+            coverageTrend = List.copyOf(coverageTrend);
         }
 
         /// Whether the document holds no plan at all yet (no slots anywhere).
@@ -130,6 +144,22 @@ public final class DashboardViewModel {
     public record ServerLoad(String serverName, long assignments) {
     }
 
+    /// One entry of the "open slots by role" widget: how many slots for that
+    /// role are still unfilled, across the services that are still ahead.
+    public record RoleOpenSlots(String roleName, int openSlots) {
+    }
+
+    /// One entry of the "service types" widget: how many of the upcoming
+    /// services are of that kind.
+    public record ServiceTypeCount(ServiceType type, int count) {
+    }
+
+    /// One week of the coverage trend: the slots of every service in that week,
+    /// split into filled and still open. Weeks with no service are kept, so a
+    /// gap in the planning reads as a gap.
+    public record WeekCoverage(LocalDate weekStart, int assignedSlots, int openSlots) {
+    }
+
     public Snapshot loadSnapshot() {
         List<LiturgicalService> services = serviceRepository.findAll();
         int totalSlots = services.stream().mapToInt(service -> service.slots().size()).sum();
@@ -141,8 +171,71 @@ public final class DashboardViewModel {
                 .filter(service -> service.dateTime().isAfter(LocalDateTime.now()))
                 .count();
         int activeServers = (int) serverRepository.findAll().stream().filter(Server::active).count();
+        List<LiturgicalService> ahead = services.stream()
+                .filter(service -> service.dateTime().isAfter(LocalDateTime.now()))
+                .toList();
         return new Snapshot(unassigned, totalSlots, upcomingCount, activeServers, roleRepository.findAll().size(),
-                upcomingServices(services), serverLoad(services));
+                upcomingServices(services), serverLoad(services),
+                openSlotsByRole(ahead), serviceTypeMix(ahead), coverageTrend(ahead));
+    }
+
+    /// Open slots per role, most-open first. Only services still ahead count:
+    /// a slot left open in a service that has already happened cannot be
+    /// staffed any more, so it is history, not a task.
+    private List<RoleOpenSlots> openSlotsByRole(List<LiturgicalService> ahead) {
+        Map<String, String> roleNames = new LinkedHashMap<>();
+        roleRepository.findAll().forEach(role -> roleNames.put(role.id(), role.displayName()));
+        Map<String, Integer> openByRole = new LinkedHashMap<>();
+        ahead.stream()
+                .flatMap(service -> service.slots().stream())
+                .filter(slot -> slot.serverId() == null)
+                .forEach(slot -> openByRole.merge(slot.role(), 1, Integer::sum));
+        return openByRole.entrySet().stream()
+                // A role id with no role left (deleted while still used) falls
+                // back to the raw id, as the server load does with server ids.
+                .map(entry -> new RoleOpenSlots(roleNames.getOrDefault(entry.getKey(), entry.getKey()),
+                        entry.getValue()))
+                .sorted(Comparator.comparingInt(RoleOpenSlots::openSlots).reversed()
+                        .thenComparing(RoleOpenSlots::roleName))
+                .toList();
+    }
+
+    private static List<ServiceTypeCount> serviceTypeMix(List<LiturgicalService> ahead) {
+        Map<ServiceType, Integer> countByType = new EnumMap<>(ServiceType.class);
+        ahead.forEach(service -> countByType.merge(service.type(), 1, Integer::sum));
+        return countByType.entrySet().stream()
+                .map(entry -> new ServiceTypeCount(entry.getKey(), entry.getValue()))
+                .sorted(Comparator.comparingInt(ServiceTypeCount::count).reversed())
+                .toList();
+    }
+
+    /// Filled versus open slots per week, from the current week onward. Fixed
+    /// length rather than "the weeks that have services", so an empty week
+    /// stands out as the hole in the planning that it is.
+    private static List<WeekCoverage> coverageTrend(List<LiturgicalService> ahead) {
+        LocalDate firstWeek = LocalDate.now().with(DayOfWeek.MONDAY);
+        List<WeekCoverage> trend = new ArrayList<>();
+        for (int week = 0; week < TREND_WEEKS; week++) {
+            LocalDate start = firstWeek.plusWeeks(week);
+            LocalDate end = start.plusWeeks(1);
+            int assigned = 0;
+            int open = 0;
+            for (LiturgicalService service : ahead) {
+                LocalDate date = service.dateTime().toLocalDate();
+                if (date.isBefore(start) || !date.isBefore(end)) {
+                    continue;
+                }
+                for (Slot slot : service.slots()) {
+                    if (slot.serverId() == null) {
+                        open++;
+                    } else {
+                        assigned++;
+                    }
+                }
+            }
+            trend.add(new WeekCoverage(start, assigned, open));
+        }
+        return trend;
     }
 
     private static List<UpcomingService> upcomingServices(List<LiturgicalService> services) {

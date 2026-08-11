@@ -17,6 +17,7 @@ import javafx.scene.layout.VBox;
 
 import org.kordamp.ikonli.javafx.FontIcon;
 
+import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.gui.util.DateTimes;
 
@@ -111,6 +112,54 @@ public final class DashboardView extends StackPane {
             case SUMMARY -> summaryContent(mode);
             case NEXT_SERVICES -> upcomingContent(mode);
             case SERVER_LOAD -> serverLoadContent(mode);
+            case OPEN_SLOTS_BY_ROLE -> openSlotsByRoleContent(mode);
+            case SERVICE_TYPE_MIX -> serviceTypeMixContent(mode);
+            case COVERAGE_TREND -> coverageTrendContent(mode);
+        };
+    }
+
+    private Node openSlotsByRoleContent(WidgetViewMode mode) {
+        List<Charts.Slice> slices = snapshot.openSlotsByRole().stream()
+                .map(entry -> new Charts.Slice(entry.roleName(), entry.openSlots()))
+                .toList();
+        return switch (mode) {
+            case PIE -> Charts.pie(Charts.topWithOthers(slices, Charts.MAX_PIE_SLICES));
+            case LIST -> listView(snapshot.openSlotsByRole().stream()
+                    .map(entry -> entry.roleName() + ": " + entry.openSlots())
+                    .toList());
+            default -> Charts.horizontalBar(slices, Localization.lang("Open slots"));
+        };
+    }
+
+    private Node serviceTypeMixContent(WidgetViewMode mode) {
+        List<Charts.Slice> slices = snapshot.serviceTypeMix().stream()
+                .map(entry -> new Charts.Slice(EnumDisplay.of(entry.type()), entry.count()))
+                .toList();
+        return switch (mode) {
+            case BAR -> Charts.horizontalBar(slices, Localization.lang("Services"));
+            case LIST -> listView(slices.stream()
+                    .map(slice -> slice.label() + ": " + (long) slice.value())
+                    .toList());
+            default -> Charts.pie(slices);
+        };
+    }
+
+    private Node coverageTrendContent(WidgetViewMode mode) {
+        List<DashboardViewModel.WeekCoverage> trend = snapshot.coverageTrend();
+        List<String> weeks = trend.stream().map(week -> DateTimes.shortDate(week.weekStart())).toList();
+        List<Charts.Series> series = List.of(
+                new Charts.Series(Localization.lang("Assigned"),
+                        trend.stream().map(week -> (double) week.assignedSlots()).toList()),
+                new Charts.Series(Localization.lang("Open"),
+                        trend.stream().map(week -> (double) week.openSlots()).toList()));
+        return switch (mode) {
+            case LINE -> Charts.line(weeks, series, Localization.lang("Slots"));
+            case AREA -> Charts.area(weeks, series, Localization.lang("Slots"));
+            case LIST -> listView(trend.stream()
+                    .map(week -> Localization.lang("Week of %0", DateTimes.date(week.weekStart()))
+                            + ": " + week.assignedSlots() + "/" + (week.assignedSlots() + week.openSlots()))
+                    .toList());
+            default -> Charts.stackedBar(weeks, series, Localization.lang("Slots"));
         };
     }
 
