@@ -31,7 +31,7 @@ dependencies.constraints {
     api("io.avaje:avaje-inject-generator:$avajeInject")
     api("jakarta.inject:jakarta.inject-api:2.0.1")
 
-    api("ai.timefold.solver:timefold-solver-core:2.3.0")
+    api("ai.timefold.solver:timefold-solver-core:2.4.0")
     api("com.github.librepdf:openpdf:3.0.5")
 
     api("org.jspecify:jspecify:1.0.1")
