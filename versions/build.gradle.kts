@@ -34,7 +34,7 @@ dependencies.constraints {
     api("ai.timefold.solver:timefold-solver-core:2.3.0")
     api("com.github.librepdf:openpdf:3.0.5")
 
-    api("org.jspecify:jspecify:1.0.0")
+    api("org.jspecify:jspecify:1.0.1")
 
     // mindis's own code logs through slf4j-api (never java.util.logging
     // directly, except org.mindis.core.logging.LoggingBootstrap and
