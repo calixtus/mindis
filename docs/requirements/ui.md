@@ -43,8 +43,14 @@ Covers:
 ### Overview at a glance
 `req~dashboard~1`
 
-The dashboard summarizes the current state: the upcoming services and the per-server duty load,
-derived from the live services.
+The dashboard summarizes the current state on a board of widgets the user arranges: key figures,
+the upcoming services, the per-server duty load, open slots per role, the mix of service types, the
+coverage of the weeks ahead, how many servers are qualified for each role, who is away soon, what is
+wrong with the roster, the archived services per month, and the conflicts in the current
+assignments. Everything is derived from the live services, servers, roles and the archive.
+
+Each widget renders its data either as a list or as a diagram; the user picks which from the
+widget's header, and the choice is remembered with the layout.
 
 Covers:
 - feat~liturgical-service-planning~1
@@ -184,12 +190,26 @@ Covers:
 ### Dashboard view model
 `dsn~dashboard-viewmodel~1`
 
-`DashboardViewModel` owns every repository call and the upcoming-services / server-load
-aggregation, computed straight off the live services (assignments live on their slots, so there is
-no plan to read). It returns data — slot counts, `UpcomingService`, `ServerLoad` — and
-`DashboardView` decides how to word and format it; dates go through `DateTimes`, which follows the
-active language. The view is a plain JavaFX `StackPane` built in Java, like every other screen
-(ADR 001).
+`DashboardViewModel` owns every repository call and every aggregation, computed straight off the
+live services, servers, roles and the archive (assignments live on their slots, so there is no plan
+to read). It returns one `Snapshot` of plain data — slot counts and coverage, `UpcomingService`,
+`ServerLoad`, `RoleOpenSlots`, `ServiceTypeCount`, `WeekCoverage`, `RoleQualification`, `Absence`,
+`RosterIssue`, `ArchiveMonth`, `ProblemCount` — and `DashboardView` decides how to word, format and
+draw it; dates go through `DateTimes`, which follows the active language. The view is a plain
+JavaFX `StackPane` built in Java, like every other screen (ADR 001).
+
+Everything the aggregations look forward over is bounded by a constant on the view model: the next
+services shown, the eight weeks of the coverage trend, the absence horizon, the twelve months of
+archive history. The conflict counts come from `ViolationChecker` over a plan built by
+`ServicePlans` — a plain factory, not `PlanningService`, so opening the dashboard never creates a
+solver — and are skipped above a slot threshold, since the double-booking check is quadratic and
+this runs while the board is being built.
+
+`WidgetType` declares each widget's stable id, default grid placement and the `WidgetViewMode`s it
+supports (first = default). `WidgetContainer` shows a mode chooser only for a type with more than
+one, and `Charts` builds every diagram from plain `(label, value)` data with animation off, a
+tooltip per point, and an empty-state label instead of bare axes. Chart colours are AtlantaFX
+tokens in `dashboard.css`, so diagrams follow the theme and the user's accent.
 
 Covers:
 - req~dashboard~1
@@ -197,13 +217,15 @@ Covers:
 ### Preferences record
 `dsn~preferences-record~1`
 
-`MinDisPreferences` is an immutable record with a `version` (currently 12) plus `languageTag`,
+`MinDisPreferences` is an immutable record with a `version` (currently 14) plus `languageTag`,
 `theme` (`Light`/`Dark`/`System`, where `System` follows the OS colour scheme live), `windowBounds`,
 `solverSecondsLimit` (default 30), `softConstraintWeights`, `accentColor`,
 `fontFamily`/`fontSize` (default 14, clamped 10–24), `lastExportDirectory`,
 `sidebarWidth`, `lastDocument`, `recentCollections` (the switcher's list, capped at five; see
-[persistence.md](persistence.md)) and `toolbarButtonDisplay` (text / icon / both, default both).
-The record is at version 12. Changes go through wither methods. The compact constructor fills
+[persistence.md](persistence.md)), `toolbarButtonDisplay` (text / icon / both, default both) and
+`dashboardWidgets` (the board layout: per widget its id, grid position, spans and view mode; `null`
+until the user first arranges it, an empty list being a deliberately cleared board).
+Changes go through wither methods. The compact constructor fills
 absent or invalid values with defaults, which is what makes most version steps migration-free. The
 v11→v12 step is an explicit migration: the old standalone `followSystemTheme` boolean folds into the
 `Theme.SYSTEM` enum value.

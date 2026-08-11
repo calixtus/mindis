@@ -21,6 +21,8 @@ import javafx.scene.control.ScrollPane;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import org.kordamp.ikonli.javafx.FontIcon;
+
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
@@ -112,6 +114,39 @@ class DashboardViewTest {
                     () -> assertEquals(1, withStyleClass(view, "dashboard-donut-hole").size()),
                     () -> assertInstanceOf(StackedBarChart.class,
                             contentOf(view, WidgetType.NEXT_SERVICES)));
+        });
+    }
+
+    /// Every mode names an Ikonli glyph, and an unknown icon code only fails
+    /// when the icon is built - which, for a mode nobody has picked yet, would
+    /// be in front of the user rather than here.
+    @Test
+    void everyViewModeHasAResolvableIcon() throws InterruptedException {
+        FxTest.runAndWait(() -> {
+            for (WidgetViewMode mode : WidgetViewMode.values()) {
+                assertEquals(mode.iconCode(), new FontIcon(mode.iconCode()).getIconLiteral());
+            }
+        });
+    }
+
+    /// Each widget must render in each of its own modes; a mode that throws
+    /// would only be found when a user picks it.
+    @Test
+    void everyWidgetRendersInEveryModeItOffers() throws InterruptedException {
+        givenAssignedService();
+        PreferencesService preferences = FxTest.preferencesAt(preferencesFile());
+        FxTest.runAndWait(() -> {
+            DashboardView view = new DashboardView(newViewModel(preferences));
+            for (WidgetType type : WidgetType.values()) {
+                if (type.modes().size() < 2) {
+                    continue;
+                }
+                for (WidgetViewMode mode : type.modes()) {
+                    fire(chooserOf(view, type), type, mode);
+                    assertEquals(1, widgetFor(view, type).content().getChildren().size(),
+                            "expected exactly one content node for " + type.id() + " in " + mode.id());
+                }
+            }
         });
     }
 
