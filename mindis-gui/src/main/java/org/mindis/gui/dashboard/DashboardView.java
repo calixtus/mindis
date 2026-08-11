@@ -115,10 +115,27 @@ public final class DashboardView extends StackPane {
             case NEXT_SERVICES -> listView(snapshot.upcomingServices().stream()
                     .map(DashboardView::describe)
                     .toList());
-            case SERVER_LOAD -> listView(snapshot.serverLoad().stream()
-                    .map(load -> load.serverName() + ": " + load.assignments())
+            case SERVER_LOAD -> serverLoadContent(mode);
+        };
+    }
+
+    private Node serverLoadContent(WidgetViewMode mode) {
+        List<DashboardViewModel.ServerLoad> load = snapshot.serverLoad();
+        return switch (mode) {
+            case BAR -> Charts.horizontalBar(slices(load), Localization.lang("Assignments"));
+            // A pie of "who did how much" only reads with a handful of slices,
+            // and a server with no assignment has no slice at all - so the tail
+            // is bucketed rather than drawn.
+            case PIE -> Charts.pie(Charts.topWithOthers(
+                    slices(load).stream().filter(slice -> slice.value() > 0).toList(), Charts.MAX_PIE_SLICES));
+            default -> listView(load.stream()
+                    .map(entry -> entry.serverName() + ": " + entry.assignments())
                     .toList());
         };
+    }
+
+    private static List<Charts.Slice> slices(List<DashboardViewModel.ServerLoad> load) {
+        return load.stream().map(entry -> new Charts.Slice(entry.serverName(), entry.assignments())).toList();
     }
 
     private String summaryText() {

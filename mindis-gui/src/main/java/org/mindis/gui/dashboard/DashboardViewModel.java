@@ -4,6 +4,7 @@ import io.avaje.inject.Prototype;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -135,6 +136,13 @@ public final class DashboardViewModel {
         Map<String, Server> serversById = new LinkedHashMap<>();
         serverRepository.findAll().forEach(server -> serversById.put(server.id(), server));
         Map<String, Long> countByServer = new LinkedHashMap<>();
+        // Active servers start at zero: someone who is never assigned is the
+        // most interesting entry of this widget, and would otherwise be the one
+        // entry missing from it. Inactive servers are not expected to serve, so
+        // they appear only if they actually hold an assignment.
+        serversById.values().stream()
+                .filter(Server::active)
+                .forEach(server -> countByServer.put(server.id(), 0L));
         services.stream()
                 .flatMap(service -> service.slots().stream())
                 .forEach(slot -> {
@@ -143,13 +151,16 @@ public final class DashboardViewModel {
                     }
                 });
         return countByServer.entrySet().stream()
-                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
                 .map(entry -> {
                     Server server = serversById.get(entry.getKey());
                     // An id with no server left (deleted while still assigned)
                     // falls back to the raw id rather than vanishing.
                     return new ServerLoad(server == null ? entry.getKey() : server.displayName(), entry.getValue());
                 })
+                // Most-loaded first, then by name so equal loads keep a stable,
+                // readable order rather than repository order.
+                .sorted(Comparator.comparingLong(ServerLoad::assignments).reversed()
+                        .thenComparing(ServerLoad::serverName))
                 .toList();
     }
 }

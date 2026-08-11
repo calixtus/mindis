@@ -103,6 +103,112 @@
     -fx-border-color: transparent;
 }
 
+/* Diagrams. The card already supplies the surface, so the chart itself stays
+   transparent; the series palette is derived from the AtlantaFX accent and
+   status tokens, so it follows the theme and the user's accent colour. */
+.dashboard-chart {
+    -fx-background-color: transparent;
+    -fx-padding: 0;
+}
+
+.dashboard-chart > .chart-content {
+    -fx-padding: 4;
+}
+
+.dashboard-chart .chart-plot-background {
+    -fx-background-color: transparent;
+}
+
+.dashboard-chart .chart-horizontal-grid-lines,
+.dashboard-chart .chart-vertical-grid-lines {
+    -fx-stroke: -color-border-muted;
+}
+
+.dashboard-chart .axis {
+    -fx-tick-label-fill: -color-fg-muted;
+    -fx-border-color: transparent;
+}
+
+.dashboard-chart .axis-label,
+.dashboard-chart .chart-legend {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.dashboard-chart .chart-legend {
+    -fx-background-color: transparent;
+}
+
+.dashboard-chart .chart-legend-item {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.dashboard-chart .default-color0.chart-bar {
+    -fx-bar-fill: -color-accent-emphasis;
+}
+
+.dashboard-chart .default-color1.chart-bar {
+    -fx-bar-fill: -color-warning-emphasis;
+}
+
+.dashboard-chart .default-color2.chart-bar {
+    -fx-bar-fill: -color-success-emphasis;
+}
+
+.dashboard-chart .default-color3.chart-bar {
+    -fx-bar-fill: -color-danger-emphasis;
+}
+
+.dashboard-chart .default-color0.chart-series-line,
+.dashboard-chart .default-color0.chart-series-area-line {
+    -fx-stroke: -color-accent-emphasis;
+}
+
+.dashboard-chart .default-color1.chart-series-line,
+.dashboard-chart .default-color1.chart-series-area-line {
+    -fx-stroke: -color-warning-emphasis;
+}
+
+.dashboard-chart .default-color0.chart-series-area-fill {
+    -fx-fill: -color-accent-muted;
+}
+
+.dashboard-chart .default-color1.chart-series-area-fill {
+    -fx-fill: -color-warning-muted;
+}
+
+.dashboard-chart .chart-line-symbol {
+    -fx-background-radius: 4;
+    -fx-padding: 3;
+}
+
+.dashboard-chart .chart-pie-label {
+    -fx-fill: -color-fg-muted;
+}
+
+/* The donut hole: an opaque disc over the middle of a pie, carrying the
+   headline figure. Its background must match the card, not the board. */
+.dashboard-donut-hole {
+    -fx-background-color: -color-bg-default;
+    -fx-background-radius: 1000;
+    -fx-padding: 18;
+    -fx-min-width: 96;
+    -fx-min-height: 96;
+}
+
+.dashboard-donut-value {
+    -fx-font-size: 1.6em;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-default;
+}
+
+.dashboard-donut-caption {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.dashboard-empty {
+    -fx-text-fill: -color-fg-muted;
+}
+
 .dashboard-summary {
     -fx-font-size: 1.3em;
     -fx-text-fill: -color-fg-default;
