@@ -13,9 +13,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import org.mindis.core.model.LiturgicalService;
+import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
+import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.preferences.DashboardWidgetLayout;
@@ -32,11 +34,12 @@ class DashboardViewModelTest {
 
     private final ServiceRepository services = new ServiceRepository();
     private final ServerRepository servers = new ServerRepository();
+    private final RoleRepository roles = new RoleRepository();
 
     private DashboardViewModel newViewModel() {
         // Never read in these tests (only loadLayout/saveLayout touch it), but
         // pointed at a temp file so a stray read cannot reach real preferences.
-        return new DashboardViewModel(services, servers, new TestablePreferencesService(
+        return new DashboardViewModel(services, servers, roles, new TestablePreferencesService(
                 tempDir.resolve("preferences.json")));
     }
 
@@ -123,6 +126,53 @@ class DashboardViewModelTest {
                 () -> assertEquals("ghost", load.getFirst().serverName()));
     }
 
+    /// The figures the summary widget shows: every service still ahead (not
+    /// only the ones the "next services" widget lists), the active roster, the
+    /// configured roles and the share of slots that have a server.
+    @Test
+    void loadSnapshot_carriesTheSummaryFigures() {
+        servers.save(server("srv1", "Anna", "Becker"));
+        servers.save(inactive(server("srv2", "Ben", "Meier")));
+        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        services.save(service("past", inDays(-1), List.of(filled("ACOLYTE", "srv1"))));
+        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv1"), Slot.open("ACOLYTE"))));
+        services.save(service("s2", inDays(2), List.of(Slot.open("ACOLYTE"))));
+
+        DashboardViewModel.Snapshot snapshot = newViewModel().loadSnapshot();
+
+        assertAll(
+                () -> assertEquals(2, snapshot.upcomingServiceCount()),
+                () -> assertEquals(1, snapshot.activeServers()),
+                () -> assertEquals(1, snapshot.roles()),
+                () -> assertEquals(2, snapshot.assignedSlots()),
+                () -> assertEquals(50, snapshot.coveragePercent()));
+    }
+
+    /// Nothing planned is not "everything covered": an empty document reports
+    /// zero coverage, so the summary cannot read as a finished plan.
+    @Test
+    void loadSnapshot_emptyDocument_hasZeroCoverage() {
+        assertEquals(0, newViewModel().loadSnapshot().coveragePercent());
+    }
+
+    /// An active server nobody has been assigned to is exactly what this widget
+    /// is for, so it appears with a load of zero rather than being left out.
+    @Test
+    void loadSnapshot_serverLoad_includesActiveServersWithoutAssignments() {
+        servers.save(server("srv1", "Anna", "Becker"));
+        servers.save(server("srv2", "Ben", "Meier"));
+        servers.save(inactive(server("srv3", "Cara", "Vogt")));
+        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv2"))));
+
+        List<DashboardViewModel.ServerLoad> load = newViewModel().loadSnapshot().serverLoad();
+
+        assertAll(
+                () -> assertEquals(2, load.size()),
+                () -> assertEquals(1L, load.getFirst().assignments()),
+                () -> assertEquals(0L, load.get(1).assignments()),
+                () -> assertTrue(load.get(1).serverName().contains("Becker")));
+    }
+
     @Test
     void loadLayout_neverArranged_returnsEveryWidgetTypeOnce() {
         List<WidgetPlacement> layout = newViewModel().loadLayout();
@@ -157,7 +207,7 @@ class DashboardViewModelTest {
         preferences.update(p -> p.withDashboardWidgets(List.of(
                 new DashboardWidgetLayout(WidgetType.SERVER_LOAD.id(), 0, 0, 6, 3, "sunburst"),
                 new DashboardWidgetLayout(WidgetType.NEXT_SERVICES.id(), 0, 3, 6, 3, null))));
-        DashboardViewModel viewModel = new DashboardViewModel(services, servers, preferences);
+        DashboardViewModel viewModel = new DashboardViewModel(services, servers, roles, preferences);
 
         List<WidgetPlacement> layout = viewModel.loadLayout();
 
@@ -181,6 +231,12 @@ class DashboardViewModelTest {
 
     private static Server server(String id, String firstName, String lastName) {
         return new Server(id, firstName, lastName, "", null, null, Set.of(), List.of(), Set.of(), false, true);
+    }
+
+    private static Server inactive(Server server) {
+        return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), server.birthDate(),
+                server.familyId(), server.qualifications(), server.unavailabilities(), server.preferredTimes(),
+                server.experienced(), false);
     }
 
     /// Exposes the package-private path constructor, as `UiPreferencesTest`

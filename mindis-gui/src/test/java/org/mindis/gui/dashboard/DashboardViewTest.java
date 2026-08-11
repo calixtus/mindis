@@ -14,6 +14,7 @@ import java.util.Set;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.chart.BarChart;
+import javafx.scene.chart.StackedBarChart;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.ScrollPane;
 
@@ -24,6 +25,7 @@ import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
+import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.preferences.DashboardWidgetLayout;
@@ -41,6 +43,7 @@ class DashboardViewTest {
 
     private final ServiceRepository services = new ServiceRepository();
     private final ServerRepository servers = new ServerRepository();
+    private final RoleRepository roles = new RoleRepository();
 
     @Test
     void onlyWidgetsWithSeveralModesShowAModeChooser() throws InterruptedException {
@@ -63,9 +66,9 @@ class DashboardViewTest {
         PreferencesService preferences = FxTest.preferencesAt(preferencesFile());
         FxTest.runAndWait(() -> {
             DashboardView view = new DashboardView(newViewModel(preferences));
-            MenuButton chooser = (MenuButton) withStyleClass(view, "dashboard-widget-mode").getFirst();
+            MenuButton chooser = chooserOf(view, WidgetType.SERVER_LOAD);
 
-            chooser.getItems().get(WidgetType.SERVER_LOAD.modes().indexOf(WidgetViewMode.BAR)).fire();
+            fire(chooser, WidgetType.SERVER_LOAD, WidgetViewMode.BAR);
 
             assertAll(
                     () -> assertInstanceOf(BarChart.class, contentOf(view, WidgetType.SERVER_LOAD)),
@@ -89,6 +92,27 @@ class DashboardViewTest {
         });
     }
 
+    /// The summary and the next-services widget each have a diagram of their
+    /// own; picking it must reach the same content slot the lists use.
+    @Test
+    void theSummaryAndNextServicesWidgetsAlsoSwitchToTheirDiagram() throws InterruptedException {
+        givenAssignedService();
+        PreferencesService preferences = FxTest.preferencesAt(preferencesFile());
+        FxTest.runAndWait(() -> {
+            DashboardView view = new DashboardView(newViewModel(preferences));
+
+            fire(chooserOf(view, WidgetType.SUMMARY), WidgetType.SUMMARY, WidgetViewMode.DONUT);
+            fire(chooserOf(view, WidgetType.NEXT_SERVICES), WidgetType.NEXT_SERVICES, WidgetViewMode.STACKED_BAR);
+
+            assertAll(
+                    // A donut is a pie under a hole overlay, so the chart sits
+                    // one level down rather than being the content node itself.
+                    () -> assertEquals(1, withStyleClass(view, "dashboard-donut-hole").size()),
+                    () -> assertInstanceOf(StackedBarChart.class,
+                            contentOf(view, WidgetType.NEXT_SERVICES)));
+        });
+    }
+
     @Test
     void anEmptyDocumentRendersAnEmptyStateInsteadOfAChart() throws InterruptedException {
         PreferencesService preferences = FxTest.preferencesAt(preferencesFile());
@@ -104,7 +128,7 @@ class DashboardViewTest {
     }
 
     private DashboardViewModel newViewModel(PreferencesService preferences) {
-        return new DashboardViewModel(services, servers, preferences);
+        return new DashboardViewModel(services, servers, roles, preferences);
     }
 
     private Path preferencesFile() {
@@ -132,9 +156,25 @@ class DashboardViewTest {
 
     /// The single node the given widget currently renders its data with.
     private static Node contentOf(Parent view, WidgetType type) {
+        return widgetFor(view, type).content().getChildren().getFirst();
+    }
+
+    /// That widget's own view-mode chooser - every multi-mode widget has one,
+    /// so picking by position on the board would pick another widget's.
+    private static MenuButton chooserOf(Parent view, WidgetType type) {
+        return (MenuButton) withStyleClass(widgetFor(view, type), "dashboard-widget-mode").getFirst();
+    }
+
+    /// Picks `mode` from a widget's chooser, whose items are in the
+    /// widget type's own mode order.
+    private static void fire(MenuButton chooser, WidgetType type, WidgetViewMode mode) {
+        chooser.getItems().get(type.modes().indexOf(mode)).fire();
+    }
+
+    private static WidgetContainer widgetFor(Parent view, WidgetType type) {
         for (Node node : withStyleClass(view, "dashboard-widget")) {
             if (node instanceof WidgetContainer widget && widget.type() == type) {
-                return widget.content().getChildren().getFirst();
+                return widget;
             }
         }
         throw new AssertionError("no widget for " + type.id());

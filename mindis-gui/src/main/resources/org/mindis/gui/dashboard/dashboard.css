@@ -209,6 +209,88 @@
     -fx-text-fill: -color-fg-muted;
 }
 
+/* Summary key figures: number first, meaning underneath. The open-slot tile
+   carries the only judgement - green at zero, amber while work is left. */
+.dashboard-tiles {
+    -fx-padding: 4 8 4 8;
+}
+
+.dashboard-tile {
+    -fx-padding: 4 16 4 16;
+    -fx-border-color: transparent transparent transparent -color-border-muted;
+    -fx-border-width: 0 0 0 3;
+}
+
+.dashboard-tile-value {
+    -fx-font-size: 1.6em;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-default;
+}
+
+.dashboard-tile-caption {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.dashboard-tile-good {
+    -fx-border-color: transparent transparent transparent -color-success-emphasis;
+}
+
+.dashboard-tile-warn {
+    -fx-border-color: transparent transparent transparent -color-warning-emphasis;
+}
+
+.dashboard-tile-warn .dashboard-tile-value {
+    -fx-text-fill: -color-warning-fg;
+}
+
+/* One "next services" row: when and what on top, staffing underneath. */
+.dashboard-service-row {
+    -fx-padding: 2 0 2 0;
+}
+
+.dashboard-service-when {
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-default;
+}
+
+.dashboard-service-what,
+.dashboard-service-relative,
+.dashboard-service-fill {
+    -fx-text-fill: -color-fg-muted;
+}
+
+.dashboard-service-bar {
+    -fx-pref-height: 6;
+}
+
+.dashboard-service-bar > .bar {
+    -fx-background-color: -color-accent-emphasis;
+    -fx-background-radius: 3;
+    -fx-padding: 3;
+}
+
+.dashboard-service-bar > .track {
+    -fx-background-color: -color-border-muted;
+    -fx-background-radius: 3;
+}
+
+.dashboard-service-unstaffed .dashboard-service-when,
+.dashboard-service-unstaffed .dashboard-service-fill {
+    -fx-text-fill: -color-danger-fg;
+}
+
+.dashboard-service-unstaffed .dashboard-service-bar > .bar {
+    -fx-background-color: -color-danger-emphasis;
+}
+
+.dashboard-service-complete .dashboard-service-bar > .bar {
+    -fx-background-color: -color-success-emphasis;
+}
+
+.dashboard-service-complete .dashboard-service-when {
+    -fx-text-fill: -color-fg-muted;
+}
+
 .dashboard-summary {
     -fx-font-size: 1.3em;
     -fx-text-fill: -color-fg-default;

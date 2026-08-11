@@ -11,19 +11,21 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 
 import org.kordamp.ikonli.javafx.FontIcon;
 
-import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.gui.util.DateTimes;
 
-/// Dashboard board of widgets - upcoming services, unassigned-slot count and
-/// per-server load - each a draggable, resizable card on an invisible column
-/// grid. Builds the board from the persisted layout, fills each widget from a
-/// [DashboardViewModel.Snapshot], and offers an "add widget" menu of the types
-/// not yet on the board (each type is unique).
+/// Dashboard board of widgets - key figures, upcoming services and per-server
+/// load - each a draggable, resizable card on an invisible column grid. Builds
+/// the board from the persisted layout, fills each widget from a
+/// [DashboardViewModel.Snapshot] in the widget's own [WidgetViewMode]
+/// (a list or one of the diagram kinds), and offers an "add widget" menu of the
+/// types not yet on the board (each type is unique).
 ///
 /// The board fills the pane; the add button floats over it, pinned top-right,
 /// overlapping the widgets rather than sitting in its own toolbar strip.
@@ -106,17 +108,69 @@ public final class DashboardView extends StackPane {
 
     private Node buildContent(WidgetType type, WidgetViewMode mode) {
         return switch (type) {
-            case SUMMARY -> {
-                Label label = new Label(summaryText());
-                label.getStyleClass().add("dashboard-summary");
-                label.setWrapText(true);
-                yield label;
-            }
-            case NEXT_SERVICES -> listView(snapshot.upcomingServices().stream()
-                    .map(DashboardView::describe)
-                    .toList());
+            case SUMMARY -> summaryContent(mode);
+            case NEXT_SERVICES -> upcomingContent(mode);
             case SERVER_LOAD -> serverLoadContent(mode);
         };
+    }
+
+    private Node summaryContent(WidgetViewMode mode) {
+        if (snapshot.isEmpty()) {
+            Label label = new Label(Localization.lang("No plan saved yet"));
+            label.getStyleClass().add("dashboard-summary");
+            label.setWrapText(true);
+            return label;
+        }
+        if (mode == WidgetViewMode.DONUT) {
+            return Charts.donut(
+                    List.of(new Charts.Slice(Localization.lang("Assigned"), snapshot.assignedSlots()),
+                            new Charts.Slice(Localization.lang("Open"), snapshot.unassignedSlots())),
+                    snapshot.coveragePercent() + "%", Localization.lang("Slots assigned"));
+        }
+        FlowPane tiles = new FlowPane(12, 12,
+                tile(String.valueOf(snapshot.upcomingServiceCount()), Localization.lang("Upcoming services"), ""),
+                tile(String.valueOf(snapshot.unassignedSlots()), Localization.lang("Open slots"),
+                        snapshot.unassignedSlots() == 0 ? "dashboard-tile-good" : "dashboard-tile-warn"),
+                tile(snapshot.coveragePercent() + "%", Localization.lang("Slots assigned"), ""),
+                tile(String.valueOf(snapshot.activeServers()), Localization.lang("Active servers"), ""),
+                tile(String.valueOf(snapshot.roles()), Localization.lang("Roles"), ""));
+        tiles.getStyleClass().add("dashboard-tiles");
+        return tiles;
+    }
+
+    /// One key figure: the number big, its meaning small underneath.
+    private static Node tile(String value, String caption, String extraStyleClass) {
+        Label number = new Label(value);
+        number.getStyleClass().add("dashboard-tile-value");
+        Label label = new Label(caption);
+        label.getStyleClass().add("dashboard-tile-caption");
+        VBox tile = new VBox(number, label);
+        tile.getStyleClass().add("dashboard-tile");
+        if (!extraStyleClass.isBlank()) {
+            tile.getStyleClass().add(extraStyleClass);
+        }
+        return tile;
+    }
+
+    private Node upcomingContent(WidgetViewMode mode) {
+        List<DashboardViewModel.UpcomingService> upcoming = snapshot.upcomingServices();
+        if (mode == WidgetViewMode.STACKED_BAR) {
+            List<String> labels = upcoming.stream()
+                    .map(service -> DateTimes.shortDate(service.dateTime().toLocalDate()))
+                    .toList();
+            return Charts.stackedBar(labels,
+                    List.of(new Charts.Series(Localization.lang("Assigned"), upcoming.stream()
+                                    .map(service -> (double) service.assignedSlots()).toList()),
+                            new Charts.Series(Localization.lang("Open"), upcoming.stream()
+                                    .map(service -> (double) (service.totalSlots() - service.assignedSlots()))
+                                    .toList())),
+                    Localization.lang("Slots"));
+        }
+        ListView<DashboardViewModel.UpcomingService> list = new ListView<>();
+        list.setItems(FXCollections.observableArrayList(upcoming));
+        list.setCellFactory(_ -> new UpcomingServiceCell());
+        list.setPlaceholder(new Label(Localization.lang("Nothing to show")));
+        return list;
     }
 
     private Node serverLoadContent(WidgetViewMode mode) {
@@ -136,22 +190,6 @@ public final class DashboardView extends StackPane {
 
     private static List<Charts.Slice> slices(List<DashboardViewModel.ServerLoad> load) {
         return load.stream().map(entry -> new Charts.Slice(entry.serverName(), entry.assignments())).toList();
-    }
-
-    private String summaryText() {
-        return snapshot.isEmpty()
-                ? Localization.lang("No plan saved yet")
-                : Localization.lang("Unassigned slots") + ": " + snapshot.unassignedSlots();
-    }
-
-    /// One "next services" row: when, what, where, and how full it is.
-    private static String describe(DashboardViewModel.UpcomingService service) {
-        String base = DateTimes.dateTime(service.dateTime()) + "  "
-                + EnumDisplay.of(service.type())
-                + (service.location().isBlank() ? "" : "  " + service.location());
-        return service.totalSlots() == 0
-                ? base
-                : base + "  (" + service.assignedSlots() + "/" + service.totalSlots() + ")";
     }
 
     private static ListView<String> listView(List<String> items) {

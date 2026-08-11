@@ -15,8 +15,9 @@ import org.mindis.core.l10n.Localization;
 /// the default).
 public enum WidgetType {
 
-    SUMMARY("summary", "Summary", 0, 0, 12, 1, WidgetViewMode.TILES),
-    NEXT_SERVICES("next-services", "Next services", 0, 1, 6, 3, WidgetViewMode.LIST),
+    SUMMARY("summary", "Summary", 0, 0, 12, 1, WidgetViewMode.TILES, WidgetViewMode.DONUT),
+    NEXT_SERVICES("next-services", "Next services", 0, 1, 6, 3,
+            WidgetViewMode.LIST, WidgetViewMode.STACKED_BAR),
     SERVER_LOAD("server-load", "Assignments per server", 6, 1, 6, 3,
             WidgetViewMode.LIST, WidgetViewMode.BAR, WidgetViewMode.PIE);
 

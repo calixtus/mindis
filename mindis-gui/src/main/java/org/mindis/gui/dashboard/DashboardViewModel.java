@@ -14,6 +14,7 @@ import org.jspecify.annotations.Nullable;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
+import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.preferences.DashboardWidgetLayout;
@@ -26,16 +27,21 @@ import org.mindis.core.preferences.PreferencesService;
 @Prototype
 public final class DashboardViewModel {
 
-    private static final int MAX_NEXT_SERVICES = 8;
+    /// How many upcoming services the "next services" widget can carry. Enough
+    /// to fill the widget when it is dragged tall, and to make a stacked bar
+    /// chart of the same data worth looking at.
+    private static final int MAX_NEXT_SERVICES = 12;
 
     private final ServiceRepository serviceRepository;
     private final ServerRepository serverRepository;
+    private final RoleRepository roleRepository;
     private final PreferencesService preferencesService;
 
     public DashboardViewModel(ServiceRepository serviceRepository, ServerRepository serverRepository,
-                              PreferencesService preferencesService) {
+                              RoleRepository roleRepository, PreferencesService preferencesService) {
         this.serviceRepository = serviceRepository;
         this.serverRepository = serverRepository;
+        this.roleRepository = roleRepository;
         this.preferencesService = preferencesService;
     }
 
@@ -85,7 +91,12 @@ public final class DashboardViewModel {
     /// What the board shows, as data: no formatted text, no locale, no layout.
     /// Rendering it - dates, separators, "n/m" - is the view's job, so the same
     /// numbers could drive a chart or an export without unpicking a string.
+    ///
+    /// @param upcomingServiceCount every service still ahead, unlike
+    ///        [#upcomingServices()], which is capped at what the "next
+    ///        services" widget can show
     public record Snapshot(int unassignedSlots, int totalSlots,
+                           int upcomingServiceCount, int activeServers, int roles,
                            List<UpcomingService> upcomingServices,
                            List<ServerLoad> serverLoad) {
 
@@ -97,6 +108,16 @@ public final class DashboardViewModel {
         /// Whether the document holds no plan at all yet (no slots anywhere).
         public boolean isEmpty() {
             return totalSlots == 0;
+        }
+
+        public int assignedSlots() {
+            return totalSlots - unassignedSlots;
+        }
+
+        /// Share of slots that have a server, 0-100. An empty document counts
+        /// as zero rather than as fully covered.
+        public int coveragePercent() {
+            return totalSlots == 0 ? 0 : Math.round(assignedSlots() * 100f / totalSlots);
         }
     }
 
@@ -116,7 +137,12 @@ public final class DashboardViewModel {
                 .flatMap(service -> service.slots().stream())
                 .filter(slot -> slot.serverId() == null)
                 .count();
-        return new Snapshot(unassigned, totalSlots, upcomingServices(services), serverLoad(services));
+        int upcomingCount = (int) services.stream()
+                .filter(service -> service.dateTime().isAfter(LocalDateTime.now()))
+                .count();
+        int activeServers = (int) serverRepository.findAll().stream().filter(Server::active).count();
+        return new Snapshot(unassigned, totalSlots, upcomingCount, activeServers, roleRepository.findAll().size(),
+                upcomingServices(services), serverLoad(services));
     }
 
     private static List<UpcomingService> upcomingServices(List<LiturgicalService> services) {
