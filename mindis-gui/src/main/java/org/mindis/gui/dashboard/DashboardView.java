@@ -344,8 +344,11 @@ public final class DashboardView extends StackPane {
     private Node upcomingContent(WidgetViewMode mode) {
         List<DashboardViewModel.UpcomingService> upcoming = snapshot.upcomingServices();
         if (mode == WidgetViewMode.STACKED_BAR) {
+            // With the time: a parish has a morning and an evening service on
+            // the same day, and the date alone would label both bars alike.
             List<String> labels = upcoming.stream()
-                    .map(service -> DateTimes.shortDate(service.dateTime().toLocalDate()))
+                    .map(service -> DateTimes.shortDate(service.dateTime().toLocalDate())
+                            + " " + DateTimes.time(service.dateTime().toLocalTime()))
                     .toList();
             return Charts.stackedBar(labels,
                     List.of(new Charts.Series(Localization.lang("Assigned"), upcoming.stream()

@@ -20,6 +20,8 @@ final class KeyFigures extends FlowPane {
     private static final double SCALE_STEP = 0.05;
 
     private double appliedScale = 1;
+    private double fittedWidth = -1;
+    private double fittedHeight = -1;
 
     KeyFigures(Node... tiles) {
         super(12, 8, tiles);
@@ -39,12 +41,20 @@ final class KeyFigures extends FlowPane {
     }
 
     /// Largest scale at which the wrapped rows still fit the current height.
+    ///
+    /// Only refitted when the size actually changed: fitting restyles the row,
+    /// a restyle requests another layout pass, and refitting on every pass
+    /// would keep the two chasing each other for as long as the card is
+    /// visible. The tiles never change while a row exists - the widget is
+    /// rebuilt with fresh ones instead - so the fitted scale stays valid.
     private void fitFont() {
         double width = getWidth();
         double height = getHeight();
-        if (width <= 0 || height <= 0) {
+        if (width <= 0 || height <= 0 || (width == fittedWidth && height == fittedHeight)) {
             return;
         }
+        fittedWidth = width;
+        fittedHeight = height;
         for (double scale = 1; scale >= MIN_SCALE; scale -= SCALE_STEP) {
             applyScale(scale);
             if (computePrefHeight(width) <= height) {

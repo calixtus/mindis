@@ -186,8 +186,17 @@ public final class DashboardViewModel {
 
         /// Everything the problems widget lists: the assignments violating a
         /// constraint plus the roster issues.
+        ///
+        /// A roster issue the constraint check reports as well is counted once,
+        /// through the constraint - an assignment during an absence is one
+        /// problem, not two. When the document was too big to check, the
+        /// constraint side is missing, so those issues are counted after all
+        /// rather than dropped.
         public int problemCount() {
-            return problems.stream().mapToInt(ProblemCount::assignments).sum() + rosterIssues.size();
+            return problems.stream().mapToInt(ProblemCount::assignments).sum()
+                    + (int) rosterIssues.stream()
+                            .filter(issue -> !problemsChecked || !issue.kind().alsoAConflict())
+                            .count();
         }
     }
 
@@ -243,7 +252,15 @@ public final class DashboardViewModel {
         /// Active and qualified, but not assigned to anything ahead.
         NO_UPCOMING_DUTY,
         /// Assigned to a service that falls into one of their absences.
-        ASSIGNED_WHILE_UNAVAILABLE
+        ASSIGNED_WHILE_UNAVAILABLE;
+
+        /// Whether the solver's constraint check reports the same fact, as
+        /// [MinDisConstraintProvider#UNAVAILABLE] and
+        /// [MinDisConstraintProvider#INACTIVE] do - the two views of one
+        /// problem must not add up to two problems.
+        boolean alsoAConflict() {
+            return this == ASSIGNED_WHILE_UNAVAILABLE || this == INACTIVE_BUT_ASSIGNED;
+        }
     }
 
     /// One entry of the "roster health" widget.
@@ -292,29 +309,37 @@ public final class DashboardViewModel {
                 upcomingServices(services), serverLoad(services),
                 roleStatus(ahead), serviceTypeMix(ahead), coverageTrend(ahead),
                 absencesAhead(), birthdaysAround(), archiveHistory(),
-                problems(services, totalSlots), rosterIssues(ahead), totalSlots <= MAX_CHECKED_SLOTS);
+                problems(ahead, slotsAhead), rosterIssues(ahead), slotsAhead <= MAX_CHECKED_SLOTS);
     }
 
     /// Assignments per violated constraint, worst first - the same checks the
-    /// services screen shows per assignment, counted over the whole document.
-    /// Built through [ServicePlans], not
-    /// [org.mindis.core.planning.PlanningService], so reading the board never
-    /// creates a solver.
+    /// services screen shows per assignment, counted over the services still
+    /// ahead. Like every other figure on the board it ignores what has already
+    /// happened: a conflict in a service that is over cannot be resolved any
+    /// more, and would otherwise sit on the board forever. Built through
+    /// [ServicePlans], not [org.mindis.core.planning.PlanningService], so
+    /// reading the board never creates a solver.
+    ///
+    /// A constraint is counted once per assignment that violates it, however
+    /// many partners it was violated with: the checker records a
+    /// double-booking once per conflicting partner, so a server in three
+    /// overlapping slots would otherwise read as six problems rather than as
+    /// the three assignments they are.
     ///
     /// The unassigned-slot constraint is left out: the summary and the open
     /// slots widget already say that, and it would otherwise dwarf every real
     /// conflict. Skipped entirely above [#MAX_CHECKED_SLOTS], since the
     /// double-booking check is quadratic in the number of assignments and this
     /// runs on the FX thread while the dashboard is being built.
-    private List<ProblemCount> problems(List<LiturgicalService> services, int totalSlots) {
-        if (totalSlots > MAX_CHECKED_SLOTS) {
+    private List<ProblemCount> problems(List<LiturgicalService> ahead, int slotsAhead) {
+        if (slotsAhead > MAX_CHECKED_SLOTS) {
             return List.of();
         }
-        ServicePlan plan = ServicePlans.build(services, serverRepository.findAll(), roleRepository.findAll(),
+        ServicePlan plan = ServicePlans.build(ahead, serverRepository.findAll(), roleRepository.findAll(),
                 List.of());
         Map<String, Integer> countByConstraint = new LinkedHashMap<>();
         ViolationChecker.violationsByAssignment(plan).values().stream()
-                .flatMap(List::stream)
+                .flatMap(constraints -> constraints.stream().distinct())
                 .filter(constraint -> !constraint.equals(MinDisConstraintProvider.UNASSIGNED))
                 .forEach(constraint -> countByConstraint.merge(constraint, 1, Integer::sum));
         return countByConstraint.entrySet().stream()

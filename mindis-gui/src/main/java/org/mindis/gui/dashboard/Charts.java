@@ -1,7 +1,9 @@
 package org.mindis.gui.dashboard;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -20,6 +22,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 
 import org.jspecify.annotations.Nullable;
 
@@ -54,10 +57,11 @@ final class Charts {
     }
 
     /// A vertical bar per slice. Best when the labels are short (weeks, months).
-    static Node bar(List<Slice> data, String valueAxisLabel) {
-        if (data.isEmpty()) {
+    static Node bar(List<Slice> rawData, String valueAxisLabel) {
+        if (rawData.isEmpty()) {
             return empty();
         }
+        List<Slice> data = distinctLabels(rawData);
         CategoryAxis categories = categoryAxis(data.stream().map(Slice::label).toList(), data.size());
         NumberAxis values = valueAxis(valueAxisLabel);
         BarChart<String, Number> chart = new BarChart<>(categories, values);
@@ -67,13 +71,13 @@ final class Charts {
 
     /// A horizontal bar per slice - the readable choice for long labels
     /// (server and role names).
-    static Node horizontalBar(List<Slice> data, String valueAxisLabel) {
-        if (data.isEmpty()) {
+    static Node horizontalBar(List<Slice> rawData, String valueAxisLabel) {
+        if (rawData.isEmpty()) {
             return empty();
         }
         // Reversed: a category axis grows upward, so the largest value would
         // otherwise land at the bottom of a most-first list.
-        List<Slice> bottomUp = data.reversed();
+        List<Slice> bottomUp = distinctLabels(rawData).reversed();
         NumberAxis values = valueAxis(valueAxisLabel);
         CategoryAxis categories = categoryAxis(bottomUp.stream().map(Slice::label).toList(), bottomUp.size());
         BarChart<Number, String> chart = new BarChart<>(values, categories);
@@ -90,10 +94,11 @@ final class Charts {
     /// Horizontal bars grouped per category, one bar per series - for comparing
     /// two figures about the same thing (a role's open slots against the
     /// servers qualified for it).
-    static Node horizontalBar(List<String> categoryLabels, List<Series> series, String valueAxisLabel) {
-        if (categoryLabels.isEmpty() || series.isEmpty()) {
+    static Node horizontalBar(List<String> rawCategoryLabels, List<Series> series, String valueAxisLabel) {
+        if (rawCategoryLabels.isEmpty() || series.isEmpty()) {
             return empty();
         }
+        List<String> categoryLabels = distinct(rawCategoryLabels);
         List<String> bottomUp = categoryLabels.reversed();
         BarChart<Number, String> chart = new BarChart<>(valueAxis(valueAxisLabel),
                 categoryAxis(bottomUp, bottomUp.size()));
@@ -113,10 +118,11 @@ final class Charts {
     }
 
     /// One stacked bar per category, one stack segment per series.
-    static Node stackedBar(List<String> categoryLabels, List<Series> series, String valueAxisLabel) {
-        if (categoryLabels.isEmpty() || series.isEmpty()) {
+    static Node stackedBar(List<String> rawCategoryLabels, List<Series> series, String valueAxisLabel) {
+        if (rawCategoryLabels.isEmpty() || series.isEmpty()) {
             return empty();
         }
+        List<String> categoryLabels = distinct(rawCategoryLabels);
         CategoryAxis categories = categoryAxis(categoryLabels, categoryLabels.size());
         StackedBarChart<String, Number> chart = new StackedBarChart<>(categories, valueAxis(valueAxisLabel));
         for (Series row : series) {
@@ -139,10 +145,11 @@ final class Charts {
     private record Centre(String value, String caption) {
     }
 
-    static Node line(List<String> categoryLabels, List<Series> series, String valueAxisLabel) {
-        if (categoryLabels.isEmpty() || series.isEmpty()) {
+    static Node line(List<String> rawCategoryLabels, List<Series> series, String valueAxisLabel) {
+        if (rawCategoryLabels.isEmpty() || series.isEmpty()) {
             return empty();
         }
+        List<String> categoryLabels = distinct(rawCategoryLabels);
         LineChart<String, Number> chart = new LineChart<>(
                 categoryAxis(categoryLabels, categoryLabels.size()), valueAxis(valueAxisLabel));
         for (Series row : series) {
@@ -152,10 +159,11 @@ final class Charts {
         return configure(chart, series.size() > 1);
     }
 
-    static Node area(List<String> categoryLabels, List<Series> series, String valueAxisLabel) {
-        if (categoryLabels.isEmpty() || series.isEmpty()) {
+    static Node area(List<String> rawCategoryLabels, List<Series> series, String valueAxisLabel) {
+        if (rawCategoryLabels.isEmpty() || series.isEmpty()) {
             return empty();
         }
+        List<String> categoryLabels = distinct(rawCategoryLabels);
         AreaChart<String, Number> chart = new AreaChart<>(
                 categoryAxis(categoryLabels, categoryLabels.size()), valueAxis(valueAxisLabel));
         for (Series row : series) {
@@ -174,17 +182,51 @@ final class Charts {
         return pane;
     }
 
-    /// The `limit` largest slices, with everything after them summed
-    /// into a single trailing "Others" slice. `data` must already be
-    /// sorted largest-first.
+    /// At most `limit` slices: the largest ones, with everything after
+    /// them summed into a single trailing "Others" slice. The bucket counts
+    /// towards the limit, so the result never exceeds it - a chart that drops
+    /// its labels beyond `limit` slices would otherwise lose them in
+    /// exactly the case the bucketing was meant to keep readable. `data`
+    /// must already be sorted largest-first.
     static List<Slice> topWithOthers(List<Slice> data, int limit) {
         if (data.size() <= limit) {
             return data;
         }
-        double others = data.subList(limit, data.size()).stream().mapToDouble(Slice::value).sum();
-        List<Slice> top = new ArrayList<>(data.subList(0, limit));
+        double others = data.subList(limit - 1, data.size()).stream().mapToDouble(Slice::value).sum();
+        List<Slice> top = new ArrayList<>(data.subList(0, limit - 1));
         top.add(new Slice(Localization.lang("Others"), others));
         return List.copyOf(top);
+    }
+
+    /// The same slices with every label made unique. A category axis rejects a
+    /// repeated category outright ([CategoryAxis#setCategories] throws), and
+    /// nothing the dashboard plots is guaranteed unique: two services can fall
+    /// on one day, two servers can share a name. A repeat is numbered rather
+    /// than dropped, so both entries stay visible and tell each other apart.
+    private static List<Slice> distinctLabels(List<Slice> data) {
+        List<String> labels = distinct(data.stream().map(Slice::label).toList());
+        List<Slice> distinct = new ArrayList<>();
+        for (int i = 0; i < data.size(); i++) {
+            distinct.add(new Slice(labels.get(i), data.get(i).value()));
+        }
+        return List.copyOf(distinct);
+    }
+
+    /// See [#distinctLabels]: the labels in order, with the second and every
+    /// further occurrence of one suffixed by its occurrence number.
+    private static List<String> distinct(List<String> labels) {
+        Set<String> used = new HashSet<>();
+        List<String> unique = new ArrayList<>();
+        for (String label : labels) {
+            String candidate = label;
+            // A numbered label can collide in turn (a real label reading
+            // "Anna (2)"), so it is numbered up until it is free.
+            for (int occurrence = 2; !used.add(candidate); occurrence++) {
+                candidate = label + " (" + occurrence + ")";
+            }
+            unique.add(candidate);
+        }
+        return List.copyOf(unique);
     }
 
     private static Node pieChart(List<Slice> data, @Nullable Centre centre) {
@@ -271,10 +313,27 @@ final class Charts {
         NumberAxis axis = new NumberAxis();
         axis.setAnimated(false);
         axis.setLabel(label);
-        // Counts are whole numbers: without this a 0..3 axis grows ticks like
-        // 0.5, which reads as if half a slot could be open.
-        axis.setTickUnit(1);
         axis.setMinorTickVisible(false);
+        // Counts are whole numbers, and a small range auto-ranges into ticks
+        // like 0.5, which reads as if half a slot could be open. The tick unit
+        // cannot be pinned - auto-ranging recomputes it - so the fractional
+        // ticks are left unlabelled instead.
+        axis.setTickLabelFormatter(new StringConverter<>() {
+
+            @Override
+            public String toString(@Nullable Number value) {
+                if (value == null) {
+                    return "";
+                }
+                double raw = value.doubleValue();
+                return raw == Math.rint(raw) ? String.valueOf((long) raw) : "";
+            }
+
+            @Override
+            public Number fromString(@Nullable String text) {
+                return text == null || text.isBlank() ? 0 : Double.valueOf(text);
+            }
+        });
         return axis;
     }
 

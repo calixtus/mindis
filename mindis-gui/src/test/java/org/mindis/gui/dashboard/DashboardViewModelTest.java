@@ -419,6 +419,77 @@ class DashboardViewModelTest {
                 () -> assertTrue(!constraints.contains(MinDisConstraintProvider.UNASSIGNED)));
     }
 
+    /// A conflict in a service that is over cannot be resolved any more, so it
+    /// is not on the board - like every other figure, the problems are about
+    /// the work ahead.
+    @Test
+    void loadSnapshot_problems_ignoreServicesThatHavePassed() {
+        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        servers.save(inactive(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE")));
+        services.save(service("past", inDays(-1), List.of(filled("ACOLYTE", "srv1"))));
+
+        DashboardViewModel.Snapshot snapshot = newViewModel().loadSnapshot();
+
+        assertAll(
+                () -> assertTrue(snapshot.problems().isEmpty()),
+                () -> assertEquals(0, snapshot.problemCount()));
+    }
+
+    /// The checker records a double-booking once per conflicting partner; the
+    /// board counts the assignments that are wrong, not the pairs.
+    @Test
+    void loadSnapshot_problems_countDoubleBookingOncePerAssignment() {
+        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        servers.save(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE"));
+        LocalDateTime at = inDays(1);
+        services.save(service("s1", at, List.of(filled("ACOLYTE", "srv1"))));
+        services.save(service("s2", at.plusMinutes(1), List.of(filled("ACOLYTE", "srv1"))));
+        services.save(service("s3", at.plusMinutes(2), List.of(filled("ACOLYTE", "srv1"))));
+
+        int doubleBooked = newViewModel().loadSnapshot().problems().stream()
+                .filter(problem -> problem.constraintName().equals(MinDisConstraintProvider.DOUBLE_BOOKED))
+                .mapToInt(DashboardViewModel.ProblemCount::assignments)
+                .sum();
+
+        // Three assignments overlap, which is three pairs - and three problems.
+        assertEquals(3, doubleBooked);
+    }
+
+    /// An assignment during an absence is one problem, however many of the
+    /// board's checks notice it.
+    @Test
+    void problemCount_rosterIssueAlsoReportedAsConflict_isCountedOnce() {
+        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        servers.save(absent(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE"),
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(2)));
+        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv1"))));
+
+        DashboardViewModel.Snapshot snapshot = newViewModel().loadSnapshot();
+
+        assertAll(
+                () -> assertEquals(1, snapshot.rosterIssues().size()),
+                () -> assertEquals(DashboardViewModel.RosterIssueKind.ASSIGNED_WHILE_UNAVAILABLE,
+                        snapshot.rosterIssues().getFirst().kind()),
+                () -> assertEquals(1, snapshot.problems().size()),
+                () -> assertEquals(MinDisConstraintProvider.UNAVAILABLE,
+                        snapshot.problems().getFirst().constraintName()),
+                () -> assertEquals(1, snapshot.problemCount()));
+    }
+
+    /// A roster issue no constraint covers is the dashboard's own finding and
+    /// counts on its own.
+    @Test
+    void problemCount_addsRosterIssuesNoConstraintCovers() {
+        servers.save(server("srv1", "Anna", "Becker"));
+
+        DashboardViewModel.Snapshot snapshot = newViewModel().loadSnapshot();
+
+        assertAll(
+                () -> assertEquals(DashboardViewModel.RosterIssueKind.NO_QUALIFICATIONS,
+                        snapshot.rosterIssues().getFirst().kind()),
+                () -> assertEquals(1, snapshot.problemCount()));
+    }
+
     @Test
     void loadLayout_neverArranged_returnsEveryWidgetTypeOnce() {
         List<WidgetPlacement> layout = newViewModel().loadLayout();
