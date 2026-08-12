@@ -54,6 +54,20 @@ public final class LoggingBootstrap {
             // Logging setup must never block the app from starting.
             root.log(Level.WARNING, "Could not set up log file, continuing with console logging only", e);
         }
+
+        silenceKnownHarmlessLoggers();
+    }
+
+    /// PDFBox tries to reach `jdk.internal.ref.Cleaner` through
+    /// `java.nio` internals to unmap memory-mapped buffers, which no module on
+    /// a module path is allowed to do, and reports the refusal at SEVERE the
+    /// first time a document is created. mindis only ever writes PDFs, so
+    /// nothing is actually degraded - but an untouched SEVERE with a stack
+    /// trace lands in the log file and the in-app log console, where it reads
+    /// like a real failure. Opening the JDK internals to it instead would buy
+    /// a capability we do not use with access that the next JDK may withdraw.
+    private static void silenceKnownHarmlessLoggers() {
+        Logger.getLogger("org.apache.pdfbox.io.IOUtils").setLevel(Level.OFF);
     }
 
     private static final class LineFormatter extends Formatter {

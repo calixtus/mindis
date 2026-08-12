@@ -66,13 +66,18 @@ extraJavaModuleInfo {
     }
 
     // PDFBox ships Automatic-Module-Names only; commons-logging below it is
-    // already a proper multi-release module and needs no patch.
+    // already a proper multi-release module and needs no patch. The platform
+    // modules each one reads come from `jdeps --list-deps` on the jars, not
+    // from guessing: a missing one only shows up as an IllegalAccessError at
+    // runtime, since tests run on the classpath where there are no module
+    // boundaries. Re-run it when upgrading PDFBox.
     module("org.apache.pdfbox:pdfbox", "org.apache.pdfbox") {
         exportAllPackages()
         requires("org.apache.fontbox")
         requires("org.apache.pdfbox.io")
         requires("org.apache.commons.logging")
         requires("java.desktop")
+        requires("java.logging")
         requires("java.xml")
         // Signature support is an optional Bouncy Castle feature that mindis
         // does not use and does not put on the module path.
@@ -82,10 +87,14 @@ extraJavaModuleInfo {
         exportAllPackages()
         requires("org.apache.pdfbox.io")
         requires("org.apache.commons.logging")
+        // java.awt.geom, for the glyph outlines of an embedded TrueType font.
+        requires("java.desktop")
+        requires("java.logging")
     }
     module("org.apache.pdfbox:pdfbox-io", "org.apache.pdfbox.io") {
         exportAllPackages()
         requires("org.apache.commons.logging")
+        requires("java.logging")
     }
     module("io.micrometer:micrometer-commons", "micrometer.commons") {
         exportAllPackages()

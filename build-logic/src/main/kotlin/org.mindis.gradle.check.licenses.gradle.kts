@@ -1,6 +1,7 @@
 import com.github.jk1.license.filter.LicenseBundleNormalizer
 import com.github.jk1.license.render.InventoryMarkdownReportRenderer
 import com.github.jk1.license.render.JsonReportRenderer
+import com.github.jk1.license.render.ReportRenderer
 import groovy.json.JsonSlurper
 import org.gradle.language.jvm.tasks.ProcessResources
 import java.util.jar.JarFile
@@ -24,7 +25,7 @@ licenseReport {
     // Software License, Version 2.0", ...) onto a canonical name, so the
     // allowlist can be an exact-match list instead of a guess.
     filters = arrayOf(LicenseBundleNormalizer(mapOf("createDefaultTransformationRules" to true)))
-    renderers = arrayOf(
+    renderers = arrayOf<ReportRenderer>(
             // Full inventory for review, with the license files extracted from
             // the jars next to it; build output, not shipped.
             InventoryMarkdownReportRenderer("dependency-inventory.md", "MinDis"),
