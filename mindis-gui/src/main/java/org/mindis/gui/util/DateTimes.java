@@ -49,6 +49,12 @@ public final class DateTimes {
         return DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).format(value);
     }
 
+    /// A date and time squeezed for an axis or a chart legend, e.g.
+    /// "30.07.26, 10:00" / "7/30/26, 10:00 AM".
+    public static String shortDateTime(LocalDateTime value) {
+        return DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT, FormatStyle.SHORT).format(value);
+    }
+
     /// A month and its year, e.g. "Juli 2026" / "Jul 2026" - the label a
     /// per-month chart axis carries.
     public static String month(LocalDate value) {

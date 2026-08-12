@@ -193,10 +193,13 @@ public final class DashboardViewModel {
         /// constraint side is missing, so those issues are counted after all
         /// rather than dropped.
         public int problemCount() {
-            return problems.stream().mapToInt(ProblemCount::assignments).sum()
-                    + (int) rosterIssues.stream()
-                            .filter(issue -> !problemsChecked || !issue.kind().alsoAConflict())
-                            .count();
+            int conflicts = problems.stream().mapToInt(ProblemCount::assignments).sum();
+            if (!problemsChecked) {
+                return conflicts + rosterIssues.size();
+            }
+            return conflicts + (int) rosterIssues.stream()
+                    .filter(issue -> issue.kind().coveredByConstraint() == null)
+                    .count();
         }
     }
 
@@ -254,12 +257,16 @@ public final class DashboardViewModel {
         /// Assigned to a service that falls into one of their absences.
         ASSIGNED_WHILE_UNAVAILABLE;
 
-        /// Whether the solver's constraint check reports the same fact, as
-        /// [MinDisConstraintProvider#UNAVAILABLE] and
-        /// [MinDisConstraintProvider#INACTIVE] do - the two views of one
-        /// problem must not add up to two problems.
-        boolean alsoAConflict() {
-            return this == ASSIGNED_WHILE_UNAVAILABLE || this == INACTIVE_BUT_ASSIGNED;
+        /// The constraint whose check reports the same fact, or null for an
+        /// issue only the dashboard looks for - the two views of one problem
+        /// must not add up to two problems. Named rather than flagged, so a
+        /// constraint that is renamed away breaks the build here.
+        @Nullable String coveredByConstraint() {
+            return switch (this) {
+                case ASSIGNED_WHILE_UNAVAILABLE -> MinDisConstraintProvider.UNAVAILABLE;
+                case INACTIVE_BUT_ASSIGNED -> MinDisConstraintProvider.INACTIVE;
+                case NO_QUALIFICATIONS, NO_UPCOMING_DUTY -> null;
+            };
         }
     }
 
@@ -292,12 +299,12 @@ public final class DashboardViewModel {
                 .flatMap(service -> service.slots().stream())
                 .filter(slot -> slot.serverId() == null)
                 .count();
-        int upcomingCount = (int) services.stream()
-                .filter(service -> service.dateTime().isAfter(LocalDateTime.now()))
-                .count();
         int activeServers = (int) serverRepository.findAll().stream().filter(Server::active).count();
+        // Read once, so two figures cannot end up disagreeing over a service
+        // that starts while the board is being built.
+        LocalDateTime now = LocalDateTime.now();
         List<LiturgicalService> ahead = services.stream()
-                .filter(service -> service.dateTime().isAfter(LocalDateTime.now()))
+                .filter(service -> service.dateTime().isAfter(now))
                 .toList();
         int slotsAhead = ahead.stream().mapToInt(service -> service.slots().size()).sum();
         int openAhead = (int) ahead.stream()
@@ -305,8 +312,8 @@ public final class DashboardViewModel {
                 .filter(slot -> slot.serverId() == null)
                 .count();
         return new Snapshot(unassigned, totalSlots, openAhead, slotsAhead,
-                upcomingCount, activeServers, roleRepository.findAll().size(),
-                upcomingServices(services), serverLoad(services),
+                ahead.size(), activeServers, roleRepository.findAll().size(),
+                upcomingServices(ahead), serverLoad(services),
                 roleStatus(ahead), serviceTypeMix(ahead), coverageTrend(ahead),
                 absencesAhead(), birthdaysAround(), archiveHistory(),
                 problems(ahead, slotsAhead), rosterIssues(ahead), slotsAhead <= MAX_CHECKED_SLOTS);
@@ -556,9 +563,8 @@ public final class DashboardViewModel {
         return trend;
     }
 
-    private static List<UpcomingService> upcomingServices(List<LiturgicalService> services) {
-        return services.stream()
-                .filter(service -> service.dateTime().isAfter(LocalDateTime.now()))
+    private static List<UpcomingService> upcomingServices(List<LiturgicalService> ahead) {
+        return ahead.stream()
                 .limit(MAX_NEXT_SERVICES)
                 .map(service -> new UpcomingService(
                         service.dateTime(),
