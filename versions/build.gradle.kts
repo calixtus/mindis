@@ -24,6 +24,11 @@ dependencies.constraints {
     api("org.openjfx:javafx-base:$javafx")
     api("org.openjfx:javafx-graphics:$javafx")
     api("org.openjfx:javafx-controls:$javafx")
+    // Not used by mindis itself, but required by GemsFX/PickerFX/ControlsFX,
+    // which ask for JavaFX 17. javafx.swing reaches into javafx.graphics
+    // internals, so all JavaFX modules in one image must be the same version.
+    api("org.openjfx:javafx-swing:$javafx")
+    api("org.openjfx:javafx-fxml:$javafx")
 
     api("com.dlsc.gemsfx:gemsfx:4.3.2")
     api("io.github.mkpaz:atlantafx-base:2.1.0")
