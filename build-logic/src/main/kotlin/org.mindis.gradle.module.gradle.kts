@@ -32,6 +32,39 @@ extraJavaModuleInfo {
     deactivate(configurations.named("annotationProcessor"))
     deactivate(configurations.named("testAnnotationProcessor"))
 
+    // GemsFX is a real module that declares 'requires javafx.swing', used by
+    // exactly one of its classes (SVGUtil, behind SVGImageView) which mindis
+    // never touches. Rewriting its descriptor without that requires keeps
+    // javafx.swing - a Swing/JavaFX interop bridge - out of the module graph
+    // and out of the runtime image. Everything else is carried over verbatim
+    // from the published module-info; re-check it when upgrading GemsFX.
+    module("com.dlsc.gemsfx:gemsfx", "com.dlsc.gemsfx") {
+        patchRealModule()
+        exports("com.dlsc.gemsfx")
+        exports("com.dlsc.gemsfx.binding")
+        exports("com.dlsc.gemsfx.daterange")
+        exports("com.dlsc.gemsfx.gridtable")
+        exports("com.dlsc.gemsfx.infocenter")
+        exports("com.dlsc.gemsfx.paging")
+        exports("com.dlsc.gemsfx.skins")
+        exports("com.dlsc.gemsfx.treeview")
+        exports("com.dlsc.gemsfx.treeview.link")
+        exports("com.dlsc.gemsfx.util")
+        requires("com.dlsc.pickerfx")
+        requires("com.github.weisj.jsvg")
+        requires("java.desktop")
+        requires("java.logging")
+        requires("java.prefs")
+        requires("javafx.base")
+        requires("javafx.controls")
+        requires("javafx.graphics")
+        requires("net.synedra.validatorfx")
+        requires("org.kordamp.ikonli.bootstrapicons")
+        requires("org.kordamp.ikonli.javafx")
+        requires("org.kordamp.ikonli.material")
+        requires("org.kordamp.ikonli.materialdesign")
+    }
+
     // PDFBox ships Automatic-Module-Names only; commons-logging below it is
     // already a proper multi-release module and needs no patch.
     module("org.apache.pdfbox:pdfbox", "org.apache.pdfbox") {

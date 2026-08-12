@@ -508,7 +508,8 @@ Key elements copied from the JabRef approach:
    targets windows/linux/macos (host==target per CI runner; JavaFX via openjfx plugin
    classifier, not variant patches). jlink rejects automatic modules ⇒
    `extra-java-module-info` now patches PDFBox (3 jars), micrometer (3 jars, one optional SPI
-   ignored), HdrHistogram, LatencyUtils into real modules. Local verification: app-image
+   ignored), HdrHistogram, LatencyUtils into real modules, and rewrites GemsFX's own
+   module-info to drop its `requires javafx.swing`. Local verification: app-image
    (`-PinstallerType=app-image`, WiX-free); packaged `MinDis.exe` boots with bundled runtime.
    CI: `build.yml` (ubuntu, push/PR), `release.yml` (tag `v*` → windows runner, WiX
    preinstalled → exe installer → GitHub release). Version in gradle.properties (`0.6.0`,
