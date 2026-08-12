@@ -2,6 +2,7 @@ package org.mindis.core.export;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
@@ -12,6 +13,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
+import java.util.Optional;
 
 import javax.imageio.ImageIO;
 
@@ -127,6 +129,21 @@ class PlanExportServiceTest {
         try (PDDocument pdf = Loader.loadPDF(pdfFile.toFile())) {
             return new PDFTextStripper().getText(pdf);
         }
+    }
+
+    @Test
+    void pdfBoxCanUnmapItsBuffers() {
+        // PDFBox unmaps memory-mapped buffers through sun.misc.Unsafe. The
+        // dependency is reflective, so nothing but this checks it: without the
+        // read edge PDFBox drops to a fallback that java.base refuses, and
+        // reports that at SEVERE on the first export.
+        ModuleLayer boot = ModuleLayer.boot();
+        Optional<Module> pdfboxIo = boot.findModule("org.apache.pdfbox.io");
+        assumeTrue(pdfboxIo.isPresent(), "not running on the module path");
+
+        Module unsupported = boot.findModule("jdk.unsupported").orElseThrow();
+        assertTrue(pdfboxIo.get().canRead(unsupported),
+                "org.apache.pdfbox.io must read jdk.unsupported");
     }
 
     @Test

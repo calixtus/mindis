@@ -95,6 +95,13 @@ extraJavaModuleInfo {
         exportAllPackages()
         requires("org.apache.commons.logging")
         requires("java.logging")
+        // IOUtils unmaps memory-mapped buffers through sun.misc.Unsafe, which
+        // jdk.unsupported exports and opens for exactly this kind of use. The
+        // dependency is reflective, so jdeps cannot see it; without it PDFBox
+        // silently drops to its Java 8 fallback, which reaches into java.nio
+        // internals, is refused, and reports that at SEVERE on the first
+        // export.
+        requires("jdk.unsupported")
     }
     module("io.micrometer:micrometer-commons", "micrometer.commons") {
         exportAllPackages()
