@@ -13,6 +13,7 @@ javaPlatform {
 val javafx = providers.gradleProperty("javafxVersion").getOrElse("26.0.1")
 
 val avajeInject = "12.6"
+val pdfbox = "3.0.8"
 
 dependencies {
     api(platform("org.junit:junit-bom:6.1.2"))
@@ -32,7 +33,13 @@ dependencies.constraints {
     api("jakarta.inject:jakarta.inject-api:2.0.1")
 
     api("ai.timefold.solver:timefold-solver-core:2.3.0")
-    api("com.github.librepdf:openpdf:3.0.5")
+
+    // PDF export. PDFBox and its whole transitive set (fontbox, pdfbox-io,
+    // commons-logging) are Apache-2.0, which ADR 008 requires; OpenPDF was
+    // MPL-2.0/LGPL-2.1 and is deliberately not used.
+    api("org.apache.pdfbox:pdfbox:$pdfbox")
+    api("org.apache.pdfbox:fontbox:$pdfbox")
+    api("org.apache.pdfbox:pdfbox-io:$pdfbox")
 
     api("org.jspecify:jspecify:1.0.1")
 

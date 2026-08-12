@@ -32,10 +32,27 @@ extraJavaModuleInfo {
     deactivate(configurations.named("annotationProcessor"))
     deactivate(configurations.named("testAnnotationProcessor"))
 
-    module("com.github.librepdf:openpdf", "com.github.librepdf.openpdf") {
+    // PDFBox ships Automatic-Module-Names only; commons-logging below it is
+    // already a proper multi-release module and needs no patch.
+    module("org.apache.pdfbox:pdfbox", "org.apache.pdfbox") {
         exportAllPackages()
+        requires("org.apache.fontbox")
+        requires("org.apache.pdfbox.io")
+        requires("org.apache.commons.logging")
         requires("java.desktop")
-        requires("java.logging")
+        requires("java.xml")
+        // Signature support is an optional Bouncy Castle feature that mindis
+        // does not use and does not put on the module path.
+        ignoreServiceProvider("org.bouncycastle.jce.provider.BouncyCastleProvider")
+    }
+    module("org.apache.pdfbox:fontbox", "org.apache.fontbox") {
+        exportAllPackages()
+        requires("org.apache.pdfbox.io")
+        requires("org.apache.commons.logging")
+    }
+    module("org.apache.pdfbox:pdfbox-io", "org.apache.pdfbox.io") {
+        exportAllPackages()
+        requires("org.apache.commons.logging")
     }
     module("io.micrometer:micrometer-commons", "micrometer.commons") {
         exportAllPackages()

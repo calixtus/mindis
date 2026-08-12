@@ -486,14 +486,15 @@ Key elements copied from the JabRef approach:
    constraint-weight editing deferred (needs `ConstraintWeightOverrides` wiring).
 
 ### M5 — Export & polish
-1. PDF export of accepted plan (grouped by service; per-server view), via OpenPDF or similar;
-   export honors the app language.
+1. PDF export of accepted plan (grouped by service; per-server view); export honors the app
+   language.
 2. Dashboard module: next services, unassigned slots, per-server load stats.
 3. Localization pass: complete `de` bundle, review `en` texts.
 4. **Done when:** printable monthly plan PDF generated from the app in both languages.
-   **As built (2026-07-06):** done. OpenPDF 3.0.5 (packages `org.openpdf.*`, automatic module
-   `com.github.librepdf.openpdf`); `PlanExportService` in core (services chronological +
-   per-server summary, fully localized); export button in Planning with FileChooser.
+   **As built (2026-07-06):** done. Apache PDFBox 3.0.8 with page layout and DejaVu Sans
+   embedding in `PdfPlanExporter` (licensing policy: ADR 008); `PlanExportService` in core
+   (services chronological + per-server summary, fully localized); export button in Planning
+   with FileChooser.
    Dashboard = plain Java view (next services with staffing state from accepted plan,
    unassigned count, per-server load), rebuilt on every activation. M0 hello spike and
    GreetingService removed; `EnumDisplay` moved to core l10n (shared by GUI + PDF).
@@ -506,7 +507,7 @@ Key elements copied from the JabRef approach:
    **As built (2026-07-06):** packaging plugin wired via `feature.packaging` convention;
    targets windows/linux/macos (host==target per CI runner; JavaFX via openjfx plugin
    classifier, not variant patches). jlink rejects automatic modules ⇒
-   `extra-java-module-info` now patches openpdf, micrometer (3 jars, one optional SPI
+   `extra-java-module-info` now patches PDFBox (3 jars), micrometer (3 jars, one optional SPI
    ignored), HdrHistogram, LatencyUtils into real modules. Local verification: app-image
    (`-PinstallerType=app-image`, WiX-free); packaged `MinDis.exe` boots with bundled runtime.
    CI: `build.yml` (ubuntu, push/PR), `release.yml` (tag `v*` → windows runner, WiX

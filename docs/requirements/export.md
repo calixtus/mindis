@@ -2,6 +2,9 @@
 
 Turning a plan — live or archived — into a document to hand out or print.
 
+Design decisions: [ADR 008 — permissively licensed dependencies](../adr/008-third-party-licensing.md)
+(why PDF export runs on Apache PDFBox with a bundled font).
+
 ## Requirements
 
 ### Export a plan as a document
@@ -85,12 +88,27 @@ Covers:
 
 `PlanExportFormat` maps each format to its extension: `PDF`/pdf, `CSV`/csv, `TXT`/txt, `RTF`/rtf,
 `MARKDOWN`/md, with `fromExtension` for the reverse lookup. One `PlanExporter` implementation per
-value (`PdfPlanExporter` on OpenPDF, `CsvPlanExporter`, `TxtPlanExporter`, `RtfPlanExporter`,
+value (`PdfPlanExporter` on Apache PDFBox, `CsvPlanExporter`, `TxtPlanExporter`, `RtfPlanExporter`,
 `MarkdownPlanExporter`), all registered into an `EnumMap` in the service constructor; an unregistered
 format is a programming error and fails fast.
 
 Covers:
 - req~export-formats~1
+
+### PDF page layout
+`dsn~pdf-layout~1`
+
+PDFBox draws text, not documents, so `PdfPlanExporter.Layout` owns the page cursor: it appends lines
+top-down on A4 with a 56 pt margin, starts a new page when the next line would cross the bottom
+margin, keeps a role and its server on one page, and word-wraps both columns (role 1/3 of the
+content width, server the rest). Text is drawn in DejaVu Sans, bundled with the module and embedded
+as a subset, because the PDF standard-14 fonts stop at Windows-1252 and would reject names beyond
+it; a character the font cannot draw becomes `?` rather than failing the export. The library choice
+is [ADR 008](../adr/008-third-party-licensing.md).
+
+Covers:
+- req~export-formats~1
+- req~export-localized~1
 
 ### Localized date and enum rendering
 `dsn~export-localization~1`

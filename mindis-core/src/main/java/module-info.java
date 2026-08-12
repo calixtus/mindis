@@ -21,7 +21,7 @@ module org.mindis.core {
     requires com.fasterxml.jackson.databind;
     requires com.fasterxml.jackson.datatype.jsr310;
     requires ai.timefold.solver.core;
-    requires com.github.librepdf.openpdf;
+    requires org.apache.pdfbox;
 
     opens org.mindis.core.model to com.fasterxml.jackson.databind;
     opens org.mindis.core.planning to ai.timefold.solver.core, com.fasterxml.jackson.databind;

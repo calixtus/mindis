@@ -1,0 +1,27 @@
+{
+  "_comment": [
+    "Licenses accepted for modules shipped with MinDis - the policy of ADR 008,",
+    "in the canonical spelling produced by the license report's normalizer.",
+    "Entries without a moduleName are the permissive licenses allowed for any",
+    "module; entries with a moduleName are individually reviewed exceptions.",
+    "A module is accepted when at least one of the licenses it declares matches,",
+    "which is how a dual-licensed module is accepted under the permissive half."
+  ],
+
+  "allowedLicenses": [
+    { "moduleLicense": "Apache License, Version 2.0" },
+    { "moduleLicense": "MIT License" },
+    { "moduleLicense": "The 2-Clause BSD License" },
+    { "moduleLicense": "The 3-Clause BSD License" },
+    { "moduleLicense": "Creative Commons Legal Code" },
+    { "moduleLicense": "PUBLIC DOMAIN" },
+
+    { "moduleName": "org.openjfx:.*",
+      "moduleLicense": "GNU GENERAL PUBLIC LICENSE, Version 2 + Classpath Exception" },
+    { "moduleName": "io.smallrye.classfile:jdk-classfile-backport",
+      "moduleLicense": "GNU GENERAL PUBLIC LICENSE, Version 2 + Classpath Exception" },
+
+    { "moduleName": "org.junit:junit-bom", "moduleLicense": "Eclipse Public License - v 2.0" },
+    { "moduleName": "mindis:versions", "moduleLicense": ".*" }
+  ]
+}

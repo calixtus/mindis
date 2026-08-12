@@ -7,6 +7,7 @@ plugins {
     id("org.mindis.gradle.feature.javafx")
     id("application")
     id("org.mindis.gradle.feature.packaging")
+    id("org.mindis.gradle.check.licenses")
 }
 
 application {

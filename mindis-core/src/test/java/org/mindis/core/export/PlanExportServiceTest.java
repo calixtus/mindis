@@ -10,6 +10,9 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mindis.core.model.ArchivedService;
@@ -48,6 +51,43 @@ class PlanExportServiceTest {
             assertEquals(4, in.read(head));
         }
         assertTrue(new String(head).startsWith("%PDF"), "Not a PDF file");
+    }
+
+    @Test
+    void pdfRendersNamesOutsideWindows1252() throws IOException {
+        // The PDF standard-14 fonts stop at Windows-1252; the bundled DejaVu
+        // Sans has to carry names like this one through unchanged.
+        ArchivedService archived = new ArchivedService("svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60,
+                "St. Mary", ServiceType.SUNDAY_MASS, "",
+                List.of(new ArchivedService.ArchivedSlot("Acolyte", "s1", "Zoë Šimeček")),
+                Instant.now());
+        Path target = tempDir.resolve("unicode.pdf");
+
+        exportService().exportArchived(List.of(archived), target, PlanExportFormat.PDF);
+
+        assertTrue(extractText(target).contains("Zoë Šimeček"), "Name was not rendered as itself");
+    }
+
+    @Test
+    void pdfListsRolesAndServers() throws IOException {
+        ArchivedService archived = new ArchivedService("svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60,
+                "St. Mary", ServiceType.SUNDAY_MASS, "",
+                List.of(new ArchivedService.ArchivedSlot("Acolyte", "s1", "Anna Meier")),
+                Instant.now());
+        Path target = tempDir.resolve("content.pdf");
+
+        exportService().exportArchived(List.of(archived), target, PlanExportFormat.PDF);
+
+        String text = extractText(target);
+        assertTrue(text.contains("Acolyte"), "Role missing from PDF");
+        assertTrue(text.contains("Anna Meier"), "Server missing from PDF");
+        assertTrue(text.contains("St. Mary"), "Service heading missing from PDF");
+    }
+
+    private static String extractText(Path pdfFile) throws IOException {
+        try (PDDocument pdf = Loader.loadPDF(pdfFile.toFile())) {
+            return new PDFTextStripper().getText(pdf);
+        }
     }
 
     @Test
