@@ -1,0 +1,39 @@
+{{! MinDis plan export template. Renders Markdown, which every export format
+    except CSV is drawn from: .md is this text, .txt/.rtf/.pdf are drawn from
+    its structure. Copy it to templates/plan.md.mustache in the MinDis data
+    directory to change it; a broken copy falls back to this one.
+
+    Available: title, subtitle, headers.{service,role,server,count},
+    services[].heading, services[].assignments[].{role,serverName},
+    summaryHeading, summary[].{serverName,count},
+    parish.{name,hasName,hasLogo,logo}.
+    Supported Markdown: headings, paragraphs, bullets, tables, images and ---
+    (a page break in the PDF). }}
+{{#parish.hasLogo}}
+![{{parish.name}}]({{parish.logo}})
+{{/parish.hasLogo}}
+# {{title}}
+
+{{#parish.hasName}}
+{{parish.name}}
+
+{{/parish.hasName}}
+{{subtitle}}
+
+{{#services}}
+## {{heading}}
+
+| {{headers.role}} | {{headers.server}} |
+| --- | --- |
+{{#assignments}}
+| {{role}} | {{serverName}} |
+{{/assignments}}
+
+{{/services}}
+## {{summaryHeading}}
+
+| {{headers.server}} | {{headers.count}} |
+| --- | --- |
+{{#summary}}
+| {{serverName}} | {{count}} |
+{{/summary}}

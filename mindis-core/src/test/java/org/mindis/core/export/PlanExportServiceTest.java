@@ -3,25 +3,39 @@ package org.mindis.core.export;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.List;
 
+import javax.imageio.ImageIO;
+
 import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDResources;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mindis.core.model.ArchivedService;
+import org.mindis.core.model.CollectionMeta;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
+import org.mindis.core.persistence.AppDatabase;
+import org.mindis.core.persistence.ArchivedServiceRepository;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
+import org.mindis.core.persistence.ServiceRepository;
+import org.mindis.core.persistence.TemplateRepository;
+import org.mindis.core.preferences.DataDirectory;
 
 class PlanExportServiceTest {
 
@@ -29,8 +43,33 @@ class PlanExportServiceTest {
     Path tempDir;
 
     private PlanExportService exportService() {
-        // Repositories on empty temp files: export must handle unknown ids.
-        return new PlanExportService(new ServerRepository(), new RoleRepository());
+        return exportService(CollectionMeta.empty());
+    }
+
+    /// Repositories are empty: export must handle unknown ids. The data
+    /// directory is the temp dir, so a template written into `templates/`
+    /// there is picked up as the user's own.
+    private PlanExportService exportService(CollectionMeta meta) {
+        AppDatabase database = new AppDatabase(new RoleRepository(), new ServerRepository(),
+                new TemplateRepository(), new ServiceRepository(), new ArchivedServiceRepository());
+        database.updateMeta(meta);
+        return new PlanExportService(new ServerRepository(), new RoleRepository(),
+                database, new DataDirectory(tempDir));
+    }
+
+    private void writeUserTemplate(String content) throws IOException {
+        Path templates = tempDir.resolve(PlanExportService.TEMPLATE_DIRECTORY);
+        Files.createDirectories(templates);
+        Files.writeString(templates.resolve("plan.md.mustache"), content);
+    }
+
+    /// A 4x3 PNG, the smallest thing that exercises the image paths.
+    private static String logoBase64() throws IOException {
+        BufferedImage image = new BufferedImage(4, 3, BufferedImage.TYPE_INT_ARGB);
+        image.setRGB(0, 0, 0xFF336699);
+        ByteArrayOutputStream png = new ByteArrayOutputStream();
+        ImageIO.write(image, "png", png);
+        return Base64.getEncoder().encodeToString(png.toByteArray());
     }
 
     private static LiturgicalService service() {
@@ -88,6 +127,86 @@ class PlanExportServiceTest {
         try (PDDocument pdf = Loader.loadPDF(pdfFile.toFile())) {
             return new PDFTextStripper().getText(pdf);
         }
+    }
+
+    @Test
+    void pdfEmbedsTheParishLogo() throws IOException {
+        CollectionMeta meta = CollectionMeta.empty()
+                .withDisplayName("St. Mary's Parish")
+                .withLogoPngBase64(logoBase64());
+        Path target = tempDir.resolve("logo.pdf");
+
+        exportService(meta).exportLive(List.of(service()), target, PlanExportFormat.PDF);
+
+        try (PDDocument pdf = Loader.loadPDF(target.toFile())) {
+            PDResources resources = pdf.getPage(0).getResources();
+            boolean hasImage = false;
+            for (COSName name : resources.getXObjectNames()) {
+                hasImage |= resources.getXObject(name) instanceof PDImageXObject;
+            }
+            assertTrue(hasImage, "Parish logo was not embedded in the PDF");
+        }
+        assertTrue(extractText(target).contains("St. Mary's Parish"), "Parish name missing from PDF");
+    }
+
+    @Test
+    void rtfEmbedsTheParishLogo() throws IOException {
+        CollectionMeta meta = CollectionMeta.empty().withLogoPngBase64(logoBase64());
+        Path target = tempDir.resolve("logo.rtf");
+
+        exportService(meta).exportLive(List.of(service()), target, PlanExportFormat.RTF);
+
+        assertTrue(Files.readString(target).contains("\\pngblip"), "Parish logo was not embedded in the RTF");
+    }
+
+    @Test
+    void exportsWithoutLogoWhenTheCollectionHasNone() throws IOException {
+        Path target = tempDir.resolve("plain.rtf");
+
+        exportService().exportLive(List.of(service()), target, PlanExportFormat.RTF);
+
+        assertTrue(Files.size(target) > 0);
+        assertTrue(!Files.readString(target).contains("\\pngblip"), "Logo drawn although none is set");
+    }
+
+    @Test
+    void userTemplateOverridesTheBundledOne() throws IOException {
+        writeUserTemplate("# {{title}}\n\nMy own layout\n");
+        Path target = tempDir.resolve("custom.txt");
+
+        exportService().exportLive(List.of(service()), target, PlanExportFormat.TXT);
+
+        assertTrue(Files.readString(target).contains("My own layout"), "User template was not used");
+    }
+
+    @Test
+    void brokenUserTemplateFallsBackToTheBundledOne() throws IOException {
+        writeUserTemplate("# {{title}}\n\n{{#services}}never closed\n");
+        Path target = tempDir.resolve("broken.md");
+
+        exportService().exportLive(List.of(service()), target, PlanExportFormat.MARKDOWN);
+
+        String content = Files.readString(target);
+        // The role id itself: an empty role repository has no display name for it.
+        assertTrue(content.contains(Role.ACOLYTE), "Fallback template did not render the plan");
+        assertTrue(!content.contains("never closed"), "Broken template was used anyway");
+    }
+
+    @Test
+    void nameWithMarkdownSyntaxSurvivesEveryFormat() throws IOException {
+        // A pipe would split a table cell, an asterisk would start emphasis.
+        ArchivedService archived = new ArchivedService("svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60,
+                "St. Mary", ServiceType.SUNDAY_MASS, "",
+                List.of(new ArchivedService.ArchivedSlot("Acolyte", "s1", "A|B *C*")),
+                Instant.now());
+
+        Path text = tempDir.resolve("escaped.txt");
+        exportService().exportArchived(List.of(archived), text, PlanExportFormat.TXT);
+        assertTrue(Files.readString(text).contains("A|B *C*"), "Name was mangled in TXT");
+
+        Path pdf = tempDir.resolve("escaped.pdf");
+        exportService().exportArchived(List.of(archived), pdf, PlanExportFormat.PDF);
+        assertTrue(extractText(pdf).contains("A|B *C*"), "Name was mangled in PDF");
     }
 
     @Test

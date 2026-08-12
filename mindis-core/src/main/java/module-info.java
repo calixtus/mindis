@@ -22,6 +22,9 @@ module org.mindis.core {
     requires com.fasterxml.jackson.datatype.jsr310;
     requires ai.timefold.solver.core;
     requires org.apache.pdfbox;
+    requires com.samskivert.jmustache;
+    requires org.commonmark;
+    requires org.commonmark.ext.gfm.tables;
 
     opens org.mindis.core.model to com.fasterxml.jackson.databind;
     opens org.mindis.core.planning to ai.timefold.solver.core, com.fasterxml.jackson.databind;

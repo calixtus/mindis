@@ -1,4 +1,6 @@
-/// Plan export to PDF/CSV/TXT/RTF/Markdown.
+/// Plan export to PDF/CSV/TXT/RTF/Markdown: one Mustache template renders the
+/// document as Markdown, which every format except CSV is drawn from
+/// (docs/adr/009-export-templating.md).
 @NullMarked
 package org.mindis.core.export;
 

@@ -14,6 +14,7 @@ val javafx = providers.gradleProperty("javafxVersion").getOrElse("26.0.1")
 
 val avajeInject = "12.6"
 val pdfbox = "3.0.8"
+val commonmark = "0.30.0"
 
 dependencies {
     api(platform("org.junit:junit-bom:6.1.2"))
@@ -40,6 +41,13 @@ dependencies.constraints {
     api("org.apache.pdfbox:pdfbox:$pdfbox")
     api("org.apache.pdfbox:fontbox:$pdfbox")
     api("org.apache.pdfbox:pdfbox-io:$pdfbox")
+
+    // Plan export templating: one Mustache template renders Markdown, which is
+    // parsed once and drawn by the per-format renderers. JMustache is BSD-3,
+    // commonmark BSD-2 - both permissive, see ADR 008.
+    api("com.samskivert:jmustache:1.16")
+    api("org.commonmark:commonmark:$commonmark")
+    api("org.commonmark:commonmark-ext-gfm-tables:$commonmark")
 
     api("org.jspecify:jspecify:1.0.1")
 

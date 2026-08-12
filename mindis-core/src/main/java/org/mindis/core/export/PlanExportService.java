@@ -24,8 +24,10 @@ import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
+import org.mindis.core.persistence.AppDatabase;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
+import org.mindis.core.preferences.DataDirectory;
 
 /// Builds a localized, format-agnostic [PlanExportDocument] from a set of
 /// services and dispatches it to the [PlanExporter] registered for the
@@ -39,22 +41,36 @@ import org.mindis.core.persistence.ServerRepository;
 @Singleton
 public final class PlanExportService {
 
+    /// Where a user's own template overrides the bundled one.
+    public static final String TEMPLATE_DIRECTORY = "templates";
+
     private final ServerRepository serverRepository;
     private final RoleRepository roleRepository;
+    private final AppDatabase database;
+    private final PlanTemplate template;
     private final Map<PlanExportFormat, PlanExporter> exporters = new EnumMap<>(PlanExportFormat.class);
+    private final Map<PlanExportFormat, PlanRenderer> renderers = new EnumMap<>(PlanExportFormat.class);
 
-    public PlanExportService(ServerRepository serverRepository, RoleRepository roleRepository) {
+    public PlanExportService(ServerRepository serverRepository, RoleRepository roleRepository,
+                             AppDatabase database, DataDirectory dataDirectory) {
         this.serverRepository = serverRepository;
         this.roleRepository = roleRepository;
-        register(new PdfPlanExporter());
+        this.database = database;
+        this.template = new PlanTemplate(
+                dataDirectory.resolve(TEMPLATE_DIRECTORY).resolve(PlanTemplate.TEMPLATE_FILE_NAME));
         register(new CsvPlanExporter());
-        register(new TxtPlanExporter());
-        register(new RtfPlanExporter());
-        register(new MarkdownPlanExporter());
+        register(new PdfPlanRenderer());
+        register(new TextPlanRenderer());
+        register(new RtfPlanRenderer());
+        register(new MarkdownPlanRenderer());
     }
 
     private void register(PlanExporter exporter) {
         exporters.put(exporter.format(), exporter);
+    }
+
+    private void register(PlanRenderer renderer) {
+        renderers.put(renderer.format(), renderer);
     }
 
     /// Exports the given live services, resolving names against the current roster.
@@ -92,12 +108,25 @@ public final class PlanExportService {
         dispatch(views, targetFile, format);
     }
 
+    /// CSV is written straight from the structured document - a spreadsheet
+    /// wants columns, not a laid-out document. Every other format goes through
+    /// the template, so all of them share one layout.
     private void dispatch(List<ServiceView> views, Path targetFile, PlanExportFormat format) {
+        PlanExportDocument document = buildDocument(views);
         PlanExporter exporter = exporters.get(format);
-        if (exporter == null) {
+        if (exporter != null) {
+            exporter.export(document, targetFile);
+            return;
+        }
+        PlanRenderer renderer = renderers.get(format);
+        if (renderer == null) {
             throw new IllegalArgumentException("No exporter registered for format: " + format);
         }
-        exporter.export(buildDocument(views), targetFile);
+        ParishIdentity parish = ParishIdentity.of(database.meta());
+        String markdown = template.render(document, parish);
+        renderer.render(
+                new PlanRenderer.RenderedPlan(markdown, PlanBlocks.parse(markdown), parish.logoPng()),
+                targetFile);
     }
 
     private PlanExportDocument buildDocument(List<ServiceView> views) {
