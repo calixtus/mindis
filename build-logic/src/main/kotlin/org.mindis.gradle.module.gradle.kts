@@ -65,6 +65,16 @@ extraJavaModuleInfo {
         requires("org.kordamp.ikonli.materialdesign")
     }
 
+    // Pebble, the export template engine, and its escaping library.
+    module("io.pebbletemplates:pebble", "io.pebbletemplates") {
+        exportAllPackages()
+        requires("unbescape")
+        requires("org.slf4j")
+    }
+    module("org.unbescape:unbescape", "unbescape") {
+        exportAllPackages()
+    }
+
     // PDFBox ships Automatic-Module-Names only; commons-logging below it is
     // already a proper multi-release module and needs no patch. The platform
     // modules each one reads come from `jdeps --list-deps` on the jars, not

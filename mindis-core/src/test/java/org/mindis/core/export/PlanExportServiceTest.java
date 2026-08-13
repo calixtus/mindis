@@ -62,7 +62,7 @@ class PlanExportServiceTest {
     private void writeUserTemplate(String content) throws IOException {
         Path templates = tempDir.resolve(PlanExportService.TEMPLATE_DIRECTORY);
         Files.createDirectories(templates);
-        Files.writeString(templates.resolve("plan.md.mustache"), content);
+        Files.writeString(templates.resolve("plan.md.peb"), content);
     }
 
     /// A 4x3 PNG, the smallest thing that exercises the image paths.
@@ -194,6 +194,55 @@ class PlanExportServiceTest {
         exportService().exportLive(List.of(service()), target, PlanExportFormat.TXT);
 
         assertTrue(Files.readString(target).contains("My own layout"), "User template was not used");
+    }
+
+    @Test
+    void templateDecidesWordingLoopsAndDateFormat() throws IOException {
+        // The application hands over values; everything the document says is
+        // the template's doing.
+        writeUserTemplate("""
+                # {{ lang("Altar server plan") }} {{ range.count }}
+
+                {% for service in services %}\
+                {{ service.date | date("yyyy-MM-dd") }} {{ service.location | upper }}
+                {% for slot in service.slots %}\
+                - {% if slot.assigned %}{{ slot.serverName }}{% else %}NOBODY{% endif %}
+                {% endfor %}\
+                {% endfor %}""");
+        Path target = tempDir.resolve("control.txt");
+
+        exportService().exportLive(List.of(service()), target, PlanExportFormat.TXT);
+
+        String content = Files.readString(target);
+        assertTrue(content.contains("2026-08-02"), "date filter did not run: " + content);
+        assertTrue(content.contains("ST. MARY"), "upper filter did not run: " + content);
+        assertTrue(content.contains("NOBODY"), "conditional did not run: " + content);
+    }
+
+    @Test
+    void templateCanIncludeAnotherFileFromItsOwnDirectory() throws IOException {
+        Path templates = tempDir.resolve(PlanExportService.TEMPLATE_DIRECTORY);
+        Files.createDirectories(templates);
+        Files.writeString(templates.resolve("letterhead.peb"), "Sankt Markus, Musterstadt\n");
+        writeUserTemplate("{% include \"letterhead.peb\" %}\n# {{ labels.plan }}\n");
+        Path target = tempDir.resolve("include.txt");
+
+        exportService().exportLive(List.of(service()), target, PlanExportFormat.TXT);
+
+        assertTrue(Files.readString(target).contains("Sankt Markus"), "include was not rendered");
+    }
+
+    @Test
+    void templateCannotIncludeFilesOutsideItsDirectory() throws IOException {
+        Files.writeString(tempDir.resolve("secret.txt"), "TOP SECRET");
+        writeUserTemplate("{% include \"../secret.txt\" %}\n# {{ labels.plan }}\n");
+        Path target = tempDir.resolve("escape.md");
+
+        exportService().exportLive(List.of(service()), target, PlanExportFormat.MARKDOWN);
+
+        String content = Files.readString(target);
+        assertTrue(!content.contains("TOP SECRET"), "template read a file outside the template directory");
+        assertTrue(content.contains(Role.ACOLYTE), "fallback template did not render the plan");
     }
 
     @Test

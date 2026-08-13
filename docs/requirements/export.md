@@ -29,9 +29,12 @@ Covers:
 ### The exported document follows a template
 `req~export-template~1`
 
-The user can change what an exported plan looks like by editing one template, which applies to
-every document format at once — PDF, plain text, RTF and Markdown all come out of it. A template
-that cannot be read or rendered falls back to the built-in one instead of failing the export.
+The user decides what an exported plan says by editing one template, which applies to every document
+format at once — PDF, plain text, RTF and Markdown all come out of it. The template receives the
+plan as data (dates as dates, an unfilled slot as such) and composes the document itself, with
+loops, conditionals, filters and includes; wording, date formats and headings are its decisions, not
+the application's. A template that cannot be read or rendered falls back to the built-in one instead
+of failing the export.
 
 Covers:
 - feat~plan-distribution~1
@@ -121,25 +124,39 @@ Covers:
 ### One template, every document format
 `dsn~plan-template~1`
 
-`PlanTemplate` renders the `PlanExportDocument` into Markdown through a Mustache template
-(JMustache): `templates/plan.md.mustache` in the data directory when the user has one, otherwise
-`plan.md.mustache` bundled next to the class. A user template that cannot be read, compiled or
-rendered is logged and the bundled one is used.
+`PlanTemplate` renders the plan into Markdown through a Pebble template: `templates/plan.md.peb` in
+the data directory when the user has one, otherwise `plan.md.peb` bundled next to the class. A user
+template that cannot be read, compiled or rendered is logged and the bundled one is used.
 
 The Markdown is then parsed once (commonmark + the GFM tables extension) and flattened by
 `PlanBlocks` into `PlanBlock`s — heading, paragraph, bullet, table, image, page break — which every
 renderer draws. `MARKDOWN` writes the template's own output unchanged; the others draw the blocks,
-so a template change lands in all of them at once.
-
-Templates see plain maps and lists, not the records (`title`, `subtitle`, `headers.*`,
-`services[].heading`, `services[].assignments[]`, `summaryHeading`, `summary[]`, `parish.*`), so the
-template contract does not move when internal types do and no package has to be opened for
-reflection. Values are Markdown-escaped on the way in, so a server called `A|B` cannot break out of
-a table cell.
+so a template change lands in all of them at once. Blank-line runs in the rendered Markdown are
+collapsed, which changes no block but keeps the leftovers of `{% if %}` lines out of the `.md`
+export.
 
 Covers:
 - req~export-template~1
 - req~export-formats~1
+
+### What a template gets, and what it may not do
+`dsn~plan-template-model~1`
+
+`PlanTemplateModel` is plain maps, lists, strings, numbers and `java.time` values — `services[]`
+with `dateTime`/`date`/`time`, `type`, `typeLabel`, `location`, `slotCount`, `openCount` and
+`slots[]` (`role`, `roleName`, `serverName`, `assigned`); `servers[]` with duty counts; `range`;
+`parish`; `generatedAt`; the `labels` the built-in template uses; and a `lang("...")` function for
+any other translation. Nothing is pre-composed or pre-formatted: the template formats dates with
+`| date(...)`, decides what an unfilled slot reads as, and writes its own headings.
+
+Plain values are also the sandbox. Pebble expressions reach model attributes and registered filters
+only, and no object in the model does anything, so a template cannot be turned into code. Two limits
+are the application's: values are Markdown-escaped unless the template writes `{{ value | raw }}`,
+and `TemplateDirectoryLoader` resolves `{% include %}` inside the template directory only — a name
+that escapes it, or an absolute path, is refused.
+
+Covers:
+- req~export-template~1
 
 ### Parish logo in an export
 `dsn~export-logo~1`

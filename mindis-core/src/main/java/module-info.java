@@ -22,7 +22,7 @@ module org.mindis.core {
     requires com.fasterxml.jackson.datatype.jsr310;
     requires ai.timefold.solver.core;
     requires org.apache.pdfbox;
-    requires com.samskivert.jmustache;
+    requires io.pebbletemplates;
     requires org.commonmark;
     requires org.commonmark.ext.gfm.tables;
 

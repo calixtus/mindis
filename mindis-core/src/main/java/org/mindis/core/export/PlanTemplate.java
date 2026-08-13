@@ -2,38 +2,52 @@ package org.mindis.core.export;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
-import com.samskivert.mustache.Mustache;
-import com.samskivert.mustache.MustacheException;
+import io.pebbletemplates.pebble.PebbleEngine;
+import io.pebbletemplates.pebble.error.PebbleException;
+import io.pebbletemplates.pebble.extension.AbstractExtension;
+import io.pebbletemplates.pebble.extension.Function;
+import io.pebbletemplates.pebble.template.EvaluationContext;
+import io.pebbletemplates.pebble.template.PebbleTemplate;
 
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/// Renders a [PlanExportDocument] into Markdown through a Mustache template -
-/// the one document layout every non-CSV export format is drawn from.
+import org.mindis.core.l10n.Localization;
+
+/// Renders the plan as Markdown through the user's template - the one document
+/// layout every non-CSV export format is drawn from.
 ///
-/// <p>The template is the user's if `templates/plan.md.mustache` exists in the
-/// data directory, otherwise the one bundled next to this class. A user
-/// template that fails to compile or render is reported and the bundled one is
-/// used, so a typo in a template never costs the user their export.
+/// <p>The template does the composing. It gets values ([PlanTemplateModel]) and
+/// Pebble's own control structures - `{% for %}`, `{% if %}`,
+/// `{% set %}`, filters like `date(...)` and `numberformat(...)`,
+/// macros, `{% include %}` of another file in the template directory -
+/// and decides what the document says. The application contributes no wording
+/// of its own beyond the translations under `labels` and the
+/// `lang("...")` function.
 ///
-/// <p>Values are Markdown-escaped on the way in ([#escapeMarkdown]), so a
-/// server called `A|B` cannot break out of a table cell.
+/// <p>Two things are deliberately not the template's to choose. Values are
+/// Markdown-escaped by default ([MarkdownEscaper]), because a server called
+/// `A|B` must not silently break out of a table cell - `{{ value | raw }}`
+/// opts out per value. And `{% include %}` resolves inside the template
+/// directory only, so a plan export cannot be turned into a way to read
+/// arbitrary files.
 final class PlanTemplate {
 
-    static final String TEMPLATE_FILE_NAME = "plan.md.mustache";
+    static final String TEMPLATE_FILE_NAME = "plan.md.peb";
     /// Image destination that every [PlanRenderer] resolves to the
     /// collection's own logo.
     static final String LOGO_DESTINATION = "mindis:logo";
+    private static final String MARKDOWN_ESCAPING = "md";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PlanTemplate.class);
 
@@ -43,27 +57,61 @@ final class PlanTemplate {
         this.userTemplate = userTemplate;
     }
 
-    String render(PlanExportDocument document, ParishIdentity parish) {
-        Map<String, Object> model = buildModel(document, parish);
+    String render(List<PlanTemplateModel.Service> services, ParishIdentity parish) {
+        Map<String, Object> model = PlanTemplateModel.build(services, parish);
         String template = userTemplateText();
         if (template != null) {
             try {
-                return compile().compile(template).execute(model);
-            } catch (MustacheException e) {
+                return evaluate(template, model, userTemplateDirectory());
+            } catch (PebbleException | IOException e) {
                 LOGGER.warn("Export template {} is broken, using the built-in one instead: {}",
                         userTemplate, e.getMessage());
             }
         }
-        return compile().compile(bundledTemplateText()).execute(model);
+        try {
+            return evaluate(bundledTemplateText(), model, null);
+        } catch (PebbleException | IOException e) {
+            throw new IllegalStateException("The built-in export template is broken", e);
+        }
     }
 
-    private Mustache.Compiler compile() {
-        return Mustache.compiler()
-                .escapeHTML(false)
-                .withEscaper(PlanTemplate::escapeMarkdown)
-                // A mistyped key renders empty instead of throwing: a template
-                // is user content, and half a plan beats no plan.
-                .defaultValue("");
+    private static String evaluate(String template, Map<String, Object> model, @Nullable Path includeRoot)
+            throws IOException {
+        PebbleEngine.Builder engine = new PebbleEngine.Builder()
+                // The template is handed over as text; anything it includes is
+                // resolved inside the template directory and nowhere else.
+                .loader(new TemplateDirectoryLoader(template, includeRoot))
+                .autoEscaping(true)
+                .addEscapingStrategy(MARKDOWN_ESCAPING, MarkdownEscaper::escape)
+                .defaultEscapingStrategy(MARKDOWN_ESCAPING)
+                // An unknown variable renders empty instead of throwing: a
+                // template is user content, and half a plan beats no plan.
+                .strictVariables(false)
+                // Every line the template writes is a line of Markdown, where
+                // blank lines separate blocks. Swallowing the newline after a
+                // tag would silently glue a heading to the paragraph below it,
+                // so the template controls its own line breaks.
+                .newLineTrimming(false)
+                // Dates and numbers format in the application's language.
+                .defaultLocale(Locale.getDefault())
+                .extension(new MinDisExtension())
+                .cacheActive(false);
+
+        StringWriter rendered = new StringWriter();
+        engine.build().getTemplate(TemplateDirectoryLoader.MAIN_TEMPLATE).evaluate(rendered, model);
+        return tidy(rendered.toString());
+    }
+
+    /// Collapses runs of blank lines and trims the ends. Markdown treats one
+    /// blank line and three the same, so nothing about the document changes -
+    /// but a template's `{% if %}` lines leave their newlines behind, and the
+    /// Markdown export is a file the user hands out, not just an intermediate.
+    private static String tidy(String markdown) {
+        return markdown.replaceAll("(?:[ \t]*\r?\n){3,}", "\n\n").strip() + "\n";
+    }
+
+    private @Nullable Path userTemplateDirectory() {
+        return userTemplate == null ? null : userTemplate.getParent();
     }
 
     private @Nullable String userTemplateText() {
@@ -89,66 +137,28 @@ final class PlanTemplate {
         }
     }
 
-    /// The data a template can reach: plain maps and lists rather than the
-    /// records themselves, so the template contract does not move when internal
-    /// types do, and no module has to be opened for reflection.
-    private static Map<String, Object> buildModel(PlanExportDocument document, ParishIdentity parish) {
-        Map<String, Object> headers = new LinkedHashMap<>();
-        headers.put("service", document.headers().service());
-        headers.put("role", document.headers().role());
-        headers.put("server", document.headers().server());
-        headers.put("count", document.headers().count());
+    /// Adds `lang("English text")` so a template can reach any of the
+    /// application's translations, not just the ones under `labels`.
+    private static final class MinDisExtension extends AbstractExtension {
 
-        List<Map<String, Object>> services = new ArrayList<>();
-        for (PlanExportDocument.ServiceSection section : document.services()) {
-            List<Map<String, Object>> assignments = new ArrayList<>();
-            for (PlanExportDocument.AssignmentRow row : section.assignments()) {
-                assignments.add(Map.of("role", row.role(), "serverName", row.serverName()));
-            }
-            services.add(Map.of("heading", section.heading(), "assignments", assignments));
+        @Override
+        public Map<String, Function> getFunctions() {
+            return Map.of("lang", new LangFunction());
         }
-
-        List<Map<String, Object>> summary = new ArrayList<>();
-        for (PlanExportDocument.SummaryRow row : document.summary()) {
-            summary.add(Map.of("serverName", row.serverName(), "count", row.count()));
-        }
-
-        Map<String, Object> parishModel = new LinkedHashMap<>();
-        parishModel.put("name", parish.name());
-        parishModel.put("hasName", !parish.name().isEmpty());
-        parishModel.put("hasLogo", parish.logoPng() != null);
-        parishModel.put("logo", LOGO_DESTINATION);
-
-        Map<String, Object> model = new LinkedHashMap<>();
-        model.put("title", document.title());
-        model.put("subtitle", document.subtitle());
-        model.put("headers", headers);
-        model.put("services", services);
-        model.put("hasServices", !document.services().isEmpty());
-        model.put("summaryHeading", document.summaryHeading());
-        model.put("summary", summary);
-        model.put("parish", parishModel);
-        return model;
     }
 
-    /// Escapes the Markdown characters that change meaning wherever they
-    /// appear: emphasis, code, links, angle brackets, and the pipe that would
-    /// split a table cell in two.
-    ///
-    /// <p>Block markers (`#`, `-`, `+`, `>`) are deliberately left alone. They
-    /// only mean anything at the start of a line, which is a position the
-    /// template author controls and a value almost never lands in; escaping
-    /// them defensively would print `\-` for every open slot and `2\. 8\. 2026`
-    /// for every date in the Markdown export itself.
-    static String escapeMarkdown(String value) {
-        StringBuilder escaped = new StringBuilder(value.length());
-        for (int i = 0; i < value.length(); i++) {
-            char c = value.charAt(i);
-            if ("\\`*_[]<>|".indexOf(c) >= 0) {
-                escaped.append('\\');
-            }
-            escaped.append(c);
+    private static final class LangFunction implements Function {
+
+        @Override
+        public List<String> getArgumentNames() {
+            return List.of("text");
         }
-        return escaped.toString();
+
+        @Override
+        public Object execute(Map<String, Object> args, PebbleTemplate self,
+                              EvaluationContext context, int lineNumber) {
+            Object text = args.get("text");
+            return text == null ? "" : Localization.lang(String.valueOf(text));
+        }
     }
 }

@@ -1,0 +1,53 @@
+{# MinDis plan export template (Pebble syntax).
+
+   It renders Markdown, and every export format except CSV is drawn from it:
+   .md is this text, .txt/.rtf/.pdf are drawn from its structure. Copy it to
+   templates/plan.md.peb in the MinDis data directory and edit it there; a copy
+   that fails to render falls back to this one.
+
+   Data (values, not sentences - the wording is yours):
+     parish     .name .hasName .hasLogo .logo
+     range      .hasServices .from .to .count
+     services[] .dateTime .date .time .type .typeLabel .location
+                .slotCount .openCount
+                .slots[]  .role .roleName .serverName .assigned
+     servers[]  .name .count            (duty counts, highest first)
+     labels     .plan .services .role .server .count .assignmentsPerServer
+     generatedAt
+   Functions: lang("English text") for any other application translation.
+   Dates format with the date filter: {{ service.date | date("d. MMMM yyyy") }}
+
+   Markdown you can use: headings, paragraphs, bullets, tables, images, and ---
+   for a page break in the PDF. Blank lines separate blocks, so mind them: a
+   tag on its own line writes its own newline. Values are escaped so a name
+   cannot break the document; write {{ value | raw }} where you do not want
+   that. #}
+{% if parish.hasLogo %}![{{ parish.name }}]({{ parish.logo }})
+{% endif %}
+# {{ labels.plan }}
+
+{% if parish.hasName %}{{ parish.name }}
+
+{% endif %}
+{% if range.hasServices %}{{ range.from | date("dd.MM.yyyy") }} - {{ range.to | date("dd.MM.yyyy") }}
+{% else %}{{ lang("No services") }}
+{% endif %}
+{% for service in services %}
+## {{ service.dateTime | date("EEEE, dd.MM.yyyy HH:mm") }}  {{ service.typeLabel }}  {{ service.location }}
+
+{% if service.openCount > 0 %}*{{ service.openCount }} / {{ service.slotCount }} {{ lang("open") }}*
+
+{% endif %}
+| {{ labels.role }} | {{ labels.server }} |
+| --- | --- |
+{% for slot in service.slots %}| {{ slot.roleName }} | {% if slot.assigned %}{{ slot.serverName }}{% else %}-{% endif %} |
+{% endfor %}
+{% endfor %}
+{% if servers is not empty %}
+## {{ labels.assignmentsPerServer }}
+
+| {{ labels.server }} | {{ labels.count }} |
+| --- | --- |
+{% for server in servers %}| {{ server.name }} | {{ server.count }} |
+{% endfor %}
+{% endif %}

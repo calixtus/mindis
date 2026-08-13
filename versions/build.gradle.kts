@@ -42,10 +42,11 @@ dependencies.constraints {
     api("org.apache.pdfbox:fontbox:$pdfbox")
     api("org.apache.pdfbox:pdfbox-io:$pdfbox")
 
-    // Plan export templating: one Mustache template renders Markdown, which is
-    // parsed once and drawn by the per-format renderers. JMustache is BSD-3,
+    // Plan export templating: one Pebble template renders Markdown, which is
+    // parsed once and drawn by the per-format renderers. Pebble is BSD-3,
     // commonmark BSD-2 - both permissive, see ADR 008.
-    api("com.samskivert:jmustache:1.16")
+    api("io.pebbletemplates:pebble:4.1.2")
+    api("org.unbescape:unbescape:1.1.6.RELEASE")
     api("org.commonmark:commonmark:$commonmark")
     api("org.commonmark:commonmark-ext-gfm-tables:$commonmark")
 
