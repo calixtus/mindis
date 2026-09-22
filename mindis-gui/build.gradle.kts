@@ -7,6 +7,7 @@ plugins {
     id("org.mindis.gradle.feature.javafx")
     id("application")
     id("org.mindis.gradle.feature.packaging")
+    id("org.mindis.gradle.check.licenses")
 }
 
 application {
@@ -15,13 +16,17 @@ application {
     applicationDefaultJvmArgs = listOf("--enable-native-access=javafx.graphics")
 }
 
+// Read at configuration time: reaching for the project from a task action is
+// deprecated and fails under the configuration cache.
+val applicationVersion = project.version.toString()
+
 tasks.named<ProcessResources>("processResources") {
     // Track up-to-date variable
-    inputs.property("version",this.project.version)
+    inputs.property("version", applicationVersion)
 
     // Insert in properties
     filesMatching("org/mindis/gui/about/version.properties") {
-        expand("version" to project.version)
+        expand("version" to applicationVersion)
     }
 
     // The About screen's Maintainers section reads this at runtime - kept as
@@ -32,11 +37,13 @@ tasks.named<ProcessResources>("processResources") {
     }
 }
 
-// Installer type: 'exe' (default; needs WiX, present on GitHub runners) or
-// 'app-image' for a local smoke build without WiX:
-//   rm -rf mindis-gui/build/packages && ./gradlew jpackage -PinstallerType=app-image
-// (delete the packages dir first - jpackage refuses an existing app-image dir)
-// 'msi' (default), 'exe', or 'app-image' (local smoke build, no WiX).
+// Installer type: 'msi' (default; needs WiX, present on GitHub runners), 'exe',
+// or 'app-image' for a local smoke build without WiX:
+//   ./gradlew jpackage -PinstallerType=app-image
+// It is set as the target's packageTypes, which is what the packaging plugin
+// drives jpackage with - passing '--type' as an extra option instead would run
+// *in addition to* the platform default types (windows: exe and msi), i.e.
+// jpackage twice into the same destination.
 // NOTE: jpackage's WiX v5 'exe' bundler is broken (JDK-8356592) - the msiwrapper
 // step fails with AccessDeniedException copying the final .exe. The 'msi' path
 // works with WiX v5, so ship an MSI installer.
@@ -50,13 +57,9 @@ javaModulePackaging {
     target("windows") {
         operatingSystem = OperatingSystemFamily.WINDOWS
         architecture = MachineArchitecture.X86_64
-        if (installerType == "app-image") {
-            // Local smoke build without WiX: stop after the app-image step.
-            singleStepPackaging = true
-            options.addAll("--type", "app-image")
-        } else {
-            options.addAll("--type", installerType,
-                    "--win-menu", "--win-shortcut", "--win-dir-chooser")
+        packageTypes = listOf(installerType)
+        if (installerType != "app-image") {
+            options.addAll("--win-menu", "--win-shortcut", "--win-dir-chooser")
         }
     }
     target("linux") {

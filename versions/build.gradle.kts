@@ -13,9 +13,11 @@ javaPlatform {
 val javafx = providers.gradleProperty("javafxVersion").getOrElse("26.0.1")
 
 val avajeInject = "12.6"
+val pdfbox = "3.0.8"
+val commonmark = "0.30.0"
 
 dependencies {
-    api(platform("org.junit:junit-bom:6.1.2"))
+    api(platform("org.junit:junit-bom:6.1.3"))
     api(platform("com.fasterxml.jackson:jackson-bom:2.22.1"))
 }
 
@@ -31,8 +33,22 @@ dependencies.constraints {
     api("io.avaje:avaje-inject-generator:$avajeInject")
     api("jakarta.inject:jakarta.inject-api:2.0.1")
 
-    api("ai.timefold.solver:timefold-solver-core:2.4.0")
-    api("com.github.librepdf:openpdf:3.0.5")
+    api("ai.timefold.solver:timefold-solver-core:2.3.0")
+
+    // PDF export. PDFBox and its whole transitive set (fontbox, pdfbox-io,
+    // commons-logging) are Apache-2.0, which ADR 008 requires; OpenPDF was
+    // MPL-2.0/LGPL-2.1 and is deliberately not used.
+    api("org.apache.pdfbox:pdfbox:$pdfbox")
+    api("org.apache.pdfbox:fontbox:$pdfbox")
+    api("org.apache.pdfbox:pdfbox-io:$pdfbox")
+
+    // Plan export templating: one Pebble template renders Markdown, which is
+    // parsed once and drawn by the per-format renderers. Pebble is BSD-3,
+    // commonmark BSD-2 - both permissive, see ADR 008.
+    api("io.pebbletemplates:pebble:4.1.2")
+    api("org.unbescape:unbescape:1.1.6.RELEASE")
+    api("org.commonmark:commonmark:$commonmark")
+    api("org.commonmark:commonmark-ext-gfm-tables:$commonmark")
 
     api("org.jspecify:jspecify:1.0.1")
 

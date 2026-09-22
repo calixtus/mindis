@@ -208,7 +208,9 @@ grid — not the content — decides how small a card gets. On top of that the b
 card, so content that has shrunk as far as it can stops at the edge rather than drawing over the
 header or the widget below. The summary's `KeyFigures` handles being squeezed itself: the tiles wrap
 onto further lines as the card narrows, and when even that does not fit, the whole row is set in a
-smaller font (scaled in `em`, so it follows the user's configured font size).
+smaller font (scaled in `em`, so it follows the user's configured font size). That fit is redone
+only when the row's size actually changed: restyling requests another layout pass, so refitting on
+every pass would keep the two chasing each other for as long as the card is visible.
 
 Everything the aggregations look forward over is bounded by a constant on the view model: the next
 services shown, the eight weeks of the coverage trend, the absence horizon, the twelve months of
@@ -217,10 +219,18 @@ archive history. The conflict counts come from `ViolationChecker` over a plan bu
 solver — and are skipped above a slot threshold, since the double-booking check is quadratic and
 this runs while the board is being built.
 
+Every figure on the board is about the work still ahead, conflicts included: a service that has
+happened cannot be replanned, so counting it would report work nobody can do. Each problem is
+counted once — a constraint once per violating assignment however many partners it was violated
+with, and a roster issue the constraint check reports as well (assigned while unavailable, inactive
+but assigned) only through the constraint, unless the document was too big to check.
+
 `WidgetType` declares each widget's stable id, default grid placement and the `WidgetViewMode`s it
 supports (first = default). `WidgetContainer` shows a mode chooser only for a type with more than
 one, and `Charts` builds every diagram from plain `(label, value)` data with animation off, a
-tooltip per point, and an empty-state label instead of bare axes. Chart colours are AtlantaFX
+tooltip per point, and an empty-state label instead of bare axes. Repeated labels are numbered
+before they reach a category axis, which rejects a duplicate category outright — two services on one
+day and two servers with the same name are both ordinary. Chart colours are AtlantaFX
 tokens in `dashboard.css`, so diagrams follow the theme and the user's accent.
 
 Covers:

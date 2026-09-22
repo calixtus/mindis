@@ -15,11 +15,14 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.effect.Reflection;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -113,10 +116,13 @@ public final class AboutModule extends ShellModule {
         Hyperlink licenseLink = new Hyperlink(Localization.lang("Licensed under the Apache License 2.0"));
         licenseLink.setOnAction(e -> hostServices.showDocument(LICENSE_URL));
 
+        Hyperlink noticesLink = new Hyperlink(Localization.lang("Third-party licenses"));
+        noticesLink.setOnAction(e -> showThirdPartyNotices());
+
         Node versionInfoBox = buildVersionInfoBox();
 
         VBox textBlock = new VBox(10, title, tagline, version, maintainers,
-                repositoryLink, licenseLink, versionInfoBox);
+                repositoryLink, licenseLink, noticesLink, versionInfoBox);
         textBlock.setAlignment(Pos.CENTER_LEFT);
 
         Node aboutInfo = buildResponsiveAboutInfo(logo, textBlock);
@@ -244,6 +250,35 @@ public final class AboutModule extends ShellModule {
             return properties.getProperty("version", "dev");
         } catch (IOException e) {
             return "dev";
+        }
+    }
+
+    /// Shows the notices for everything distributed alongside MinDis. The file
+    /// is generated at build time from the resolved runtime dependencies (see
+    /// `org.mindis.gradle.check.licenses`), so what the user reads here is
+    /// what actually shipped.
+    private void showThirdPartyNotices() {
+        TextArea notices = new TextArea(readThirdPartyNotices());
+        notices.setEditable(false);
+        notices.setWrapText(true);
+        notices.setPrefSize(720, 520);
+
+        Dialog<Void> dialog = new Dialog<>();
+        dialog.setTitle(Localization.lang("Third-party licenses"));
+        dialog.setResizable(true);
+        dialog.getDialogPane().setContent(notices);
+        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        dialog.showAndWait();
+    }
+
+    private String readThirdPartyNotices() {
+        try (InputStream in = getClass().getResourceAsStream("/org/mindis/gui/about/THIRD-PARTY-NOTICES.md")) {
+            if (in == null) {
+                return Localization.lang("The third-party notices are missing from this build");
+            }
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            return Localization.lang("The third-party notices are missing from this build");
         }
     }
 

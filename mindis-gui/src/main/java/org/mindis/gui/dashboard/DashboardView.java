@@ -318,9 +318,8 @@ public final class DashboardView extends StackPane {
     /// when the document was too big to check, the roster issues are all that
     /// is known, and the figure says so rather than claiming to be the total.
     private String problemTileValue() {
-        return snapshot.problemsChecked()
-                ? String.valueOf(snapshot.problemCount())
-                : snapshot.problemCount() + "+";
+        int problems = snapshot.problemCount();
+        return snapshot.problemsChecked() ? String.valueOf(problems) : problems + "+";
     }
 
     /// One key figure: the number big, its meaning small underneath.
@@ -344,8 +343,10 @@ public final class DashboardView extends StackPane {
     private Node upcomingContent(WidgetViewMode mode) {
         List<DashboardViewModel.UpcomingService> upcoming = snapshot.upcomingServices();
         if (mode == WidgetViewMode.STACKED_BAR) {
+            // With the time: a parish has a morning and an evening service on
+            // the same day, and the date alone would label both bars alike.
             List<String> labels = upcoming.stream()
-                    .map(service -> DateTimes.shortDate(service.dateTime().toLocalDate()))
+                    .map(service -> DateTimes.shortDateTime(service.dateTime()))
                     .toList();
             return Charts.stackedBar(labels,
                     List.of(new Charts.Series(Localization.lang("Assigned"), upcoming.stream()

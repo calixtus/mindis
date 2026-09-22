@@ -21,12 +21,15 @@ import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
+import org.mindis.core.persistence.AppDatabase;
 import org.mindis.core.persistence.ArchivedServiceRepository;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
+import org.mindis.core.persistence.TemplateRepository;
 import org.mindis.core.planning.ArchiveService;
 import org.mindis.core.planning.PlanningService;
+import org.mindis.core.preferences.DataDirectory;
 import org.mindis.core.preferences.PreferencesService;
 import org.mindis.gui.planning.PlanningViewModel;
 import org.mindis.gui.shell.ShellOverlays;
@@ -68,8 +71,9 @@ class ServicesSolverControllerTest {
         PreferencesService preferences = new TestablePreferencesService(tempDir.resolve("preferences.json"));
         ArchiveService archiveService = new ArchiveService(roles, servers, services, archived);
         planningService = new PlanningService(servers, services, roles, preferences, archiveService);
+        AppDatabase database = new AppDatabase(roles, servers, new TemplateRepository(), services, archived);
         planningViewModel = new PlanningViewModel(planningService, preferences,
-                new PlanExportService(servers, roles), archiveService);
+                new PlanExportService(servers, roles, database, new DataDirectory(tempDir)), archiveService);
         return new ServicesSolverController(planningViewModel,
                 services::findAll,
                 applied::add,
