@@ -2,6 +2,7 @@ package org.mindis.gui.dashboard;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
@@ -74,7 +75,7 @@ class DashboardViewModelTest {
         assertAll(
                 () -> assertEquals(3, snapshot.totalSlots()),
                 () -> assertEquals(2, snapshot.unassignedSlots()),
-                () -> assertTrue(!snapshot.isEmpty()));
+                () -> assertFalse(snapshot.isEmpty()));
     }
 
     /// A service in the past is not "upcoming" - it still counts toward the
@@ -290,7 +291,7 @@ class DashboardViewModelTest {
                 () -> assertTrue(status.getFirst().isShort()),
                 // A role nothing asks for cannot be short, however few servers
                 // are qualified for it.
-                () -> assertTrue(!status.get(1).isShort()));
+                () -> assertFalse(status.get(1).isShort()));
     }
 
     @Test
@@ -416,7 +417,7 @@ class DashboardViewModelTest {
                 () -> assertTrue(snapshot.problemsChecked()),
                 () -> assertTrue(constraints.contains(MinDisConstraintProvider.INACTIVE)),
                 () -> assertTrue(constraints.contains(MinDisConstraintProvider.NOT_QUALIFIED)),
-                () -> assertTrue(!constraints.contains(MinDisConstraintProvider.UNASSIGNED)));
+                () -> assertFalse(constraints.contains(MinDisConstraintProvider.UNASSIGNED)));
     }
 
     /// A conflict in a service that is over cannot be resolved any more, so it
@@ -447,7 +448,7 @@ class DashboardViewModelTest {
         services.save(service("s3", at.plusMinutes(2), List.of(filled("ACOLYTE", "srv1"))));
 
         int doubleBooked = newViewModel().loadSnapshot().problems().stream()
-                .filter(problem -> problem.constraintName().equals(MinDisConstraintProvider.DOUBLE_BOOKED))
+                .filter(problem -> MinDisConstraintProvider.DOUBLE_BOOKED.equals(problem.constraintName()))
                 .mapToInt(DashboardViewModel.ProblemCount::assignments)
                 .sum();
 

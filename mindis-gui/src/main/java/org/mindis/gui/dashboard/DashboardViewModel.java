@@ -347,7 +347,7 @@ public final class DashboardViewModel {
         Map<String, Integer> countByConstraint = new LinkedHashMap<>();
         ViolationChecker.violationsByAssignment(plan).values().stream()
                 .flatMap(constraints -> constraints.stream().distinct())
-                .filter(constraint -> !constraint.equals(MinDisConstraintProvider.UNASSIGNED))
+                .filter(constraint -> !MinDisConstraintProvider.UNASSIGNED.equals(constraint))
                 .forEach(constraint -> countByConstraint.merge(constraint, 1, Integer::sum));
         return countByConstraint.entrySet().stream()
                 .map(entry -> new ProblemCount(entry.getKey(), entry.getValue()))

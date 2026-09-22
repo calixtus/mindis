@@ -65,7 +65,7 @@ final class PlanTemplate {
                 return evaluate(template, model, userTemplateDirectory());
             } catch (PebbleException | IOException e) {
                 LOGGER.warn("Export template {} is broken, using the built-in one instead: {}",
-                        userTemplate, e.getMessage());
+                        userTemplate, e.getMessage(), e);
             }
         }
         try {

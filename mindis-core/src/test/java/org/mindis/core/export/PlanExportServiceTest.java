@@ -1,6 +1,7 @@
 package org.mindis.core.export;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -183,7 +184,7 @@ class PlanExportServiceTest {
         exportService().exportLive(List.of(service()), target, PlanExportFormat.RTF);
 
         assertTrue(Files.size(target) > 0);
-        assertTrue(!Files.readString(target).contains("\\pngblip"), "Logo drawn although none is set");
+        assertFalse(Files.readString(target).contains("\\pngblip"), "Logo drawn although none is set");
     }
 
     @Test
@@ -241,7 +242,7 @@ class PlanExportServiceTest {
         exportService().exportLive(List.of(service()), target, PlanExportFormat.MARKDOWN);
 
         String content = Files.readString(target);
-        assertTrue(!content.contains("TOP SECRET"), "template read a file outside the template directory");
+        assertFalse(content.contains("TOP SECRET"), "template read a file outside the template directory");
         assertTrue(content.contains(Role.ACOLYTE), "fallback template did not render the plan");
     }
 
@@ -255,7 +256,7 @@ class PlanExportServiceTest {
         String content = Files.readString(target);
         // The role id itself: an empty role repository has no display name for it.
         assertTrue(content.contains(Role.ACOLYTE), "Fallback template did not render the plan");
-        assertTrue(!content.contains("never closed"), "Broken template was used anyway");
+        assertFalse(content.contains("never closed"), "Broken template was used anyway");
     }
 
     @Test

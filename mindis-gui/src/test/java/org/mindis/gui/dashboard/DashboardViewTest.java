@@ -215,8 +215,7 @@ class DashboardViewTest {
         FxTest.runAndWait(() -> {
             DashboardView view = new DashboardView(newViewModel(preferences));
 
-            assertTrue(withStyleClass(view, "dashboard-empty").size() == 1,
-                    "expected the chart's empty state");
+            assertEquals(1, withStyleClass(view, "dashboard-empty").size(), "expected the chart's empty state");
         });
     }
 

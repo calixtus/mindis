@@ -41,7 +41,7 @@ final class PdfPlanRenderer implements PlanRenderer {
     private static final float MAX_IMAGE_HEIGHT = 70;
     /// Share of the font size that sits above the baseline, near enough for
     /// DejaVu Sans, which reports an ascent of 0.76 em.
-    private static final float ASCENT_RATIO = 0.8f;
+    private static final float ASCENT_RATIO = 0.8F;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PdfPlanRenderer.class);
 

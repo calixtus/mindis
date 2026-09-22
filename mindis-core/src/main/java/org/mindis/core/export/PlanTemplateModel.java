@@ -42,13 +42,13 @@ final class PlanTemplateModel {
             List<Map<String, Object>> slots = new ArrayList<>();
             long open = 0;
             for (Slot slot : service.slots()) {
-                boolean assigned = slot.serverName() != null;
+                String serverName = slot.serverName();
                 slots.add(mapOf(
                         "role", slot.roleId(),
                         "roleName", slot.roleName(),
-                        "serverName", assigned ? slot.serverName() : "",
-                        "assigned", assigned));
-                if (assigned) {
+                        "serverName", serverName != null ? serverName : "",
+                        "assigned", serverName != null));
+                if (serverName != null) {
                     countByServer.merge(slot.serverName(), 1L, Long::sum);
                 } else {
                     open++;

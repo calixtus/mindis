@@ -25,6 +25,10 @@ tasks.withType<JavaCompile>().configureEach {
     options.errorprone {
         disableAllChecks = true
         enable("NullAway")
+        // JSpecify semantics, incl. nullability of array types
+        // (byte @Nullable []) and of generic type arguments; the NullAway
+        // plugin's own DSL has no accessor for it.
+        option("NullAway:JSpecifyMode", "true")
     }
 
     options.errorprone.nullaway {

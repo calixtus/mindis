@@ -2,6 +2,7 @@ package org.mindis.core.model;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -32,9 +33,9 @@ class RoleTest {
     @Test
     void constructor_openBounds_areAllowed() {
         assertAll(
-                () -> assertEquals(null, new Role("id", "a", null, 10, 0).minAge()),
-                () -> assertEquals(null, new Role("id", "a", 10, null, 0).maxAge()),
-                () -> assertEquals(null, new Role("id", "a", null, null, 0).minAge()));
+                () -> assertNull(new Role("id", "a", null, 10, 0).minAge()),
+                () -> assertNull(new Role("id", "a", 10, null, 0).maxAge()),
+                () -> assertNull(new Role("id", "a", null, null, 0).minAge()));
     }
 
     @Test
