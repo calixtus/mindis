@@ -12,6 +12,6 @@ dependencies {
     implementation("org.openjfx:javafx-plugin:0.1.0")
     implementation("com.github.andygoossens.modernizer:com.github.andygoossens.modernizer.gradle.plugin:1.15.0")
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.0")
-    implementation("net.ltgt.gradle:gradle-nullaway-plugin:3.1.0")
+    implementation("net.ltgt.gradle:gradle-nullaway-plugin:3.2.0")
     implementation("com.github.jk1:gradle-license-report:3.1.4")
 }
