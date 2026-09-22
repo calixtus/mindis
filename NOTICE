@@ -1,0 +1,19 @@
+MinDis - Minister Dispatcher
+Copyright the MinDis contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This repository contains third-party material:
+
+- DejaVu Sans (regular and bold), embedded into exported PDF files, under the
+  Bitstream Vera Fonts license with the Arev fonts additions. Fonts are (c)
+  Bitstream, Inc.; DejaVu changes are in the public domain; glyphs imported
+  from Arev fonts are (c) Tavmjong Bah. Bitstream Vera is a trademark of
+  Bitstream, Inc. Full text:
+  mindis-core/src/main/resources/org/mindis/core/export/font/DejaVuFonts-LICENSE.txt
+
+The libraries MinDis depends on are not vendored here; the notices for
+everything the installer ships - including the bundled Java runtime and the
+JavaFX modules - are generated during the build into THIRD-PARTY-NOTICES.md and
+shown in the application under About > Third-party licenses. The policy that
+governs which licenses may appear there is docs/adr/008-third-party-licensing.md.
