@@ -33,7 +33,7 @@ dependencies.constraints {
     api("io.avaje:avaje-inject-generator:$avajeInject")
     api("jakarta.inject:jakarta.inject-api:2.0.1")
 
-    api("ai.timefold.solver:timefold-solver-core:2.3.0")
+    api("ai.timefold.solver:timefold-solver-core:2.4.0")
 
     // PDF export. PDFBox and its whole transitive set (fontbox, pdfbox-io,
     // commons-logging) are Apache-2.0, which ADR 008 requires; OpenPDF was
