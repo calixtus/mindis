@@ -279,7 +279,6 @@ mindis/
 │       ├── org.mindis.gradle.base.repositories.gradle.kts
 │       ├── org.mindis.gradle.feature.compile.gradle.kts    # toolchain, javac flags, checkstyle
 │       ├── org.mindis.gradle.feature.test.gradle.kts       # JUnit 5, module testing
-│       ├── org.mindis.gradle.feature.native.gradle.kts     # native-image wiring (created in M7)
 │       └── org.mindis.gradle.module.gradle.kts             # gradlex module plugins wiring
 ├── gradle/
 │   ├── modules.properties            # JPMS module name -> Maven GA mappings
@@ -373,10 +372,7 @@ Key elements copied from the JabRef approach:
 6. **Localization check task** — verifies `Localization.lang` literals ↔ bundle entries (§2.3);
    part of `check`.
 7. **Java toolchain** — `java.toolchain.languageVersion = 25` + `org.gradle.toolchains.foojay-resolver-convention` in settings.
-8. **Native image** (`org.mindis.gradle.feature.native`) — **does not exist before M7.** Created
-   then with: GraalVM toolchain (Liberica NIK or Gluon GraalVM with JavaFX static libs), GluonFX
-   Gradle plugin (`com.gluonhq.gluonfx-gradle-plugin`) as the established JavaFX→native path,
-   tracing-agent metadata task, VS Build Tools requirement documented in `docs/dev-setup.md`.
+8. **Native image** — none; jpackage is the only shipping path (`docs/adr/002-packaging.md`).
 9. **Run task** — standard `application` plugin with module path
    (`mainModule = "org.mindis.gui"`, `mainClass = "org.mindis.gui.MinDisApp"`).
 
@@ -541,8 +537,7 @@ vs. JIT is acceptable. Same release pipeline ships both artifacts.
    **As built (2026-07-06): decided — no native artifact.** Spike ran on CI (headless
    core + solver, GraalVM for JDK 25, Windows runner): Timefold AOT works (criterion a),
    but native throughput is 39k vs. 90k moves/sec under JIT — 2.3x slower on the product's
-   core path (criterion b failed). jpackage remains the only shipping path. Spike harness
-   (`native-spike/`, manual workflow) stays for one-click re-evaluation. Full analysis and
+   core path (criterion b failed). jpackage remains the only shipping path. Full analysis and
    revisit triggers: `docs/adr/002-packaging.md`.
 
 ### Post-M7 polish (as built, 2026-07-06)

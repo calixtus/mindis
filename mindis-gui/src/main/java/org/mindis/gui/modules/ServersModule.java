@@ -284,7 +284,7 @@ public final class ServersModule extends CrudModule<Server> {
                 Server::lastName, lastNameField::setText);
         form.field(Localization.lang("Contact"), contactField, contactField.textProperty(),
                 Server::contact, contactField::setText);
-        form.field(Localization.lang("Birth date"), birthDatePicker, birthDatePicker.valueProperty(),
+        form.<@Nullable LocalDate>field(Localization.lang("Birth date"), birthDatePicker, birthDatePicker.valueProperty(),
                 Server::birthDate, birthDatePicker::setValue);
         form.field(Localization.lang("Family"), familyIdField, familyIdField.textProperty(),
                 candidate -> Objects.requireNonNullElse(candidate.familyId(), ""),

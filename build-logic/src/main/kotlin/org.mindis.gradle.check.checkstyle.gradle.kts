@@ -3,7 +3,7 @@ plugins {
 }
 
 checkstyle {
-    toolVersion = "13.7.0"
+    toolVersion = "13.11.0"
     configFile = File(rootDir, "config/checkstyle/checkstyle.xml")
 }
 

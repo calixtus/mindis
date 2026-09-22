@@ -37,9 +37,9 @@ Same fixture (20 servers, 46 slots), same 10s budget, `NO_ASSERT` mode, single t
 3. The spike covered headless core only; full-app native would additionally need the
    JavaFX/Gluon static toolchain (major extra effort, PLAN.md risk table).
 
-## Kept in the repo
+## Revisiting
 
-`native-spike/` project + `.github/workflows/native-spike.yml` (manual dispatch) stay as a
-one-click re-evaluation harness. Revisit triggers: GraalVM PGO/ML profile-guided builds
+The repo carries no native-image harness; a re-evaluation starts with a fresh headless
+solver spike. Revisit triggers: GraalVM PGO/ML profile-guided builds
 closing the throughput gap, a genuine no-install deployment requirement, or Timefold
 shipping first-class native support with published benchmarks.

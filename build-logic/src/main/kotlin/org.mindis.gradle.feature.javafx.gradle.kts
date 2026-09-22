@@ -6,7 +6,7 @@ plugins {
 // OpenJFX plugin selects the right classifier for the build platform.
 // Version comes from the 'javafxVersion' Gradle property (also used by :versions).
 javafx {
-    version = providers.gradleProperty("javafxVersion").getOrElse("26.0.1")
+    version = providers.gradleProperty("javafxVersion").get()
     modules = listOf("javafx.base", "javafx.graphics", "javafx.controls")
 }
 

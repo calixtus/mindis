@@ -67,7 +67,7 @@ public final class UiPreferences {
                 MinDisPreferences::withToolbarButtonDisplay);
         for (String constraintName : MinDisConstraintProvider.tunableSoftConstraints()) {
             softWeights.put(constraintName, register(
-                    p -> p.softConstraintWeights().get(constraintName),
+                    p -> softWeight(p, constraintName),
                     (p, weight) -> p.withSoftConstraintWeight(constraintName, weight)));
         }
 
@@ -75,6 +75,13 @@ public final class UiPreferences {
         // any writer), every registered property re-reads its value.
         preferencesService.addListener(updated ->
                 registry.forEach(preferenceValue -> preferenceValue.refresh(updated)));
+    }
+
+    // NullAway: MinDisPreferences fills softConstraintWeights from
+    // defaultSoftWeights(), whose keys cover every tunable constraint.
+    @SuppressWarnings("NullAway")
+    private static Integer softWeight(MinDisPreferences preferences, String constraintName) {
+        return preferences.softConstraintWeights().get(constraintName);
     }
 
     private <T> PreferenceValue<T> register(Function<MinDisPreferences, T> getter,

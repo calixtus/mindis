@@ -8,17 +8,16 @@ javaPlatform {
     allowDependencies()
 }
 
-// Kept in sync with the JavaFX version used by org.mindis.gradle.feature.javafx
-// (both read the 'javafxVersion' Gradle property).
-val javafx = providers.gradleProperty("javafxVersion").getOrElse("26.0.1")
+// Same 'javafxVersion' Gradle property as org.mindis.gradle.feature.javafx.
+val javafx = providers.gradleProperty("javafxVersion").get()
 
-val avajeInject = "12.6"
+val avajeInject = "12.7"
 val pdfbox = "3.0.8"
 val commonmark = "0.30.0"
 
 dependencies {
     api(platform("org.junit:junit-bom:6.1.3"))
-    api(platform("com.fasterxml.jackson:jackson-bom:2.22.1"))
+    api(platform("com.fasterxml.jackson:jackson-bom:2.22.3"))
 }
 
 dependencies.constraints {
@@ -26,14 +25,14 @@ dependencies.constraints {
     api("org.openjfx:javafx-graphics:$javafx")
     api("org.openjfx:javafx-controls:$javafx")
 
-    api("com.dlsc.gemsfx:gemsfx:4.3.2")
+    api("com.dlsc.gemsfx:gemsfx:4.5.0")
     api("io.github.mkpaz:atlantafx-base:2.1.0")
 
     api("io.avaje:avaje-inject:$avajeInject")
     api("io.avaje:avaje-inject-generator:$avajeInject")
     api("jakarta.inject:jakarta.inject-api:2.0.1")
 
-    api("ai.timefold.solver:timefold-solver-core:2.4.0")
+    api("ai.timefold.solver:timefold-solver-core:2.6.0")
 
     // PDF export. PDFBox and its whole transitive set (fontbox, pdfbox-io,
     // commons-logging) are Apache-2.0, which ADR 008 requires; OpenPDF was
@@ -58,8 +57,8 @@ dependencies.constraints {
     // JUL backend itself). slf4j-jdk14 binds both that and every
     // slf4j-emitting third-party library (avaje-inject et al) into the same
     // JUL handlers, so console/file output is unified regardless of caller.
-    api("org.slf4j:slf4j-api:2.0.18")
-    api("org.slf4j:slf4j-jdk14:2.0.18")
+    api("org.slf4j:slf4j-api:2.0.20")
+    api("org.slf4j:slf4j-jdk14:2.0.20")
 
     api("org.kordamp.ikonli:ikonli-core:12.4.0")
     api("org.kordamp.ikonli:ikonli-javafx:12.4.0")

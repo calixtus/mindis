@@ -20,6 +20,6 @@ rootProject.name = "mindis"
 
 // Project name + group must equal the JPMS module name (org.mindis.<name>) so
 // that org.gradlex.java-module-dependencies resolves requires between projects.
-include("core", "gui", "versions", "native-spike")
+include("core", "gui", "versions")
 project(":core").projectDir = file("mindis-core")
 project(":gui").projectDir = file("mindis-gui")

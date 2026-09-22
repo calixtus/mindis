@@ -14,7 +14,7 @@ plugins {
 
 dependencies {
     errorprone("com.google.errorprone:error_prone_core:2.50.0")
-    errorprone("com.uber.nullaway:nullaway:0.13.7")
+    errorprone("com.uber.nullaway:nullaway:0.14.1")
 }
 
 tasks.withType<JavaCompile>().configureEach {
