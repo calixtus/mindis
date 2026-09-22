@@ -388,7 +388,7 @@ public abstract class CrudModule<T> extends ShellModule {
     /// <p>`original` is typically `() -> savedSnapshot(item)`-
     /// derived (falling back to `item` for a not-yet-saved new row) -
     /// see any `buildEditor(Object)` override for the pattern.
-    protected static <T> void markDirtyOnChange(ObservableValue<T> property, Supplier<T> original, Region label) {
+    protected static <T extends @Nullable Object> void markDirtyOnChange(ObservableValue<? extends T> property, Supplier<T> original, Region label) {
         property.addListener((obs, oldValue, newValue) -> recomputeFieldChanged(property, original, label));
         recomputeFieldChanged(property, original, label);
     }
@@ -399,7 +399,7 @@ public abstract class CrudModule<T> extends ShellModule {
     /// necessarily changing what the control displays, so no listener fires
     /// on its own) can re-invoke just the comparison without registering a
     /// second listener.
-    protected static <T> void recomputeFieldChanged(ObservableValue<T> property, Supplier<T> original, Region label) {
+    protected static <T extends @Nullable Object> void recomputeFieldChanged(ObservableValue<? extends T> property, Supplier<T> original, Region label) {
         setFieldChanged(label, !Objects.equals(property.getValue(), original.get()));
     }
 

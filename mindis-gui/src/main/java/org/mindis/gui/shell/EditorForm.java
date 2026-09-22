@@ -91,7 +91,7 @@ public final class EditorForm<T> {
     /// @param value     that same value read off an entity - the accent
     ///                  compares `property` with `value.apply(baseline)`
     /// @param setter    writes a value into the control, for a refresh
-    public <V extends @Nullable Object> Row field(String labelText, Node control, ObservableValue<V> property,
+    public <V extends @Nullable Object> Row field(String labelText, Node control, ObservableValue<? extends V> property,
                          Function<T, V> value, Consumer<V> setter) {
         Label label = new Label(labelText);
         CrudModule.markDirtyOnChange(property, () -> value.apply(baseline.get()), label);
