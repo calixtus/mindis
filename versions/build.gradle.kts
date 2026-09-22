@@ -17,7 +17,7 @@ val pdfbox = "3.0.8"
 val commonmark = "0.30.0"
 
 dependencies {
-    api(platform("org.junit:junit-bom:6.1.2"))
+    api(platform("org.junit:junit-bom:6.1.3"))
     api(platform("com.fasterxml.jackson:jackson-bom:2.22.1"))
 }
 
