@@ -1,9 +1,13 @@
 package org.mindis.core.l10n;
 
+import org.mindis.core.model.ArchivedService;
 import org.mindis.core.model.LiturgicalDay;
+import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.ServiceType;
 
-/// Localized display names for domain enums (never show `name()`).
+/// Localized display names for domain enums (never show `name()`), plus the
+/// one label that is not an enum value alone: a service shows its own name
+/// when the planner gave it one and its type otherwise.
 /// Roles are no longer an enum - they carry their own editable `name()`.
 public final class EnumDisplay {
 
@@ -55,5 +59,22 @@ public final class EnumDisplay {
             case FUNERAL -> Localization.lang("Funeral");
             case OTHER -> Localization.lang("Other");
         };
+    }
+
+    /// The label for a service: its own name where the planner set one, the
+    /// localized type otherwise. Every place that labels a service goes
+    /// through here, so the override cannot be honoured in one view and
+    /// missed in the next.
+    public static String of(LiturgicalService service) {
+        return label(service.name(), service.type());
+    }
+
+    /// As [#of(LiturgicalService)], for the frozen snapshot of one.
+    public static String of(ArchivedService service) {
+        return label(service.name(), service.type());
+    }
+
+    private static String label(String name, ServiceType type) {
+        return name.isBlank() ? of(type) : name;
     }
 }

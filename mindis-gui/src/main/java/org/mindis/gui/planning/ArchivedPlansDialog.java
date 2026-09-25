@@ -58,7 +58,7 @@ public final class ArchivedPlansDialog {
         TableColumn<ArchivedService, String> whenColumn = new TableColumn<>(Localization.lang("Services"));
         whenColumn.setCellValueFactory(data -> new SimpleStringProperty(
                 DateTimes.dateTime(data.getValue().dateTime()) + "  "
-                        + EnumDisplay.of(data.getValue().type()) + "  " + data.getValue().location()));
+                        + EnumDisplay.of(data.getValue()) + "  " + data.getValue().location()));
         whenColumn.setPrefWidth(280);
 
         TableColumn<ArchivedService, String> assignedColumn = new TableColumn<>(Localization.lang("Assigned"));

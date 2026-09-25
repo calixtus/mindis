@@ -27,7 +27,10 @@ public final class ServiceCsvMapper implements CsvRowMapper<LiturgicalService> {
 
     @Override
     public List<String> header() {
-        return List.of("id", "date", "time", "durationMinutes", "location", "type", "slots", "note");
+        // "name" is appended, not slotted in next to "type": the reader is
+        // index-based, so a new column in the middle would misread every CSV
+        // exported before it existed.
+        return List.of("id", "date", "time", "durationMinutes", "location", "type", "slots", "note", "name");
     }
 
     @Override
@@ -40,7 +43,8 @@ public final class ServiceCsvMapper implements CsvRowMapper<LiturgicalService> {
                 service.location(),
                 service.type().name(),
                 RoleSlotCsv.format(Slot.collapse(service.slots()), roleRepository),
-                service.note());
+                service.note(),
+                service.name());
     }
 
     /// Rows with an unparsable date/time are skipped; a blank id gets a fresh one.
@@ -59,6 +63,7 @@ public final class ServiceCsvMapper implements CsvRowMapper<LiturgicalService> {
                 duration == null ? DEFAULT_DURATION_MINUTES : duration,
                 CsvFields.at(row, 4),
                 CsvFields.parseServiceType(CsvFields.at(row, 5), ServiceType.OTHER),
+                CsvFields.at(row, 8),
                 Slot.expand(RoleSlotCsv.parse(CsvFields.at(row, 6), roleRepository)),
                 CsvFields.at(row, 7));
     }

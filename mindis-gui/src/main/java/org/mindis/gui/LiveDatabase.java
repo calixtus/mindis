@@ -220,6 +220,7 @@ public final class LiveDatabase {
                 && a.durationMinutes() == b.durationMinutes()
                 && a.location().equals(b.location())
                 && a.type() == b.type()
+                && a.name().equals(b.name())
                 && a.note().equals(b.note())
                 && Slot.sameSlots(a.slots(), b.slots());
     }

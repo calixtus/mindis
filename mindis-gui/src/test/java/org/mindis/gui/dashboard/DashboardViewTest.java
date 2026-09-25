@@ -231,7 +231,7 @@ class DashboardViewTest {
         servers.save(new Server("srv1", "Anna", "Becker", "", null, null,
                 Set.of(), Set.of(), List.of(), Set.of(), false, true));
         services.save(new LiturgicalService("s1", LocalDateTime.now().plusDays(1), 60, "St. Mary",
-                ServiceType.SUNDAY_MASS, List.of(new Slot(Slot.newId(), "ACOLYTE", "srv1", false)), ""));
+                ServiceType.SUNDAY_MASS, "", List.of(new Slot(Slot.newId(), "ACOLYTE", "srv1", false)), ""));
     }
 
     private static String savedMode(PreferencesService preferences, WidgetType type) {

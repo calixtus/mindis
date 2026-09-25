@@ -12,7 +12,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
-import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.gui.dashboard.DashboardViewModel.UpcomingService;
 import org.mindis.gui.util.DateTimes;
@@ -66,8 +65,8 @@ final class UpcomingServiceCell extends ListCell<UpcomingService> {
         LocalDate date = service.dateTime().toLocalDate();
         when.setText(DateTimes.weekday(date) + " " + DateTimes.dateTime(service.dateTime()));
         what.setText(service.location().isBlank()
-                ? EnumDisplay.of(service.type())
-                : EnumDisplay.of(service.type()) + " - " + service.location());
+                ? service.label()
+                : service.label() + " - " + service.location());
         relative.setText(relativeDay(date));
 
         int total = service.totalSlots();

@@ -14,6 +14,26 @@ The user maintains individual liturgical services: date and time, duration, loca
 Covers:
 - feat~liturgical-service-planning~1
 
+### Own name per service
+`req~service-custom-name~1`
+
+A service may carry the planner's own name ("Familiengottesdienst"), which is shown instead of its
+service type wherever the service is labelled — in the application and in the exported plan. A
+service without one shows its type, as before.
+
+Covers:
+- feat~liturgical-service-planning~1
+
+### The note travels with the plan
+`req~service-note-exported~1`
+
+A service's note is printed with that service in the exported plan, so a remark meant for the
+servers ("be there 15 minutes early") reaches them with the plan itself.
+
+Covers:
+- feat~liturgical-service-planning~1
+- feat~plan-distribution~1
+
 ### Role slots per service
 `req~service-role-slots~1`
 
@@ -85,13 +105,29 @@ Covers:
 `dsn~liturgical-service-record~1`
 
 `org.mindis.core.model.LiturgicalService` is a record of `id`, `dateTime`, `durationMinutes`,
-`location`, `type` (`ServiceType`), `slots` and `note`. `withSlots(…)` returns a copy with a new
+`location`, `type` (`ServiceType`), `name`, `slots` and `note`. `name` is the planner's own name for
+this one service and is blank for most; the compact constructor is null-tolerant, so JSON written
+before the field existed still loads. `withSlots(…)` returns a copy with a new
 slot list — the single write-back path used after a solve. The service's own end time
 (`dateTime + durationMinutes`) is what the overlap rule in
 [planning.md](planning.md) uses.
 
 Covers:
 - req~maintain-services~1
+- req~service-custom-name~1
+
+### One label for a service
+`dsn~service-label~1`
+
+`EnumDisplay.of(service)` — overloaded for `LiturgicalService` and `ArchivedService` — returns the
+service's own `name` when it has one and the localized `ServiceType` otherwise. Every view that
+labels a service (service tiles, the dashboard's upcoming list, the archived-plans dialog, the
+export) goes through it, so the override cannot be honoured in one place and missed in another.
+`ArchivedService` freezes the name along with everything else, so a historic plan still exports
+under the name it was published with.
+
+Covers:
+- req~service-custom-name~1
 
 ### Slot as the unit of assignment
 `dsn~slot-carries-assignment~1`
@@ -157,8 +193,8 @@ Covers:
 ### Service editor and assignment panel
 `dsn~service-editor~1`
 
-`ServicesModule`'s editor holds the date/time/type/location/note fields plus one server dropdown per
-slot, seeded with the slot's current server. The dropdown lists active servers; picking one rewrites
+`ServicesModule`'s editor holds the date/time/type/name/location/note fields plus one server
+dropdown per slot, seeded with the slot's current server. The dropdown lists active servers; picking one rewrites
 that slot on the live slot list, pins it, and stages the service into the shared `LiveStore` like any
 other edit. "Clear" empties every slot of the service (server and pin), a no-op when all are already
 empty. Violations shown as a per-row warning icon come from a transient whole-board problem (see

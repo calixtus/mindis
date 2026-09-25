@@ -17,6 +17,7 @@ import java.util.Set;
 
 import org.jspecify.annotations.Nullable;
 
+import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.model.ArchivedService;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
@@ -204,7 +205,9 @@ public final class DashboardViewModel {
     }
 
     /// One entry of the "next services" widget.
-    public record UpcomingService(LocalDateTime dateTime, ServiceType type, String location,
+    /// `label` is what the cell shows for the service - its own name where
+    /// the planner set one, its localized type otherwise (`EnumDisplay`).
+    public record UpcomingService(LocalDateTime dateTime, ServiceType type, String label, String location,
                                   int assignedSlots, int totalSlots) {
     }
 
@@ -569,6 +572,7 @@ public final class DashboardViewModel {
                 .map(service -> new UpcomingService(
                         service.dateTime(),
                         service.type(),
+                        EnumDisplay.of(service),
                         service.location(),
                         (int) service.slots().stream().filter(slot -> slot.serverId() != null).count(),
                         service.slots().size()))

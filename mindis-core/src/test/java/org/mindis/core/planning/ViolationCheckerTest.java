@@ -23,7 +23,7 @@ class ViolationCheckerTest {
             new Server("s1", "Anna", "Muster", "", null, null, Set.of(Role.ACOLYTE), Set.of(), List.of(), Set.of(), false, true);
     private static final LiturgicalService MASS = new LiturgicalService(
             "svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60, "St. Mary",
-            ServiceType.SUNDAY_MASS, List.of(), "");
+            ServiceType.SUNDAY_MASS, "", List.of(), "");
 
     @Test
     void unassignedAndUnqualifiedAndDoubleBookedDetected() {
@@ -48,7 +48,7 @@ class ViolationCheckerTest {
         Server noIncense = new Server("s2", "Bea", "Muster", "", null, null,
                 Set.of(Role.ACOLYTE), Set.of(Role.THURIFER), List.of(), Set.of(), false, true);
         LiturgicalService withThurifer = new LiturgicalService(
-                "svc2", LocalDateTime.of(2026, 8, 9, 10, 0), 60, "St. Mary", ServiceType.SUNDAY_MASS,
+                "svc2", LocalDateTime.of(2026, 8, 9, 10, 0), 60, "St. Mary", ServiceType.SUNDAY_MASS, "",
                 List.of(Slot.open(Role.ACOLYTE), Slot.open(Role.THURIFER)), "");
         // The acolyte slot, not the thurifer one: the whole service is barred.
         Assignment acolyteSlot = new Assignment("a1", withThurifer, ROLE_ACOLYTE);

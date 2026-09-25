@@ -33,11 +33,11 @@ class MinDisConstraintProviderTest {
     }
 
     private static LiturgicalService serviceAt(String id, LocalDateTime dateTime) {
-        return new LiturgicalService(id, dateTime, 60, "St. Mary", ServiceType.SUNDAY_MASS, List.of(), "");
+        return new LiturgicalService(id, dateTime, 60, "St. Mary", ServiceType.SUNDAY_MASS, "", List.of(), "");
     }
 
     private static LiturgicalService serviceWithRoles(String id, LocalDateTime dateTime, String... roleIds) {
-        return new LiturgicalService(id, dateTime, 60, "St. Mary", ServiceType.SUNDAY_MASS,
+        return new LiturgicalService(id, dateTime, 60, "St. Mary", ServiceType.SUNDAY_MASS, "",
                 java.util.Arrays.stream(roleIds).map(Slot::open).toList(), "");
     }
 

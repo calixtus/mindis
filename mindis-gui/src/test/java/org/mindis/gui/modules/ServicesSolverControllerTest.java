@@ -154,7 +154,7 @@ class ServicesSolverControllerTest {
 
     private static LiturgicalService service(String id, List<Slot> slots) {
         return new LiturgicalService(id, LocalDateTime.now().plusDays(1), 60,
-                "St. Mary", ServiceType.SUNDAY_MASS, slots, "");
+                "St. Mary", ServiceType.SUNDAY_MASS, "", slots, "");
     }
 
     private static Server server(String id) {

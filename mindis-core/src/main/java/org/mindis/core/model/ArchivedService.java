@@ -16,17 +16,22 @@ import org.jspecify.annotations.Nullable;
 /// afterward therefore cannot alter what an archived service shows, so historic
 /// plans stay faithful and exportable indefinitely regardless of later roster
 /// changes (privacy/retention requirement).
+/// @param name the service's own name at archive time, blank when it only ever
+///        showed its [ServiceType] - frozen with the rest so a historic plan
+///        still exports under the name it was published with
 public record ArchivedService(
         String id,
         LocalDateTime dateTime,
         int durationMinutes,
         String location,
         ServiceType type,
+        String name,
         String note,
         List<ArchivedSlot> slots,
         Instant archivedAt) {
 
     public ArchivedService {
+        name = name == null ? "" : name;
         slots = List.copyOf(slots);
     }
 

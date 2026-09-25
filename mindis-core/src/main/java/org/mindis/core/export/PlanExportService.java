@@ -13,7 +13,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.ArchivedService;
 import org.mindis.core.model.LiturgicalService;
@@ -88,7 +87,8 @@ public final class PlanExportService {
                         server == null ? null : server.displayName()));
             }
             views.add(new PlanTemplateModel.Service(
-                    service.dateTime(), service.type(), service.location(), slots));
+                    service.dateTime(), service.type(), service.name(), service.note(),
+                    service.location(), slots));
         }
         dispatch(views, targetFile, format);
     }
@@ -104,7 +104,8 @@ public final class PlanExportService {
                         slot.roleName(), slot.roleName(), slot.serverName()));
             }
             views.add(new PlanTemplateModel.Service(
-                    service.dateTime(), service.type(), service.location(), slots));
+                    service.dateTime(), service.type(), service.name(), service.note(),
+                    service.location(), slots));
         }
         dispatch(views, targetFile, format);
     }
@@ -144,7 +145,7 @@ public final class PlanExportService {
         Map<String, Long> countByServer = new LinkedHashMap<>();
         for (PlanTemplateModel.Service view : sorted) {
             String heading = view.dateTime().format(dateTimeFormat) + "  "
-                    + EnumDisplay.of(view.type()) + "  " + view.location();
+                    + view.label() + "  " + view.location();
             List<PlanExportDocument.AssignmentRow> rows = new ArrayList<>();
             for (PlanTemplateModel.Slot row : view.slots()) {
                 rows.add(new PlanExportDocument.AssignmentRow(

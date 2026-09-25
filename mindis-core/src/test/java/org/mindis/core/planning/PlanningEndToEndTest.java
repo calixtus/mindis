@@ -64,7 +64,7 @@ class PlanningEndToEndTest {
         for (int i = 0; i < 7; i++) {
             services.add(new LiturgicalService("weekday-" + i,
                     LocalDateTime.of(2026, 7, 7 + i * 3, 18, 30), 45, "St. Mary",
-                    ServiceType.WEEKDAY_MASS, Slot.expand(List.of(new RoleSlot(Role.ACOLYTE, 2))), ""));
+                    ServiceType.WEEKDAY_MASS, "", Slot.expand(List.of(new RoleSlot(Role.ACOLYTE, 2))), ""));
         }
         for (LiturgicalService service : services) {
             for (Slot slot : service.slots()) {
@@ -111,9 +111,9 @@ class PlanningEndToEndTest {
                 sundayMass("sun-0", LocalDateTime.of(2026, 7, 5, 10, 0)),
                 sundayMass("sun-1", LocalDateTime.of(2026, 7, 12, 10, 0)),
                 new LiturgicalService("weekday-0", LocalDateTime.of(2026, 7, 8, 18, 30), 45, "St. Mary",
-                        ServiceType.WEEKDAY_MASS, Slot.expand(List.of(new RoleSlot(Role.ACOLYTE, 2))), ""),
+                        ServiceType.WEEKDAY_MASS, "", Slot.expand(List.of(new RoleSlot(Role.ACOLYTE, 2))), ""),
                 new LiturgicalService("weekday-1", LocalDateTime.of(2026, 7, 15, 18, 30), 45, "St. Mary",
-                        ServiceType.WEEKDAY_MASS, Slot.expand(List.of(new RoleSlot(Role.ACOLYTE, 2))), ""));
+                        ServiceType.WEEKDAY_MASS, "", Slot.expand(List.of(new RoleSlot(Role.ACOLYTE, 2))), ""));
         List<Assignment> assignments = new ArrayList<>();
         for (LiturgicalService service : services) {
             for (Slot slot : service.slots()) {
@@ -139,7 +139,7 @@ class PlanningEndToEndTest {
     }
 
     private static LiturgicalService sundayMass(String id, LocalDateTime dateTime) {
-        return new LiturgicalService(id, dateTime, 60, "St. Mary", ServiceType.SUNDAY_MASS,
+        return new LiturgicalService(id, dateTime, 60, "St. Mary", ServiceType.SUNDAY_MASS, "",
                 Slot.expand(List.of(
                         new RoleSlot(Role.ACOLYTE, 2),
                         new RoleSlot(Role.THURIFER, 1),

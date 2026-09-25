@@ -52,6 +52,7 @@ public final class ServiceGenerator {
                         template.durationMinutes(),
                         template.location(),
                         template.type(),
+                        "",
                         Slot.expand(template.slots()),
                         ""));
             }

@@ -77,7 +77,7 @@ class PlanExportServiceTest {
 
     private static LiturgicalService service() {
         return new LiturgicalService("svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60, "St. Mary",
-                ServiceType.SUNDAY_MASS, List.of(new Slot("slot-0", Role.ACOLYTE, null, false)), "");
+                ServiceType.SUNDAY_MASS, "", List.of(new Slot("slot-0", Role.ACOLYTE, null, false)), "");
     }
 
     @Test
@@ -100,7 +100,7 @@ class PlanExportServiceTest {
         // The PDF standard-14 fonts stop at Windows-1252; the bundled DejaVu
         // Sans has to carry names like this one through unchanged.
         ArchivedService archived = new ArchivedService("svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60,
-                "St. Mary", ServiceType.SUNDAY_MASS, "",
+                "St. Mary", ServiceType.SUNDAY_MASS, "", "",
                 List.of(new ArchivedService.ArchivedSlot("Acolyte", "s1", "Zoë Šimeček")),
                 Instant.now());
         Path target = tempDir.resolve("unicode.pdf");
@@ -113,7 +113,7 @@ class PlanExportServiceTest {
     @Test
     void pdfListsRolesAndServers() throws IOException {
         ArchivedService archived = new ArchivedService("svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60,
-                "St. Mary", ServiceType.SUNDAY_MASS, "",
+                "St. Mary", ServiceType.SUNDAY_MASS, "", "",
                 List.of(new ArchivedService.ArchivedSlot("Acolyte", "s1", "Anna Meier")),
                 Instant.now());
         Path target = tempDir.resolve("content.pdf");
@@ -263,7 +263,7 @@ class PlanExportServiceTest {
     void nameWithMarkdownSyntaxSurvivesEveryFormat() throws IOException {
         // A pipe would split a table cell, an asterisk would start emphasis.
         ArchivedService archived = new ArchivedService("svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60,
-                "St. Mary", ServiceType.SUNDAY_MASS, "",
+                "St. Mary", ServiceType.SUNDAY_MASS, "", "",
                 List.of(new ArchivedService.ArchivedSlot("Acolyte", "s1", "A|B *C*")),
                 Instant.now());
 
@@ -289,11 +289,35 @@ class PlanExportServiceTest {
     }
 
     @Test
+    void customNameAndNoteReachTheExportedPlan() throws IOException {
+        LiturgicalService named = new LiturgicalService("svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60,
+                "St. Mary", ServiceType.SUNDAY_MASS, "Familiengottesdienst",
+                List.of(new Slot("slot-0", Role.ACOLYTE, null, false)), "Bitte 15 Minuten vorher da sein");
+        Path target = tempDir.resolve("named.md");
+
+        exportService().exportLive(List.of(named), target, PlanExportFormat.MARKDOWN);
+
+        String content = Files.readString(target);
+        assertTrue(content.contains("Familiengottesdienst"), "Custom service name missing from export");
+        assertTrue(content.contains("Bitte 15 Minuten vorher da sein"), "Service note missing from export");
+        assertFalse(content.contains("Sunday mass"), "Custom name did not replace the type label");
+    }
+
+    @Test
+    void serviceWithoutACustomNameKeepsItsTypeLabel() throws IOException {
+        Path target = tempDir.resolve("plain.csv");
+
+        exportService().exportLive(List.of(service()), target, PlanExportFormat.CSV);
+
+        assertTrue(Files.readString(target).contains("Sunday mass"), "Type label missing from export");
+    }
+
+    @Test
     void exportsArchivedSnapshotUsingItsOwnNames() throws IOException {
         // No server or role exists in the (empty) repositories, yet the frozen
         // snapshot still renders the captured display names.
         ArchivedService archived = new ArchivedService("svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60,
-                "St. Mary", ServiceType.SUNDAY_MASS, "",
+                "St. Mary", ServiceType.SUNDAY_MASS, "", "",
                 List.of(new ArchivedService.ArchivedSlot("Acolyte", "gone", "Deleted Server")),
                 Instant.now());
         Path target = tempDir.resolve("archived.md");

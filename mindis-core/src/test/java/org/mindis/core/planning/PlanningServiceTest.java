@@ -66,7 +66,7 @@ class PlanningServiceTest {
 
     private void addService(String id, LocalDate date, Slot slot) {
         services.save(new LiturgicalService(id, LocalDateTime.of(date, LocalTime.of(10, 0)), 60,
-                "St. Mary", ServiceType.SUNDAY_MASS, List.of(slot), ""));
+                "St. Mary", ServiceType.SUNDAY_MASS, "", List.of(slot), ""));
     }
 
     @Test

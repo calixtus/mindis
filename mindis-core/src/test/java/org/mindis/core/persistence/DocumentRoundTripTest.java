@@ -60,12 +60,12 @@ class DocumentRoundTripTest {
                 List.of(new RoleSlot(Role.ACOLYTE, 2)));
         LiturgicalService service = new LiturgicalService(
                 LiturgicalService.newId(), LocalDateTime.of(2026, 7, 12, 10, 0), 60, "St. Mary",
-                ServiceType.SUNDAY_MASS,
+                ServiceType.SUNDAY_MASS, "Familienmesse",
                 Slot.expand(List.of(new RoleSlot(Role.ACOLYTE, 2), new RoleSlot(Role.THURIFER, 1))),
                 "First communion");
         ArchivedService archived = new ArchivedService(
                 LiturgicalService.newId(), LocalDateTime.of(2026, 6, 7, 9, 0), 60, "St. Mary",
-                ServiceType.SUNDAY_MASS, "",
+                ServiceType.SUNDAY_MASS, "", "",
                 List.of(new ArchivedService.ArchivedSlot("Acolyte", "gone", "Deleted Server")),
                 Instant.parse("2026-06-08T10:15:30Z"));
 
@@ -178,7 +178,7 @@ class DocumentRoundTripTest {
         assertFalse(fixture.archived.isDirty());
 
         fixture.archived.addAll(List.of(new ArchivedService("id", LocalDateTime.of(2026, 6, 7, 9, 0), 60,
-                "St. Mary", ServiceType.SUNDAY_MASS, "", List.of(), Instant.EPOCH)));
+                "St. Mary", ServiceType.SUNDAY_MASS, "", "", List.of(), Instant.EPOCH)));
         assertTrue(fixture.archived.isDirty(), "archiving stages a change like any other edit");
 
         fixture.database.save();

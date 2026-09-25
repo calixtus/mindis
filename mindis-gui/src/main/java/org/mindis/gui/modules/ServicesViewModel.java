@@ -37,7 +37,7 @@ final class ServicesViewModel {
         LocalDateTime nextFullHour = LocalDateTime.now()
                 .withMinute(0).withSecond(0).withNano(0).plusHours(1);
         return new LiturgicalService(LiturgicalService.newId(), nextFullHour, DEFAULT_DURATION_MINUTES,
-                "", ServiceType.OTHER, List.of(), "");
+                "", ServiceType.OTHER, "", List.of(), "");
     }
 
     /// Roles available for the "required servers" slot editor.

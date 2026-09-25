@@ -23,7 +23,7 @@ class AutofillTest {
 
     private static LiturgicalService service(String id, LocalDate date) {
         return new LiturgicalService(id, LocalDateTime.of(date, LocalTime.of(10, 0)), 60,
-                "St. Mary", ServiceType.SUNDAY_MASS, List.of(), "");
+                "St. Mary", ServiceType.SUNDAY_MASS, "", List.of(), "");
     }
 
     private static Assignment assignment(LiturgicalService service, String slotId) {

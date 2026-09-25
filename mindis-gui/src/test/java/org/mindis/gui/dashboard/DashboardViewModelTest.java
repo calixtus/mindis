@@ -231,7 +231,7 @@ class DashboardViewModelTest {
         services.save(service("past", inDays(-1), List.of(Slot.open("ACOLYTE"))));
         services.save(service("s1", inDays(1), List.of(Slot.open("ACOLYTE"))));
         services.save(service("s2", inDays(2), List.of(Slot.open("ACOLYTE"))));
-        services.save(new LiturgicalService("s3", inDays(3), 60, "St. Mary", ServiceType.WEDDING,
+        services.save(new LiturgicalService("s3", inDays(3), 60, "St. Mary", ServiceType.WEDDING, "",
                 List.of(Slot.open("ACOLYTE")), ""));
 
         List<DashboardViewModel.ServiceTypeCount> mix = newViewModel().loadSnapshot().serviceTypeMix();
@@ -540,7 +540,7 @@ class DashboardViewModelTest {
     }
 
     private static LiturgicalService service(String id, LocalDateTime dateTime, List<Slot> slots) {
-        return new LiturgicalService(id, dateTime, 60, "St. Mary", ServiceType.SUNDAY_MASS, slots, "");
+        return new LiturgicalService(id, dateTime, 60, "St. Mary", ServiceType.SUNDAY_MASS, "", slots, "");
     }
 
     private static Slot filled(String role, String serverId) {
@@ -552,7 +552,7 @@ class DashboardViewModelTest {
     }
 
     private static ArchivedService archived(String id, LocalDateTime dateTime, @Nullable String serverName) {
-        return new ArchivedService(id, dateTime, 60, "St. Mary", ServiceType.SUNDAY_MASS, "",
+        return new ArchivedService(id, dateTime, 60, "St. Mary", ServiceType.SUNDAY_MASS, "", "",
                 List.of(new ArchivedService.ArchivedSlot("Acolyte", serverName == null ? null : "srv1", serverName)),
                 Instant.now());
     }

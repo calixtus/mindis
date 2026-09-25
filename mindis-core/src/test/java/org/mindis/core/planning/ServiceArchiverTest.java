@@ -21,7 +21,7 @@ class ServiceArchiverTest {
 
     private static LiturgicalService service(String id, LocalDate date, List<Slot> slots) {
         return new LiturgicalService(id, LocalDateTime.of(date, LocalTime.of(10, 0)), 60,
-                "St. Mary", ServiceType.SUNDAY_MASS, slots, "");
+                "St. Mary", ServiceType.SUNDAY_MASS, "", slots, "");
     }
 
     @Test

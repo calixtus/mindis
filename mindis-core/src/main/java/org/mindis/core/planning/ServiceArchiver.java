@@ -60,7 +60,7 @@ public final class ServiceArchiver {
                 slots.add(new ArchivedService.ArchivedSlot(role, serverId, server));
             }
             archived.add(new ArchivedService(service.id(), service.dateTime(), service.durationMinutes(),
-                    service.location(), service.type(), service.note(), slots, archivedAt));
+                    service.location(), service.type(), service.name(), service.note(), slots, archivedAt));
             removed.add(service.id());
         }
         return new Result(archived, removed);

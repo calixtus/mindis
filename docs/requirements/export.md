@@ -100,12 +100,15 @@ requested `PlanExportFormat`. `exportLive(services, …)` resolves each slot's r
 the current roster (an unresolvable id falls back to the raw id, an open slot renders as `-`);
 `exportArchived(services, …)` reads the display names straight off the self-contained snapshot.
 Services are sorted chronologically, section headings are
-`<localized date-time>  <service type>  <location>`, and the summary lists servers by duty count
+`<localized date-time>  <service label>  <location>` (the service's own name where it has one, see
+`dsn~service-label~1` in [services.md](services.md)), and the summary lists servers by duty count
 descending. Unit-tested by `PlanExportServiceTest`.
 
 Covers:
 - req~export-plan~1
 - req~export-archived~1
+- req~service-custom-name~1
+- req~service-note-exported~1
 
 ### Exporters
 `dsn~plan-exporters~1`
@@ -126,7 +129,9 @@ Covers:
 
 `PlanTemplate` renders the plan into Markdown through a Pebble template: `templates/plan.md.peb` in
 the data directory when the user has one, otherwise `plan.md.peb` bundled next to the class. A user
-template that cannot be read, compiled or rendered is logged and the bundled one is used.
+template that cannot be read, compiled or rendered is logged and the bundled one is used. The
+bundled template heads each service with its label and prints the service's note underneath when it
+has one; a user template decides both for itself.
 
 The Markdown is then parsed once (commonmark + the GFM tables extension) and flattened by
 `PlanBlocks` into `PlanBlock`s — heading, paragraph, bullet, table, image, page break — which every
@@ -143,7 +148,8 @@ Covers:
 `dsn~plan-template-model~1`
 
 `PlanTemplateModel` is plain maps, lists, strings, numbers and `java.time` values — `services[]`
-with `dateTime`/`date`/`time`, `type`, `typeLabel`, `location`, `slotCount`, `openCount` and
+with `dateTime`/`date`/`time`, `type`, `typeLabel`, `label` (the service's own name, or `typeLabel`
+when it has none), `name`/`hasName`, `note`/`hasNote`, `location`, `slotCount`, `openCount` and
 `slots[]` (`role`, `roleName`, `serverName`, `assigned`); `servers[]` with duty counts; `range`;
 `parish`; `generatedAt`; the `labels` the built-in template uses; and a `lang("...")` function for
 any other translation. Nothing is pre-composed or pre-formatted: the template formats dates with

@@ -457,12 +457,14 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
         private final TimePicker timeField = TimePickers.create();
         private final ComboBox<ServiceType> typeBox =
                 new ComboBox<>(FXCollections.observableArrayList(ServiceType.values()));
+        private final TextField nameField;
         private final TextField locationField;
         private final TextField noteField;
 
         private final Label dateLabel = new Label(Localization.lang("Date"));
         private final Label timeLabel = new Label(Localization.lang("Time"));
         private final Label typeLabel = new Label(Localization.lang("Type"));
+        private final Label nameLabel = new Label(Localization.lang("Name"));
         private final Label locationLabel = new Label(Localization.lang("Location"));
         private final Label noteLabel = new Label(Localization.lang("Note"));
 
@@ -496,8 +498,14 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
                 }
             });
             typeBox.getSelectionModel().select(service.type());
+            nameField = new TextField(service.name());
+            // Blank is the normal case: then the service shows its type.
+            nameField.setPromptText(EnumDisplay.of(service.type()));
+            typeBox.valueProperty().addListener((obs, oldType, newType) ->
+                    nameField.setPromptText(newType == null ? "" : EnumDisplay.of(newType)));
             locationField = new TextField(service.location());
             noteField = new TextField(service.note());
+            noteField.setPromptText(Localization.lang("Shown with the service in the plan export"));
 
             Button clearButton = new Button(null, new FontIcon("mdi2b-broom"));
             clearButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
@@ -542,6 +550,8 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
             grid.add(timeField, 1, row++);
             grid.add(typeLabel, 0, row);
             grid.add(typeBox, 1, row++);
+            grid.add(nameLabel, 0, row);
+            grid.add(nameField, 1, row++);
             grid.add(locationLabel, 0, row);
             grid.add(locationField, 1, row++);
             grid.add(noteLabel, 0, row);
@@ -555,6 +565,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
             dateField.valueProperty().addListener((obs, oldValue, newValue) -> pushLive());
             timeField.timeProperty().addListener((obs, oldValue, newValue) -> pushLive());
             typeBox.valueProperty().addListener((obs, oldValue, newValue) -> pushLive());
+            nameField.textProperty().addListener((obs, oldValue, newValue) -> pushLive());
             locationField.textProperty().addListener((obs, oldValue, newValue) -> pushLive());
             noteField.textProperty().addListener((obs, oldValue, newValue) -> pushLive());
 
@@ -564,6 +575,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
             markDirtyOnChange(dateField.valueProperty(), () -> baselineSupplier.get().dateTime().toLocalDate(), dateLabel);
             markDirtyOnChange(timeField.timeProperty(), () -> baselineSupplier.get().dateTime().toLocalTime(), timeLabel);
             markDirtyOnChange(typeBox.valueProperty(), () -> baselineSupplier.get().type(), typeLabel);
+            markDirtyOnChange(nameField.textProperty(), () -> baselineSupplier.get().name(), nameLabel);
             markDirtyOnChange(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
             markDirtyOnChange(noteField.textProperty(), () -> baselineSupplier.get().note(), noteLabel);
         }
@@ -601,6 +613,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
             updateLive(new LiturgicalService(service.id(), date.atTime(time), service.durationMinutes(),
                     locationField.getText().strip(),
                     typeBox.getValue() == null ? ServiceType.OTHER : typeBox.getValue(),
+                    nameField.getText().strip(),
                     liveSlots, noteField.getText().strip()));
         }
 
@@ -750,7 +763,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
     private Node buildTileNode(LiturgicalService service) {
         Label dateTimeLabel = new Label(DateTimes.dateTime(service.dateTime()));
         dateTimeLabel.getStyleClass().add("service-tile-datetime");
-        Label typeLabel = new Label(EnumDisplay.of(service.type()));
+        Label typeLabel = new Label(EnumDisplay.of(service));
         Label locationLabel = new Label(service.location());
         VBox left = new VBox(2, dateTimeLabel, typeLabel, locationLabel);
         left.setMinWidth(TILE_INFO_WIDTH);

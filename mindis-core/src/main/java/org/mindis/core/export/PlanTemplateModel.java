@@ -60,6 +60,13 @@ final class PlanTemplateModel {
                     "time", service.dateTime().toLocalTime(),
                     "type", service.type().name(),
                     "typeLabel", EnumDisplay.of(service.type()),
+                    // The service's own name where it has one, its type
+                    // otherwise - what a template should normally print.
+                    "label", service.label(),
+                    "name", service.name(),
+                    "hasName", !service.name().isBlank(),
+                    "note", service.note(),
+                    "hasNote", !service.note().isBlank(),
                     "location", service.location(),
                     "slots", slots,
                     "slotCount", (long) slots.size(),
@@ -121,7 +128,8 @@ final class PlanTemplateModel {
 
     /// One service as the export sees it, whether it came from the live roster
     /// or from an archived snapshot.
-    record Service(LocalDateTime dateTime, ServiceType type, String location, List<Slot> slots) {
+    record Service(LocalDateTime dateTime, ServiceType type, String name, String note,
+                   String location, List<Slot> slots) {
 
         Service {
             slots = List.copyOf(slots);
@@ -129,6 +137,12 @@ final class PlanTemplateModel {
 
         LocalTime time() {
             return dateTime.toLocalTime();
+        }
+
+        /// The heading a document gives this service: its own name where the
+        /// planner set one, the localized type otherwise.
+        String label() {
+            return name.isBlank() ? EnumDisplay.of(type) : name;
         }
     }
 
