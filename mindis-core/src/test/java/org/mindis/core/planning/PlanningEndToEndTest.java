@@ -50,7 +50,7 @@ class PlanningEndToEndTest {
                 default -> Set.of(Role.ACOLYTE);
             };
             servers.add(new Server("server-" + i, "First" + i, "Last" + i, "", null,
-                    i % 5 == 0 ? "family-" + (i / 5) : null, qualifications, List.of(), Set.of(), false, true));
+                    i % 5 == 0 ? "family-" + (i / 5) : null, qualifications, Set.of(), List.of(), Set.of(), false, true));
         }
 
         List<Assignment> assignments = new ArrayList<>();
@@ -89,6 +89,53 @@ class PlanningEndToEndTest {
                 .filter(assignment -> assignment.getServer() == null)
                 .count();
         assertEquals(0, unassigned, "Expected all slots assigned, " + unassigned + " unassigned");
+    }
+
+    @Test
+    @Timeout(60)
+    // NullAway: see the note on realisticMonthYieldsFeasiblePlan.
+    @SuppressWarnings("NullAway")
+    void serverIntolerantOfARoleIsKeptOutOfServicesStaffingIt() {
+        // Sunday masses staff a thurifer, weekday masses do not - so the
+        // incense-intolerant server may only serve the weekday ones.
+        Server noIncense = new Server("no-incense", "Bea", "Muster", "", null, null,
+                Set.of(Role.ACOLYTE), Set.of(Role.THURIFER), List.of(), Set.of(), false, true);
+        List<Server> servers = new ArrayList<>(List.of(noIncense));
+        for (int i = 0; i < 6; i++) {
+            servers.add(new Server("server-" + i, "First" + i, "Last" + i, "", null, null,
+                    Set.of(Role.ACOLYTE, Role.THURIFER, Role.CROSS_BEARER), Set.of(),
+                    List.of(), Set.of(), false, true));
+        }
+
+        List<LiturgicalService> services = List.of(
+                sundayMass("sun-0", LocalDateTime.of(2026, 7, 5, 10, 0)),
+                sundayMass("sun-1", LocalDateTime.of(2026, 7, 12, 10, 0)),
+                new LiturgicalService("weekday-0", LocalDateTime.of(2026, 7, 8, 18, 30), 45, "St. Mary",
+                        ServiceType.WEEKDAY_MASS, Slot.expand(List.of(new RoleSlot(Role.ACOLYTE, 2))), ""),
+                new LiturgicalService("weekday-1", LocalDateTime.of(2026, 7, 15, 18, 30), 45, "St. Mary",
+                        ServiceType.WEEKDAY_MASS, Slot.expand(List.of(new RoleSlot(Role.ACOLYTE, 2))), ""));
+        List<Assignment> assignments = new ArrayList<>();
+        for (LiturgicalService service : services) {
+            for (Slot slot : service.slots()) {
+                assignments.add(new Assignment(
+                        new AssignmentKey(service.id(), slot.id()).toId(), service, ROLES.get(slot.role())));
+            }
+        }
+
+        SolverConfig config = PlanningService.solverConfig()
+                .withTerminationConfig(new TerminationConfig()
+                        .withUnimprovedSecondsSpentLimit(2L)
+                        .withSecondsSpentLimit(30L));
+        ServicePlan solved = SolverFactory.<ServicePlan>create(config)
+                .buildSolver()
+                .solve(new ServicePlan(servers, assignments));
+
+        assertTrue(solved.getScore().isFeasible(),
+                "Expected feasible plan, got score " + solved.getScore());
+        assertTrue(solved.getAssignments().stream()
+                        .filter(assignment -> noIncense.equals(assignment.getServer()))
+                        .allMatch(assignment -> assignment.getService().type() == ServiceType.WEEKDAY_MASS),
+                "Incense-intolerant server was scheduled for a service with a thurifer");
     }
 
     private static LiturgicalService sundayMass(String id, LocalDateTime dateTime) {

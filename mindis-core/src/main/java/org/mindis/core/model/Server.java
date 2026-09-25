@@ -18,6 +18,10 @@ import org.jspecify.annotations.Nullable;
 /// @param preferredTimes service start times this server prefers (soft reward)
 /// @param experienced experienced servers are spread across services (soft reward)
 /// @param qualifications ids of the [Role]s this server may fill
+/// @param incompatibleRoles ids of the [Role]s this server cannot serve
+///        alongside: a service staffing one of them is barred for this server
+///        entirely (e.g. incense intolerance rules out every service with a
+///        thurifer, not just the thurifer slot)
 public record Server(
         String id,
         String firstName,
@@ -26,6 +30,7 @@ public record Server(
         @Nullable LocalDate birthDate,
         @Nullable String familyId,
         Set<String> qualifications,
+        Set<String> incompatibleRoles,
         List<UnavailabilityPeriod> unavailabilities,
         Set<LocalTime> preferredTimes,
         boolean experienced,
@@ -34,6 +39,7 @@ public record Server(
     public Server {
         // Null-tolerant: fields added after v0.6 are absent in older JSON.
         qualifications = qualifications == null ? Set.of() : Set.copyOf(qualifications);
+        incompatibleRoles = incompatibleRoles == null ? Set.of() : Set.copyOf(incompatibleRoles);
         unavailabilities = unavailabilities == null ? List.of() : List.copyOf(unavailabilities);
         preferredTimes = preferredTimes == null ? Set.of() : Set.copyOf(preferredTimes);
     }
@@ -49,6 +55,13 @@ public record Server(
     public boolean isAvailableAt(LocalDateTime dateTime) {
         LocalDate date = dateTime.toLocalDate();
         return unavailabilities.stream().noneMatch(period -> period.contains(date));
+    }
+
+    /// True if any slot of `service` asks for a role this server cannot
+    /// serve alongside - then the whole service is off limits, whichever slot
+    /// the server would fill.
+    public boolean isExcludedFrom(LiturgicalService service) {
+        return service.slots().stream().anyMatch(slot -> incompatibleRoles.contains(slot.role()));
     }
 
     public boolean prefers(LocalDateTime dateTime) {

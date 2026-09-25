@@ -32,7 +32,11 @@ public final class ServerCsvMapper implements CsvRowMapper<Server> {
     @Override
     public List<String> header() {
         return List.of("id", "firstName", "lastName", "contact", "birthDate", "familyId",
-                "qualifications", "unavailabilities", "preferredTimes", "experienced", "active");
+                "qualifications", "unavailabilities", "preferredTimes", "experienced", "active",
+                // Appended rather than slotted in next to "qualifications":
+                // the reader is index-based, so a new column in the middle
+                // would misread every CSV exported before it existed.
+                "incompatibleRoles");
     }
 
     @Override
@@ -44,12 +48,12 @@ public final class ServerCsvMapper implements CsvRowMapper<Server> {
                 server.contact(),
                 server.birthDate() == null ? "" : server.birthDate().toString(),
                 server.familyId() == null ? "" : server.familyId(),
-                server.qualifications().stream().map(this::roleName).sorted()
-                        .collect(Collectors.joining(", ")),
+                formatRoles(server.qualifications()),
                 formatUnavailabilities(server.unavailabilities()),
                 formatPreferredTimes(server.preferredTimes()),
                 String.valueOf(server.experienced()),
-                String.valueOf(server.active()));
+                String.valueOf(server.active()),
+                formatRoles(server.incompatibleRoles()));
     }
 
     /// Blank first+last name rows are skipped; a blank id gets a fresh one.
@@ -70,7 +74,8 @@ public final class ServerCsvMapper implements CsvRowMapper<Server> {
                 CsvFields.at(row, 3),
                 CsvFields.parseDate(CsvFields.at(row, 4)),
                 familyId.isEmpty() ? null : familyId,
-                parseQualifications(CsvFields.at(row, 6)),
+                parseRoles(CsvFields.at(row, 6)),
+                parseRoles(CsvFields.at(row, 11)),
                 parseUnavailabilities(CsvFields.at(row, 7)),
                 parsePreferredTimes(CsvFields.at(row, 8)),
                 Boolean.parseBoolean(CsvFields.at(row, 9)),
@@ -81,8 +86,12 @@ public final class ServerCsvMapper implements CsvRowMapper<Server> {
         return roleRepository.findById(roleId).map(Role::name).orElse(roleId);
     }
 
+    private String formatRoles(Set<String> roleIds) {
+        return roleIds.stream().map(this::roleName).sorted().collect(Collectors.joining(", "));
+    }
+
     /// Role names, matched case-insensitively; unmatched names are dropped.
-    private Set<String> parseQualifications(String text) {
+    private Set<String> parseRoles(String text) {
         Set<String> ids = new HashSet<>();
         if (text.isEmpty()) {
             return ids;

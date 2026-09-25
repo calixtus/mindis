@@ -31,7 +31,7 @@ class AutofillTest {
     }
 
     private static Server server() {
-        return new Server("srv", "Anna", "B", "", null, null, Set.of(), List.of(), Set.of(), false, true);
+        return new Server("srv", "Anna", "B", "", null, null, Set.of(), Set.of(), List.of(), Set.of(), false, true);
     }
 
     @Test

@@ -49,6 +49,7 @@ class DocumentRoundTripTest {
                 Server.newId(), "Anna", "Muster", "anna@example.org",
                 LocalDate.of(2012, 5, 14), "muster",
                 Set.of(Role.ACOLYTE, Role.THURIFER),
+                Set.of(Role.THURIFER),
                 List.of(new UnavailabilityPeriod(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 15))),
                 Set.of(LocalTime.of(10, 0)), true, true);
         Role role = new Role(Role.newId(), "Thurifer", 14, 99, 50);
@@ -198,7 +199,7 @@ class DocumentRoundTripTest {
     }
 
     private static Server server(String id, String firstName) {
-        return new Server(id, firstName, "Muster", "", null, null, Set.of(), List.of(), Set.of(), false, true);
+        return new Server(id, firstName, "Muster", "", null, null, Set.of(), Set.of(), List.of(), Set.of(), false, true);
     }
 
     /// One document's repositories plus the [AppDatabase] over them -

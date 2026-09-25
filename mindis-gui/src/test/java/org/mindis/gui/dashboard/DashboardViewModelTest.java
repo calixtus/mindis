@@ -548,7 +548,7 @@ class DashboardViewModelTest {
     }
 
     private static Server server(String id, String firstName, String lastName) {
-        return new Server(id, firstName, lastName, "", null, null, Set.of(), List.of(), Set.of(), false, true);
+        return new Server(id, firstName, lastName, "", null, null, Set.of(), Set.of(), List.of(), Set.of(), false, true);
     }
 
     private static ArchivedService archived(String id, LocalDateTime dateTime, @Nullable String serverName) {
@@ -559,25 +559,26 @@ class DashboardViewModelTest {
 
     private static Server qualified(Server server, String... roleIds) {
         return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), server.birthDate(),
-                server.familyId(), Set.of(roleIds), server.unavailabilities(), server.preferredTimes(),
+                server.familyId(), Set.of(roleIds), server.incompatibleRoles(), server.unavailabilities(), server.preferredTimes(),
                 server.experienced(), server.active());
     }
 
     private static Server withBirthDate(Server server, LocalDate birthDate) {
         return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), birthDate,
-                server.familyId(), server.qualifications(), server.unavailabilities(), server.preferredTimes(),
+                server.familyId(), server.qualifications(), server.incompatibleRoles(), server.unavailabilities(), server.preferredTimes(),
                 server.experienced(), server.active());
     }
 
     private static Server absent(Server server, LocalDate start, LocalDate end) {
         return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), server.birthDate(),
-                server.familyId(), server.qualifications(), List.of(new UnavailabilityPeriod(start, end)),
+                server.familyId(), server.qualifications(), server.incompatibleRoles(),
+                List.of(new UnavailabilityPeriod(start, end)),
                 server.preferredTimes(), server.experienced(), server.active());
     }
 
     private static Server inactive(Server server) {
         return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), server.birthDate(),
-                server.familyId(), server.qualifications(), server.unavailabilities(), server.preferredTimes(),
+                server.familyId(), server.qualifications(), server.incompatibleRoles(), server.unavailabilities(), server.preferredTimes(),
                 server.experienced(), false);
     }
 

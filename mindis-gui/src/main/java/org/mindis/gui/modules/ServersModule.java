@@ -10,7 +10,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import javafx.beans.binding.Bindings;
@@ -65,10 +64,11 @@ import org.mindis.gui.shell.EditorForm;
 import org.mindis.gui.shell.ShellOverlays;
 import org.mindis.gui.data.LiveStore;
 
-/// Altar server roster module: personal details, role qualifications and
-/// unavailability periods (both part of the [Server] model). The
-/// qualifications checklist binds to the shared live role list, so roles
-/// created or edited (even unsaved) in the Roles module appear immediately.
+/// Altar server roster module: personal details, role qualifications,
+/// incompatible roles and unavailability periods (all part of the
+/// [Server] model). Both role checklists bind to the shared live role list,
+/// so roles created or edited (even unsaved) in the Roles module appear
+/// immediately.
 public final class ServersModule extends CrudModule<Server> {
 
     // Checkbox list row height as a multiple of the app font size.
@@ -208,41 +208,8 @@ public final class ServersModule extends CrudModule<Server> {
                 () -> uiPreferences.fontSizeProperty().get() * CELL_SIZE_FONT_FACTOR,
                 uiPreferences.fontSizeProperty());
 
-        Map<String, BooleanProperty> qualificationSelected = new HashMap<>();
-        Function<String, BooleanProperty> qualificationProperty = roleId -> {
-            SimpleBooleanProperty ticked = new SimpleBooleanProperty(server.qualifications().contains(roleId));
-            // Reported through the form: the write-through callback reads
-            // every control, so it does not exist yet when the first checkbox
-            // property is built (and the cell factory keeps building more for
-            // roles added while this editor is open).
-            ticked.addListener((obs, oldValue, newValue) -> form.edited());
-            return ticked;
-        };
-        // Seed eagerly for every current role: the write-through rebuilds the
-        // qualification set from this map, so a checked role whose cell was
-        // never rendered (scrolled out of view) must still be represented.
-        for (Role role : roleStore.items()) {
-            qualificationSelected.computeIfAbsent(role.id(), qualificationProperty);
-        }
-
-        // The store's own live list - not a copy - so roles created, renamed
-        // or deleted anywhere (even unsaved) appear here immediately.
-        ListView<Role> qualificationsList = new ListView<>(roleStore.items());
-        qualificationsList.fixedCellSizeProperty().bind(cellSize);
-        qualificationsList.setPrefHeight(150);
-        qualificationsList.setCellFactory(CheckBoxListCell.forListView(
-                role -> qualificationSelected.computeIfAbsent(role.id(), qualificationProperty),
-                new StringConverter<>() {
-                    @Override
-                    public String toString(@Nullable Role role) {
-                        return role == null ? "" : role.name();
-                    }
-
-                    @Override
-                    public @Nullable Role fromString(@Nullable String string) {
-                        return null;
-                    }
-                }));
+        RoleChecklist qualifications = new RoleChecklist(server.qualifications(), cellSize, form::edited);
+        RoleChecklist incompatibleRoles = new RoleChecklist(server.incompatibleRoles(), cellSize, form::edited);
 
         ListView<UnavailabilityPeriod> unavailabilityList = new ListView<>(
                 FXCollections.observableArrayList(server.unavailabilities()));
@@ -300,18 +267,15 @@ public final class ServersModule extends CrudModule<Server> {
                 Server::experienced, experiencedCheck::setSelected);
         form.field(Localization.lang("Active"), activeCheck, activeCheck.selectedProperty(),
                 Server::active, activeCheck::setSelected);
-        form.section(Localization.lang("Qualifications"), qualificationsList,
-                label -> {
-                    Set<String> live = new HashSet<>();
-                    qualificationSelected.forEach((roleId, ticked) -> {
-                        if (ticked.get()) {
-                            live.add(roleId);
-                        }
-                    });
-                    setFieldChanged(label, !live.equals(form.baseline().get().qualifications()));
-                },
-                updated -> qualificationSelected.forEach(
-                        (roleId, ticked) -> ticked.set(updated.qualifications().contains(roleId))))
+        form.section(Localization.lang("Qualifications"), qualifications.list(),
+                label -> setFieldChanged(label,
+                        !qualifications.selection().equals(form.baseline().get().qualifications())),
+                updated -> qualifications.show(updated.qualifications()))
+                .listAligned().growing();
+        form.section(Localization.lang("Incompatible roles"), incompatibleRoles.list(),
+                label -> setFieldChanged(label,
+                        !incompatibleRoles.selection().equals(form.baseline().get().incompatibleRoles())),
+                updated -> incompatibleRoles.show(updated.incompatibleRoles()))
                 .listAligned().growing();
         // FlowPane, not HBox - From/To/Add/Remove wrap onto a second line
         // instead of forcing the whole editor pane to a wide minimum width
@@ -338,12 +302,6 @@ public final class ServersModule extends CrudModule<Server> {
             if (isSuppressingLiveUpdates()) {
                 return;
             }
-            Set<String> qualifications = new HashSet<>();
-            qualificationSelected.forEach((roleId, ticked) -> {
-                if (ticked.get()) {
-                    qualifications.add(roleId);
-                }
-            });
             String familyId = familyIdField.getText().strip();
             updateLive(new Server(
                     server.id(),
@@ -352,7 +310,8 @@ public final class ServersModule extends CrudModule<Server> {
                     contactField.getText().strip(),
                     birthDatePicker.getValue(),
                     familyId.isEmpty() ? null : familyId,
-                    qualifications,
+                    qualifications.selection(),
+                    incompatibleRoles.selection(),
                     new ArrayList<>(unavailabilityList.getItems()),
                     new HashSet<>(preferredTimesItems),
                     experiencedCheck.isSelected(),
@@ -432,5 +391,75 @@ public final class ServersModule extends CrudModule<Server> {
             field.setSelectedItem(familyId);
         }
         return field;
+    }
+
+    /// A checklist of the shared live role list with one tick box per role -
+    /// used for both role sets a server carries (qualifications and
+    /// incompatible roles). The list is the store's own, not a copy, so roles
+    /// created, renamed or deleted anywhere (even unsaved) show up
+    /// immediately.
+    private final class RoleChecklist {
+
+        private final Map<String, BooleanProperty> selected = new HashMap<>();
+        private final ListView<Role> list;
+        private final Set<String> initial;
+        private final Runnable onEdit;
+
+        RoleChecklist(Set<String> initial, DoubleBinding cellSize, Runnable onEdit) {
+            this.initial = Set.copyOf(initial);
+            this.onEdit = onEdit;
+            // Seed eagerly for every current role: selection() rebuilds the
+            // set from this map, so a ticked role whose cell was never
+            // rendered (scrolled out of view) must still be represented.
+            for (Role role : roleStore.items()) {
+                selected.computeIfAbsent(role.id(), this::property);
+            }
+            list = new ListView<>(roleStore.items());
+            list.fixedCellSizeProperty().bind(cellSize);
+            list.setPrefHeight(150);
+            list.setCellFactory(CheckBoxListCell.forListView(
+                    role -> selected.computeIfAbsent(role.id(), this::property),
+                    new StringConverter<>() {
+                        @Override
+                        public String toString(@Nullable Role role) {
+                            return role == null ? "" : role.name();
+                        }
+
+                        @Override
+                        public @Nullable Role fromString(@Nullable String string) {
+                            return null;
+                        }
+                    }));
+        }
+
+        ListView<Role> list() {
+            return list;
+        }
+
+        /// The currently ticked role ids.
+        Set<String> selection() {
+            Set<String> live = new HashSet<>();
+            selected.forEach((roleId, ticked) -> {
+                if (ticked.get()) {
+                    live.add(roleId);
+                }
+            });
+            return live;
+        }
+
+        /// Pushes `roleIds` back into the tick boxes (the form's refresh path).
+        void show(Set<String> roleIds) {
+            selected.forEach((roleId, ticked) -> ticked.set(roleIds.contains(roleId)));
+        }
+
+        private BooleanProperty property(String roleId) {
+            SimpleBooleanProperty ticked = new SimpleBooleanProperty(initial.contains(roleId));
+            // Reported through the form: the write-through callback reads
+            // every control, so it does not exist yet when the first checkbox
+            // property is built (and the cell factory keeps building more for
+            // roles added while this editor is open).
+            ticked.addListener((obs, oldValue, newValue) -> onEdit.run());
+            return ticked;
+        }
     }
 }

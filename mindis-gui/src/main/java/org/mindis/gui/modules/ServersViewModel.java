@@ -29,7 +29,7 @@ final class ServersViewModel {
     /// A blank, active, inexperienced server, for the New action.
     Server createStub() {
         return new Server(Server.newId(), "", "", "", null, null,
-                Set.of(), List.of(), Set.of(), false, true);
+                Set.of(), Set.of(), List.of(), Set.of(), false, true);
     }
 
     /// Display name for a role id, falling back to the id if the role was deleted.

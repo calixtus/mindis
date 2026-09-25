@@ -11,8 +11,9 @@ Engine: [Timefold Solver](https://timefold.ai/solver) (PLAN.md §2, §3).
 `req~hard-rules~1`
 
 An assignment must never place a server who is not qualified for the role, who is unavailable on
-that date, who is inactive, or who is already serving an overlapping service (including a second
-slot of the same service).
+that date, who is inactive, who is already serving an overlapping service (including a second slot
+of the same service), or for whom the service staffs a role they cannot serve alongside
+(`req~server-incompatible-roles~1`).
 
 Covers:
 - feat~automatic-fair-assignment~1
@@ -119,12 +120,14 @@ Covers:
 | `Server unavailable` | the service's date falls in an unavailability period |
 | `Server inactive` | the server is flagged inactive |
 | `Server double-booked` | the same server on two overlapping `[start, start+duration)` intervals — identical times overlap, so two slots of one service are covered too |
+| `Incompatible role in service` | any slot of the service asks for a role in the server's `incompatibleRoles` — the whole service is barred, whichever slot the server would fill, and it looks at the service's slots, not at what the solver put in them |
 
 `Slot unassigned` penalizes one medium point per unassigned slot (the only constraint built on
 `forEachIncludingUnassigned`).
 
 Covers:
 - req~hard-rules~1
+- req~server-incompatible-roles~1
 - req~partial-plans~1
 
 ### Soft constraints and default weights

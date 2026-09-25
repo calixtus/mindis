@@ -38,6 +38,9 @@ public final class ViolationChecker {
             if (!server.active()) {
                 add(violations, assignment, MinDisConstraintProvider.INACTIVE);
             }
+            if (server.isExcludedFrom(assignment.getService())) {
+                add(violations, assignment, MinDisConstraintProvider.INCOMPATIBLE_ROLE);
+            }
         }
 
         for (int i = 0; i < assignments.size(); i++) {

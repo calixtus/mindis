@@ -26,6 +26,16 @@ qualified for.
 Covers:
 - feat~altar-server-roster~1
 
+### Incompatible roles
+`req~server-incompatible-roles~1`
+
+Each server may name roles they cannot serve alongside — an altar server who does not tolerate
+incense, for instance. A service that staffs such a role is closed to that server entirely, in every
+one of its slots, not just in the role's own slot.
+
+Covers:
+- feat~altar-server-roster~1
+
 ### Unavailability periods
 `req~server-unavailability~1`
 
@@ -71,15 +81,18 @@ Covers:
 
 `org.mindis.core.model.Server` is an immutable record: `id`, `firstName`, `lastName`, `contact`,
 nullable `birthDate`, nullable `familyId`, `qualifications` (a set of `Role.id()`),
-`unavailabilities`, `preferredTimes`, `experienced`, `active`. Ids are random UUIDs
+`incompatibleRoles` (likewise a set of `Role.id()`), `unavailabilities`, `preferredTimes`,
+`experienced`, `active`. Ids are random UUIDs
 (`Server.newId()`). The compact constructor is null-tolerant and defensively copies every
 collection, so JSON written before a field existed still deserializes (absent collection → empty).
-Derived helpers: `displayName()`, `isAvailableAt(dateTime)`, `prefers(dateTime)`, and
+Derived helpers: `displayName()`, `isAvailableAt(dateTime)`, `isExcludedFrom(service)` (true as soon
+as any slot of the service asks for one of `incompatibleRoles`), `prefers(dateTime)`, and
 `ageAt(date)` which returns `null` when the birth date is unknown.
 
 Covers:
 - req~maintain-servers~1
 - req~server-qualifications~1
+- req~server-incompatible-roles~1
 - req~server-preferences~1
 
 ### Unavailability period
@@ -119,12 +132,14 @@ Covers:
 `dsn~roster-editors~1`
 
 `ServersModule` and `RolesModule` are `CrudModule` screens (table left, editor right). The server
-editor's qualification checklist binds directly to the shared live role list, so a role added or
+editor carries two role checklists — qualifications and incompatible roles — built from one shared
+`RoleChecklist` helper; both bind directly to the shared live role list, so a role added or
 renamed in the Roles module — even unsaved — appears immediately. Raising a role's minimum age above
 its maximum drags the maximum up with it.
 
 Covers:
 - req~maintain-servers~1
 - req~server-qualifications~1
+- req~server-incompatible-roles~1
 - req~server-unavailability~1
 - req~maintain-roles~1

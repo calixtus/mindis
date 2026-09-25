@@ -44,7 +44,7 @@ class ServersModuleDirtyFlagTest {
         FxTest.runAndWait(() -> {
             List<Server> staged = new ArrayList<>();
             staged.add(new Server("S1", "Anna", "Becker", "", null, null,
-                    Set.of(), List.of(), Set.of(), false, true));
+                    Set.of(), Set.of(), List.of(), Set.of(), false, true));
 
             LiveStore<Server> serverStore = new LiveStore<>(
                     () -> new ArrayList<>(staged),

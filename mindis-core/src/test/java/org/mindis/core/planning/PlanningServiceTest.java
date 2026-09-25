@@ -61,7 +61,7 @@ class PlanningServiceTest {
 
     private void addServer() {
         servers.save(new Server("srv", "Anna", "B", "", null, null,
-                Set.of(Role.ACOLYTE), List.of(), Set.of(), false, true));
+                Set.of(Role.ACOLYTE), Set.of(), List.of(), Set.of(), false, true));
     }
 
     private void addService(String id, LocalDate date, Slot slot) {

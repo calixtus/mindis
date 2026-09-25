@@ -48,6 +48,7 @@ public final class MinDisConstraintProvider implements ConstraintProvider {
     public static final String UNAVAILABLE = "Server unavailable";
     public static final String INACTIVE = "Server inactive";
     public static final String DOUBLE_BOOKED = "Server double-booked";
+    public static final String INCOMPATIBLE_ROLE = "Incompatible role in service";
     public static final String UNASSIGNED = "Slot unassigned";
     public static final String UNBALANCED_WORKLOAD = "Unbalanced workload";
     public static final String SIBLINGS_TOGETHER = "Siblings serve together";
@@ -90,6 +91,7 @@ public final class MinDisConstraintProvider implements ConstraintProvider {
                 serverMustBeAvailable(factory),
                 serverMustBeActive(factory),
                 noOverlappingAssignments(factory),
+                serverMustToleratePresentRoles(factory),
                 everySlotAssigned(factory),
                 fairWorkloadDistribution(factory),
                 siblingsServeTogether(factory),
@@ -137,6 +139,19 @@ public final class MinDisConstraintProvider implements ConstraintProvider {
                         overlapping(Assignment::serviceStart, Assignment::serviceEnd))
                 .penalize(HardMediumSoftScore.ONE_HARD)
                 .asConstraint(DOUBLE_BOOKED);
+    }
+
+    /// A server may declare roles they cannot serve alongside (incense
+    /// intolerance vs. the thurifer being the motivating case). The bar is on
+    /// the whole service, not just that role's slot: what matters is that the
+    /// role is staffed at all, so this looks at the service's slots, not at
+    /// what the solver assigned to them.
+    @SuppressWarnings("NullAway")
+    Constraint serverMustToleratePresentRoles(ConstraintFactory factory) {
+        return factory.forEach(Assignment.class)
+                .filter(assignment -> assignment.getServer().isExcludedFrom(assignment.getService()))
+                .penalize(HardMediumSoftScore.ONE_HARD)
+                .asConstraint(INCOMPATIBLE_ROLE);
     }
 
     Constraint everySlotAssigned(ConstraintFactory factory) {

@@ -12,6 +12,7 @@ import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
+import org.mindis.core.model.Slot;
 import org.mindis.core.model.UnavailabilityPeriod;
 
 class MinDisConstraintProviderTest {
@@ -23,16 +24,26 @@ class MinDisConstraintProviderTest {
     private static final Role ROLE_THURIFER = new Role(Role.THURIFER, "Thurifer", null, null, 2);
 
     private static Server server(String id, Set<String> qualifications) {
-        return new Server(id, "First-" + id, "Last-" + id, "", null, null, qualifications, List.of(), Set.of(), false, true);
+        return new Server(id, "First-" + id, "Last-" + id, "", null, null, qualifications, Set.of(), List.of(), Set.of(), false, true);
     }
 
     private static Server siblingServer(String id, String familyId) {
         return new Server(id, "First-" + id, "Last-" + id, "", null, familyId,
-                Set.of(Role.ACOLYTE), List.of(), Set.of(), false, true);
+                Set.of(Role.ACOLYTE), Set.of(), List.of(), Set.of(), false, true);
     }
 
     private static LiturgicalService serviceAt(String id, LocalDateTime dateTime) {
         return new LiturgicalService(id, dateTime, 60, "St. Mary", ServiceType.SUNDAY_MASS, List.of(), "");
+    }
+
+    private static LiturgicalService serviceWithRoles(String id, LocalDateTime dateTime, String... roleIds) {
+        return new LiturgicalService(id, dateTime, 60, "St. Mary", ServiceType.SUNDAY_MASS,
+                java.util.Arrays.stream(roleIds).map(Slot::open).toList(), "");
+    }
+
+    private static Server intolerantServer(String id, String intolerableRoleId) {
+        return new Server(id, "First-" + id, "Last-" + id, "", null, null,
+                Set.of(Role.ACOLYTE), Set.of(intolerableRoleId), List.of(), Set.of(), false, true);
     }
 
     private static Assignment assigned(String id, LiturgicalService service, Role role, Server server) {
@@ -61,7 +72,7 @@ class MinDisConstraintProviderTest {
 
     @Test
     void unavailableServerPenalized() {
-        Server onVacation = new Server("s1", "A", "B", "", null, null, Set.of(Role.ACOLYTE),
+        Server onVacation = new Server("s1", "A", "B", "", null, null, Set.of(Role.ACOLYTE), Set.of(),
                 List.of(new UnavailabilityPeriod(LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31))), Set.of(), false, true);
         verifier.verifyThat(MinDisConstraintProvider::serverMustBeAvailable)
                 .given(assigned("a1", serviceAt("svc1", SUNDAY_10), ROLE_ACOLYTE, onVacation))
@@ -70,7 +81,7 @@ class MinDisConstraintProviderTest {
 
     @Test
     void inactiveServerPenalized() {
-        Server inactive = new Server("s1", "A", "B", "", null, null, Set.of(Role.ACOLYTE), List.of(), Set.of(), false, false);
+        Server inactive = new Server("s1", "A", "B", "", null, null, Set.of(Role.ACOLYTE), Set.of(), List.of(), Set.of(), false, false);
         verifier.verifyThat(MinDisConstraintProvider::serverMustBeActive)
                 .given(assigned("a1", serviceAt("svc1", SUNDAY_10), ROLE_ACOLYTE, inactive))
                 .penalizesBy(1);
@@ -120,6 +131,26 @@ class MinDisConstraintProviderTest {
     }
 
     @Test
+    void serviceStaffingAnIncompatibleRolePenalized() {
+        Server noIncense = intolerantServer("s1", Role.THURIFER);
+        LiturgicalService withThurifer = serviceWithRoles("svc1", SUNDAY_10, Role.ACOLYTE, Role.THURIFER);
+        // Penalized on the acolyte slot too: the thurifer being staffed at
+        // all bars the server from the whole service.
+        verifier.verifyThat(MinDisConstraintProvider::serverMustToleratePresentRoles)
+                .given(assigned("a1", withThurifer, ROLE_ACOLYTE, noIncense))
+                .penalizesBy(1);
+    }
+
+    @Test
+    void serviceWithoutTheIncompatibleRoleNotPenalized() {
+        Server noIncense = intolerantServer("s1", Role.THURIFER);
+        LiturgicalService plainMass = serviceWithRoles("svc1", SUNDAY_10, Role.ACOLYTE, Role.ACOLYTE);
+        verifier.verifyThat(MinDisConstraintProvider::serverMustToleratePresentRoles)
+                .given(assigned("a1", plainMass, ROLE_ACOLYTE, noIncense))
+                .penalizesBy(0);
+    }
+
+    @Test
     void unassignedSlotPenalized() {
         verifier.verifyThat(MinDisConstraintProvider::everySlotAssigned)
                 .given(new Assignment("a1", serviceAt("svc1", SUNDAY_10), ROLE_ACOLYTE))
@@ -128,7 +159,7 @@ class MinDisConstraintProviderTest {
 
     @Test
     void preferredTimeRewarded() {
-        Server likesTen = new Server("s1", "A", "B", "", null, null, Set.of(Role.ACOLYTE),
+        Server likesTen = new Server("s1", "A", "B", "", null, null, Set.of(Role.ACOLYTE), Set.of(),
                 List.of(), Set.of(java.time.LocalTime.of(10, 0)), false, true);
         verifier.verifyThat(MinDisConstraintProvider::preferredServiceTime)
                 .given(assigned("a1", serviceAt("svc1", SUNDAY_10), ROLE_ACOLYTE, likesTen))
@@ -137,9 +168,9 @@ class MinDisConstraintProviderTest {
 
     @Test
     void experiencedPresenceRewardedOncePerService() {
-        Server experiencedOne = new Server("s1", "A", "B", "", null, null, Set.of(Role.ACOLYTE),
+        Server experiencedOne = new Server("s1", "A", "B", "", null, null, Set.of(Role.ACOLYTE), Set.of(),
                 List.of(), Set.of(), true, true);
-        Server experiencedTwo = new Server("s2", "C", "D", "", null, null, Set.of(Role.ACOLYTE),
+        Server experiencedTwo = new Server("s2", "C", "D", "", null, null, Set.of(Role.ACOLYTE), Set.of(),
                 List.of(), Set.of(), true, true);
         LiturgicalService service = serviceAt("svc1", SUNDAY_10);
         verifier.verifyThat(MinDisConstraintProvider::experiencedServerPresent)
@@ -194,7 +225,7 @@ class MinDisConstraintProviderTest {
     void underageServerPenalizedForAgeRestrictedRole() {
         Role thurifer14 = new Role(Role.THURIFER, "Thurifer", 14, null, 2);
         Server child = new Server("s1", "A", "B", "", LocalDate.of(2016, 1, 1), null,
-                Set.of(Role.THURIFER), List.of(), Set.of(), false, true);
+                Set.of(Role.THURIFER), Set.of(), List.of(), Set.of(), false, true);
         verifier.verifyThat(MinDisConstraintProvider::ageWithinRoleRequirement)
                 .given(assigned("a1", serviceAt("svc1", SUNDAY_10), thurifer14, child))
                 .penalizesBy(1);
@@ -204,7 +235,7 @@ class MinDisConstraintProviderTest {
     void ageAppropriateServerNotPenalized() {
         Role thurifer14 = new Role(Role.THURIFER, "Thurifer", 14, null, 2);
         Server teen = new Server("s2", "C", "D", "", LocalDate.of(2008, 1, 1), null,
-                Set.of(Role.THURIFER), List.of(), Set.of(), false, true);
+                Set.of(Role.THURIFER), Set.of(), List.of(), Set.of(), false, true);
         verifier.verifyThat(MinDisConstraintProvider::ageWithinRoleRequirement)
                 .given(assigned("a2", serviceAt("svc1", SUNDAY_10), thurifer14, teen))
                 .penalizesBy(0);

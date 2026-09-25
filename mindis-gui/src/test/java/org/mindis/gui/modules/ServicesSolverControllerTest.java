@@ -159,7 +159,7 @@ class ServicesSolverControllerTest {
 
     private static Server server(String id) {
         return new Server(id, "Anna", "Becker", "", null, null,
-                Set.of("ACOLYTE"), List.of(), Set.of(), false, true);
+                Set.of("ACOLYTE"), Set.of(), List.of(), Set.of(), false, true);
     }
 
     /// Exposes the package-private path constructor, as `UiPreferencesTest`
