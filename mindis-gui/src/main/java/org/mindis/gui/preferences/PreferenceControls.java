@@ -8,6 +8,8 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Slider;
 import javafx.util.StringConverter;
 
+import atlantafx.base.controls.ToggleSwitch;
+
 import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.preferences.PreferenceEnumValue;
@@ -37,6 +39,15 @@ public final class PreferenceControls {
         });
         box.valueProperty().bindBidirectional(property);
         return box;
+    }
+
+    /// An on/off switch bound to a boolean preference. A
+    /// [ToggleSwitch] rather than a `CheckBox`: it reads as a
+    /// setting being on or off, which is what a settings row is.
+    public static ToggleSwitch toggle(Property<Boolean> property) {
+        ToggleSwitch toggle = new ToggleSwitch();
+        toggle.selectedProperty().bindBidirectional(property);
+        return toggle;
     }
 
     /// An AtlantaFX-themed [Slider] bound to an integer preference.

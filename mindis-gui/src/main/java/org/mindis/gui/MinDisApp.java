@@ -35,6 +35,7 @@ import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.persistence.TemplateRepository;
 import org.mindis.core.planning.PlanningService;
 import org.mindis.core.preferences.PreferencesService;
+import org.mindis.core.update.UpdateService;
 import org.mindis.gui.dashboard.DashboardViewModel;
 import org.mindis.gui.logging.AlertOnErrorHandler;
 import org.mindis.gui.logging.LogConsoleHandler;
@@ -49,6 +50,7 @@ import org.mindis.gui.modules.TemplatesModule;
 import org.mindis.gui.planning.PlanningViewModel;
 import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.gui.theme.ThemeStyler;
+import org.mindis.gui.update.UpdateCheckController;
 import org.mindis.gui.shell.AppShell;
 import org.mindis.gui.shell.ShellModule;
 import org.mindis.gui.shell.ShellOverlays;
@@ -73,6 +75,7 @@ public class MinDisApp extends Application {
     private AppShell shell;
     private PowerPane powerPane;
     private ShellOverlays overlays;
+    private UpdateCheckController updateCheck;
     private final LogConsoleModel logConsole = new LogConsoleModel();
 
     public static void main(String[] args) {
@@ -149,6 +152,10 @@ public class MinDisApp extends Application {
         powerPane.getStylesheets().add(
                 AppShell.class.getResource("power-pane.css").toExternalForm());
         overlays = new ShellOverlays(() -> powerPane);
+        // Quitting into an installer goes through the same unsaved-changes
+        // prompt as closing the window - the update must not eat staged edits.
+        updateCheck = new UpdateCheckController(beanScope.get(UpdateService.class), overlays,
+                getHostServices(), documentSession::confirmDropUnsavedChanges);
         shell = buildShell();
         powerPane.setContent(shell);
         Scene scene = new Scene(powerPane, 960, 640);
@@ -168,6 +175,13 @@ public class MinDisApp extends Application {
         // behind whatever had focus; force it to the foreground on startup.
         stage.toFront();
         stage.requestFocus();
+
+        // Last, and only if the user leaves it on: the check runs off the FX
+        // thread and says nothing unless there is something to offer, so a
+        // slow or unreachable server never delays or interrupts the start.
+        if (preferences.checkUpdatesOnStart()) {
+            updateCheck.checkOnStartup();
+        }
     }
 
     private List<Image> loadAppIcons() {
@@ -226,7 +240,7 @@ public class MinDisApp extends Application {
                                 servicesModule)
                         .sidebarHeader(switcher)
                         .bottomModule(new AboutModule(Localization.lang("About"), getHostServices(), logConsole))
-                        .bottomModule(new SettingsModule(Localization.lang("Settings"), uiPreferences));
+                        .bottomModule(new SettingsModule(Localization.lang("Settings"), uiPreferences, updateCheck));
         if (sidebarWidth != null) {
             builder.initialSidebarWidth(sidebarWidth);
         }

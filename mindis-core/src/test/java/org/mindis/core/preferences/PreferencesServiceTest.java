@@ -1,6 +1,7 @@
 package org.mindis.core.preferences;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -188,6 +189,31 @@ class PreferencesServiceTest {
         assertEquals(
                 java.util.List.of(new DashboardWidgetLayout("server-load", 6, 1, 6, 3, null)),
                 service.get().dashboardWidgets());
+    }
+
+    /// The startup update check defaults to on, and a file written before the
+    /// setting existed must read as on - not as "deliberately off", which is
+    /// what a primitive boolean deserializes an absent field to.
+    @Test
+    void migrationTurnsTheStartupUpdateCheckOn() throws IOException {
+        Files.writeString(preferencesFile(), """
+                { "version": 14, "languageTag": "en", "theme": "LIGHT" }
+                """);
+
+        PreferencesService service = new PreferencesService(preferencesFile());
+
+        assertTrue(service.get().checkUpdatesOnStart());
+    }
+
+    @Test
+    void anUpdateCheckTurnedOffStaysOff() throws IOException {
+        Files.writeString(preferencesFile(), """
+                { "version": %d, "languageTag": "en", "theme": "LIGHT", "checkUpdatesOnStart": false }
+                """.formatted(MinDisPreferences.CURRENT_VERSION));
+
+        PreferencesService service = new PreferencesService(preferencesFile());
+
+        assertFalse(service.get().checkUpdatesOnStart());
     }
 
     @Test

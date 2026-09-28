@@ -9,12 +9,16 @@ module org.mindis.core {
     exports org.mindis.core.persistence;
     exports org.mindis.core.planning;
     exports org.mindis.core.preferences;
+    exports org.mindis.core.update;
 
     requires org.jspecify;
     // java.logging is for org.mindis.core.logging.LoggingBootstrap only,
     // which configures the JUL backend itself; everything else in this
     // module logs through org.slf4j.
     requires java.logging;
+    // java.net.http is for org.mindis.core.update only: the update check is
+    // the one thing in MinDis that talks to the network at all.
+    requires java.net.http;
     requires org.slf4j;
     requires io.avaje.inject;
     requires jakarta.inject;
@@ -29,6 +33,7 @@ module org.mindis.core {
     opens org.mindis.core.model to com.fasterxml.jackson.databind;
     opens org.mindis.core.planning to ai.timefold.solver.core, com.fasterxml.jackson.databind;
     opens org.mindis.core.preferences to com.fasterxml.jackson.databind;
+    opens org.mindis.core.update to com.fasterxml.jackson.databind;
 
     provides io.avaje.inject.spi.InjectExtension with org.mindis.core.CoreModule;
 }

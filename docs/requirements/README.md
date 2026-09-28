@@ -18,6 +18,7 @@ omitted; the chain is documented, not enforced. See "Adopting tracing" below.
 | [persistence.md](persistence.md) | The document file, staged edits, New/Open/Save, CSV import/export (`req~` + `dsn~`) |
 | [export.md](export.md) | Plan export to PDF/CSV/TXT/RTF/Markdown (`req~` + `dsn~`) |
 | [ui.md](ui.md) | Application shell, preferences, theming, localization, logging (`req~` + `dsn~`) |
+| [updates.md](updates.md) | Noticing a new release and installing it (`req~` + `dsn~`) |
 
 Architecture decisions live in [../adr](../adr); requirement documents link the decision that
 constrains them rather than repeating its rationale.

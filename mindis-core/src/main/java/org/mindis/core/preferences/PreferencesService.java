@@ -135,6 +135,11 @@ public class PreferencesService {
         // v13 -> v14: each DashboardWidgetLayout gained viewMode (how the widget
         // renders: list, bar chart, ...). Absent field deserializes as null, and
         // the dashboard reads null as "the widget type's default mode".
+        // v14 -> v15: checkUpdatesOnStart added, default on. A primitive
+        // boolean cannot tell "absent" from "deliberately off" (both
+        // deserialize as false), so the default is applied here, where the
+        // version says the field could not have been written yet - a file
+        // already at v15 keeps whatever the user chose.
         int solverSeconds = loaded.solverSecondsLimit() > 0
                 ? loaded.solverSecondsLimit()
                 : MinDisPreferences.DEFAULT_SOLVER_SECONDS;
@@ -156,7 +161,8 @@ public class PreferencesService {
                 loaded.lastDocument(),
                 loaded.recentCollections(),
                 loaded.toolbarButtonDisplay(),
-                loaded.dashboardWidgets());
+                loaded.dashboardWidgets(),
+                loaded.version() < 15 || loaded.checkUpdatesOnStart());
         String lastDocument = loaded.lastDocument();
         if (migrated.recentCollections().isEmpty() && lastDocument != null && !lastDocument.isBlank()) {
             return migrated.withRecentCollection(

@@ -110,6 +110,13 @@ jobs:
         if: github.event.inputs.buildInstaller == 'true'
         shell: bash
         run: ${{ matrix.archivePortable }}
+      # The manifest MinDis's own update check reads, written after the
+      # packages exist so it can carry their checksums (see
+      # docs/adr/010-auto-update.md). Tag-triggered builds pin the download
+      # URLs to that tag; otherwise the task defaults to v<version>.
+      - name: Write update manifest
+        if: github.event.inputs.buildInstaller == 'true'
+        run: ./gradlew :gui:updateManifest ${{ startsWith(github.ref, 'refs/tags/') && format('-PreleaseTag={0}', github.ref_name) || '' }}
       - name: Upload installer and portable artifact
         if: github.event.inputs.buildInstaller == 'true'
         uses: actions/upload-artifact@v7
@@ -132,4 +139,5 @@ jobs:
             mindis-gui/build/packages/${{ matrix.platform }}/*.pkg
             mindis-gui/build/packages/${{ matrix.platform }}/*-portable-*.zip
             mindis-gui/build/packages/${{ matrix.platform }}/*.sha256
+            mindis-gui/build/packages/${{ matrix.platform }}/latest-*.json
           generate_release_notes: true

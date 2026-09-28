@@ -250,7 +250,9 @@ until the user first arranges it, an empty list being a deliberately cleared boa
 Changes go through wither methods. The compact constructor fills
 absent or invalid values with defaults, which is what makes most version steps migration-free. The
 v11→v12 step is an explicit migration: the old standalone `followSystemTheme` boolean folds into the
-`Theme.SYSTEM` enum value.
+`Theme.SYSTEM` enum value. So is v14→v15, which adds `checkUpdatesOnStart`: a primitive boolean
+cannot tell an absent field from a deliberate "off", so its default is applied by version rather
+than by the constructor.
 
 Covers:
 - req~appearance-settings~1
@@ -276,7 +278,8 @@ Covers:
 `UiPreferences` bridges the core store to JavaFX properties, so settings controls bind
 bidirectionally and every consumer reacts through subscriptions rather than callbacks
 (`UiPreferencesTest`). `SettingsModule` renders one `TitledPane` per group — appearance, then solver
-budget and constraint weights — with a "Reset to defaults" button in each header and one AtlantaFX
+budget and constraint weights, then the update check (`dsn~update-preference~1` in
+[updates.md](updates.md)) — with a "Reset to defaults" button in each header and one AtlantaFX
 `Tile` per setting.
 
 Covers:

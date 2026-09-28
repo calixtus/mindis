@@ -52,4 +52,6 @@ dependency.
 `feat~multilingual-desktop-app~1`
 
 The application is a cross-platform desktop application, German and English from the start, with
-user-configurable appearance (theme, accent, font) and no installation-wide state.
+user-configurable appearance (theme, accent, font) and no installation-wide state. It tells the user
+when a newer version has been released and installs it on confirmation, so a parish volunteer does
+not have to watch the project to stay current.

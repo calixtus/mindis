@@ -32,9 +32,10 @@ public record MinDisPreferences(
         @Nullable String lastDocument,
         List<RecentCollection> recentCollections,
         ToolbarButtonDisplay toolbarButtonDisplay,
-        @Nullable List<DashboardWidgetLayout> dashboardWidgets) {
+        @Nullable List<DashboardWidgetLayout> dashboardWidgets,
+        boolean checkUpdatesOnStart) {
 
-    public static final int CURRENT_VERSION = 14;
+    public static final int CURRENT_VERSION = 15;
     /// Most-recent collections kept for the switcher dropdown (UX guidance:
     /// show up to five recents).
     public static final int MAX_RECENT_COLLECTIONS = 5;
@@ -103,7 +104,7 @@ public record MinDisPreferences(
         return new MinDisPreferences(CURRENT_VERSION, language, Theme.LIGHT, null,
                 DEFAULT_SOLVER_SECONDS, MinDisConstraintProvider.defaultSoftWeights(),
                 AccentColor.DEFAULT, DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE, null, null, null,
-                List.of(), ToolbarButtonDisplay.BOTH, null);
+                List.of(), ToolbarButtonDisplay.BOTH, null, true);
     }
 
     public Locale locale() {
@@ -114,28 +115,28 @@ public record MinDisPreferences(
         return new MinDisPreferences(version, newLanguageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
                 lastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay,
-                dashboardWidgets);
+                dashboardWidgets, checkUpdatesOnStart);
     }
 
     public MinDisPreferences withTheme(Theme newTheme) {
         return new MinDisPreferences(version, languageTag, newTheme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
                 lastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay,
-                dashboardWidgets);
+                dashboardWidgets, checkUpdatesOnStart);
     }
 
     public MinDisPreferences withWindowBounds(WindowBounds newWindowBounds) {
         return new MinDisPreferences(version, languageTag, theme, newWindowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
                 lastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay,
-                dashboardWidgets);
+                dashboardWidgets, checkUpdatesOnStart);
     }
 
     public MinDisPreferences withSolverSecondsLimit(int newSolverSecondsLimit) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 newSolverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
                 lastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay,
-                dashboardWidgets);
+                dashboardWidgets, checkUpdatesOnStart);
     }
 
     public MinDisPreferences withSoftConstraintWeight(String constraintName, int weight) {
@@ -144,28 +145,28 @@ public record MinDisPreferences(
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, weights, accentColor, fontFamily, fontSize,
                 lastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay,
-                dashboardWidgets);
+                dashboardWidgets, checkUpdatesOnStart);
     }
 
     public MinDisPreferences withAccentColor(AccentColor newAccentColor) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, newAccentColor, fontFamily, fontSize,
                 lastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay,
-                dashboardWidgets);
+                dashboardWidgets, checkUpdatesOnStart);
     }
 
     public MinDisPreferences withFontFamily(String newFontFamily) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, newFontFamily, fontSize,
                 lastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay,
-                dashboardWidgets);
+                dashboardWidgets, checkUpdatesOnStart);
     }
 
     public MinDisPreferences withFontSize(int newFontSize) {
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, newFontSize,
                 lastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay,
-                dashboardWidgets);
+                dashboardWidgets, checkUpdatesOnStart);
     }
 
     /// Directory the plan export `FileChooser` last saved into; `null` until the first export.
@@ -173,7 +174,7 @@ public record MinDisPreferences(
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
                 newLastExportDirectory, sidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay,
-                dashboardWidgets);
+                dashboardWidgets, checkUpdatesOnStart);
     }
 
     /// Sidebar width; `null` until the first shutdown (the shell then uses its own default).
@@ -181,7 +182,7 @@ public record MinDisPreferences(
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
                 lastExportDirectory, newSidebarWidth, lastDocument, recentCollections, toolbarButtonDisplay,
-                dashboardWidgets);
+                dashboardWidgets, checkUpdatesOnStart);
     }
 
     /// Path of the document last opened or saved, reopened on the next start;
@@ -191,7 +192,7 @@ public record MinDisPreferences(
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
                 lastExportDirectory, sidebarWidth, newLastDocument, recentCollections, toolbarButtonDisplay,
-                dashboardWidgets);
+                dashboardWidgets, checkUpdatesOnStart);
     }
 
     /// Records `recent` as the most-recently-used collection: moved to the
@@ -211,7 +212,7 @@ public record MinDisPreferences(
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
                 lastExportDirectory, sidebarWidth, lastDocument, trimmed,
-                toolbarButtonDisplay, dashboardWidgets);
+                toolbarButtonDisplay, dashboardWidgets, checkUpdatesOnStart);
     }
 
     /// Drops the recent entry for `path` (e.g. a document that has since
@@ -226,7 +227,7 @@ public record MinDisPreferences(
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
                 lastExportDirectory, sidebarWidth, lastDocument, updated,
-                toolbarButtonDisplay, dashboardWidgets);
+                toolbarButtonDisplay, dashboardWidgets, checkUpdatesOnStart);
     }
 
     /// How the module toolbar buttons render (text/icon/both); default
@@ -235,7 +236,17 @@ public record MinDisPreferences(
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
                 lastExportDirectory, sidebarWidth, lastDocument, recentCollections,
-                newToolbarButtonDisplay, dashboardWidgets);
+                newToolbarButtonDisplay, dashboardWidgets, checkUpdatesOnStart);
+    }
+
+    /// Whether MinDis looks for a newer release on startup
+    /// (docs/adr/010-auto-update.md). On by default; the manual check in
+    /// Settings works regardless of this.
+    public MinDisPreferences withCheckUpdatesOnStart(boolean newCheckUpdatesOnStart) {
+        return new MinDisPreferences(version, languageTag, theme, windowBounds,
+                solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
+                lastExportDirectory, sidebarWidth, lastDocument, recentCollections,
+                toolbarButtonDisplay, dashboardWidgets, newCheckUpdatesOnStart);
     }
 
     /// Persisted dashboard widget layout (positions and grid spans);
@@ -245,6 +256,6 @@ public record MinDisPreferences(
         return new MinDisPreferences(version, languageTag, theme, windowBounds,
                 solverSecondsLimit, softConstraintWeights, accentColor, fontFamily, fontSize,
                 lastExportDirectory, sidebarWidth, lastDocument, recentCollections,
-                toolbarButtonDisplay, newDashboardWidgets);
+                toolbarButtonDisplay, newDashboardWidgets, checkUpdatesOnStart);
     }
 }

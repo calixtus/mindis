@@ -1,6 +1,7 @@
 package org.mindis.gui.modules;
 
 import atlantafx.base.controls.Tile;
+import atlantafx.base.controls.ToggleSwitch;
 import atlantafx.base.theme.Styles;
 
 import java.util.Locale;
@@ -33,10 +34,12 @@ import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.preferences.ToolbarButtonDisplay;
+import org.mindis.core.update.AppVersion;
 import org.mindis.gui.preferences.PreferenceControls;
 import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.gui.theme.AccentColorSelector;
 import org.mindis.gui.shell.ShellModule;
+import org.mindis.gui.update.UpdateCheckController;
 
 /// Settings screen. Each preferences group is a [TitledPane] with a
 /// "Reset to defaults" button in its header; inside, every setting is an
@@ -65,15 +68,17 @@ public final class SettingsModule extends ShellModule {
     private static final double MIN_CONTENT_WIDTH = 560;
 
     private final UiPreferences uiPreferences;
+    private final UpdateCheckController updateCheck;
 
-    public SettingsModule(String name, UiPreferences uiPreferences) {
+    public SettingsModule(String name, UiPreferences uiPreferences, UpdateCheckController updateCheck) {
         super(name, "mdi2c-cog");
         this.uiPreferences = uiPreferences;
+        this.updateCheck = updateCheck;
     }
 
     @Override
     public Node activate() {
-        VBox content = new VBox(24, appearancePane(), solverPane());
+        VBox content = new VBox(24, appearancePane(), solverPane(), updatesPane());
         VBox wrapper = new VBox(content);
         wrapper.setAlignment(Pos.TOP_CENTER);
         wrapper.setPadding(new Insets(24));
@@ -152,6 +157,30 @@ public final class SettingsModule extends ShellModule {
                     Localization.lang("Constraint weight"), sliderWithValue(weightSlider)));
         }
         return groupPane(Localization.lang("Solver"), tiles, this::resetSolverToDefaults);
+    }
+
+    /// Update group: the startup check's on/off switch and the manual check.
+    /// The manual check runs regardless of the switch - turning the automatic
+    /// check off is about not being interrupted, not about never updating
+    /// (docs/adr/010-auto-update.md).
+    private TitledPane updatesPane() {
+        ToggleSwitch checkOnStartToggle =
+                PreferenceControls.toggle(uiPreferences.checkUpdatesOnStartProperty());
+
+        Button checkNowButton = new Button(Localization.lang("Check now"));
+        checkNowButton.setOnAction(event -> updateCheck.checkNow());
+
+        VBox tiles = new VBox(
+                tile(Localization.lang("Check for updates on start"),
+                        Localization.lang("Ask the release server whether a newer MinDis exists"),
+                        checkOnStartToggle),
+                tile(Localization.lang("Check for updates"),
+                        Localization.lang("Version %0", AppVersion.currentText()), checkNowButton));
+        return groupPane(Localization.lang("Updates"), tiles, this::resetUpdatesToDefaults);
+    }
+
+    private void resetUpdatesToDefaults() {
+        uiPreferences.checkUpdatesOnStartProperty().set(true);
     }
 
     private void resetAppearanceToDefaults() {

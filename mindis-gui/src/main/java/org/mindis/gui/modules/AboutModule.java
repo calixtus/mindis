@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.Properties;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -39,6 +38,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
 
 import org.jspecify.annotations.Nullable;
 import org.mindis.core.l10n.Localization;
+import org.mindis.core.update.AppVersion;
 import org.mindis.gui.logging.LogConsoleModel;
 import org.mindis.gui.logging.LogEntry;
 import org.mindis.gui.shell.ShellModule;
@@ -106,7 +106,7 @@ public final class AboutModule extends ShellModule {
         title.setStyle("-fx-font-size: 22px; -fx-font-weight: bold;");
 
         Label tagline = new Label(Localization.lang("Minister Dispatcher: altar server planning"));
-        Label version = new Label(Localization.lang("Version %0", readVersion()));
+        Label version = new Label(Localization.lang("Version %0", AppVersion.currentText()));
         Label maintainers = new Label(Localization.lang("Maintainers: %0", readMaintainers()));
         maintainers.setWrapText(true);
 
@@ -233,24 +233,11 @@ public final class AboutModule extends ShellModule {
     /// a clipboard side effect.
     private String buildVersionInfo() {
         return "MinDis %s\nJava %s\nJavaFX %s\nOS %s %s".formatted(
-                readVersion(),
+                AppVersion.currentText(),
                 System.getProperty("java.version"),
                 System.getProperty("javafx.version"),
                 System.getProperty("os.name"),
                 System.getProperty("os.version"));
-    }
-
-    private String readVersion() {
-        try (InputStream in = getClass().getResourceAsStream("/org/mindis/gui/about/version.properties")) {
-            if (in == null) {
-                return "dev";
-            }
-            Properties properties = new Properties();
-            properties.load(in);
-            return properties.getProperty("version", "dev");
-        } catch (IOException e) {
-            return "dev";
-        }
     }
 
     /// Shows the notices for everything distributed alongside MinDis. The file

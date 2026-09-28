@@ -39,6 +39,7 @@ public final class UiPreferences {
     private final PreferenceValue<String> fontFamily;
     private final PreferenceValue<Integer> fontSize;
     private final PreferenceValue<ToolbarButtonDisplay> toolbarButtonDisplay;
+    private final PreferenceValue<Boolean> checkUpdatesOnStart;
     private final Map<String, PreferenceValue<Integer>> softWeights = new LinkedHashMap<>();
 
     public UiPreferences(PreferencesService preferencesService) {
@@ -65,6 +66,9 @@ public final class UiPreferences {
         toolbarButtonDisplay = register(
                 MinDisPreferences::toolbarButtonDisplay,
                 MinDisPreferences::withToolbarButtonDisplay);
+        checkUpdatesOnStart = register(
+                MinDisPreferences::checkUpdatesOnStart,
+                MinDisPreferences::withCheckUpdatesOnStart);
         for (String constraintName : MinDisConstraintProvider.tunableSoftConstraints()) {
             softWeights.put(constraintName, register(
                     p -> softWeight(p, constraintName),
@@ -117,6 +121,12 @@ public final class UiPreferences {
 
     public ObjectProperty<ToolbarButtonDisplay> toolbarButtonDisplayProperty() {
         return toolbarButtonDisplay.property();
+    }
+
+    /// Whether MinDis looks for a newer release on startup
+    /// (docs/adr/010-auto-update.md).
+    public ObjectProperty<Boolean> checkUpdatesOnStartProperty() {
+        return checkUpdatesOnStart.property();
     }
 
     /// Editable weight of one tunable soft constraint

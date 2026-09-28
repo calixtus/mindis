@@ -1,4 +1,6 @@
+import org.gradle.internal.os.OperatingSystem
 import org.gradle.language.jvm.tasks.ProcessResources
+import org.mindis.gradle.WriteUpdateManifest
 import org.gradle.nativeplatform.MachineArchitecture
 import org.gradle.nativeplatform.OperatingSystemFamily
 
@@ -21,14 +23,6 @@ application {
 val applicationVersion = project.version.toString()
 
 tasks.named<ProcessResources>("processResources") {
-    // Track up-to-date variable
-    inputs.property("version", applicationVersion)
-
-    // Insert in properties
-    filesMatching("org/mindis/gui/about/version.properties") {
-        expand("version" to applicationVersion)
-    }
-
     // The About screen's Maintainers section reads this at runtime - kept as
     // one file at the repo root (where GitHub expects it) rather than
     // duplicated into a resource, so it's always in sync.
@@ -77,4 +71,34 @@ dependencies {
     annotationProcessor("io.avaje:avaje-inject-generator")
 
     implementation("org.slf4j:slf4j-jdk14")
+}
+
+// The update manifest MinDis's own update check reads
+// (docs/adr/010-auto-update.md). jpackage only builds for the host, so this
+// describes the host's packages; CI runs it on each platform runner and
+// publishes the result as a release asset next to them.
+//
+//   ./gradlew :gui:jpackage :gui:updateManifest -PreleaseTag=v0.1.0
+//
+// Defaults: the tag is v<version> and the download base is that tag's release
+// page on GitHub - which is where the CI release job attaches the packages.
+val hostPlatform = when {
+    OperatingSystem.current().isWindows -> "windows"
+    OperatingSystem.current().isMacOsX -> "macos"
+    else -> "linux"
+}
+val releaseTag = providers.gradleProperty("releaseTag").getOrElse("v$applicationVersion")
+val releaseBaseUrl = providers.gradleProperty("releaseBaseUrl")
+    .getOrElse("https://github.com/calixtus/mindis/releases")
+
+tasks.register<WriteUpdateManifest>("updateManifest") {
+    group = "distribution"
+    description = "Writes latest-<platform>.json (and .sha256 sidecars) for the packages jpackage built."
+
+    packageDirectory = layout.buildDirectory.dir("packages/$hostPlatform")
+    platform = hostPlatform
+    appVersion = applicationVersion
+    downloadBaseUrl = "$releaseBaseUrl/download/$releaseTag/"
+    releaseNotesUrl = "$releaseBaseUrl/tag/$releaseTag"
+    manifestFile = layout.buildDirectory.file("packages/$hostPlatform/latest-$hostPlatform.json")
 }
