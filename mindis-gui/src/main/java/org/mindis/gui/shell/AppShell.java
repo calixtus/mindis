@@ -11,6 +11,8 @@ import javafx.scene.AccessibleRole;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
@@ -89,16 +91,31 @@ public final class AppShell extends BorderPane {
             builder.sidebarHeader.getStyleClass().add("shell-sidebar-header");
             sidebar.getChildren().add(builder.sidebarHeader);
         }
+        VBox navList = new VBox();
+        navList.getStyleClass().add("shell-nav-list");
         for (ShellModule module : builder.modules) {
-            sidebar.getChildren().add(createNavButton(module));
+            navList.getChildren().add(createNavButton(module));
         }
+
+        // Only the module list scrolls. The bottom-pinned entries stay outside it,
+        // so a window too short for every entry at once still leaves Settings and
+        // About reachable instead of clipping them off the end.
+        ScrollPane navScroll = new ScrollPane(navList);
+        navScroll.getStyleClass().add("shell-nav-scroll");
+        navScroll.setFitToWidth(true);
+        navScroll.setHbarPolicy(ScrollBarPolicy.NEVER);
+        navScroll.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
+        // Also the spacer: growing to fill pushes the bottom-pinned entries down.
+        VBox.setVgrow(navScroll, Priority.ALWAYS);
+        sidebar.getChildren().add(navScroll);
+
         if (!builder.bottomModules.isEmpty()) {
-            Region spacer = new Region();
-            VBox.setVgrow(spacer, Priority.ALWAYS);
-            sidebar.getChildren().add(spacer);
+            VBox bottomNav = new VBox();
+            bottomNav.getStyleClass().add("shell-bottom-nav");
             for (ShellModule module : builder.bottomModules) {
-                sidebar.getChildren().add(createNavButton(module));
+                bottomNav.getChildren().add(createNavButton(module));
             }
+            sidebar.getChildren().add(bottomNav);
         }
 
         // A ToggleGroup allows deselecting by re-clicking; keep one module

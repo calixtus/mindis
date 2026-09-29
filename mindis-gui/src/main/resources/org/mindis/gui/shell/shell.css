@@ -87,6 +87,25 @@
     -fx-padding: 0;
 }
 
+/* The module list scrolls when the window is too short for every entry; the
+   bottom-pinned entries sit outside it and stay put. The pane is a viewport
+   here and nothing else, so neither it nor its viewport may paint a surface
+   of its own over the sidebar. */
+.shell-nav-scroll,
+.shell-nav-scroll > .viewport {
+    -fx-background-color: transparent;
+}
+
+.shell-nav-scroll {
+    -fx-padding: 0;
+    -fx-background-insets: 0;
+}
+
+.shell-nav-list,
+.shell-bottom-nav {
+    -fx-spacing: 4;
+}
+
 /* Module toolbar buttons render text, icon, or both per the user setting - a
    mode style class on the shell root drives -fx-content-display. */
 .shell.toolbar-mode-text .toolbar-button {
