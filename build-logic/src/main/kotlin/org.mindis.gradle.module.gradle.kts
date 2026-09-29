@@ -5,7 +5,6 @@ plugins {
     id("org.gradlex.extra-java-module-info")
     id("org.mindis.gradle.feature.compile")
     id("org.mindis.gradle.feature.test")
-    id("org.mindis.gradle.feature.localization")
     id("org.mindis.gradle.check.checkstyle")
     id("org.mindis.gradle.check.javadoc")
     id("org.mindis.gradle.check.modernizer")
