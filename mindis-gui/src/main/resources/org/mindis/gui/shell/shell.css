@@ -106,6 +106,15 @@
     -fx-spacing: 4;
 }
 
+/* About and Settings are about the application, not about the parish data the
+   entries above them open. A hairline says so; without it the two groups read
+   as one flat list that merely happens to have a gap in it. */
+.shell-bottom-nav {
+    -fx-border-color: -color-border-subtle transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 8 0 0 0;
+}
+
 /* Module toolbar buttons render text, icon, or both per the user setting - a
    mode style class on the shell root drives -fx-content-display. */
 .shell.toolbar-mode-text .toolbar-button {
@@ -141,7 +150,11 @@
     -fx-background-color: -color-accent-subtle;
     -fx-text-fill: -color-accent-fg;
     -fx-font-weight: bold;
-    -fx-border-color: -color-accent-emphasis transparent transparent transparent;
+    /* Both shorthands run top-right-bottom-left, so the accent belongs in the
+       fourth slot to match the 3px in -fx-border-width's fourth slot. With it
+       in the first the left edge is 3px of transparent and the accent sits on
+       a top edge of zero width: nothing is drawn at all. */
+    -fx-border-color: transparent transparent transparent -color-accent-emphasis;
     -fx-border-width: 0 0 0 3;
     -fx-border-radius: 6 0 0 6;
 }
@@ -181,7 +194,8 @@
 
 /* Draggable divider between sidebar and content: same fill as the sidebar
    (so the two read as one surface, no seam) with the boundary line on its
-   right edge, against the content pane. */
+   right edge, against the content pane. It is wider than it looks - the fill
+   matches the sidebar, so the extra width is pointer target, not decoration. */
 .shell-resize-handle {
     -fx-background-color: -color-bg-subtle;
     -fx-border-color: transparent -color-border-default transparent transparent;

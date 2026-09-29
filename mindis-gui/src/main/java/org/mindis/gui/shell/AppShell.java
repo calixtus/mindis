@@ -16,6 +16,7 @@ import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.util.Duration;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -57,8 +58,14 @@ public final class AppShell extends BorderPane {
     private static final double COLLAPSE_THRESHOLD = 120;
     /// How far one arrow-key press moves the resize handle.
     private static final double KEYBOARD_RESIZE_STEP = 16;
+    /// Width of the drag handle - a pointer target, not a visual element.
+    private static final double HANDLE_WIDTH = 10;
+    /// On the icon-only rail the tooltip *is* the label, so it may not keep the
+    /// ~1s delay a supplementary hint would get.
+    private static final Duration RAIL_TOOLTIP_DELAY = Duration.millis(300);
 
     private final Map<ShellModule, ToggleButton> navButtons = new LinkedHashMap<>();
+    private final Map<ShellModule, Tooltip> railTooltips = new LinkedHashMap<>();
     private final ToggleGroup navGroup = new ToggleGroup();
     private final StackPane contentPane = new StackPane();
     private final List<ShellModule> modules;
@@ -207,8 +214,10 @@ public final class AppShell extends BorderPane {
         Region handle = new Region();
         handle.getStyleClass().add("shell-resize-handle");
         handle.setCursor(Cursor.H_RESIZE);
-        handle.setMinWidth(6);
-        handle.setPrefWidth(6);
+        // 6px was a hard target to hit. The fill matches the sidebar's, so widening
+        // it only moves the boundary line - it does not show up as a wider seam.
+        handle.setMinWidth(HANDLE_WIDTH);
+        handle.setPrefWidth(HANDLE_WIDTH);
         handle.setMaxHeight(Double.MAX_VALUE);
         handle.addEventHandler(MouseEvent.MOUSE_PRESSED, event -> {
             dragStartSceneX = event.getSceneX();
@@ -307,12 +316,21 @@ public final class AppShell extends BorderPane {
         button.getStyleClass().remove("shell-nav-button-collapsed");
         if (iconOnly) {
             button.setText(null);
-            button.setTooltip(new Tooltip(module.getName()));
+            button.setTooltip(railTooltip(module));
             button.getStyleClass().add("shell-nav-button-collapsed");
         } else {
             button.setText(module.getName());
             button.setTooltip(null);
         }
+    }
+
+    /// The module's rail tooltip, built once per module rather than on every collapse.
+    private Tooltip railTooltip(ShellModule module) {
+        return railTooltips.computeIfAbsent(module, key -> {
+            Tooltip tooltip = new Tooltip(key.getName());
+            tooltip.setShowDelay(RAIL_TOOLTIP_DELAY);
+            return tooltip;
+        });
     }
 
     private void activateModule(ShellModule module) {
