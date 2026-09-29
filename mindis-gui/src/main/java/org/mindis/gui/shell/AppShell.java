@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import javafx.animation.Interpolator;
+import javafx.beans.binding.Bindings;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
@@ -15,6 +16,8 @@ import javafx.scene.AccessibleRole;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.Tooltip;
@@ -27,6 +30,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
+import javafx.geometry.Pos;
 import javafx.scene.layout.VBox;
 
 import org.jspecify.annotations.Nullable;
@@ -72,6 +76,7 @@ public final class AppShell extends BorderPane {
 
     private final Map<ShellModule, ToggleButton> navButtons = new LinkedHashMap<>();
     private final Map<ShellModule, Tooltip> railTooltips = new LinkedHashMap<>();
+    private final Map<ShellModule, Label> navRows = new LinkedHashMap<>();
     private final ToggleGroup navGroup = new ToggleGroup();
     private final StackPane contentPane = new StackPane();
     private final List<ShellModule> modules;
@@ -325,24 +330,50 @@ public final class AppShell extends BorderPane {
         toggleTooltip.setText(collapsed ? Localization.lang("Expand") : Localization.lang("Collapse"));
     }
 
+    /// The entry's content is one row built here rather than the button's own
+    /// text-plus-graphic pair, because a badge has to sit at the far end of it and
+    /// a `ToggleButton` has no slot for a third thing after its label.
     private ToggleButton createNavButton(ShellModule module) {
         ToggleButton button = new ToggleButton();
+        HBox row = new HBox();
+        row.getStyleClass().add("shell-nav-row");
+        // Left-aligned while there is a label to read along; centred on the rail,
+        // where the icon is the whole entry and has to sit in the middle of it.
+        row.alignmentProperty().bind(
+                Bindings.when(collapsedProperty).then(Pos.CENTER).otherwise(Pos.CENTER_LEFT));
+
         String iconLiteral = module.getIconLiteral();
         if (iconLiteral != null) {
             FontIcon icon = new FontIcon(iconLiteral);
             icon.getStyleClass().add("shell-nav-icon");
-            button.setGraphic(icon);
-            button.setGraphicTextGap(10);
             // Outline at rest, filled when active: the selected entry then differs
             // in glyph weight as well as in colour, which the rail needs most -
             // there is no label there to carry the distinction.
             String selectedLiteral = module.getSelectedIconLiteral();
             button.selectedProperty().subscribe(selected ->
                     icon.setIconLiteral(selected ? selectedLiteral : iconLiteral));
+            row.getChildren().add(new StackPane(icon, dotBadge(module)));
         }
+
+        Label name = new Label(module.getName());
+        name.getStyleClass().add("shell-nav-name");
+        HBox.setHgrow(name, Priority.ALWAYS);
+        name.setMaxWidth(Double.MAX_VALUE);
+        row.getChildren().addAll(name, pillBadge(module));
+        navRows.put(module, name);
+
+        button.setGraphic(row);
+        button.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
         button.getStyleClass().add("shell-nav-button");
         button.setToggleGroup(navGroup);
         button.setMaxWidth(Double.MAX_VALUE);
+        // A Labeled lays its graphic out at the graphic's own preferred width, so
+        // without this the row would be as wide as its contents and the badge
+        // would sit against the name instead of at the entry's far edge. Insets
+        // rather than a literal, so the button's padding stays a CSS concern.
+        row.prefWidthProperty().bind(Bindings.createDoubleBinding(
+                () -> button.getWidth() - button.getInsets().getLeft() - button.getInsets().getRight(),
+                button.widthProperty(), button.insetsProperty()));
         button.selectedProperty().subscribe(selected -> {
             if (selected) {
                 activateModule(module);
@@ -358,14 +389,44 @@ public final class AppShell extends BorderPane {
     private void applyButtonMode(ShellModule module, ToggleButton button) {
         boolean iconOnly = collapsed && module.getIconLiteral() != null;
         button.getStyleClass().remove("shell-nav-button-collapsed");
+        Label name = navRows.get(module);
+        if (name != null) {
+            name.setVisible(!iconOnly);
+            name.setManaged(!iconOnly);
+        }
         if (iconOnly) {
-            button.setText(null);
             button.setTooltip(railTooltip(module));
             button.getStyleClass().add("shell-nav-button-collapsed");
         } else {
-            button.setText(module.getName());
             button.setTooltip(null);
         }
+    }
+
+    /// The count as a pill after the entry's name; nothing at all at zero, and
+    /// nothing on the rail, where [#dotBadge] stands in for it.
+    private Label pillBadge(ShellModule module) {
+        Label badge = new Label();
+        badge.getStyleClass().add("shell-nav-badge");
+        badge.textProperty().bind(module.badgeCountProperty().asString());
+        badge.visibleProperty().bind(
+                module.badgeCountProperty().greaterThan(0).and(collapsedProperty.not()));
+        badge.managedProperty().bind(badge.visibleProperty());
+        return badge;
+    }
+
+    /// On the rail there is no room for a number, so the count becomes a dot in
+    /// the icon's corner - present or absent is the whole message there.
+    private StackPane dotBadge(ShellModule module) {
+        StackPane dot = new StackPane();
+        dot.getStyleClass().add("shell-nav-badge-dot");
+        dot.setMaxSize(8, 8);
+        dot.setMinSize(8, 8);
+        StackPane.setAlignment(dot, Pos.TOP_RIGHT);
+        dot.setMouseTransparent(true);
+        dot.visibleProperty().bind(
+                module.badgeCountProperty().greaterThan(0).and(collapsedProperty));
+        dot.managedProperty().bind(dot.visibleProperty());
+        return dot;
     }
 
     /// The module's rail tooltip, built once per module rather than on every collapse.

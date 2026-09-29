@@ -3,6 +3,7 @@ package org.mindis.gui.modules;
 
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -159,6 +160,12 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
         this.serverStore = serverStore;
         this.solver = new ServicesSolverController(planningViewModel,
                 () -> store().items(), this::mergeLive, overlays);
+
+        // The sidebar badge: slots nobody has been put in yet, for services still
+        // to come. Past services are left out - an unfilled slot last month is a
+        // record, not a job. Counted off the store's in-memory list on every
+        // change, so no repository is read for it.
+        store().items().subscribe(this::refreshOpenSlotBadge);
 
         // The table is used as a single-column tile list: each row's cell
         // renders the whole date/type/location + role-slot summary.
@@ -957,4 +964,23 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
         }
     }
 
+    /// Recounts the badge from what the store currently holds.
+    private void refreshOpenSlotBadge() {
+        setBadgeCount(countOpenSlotsAhead(store().items(), LocalDateTime.now()));
+    }
+
+    /// Slots with nobody in them, over the services that have not happened yet.
+    ///
+    /// Past services are excluded deliberately: a slot nobody filled last month is
+    /// a record of what happened, not work still waiting, and counting it would
+    /// leave a badge that can never be cleared.
+    ///
+    /// @param now the boundary, passed in so the rule can be pinned by a test
+    static int countOpenSlotsAhead(List<LiturgicalService> services, LocalDateTime now) {
+        return (int) services.stream()
+                .filter(service -> service.dateTime().isAfter(now))
+                .flatMap(service -> service.slots().stream())
+                .filter(slot -> slot.serverId() == null)
+                .count();
+    }
 }

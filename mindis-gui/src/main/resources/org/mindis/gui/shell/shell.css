@@ -159,6 +159,36 @@
     -fx-border-radius: 6 0 0 6;
 }
 
+/* The entry's content row: icon, name, then the badge pushed to the far edge. */
+.shell-nav-row {
+    -fx-spacing: 10;
+}
+
+.shell-nav-name {
+    -fx-text-fill: inherit;
+}
+
+/* Count pill. -color-danger-* rather than the accent: a badge here means slots
+   nobody has filled, which is not the same kind of thing as the active entry. */
+.shell-nav-badge {
+    -fx-background-color: -color-danger-emphasis;
+    -fx-text-fill: -color-fg-emphasis;
+    -fx-background-radius: 999;
+    -fx-padding: 0 6 0 6;
+    -fx-font-size: 0.75em;
+    -fx-font-weight: bold;
+}
+
+/* Same thing on the rail, where a number has nowhere to go: a dot in the
+   icon's corner, nudged out over the glyph's edge so it reads as attached to
+   the icon rather than as part of it. */
+.shell-nav-badge-dot {
+    -fx-background-color: -color-danger-emphasis;
+    -fx-background-radius: 999;
+    -fx-translate-x: 3;
+    -fx-translate-y: -3;
+}
+
 .shell-nav-button .shell-nav-icon {
     -fx-icon-size: 18;
     -fx-icon-color: -color-fg-muted;

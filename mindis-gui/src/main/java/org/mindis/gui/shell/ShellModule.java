@@ -1,5 +1,7 @@
 package org.mindis.gui.shell;
 
+import javafx.beans.property.ReadOnlyIntegerProperty;
+import javafx.beans.property.ReadOnlyIntegerWrapper;
 import javafx.scene.Node;
 
 import org.jspecify.annotations.Nullable;
@@ -27,6 +29,7 @@ public abstract class ShellModule {
     private final String name;
     private final @Nullable String iconLiteral;
     private final @Nullable String selectedIconLiteral;
+    private final ReadOnlyIntegerWrapper badgeCount = new ReadOnlyIntegerWrapper(this, "badgeCount", 0);
 
     protected ShellModule(String name) {
         this(name, null, null);
@@ -48,6 +51,19 @@ public abstract class ShellModule {
         this.name = name;
         this.iconLiteral = iconLiteral;
         this.selectedIconLiteral = selectedIconLiteral;
+    }
+
+    /// A count worth seeing without opening the module - open slots, say. Zero
+    /// hides it. The sidebar shows it as a pill beside the entry, and as a dot on
+    /// the icon-only rail, where a number has nowhere to fit.
+    public final ReadOnlyIntegerProperty badgeCountProperty() {
+        return badgeCount.getReadOnlyProperty();
+    }
+
+    /// Modules that have something to report keep this up to date; the rest never
+    /// touch it and show no badge.
+    protected final void setBadgeCount(int count) {
+        badgeCount.set(Math.max(0, count));
     }
 
     public final String getName() {
