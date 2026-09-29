@@ -174,3 +174,11 @@
     -fx-border-width: 0 2 0 0;
 }
 
+/* The handle is focusable so the sidebar can be resized with the arrow keys;
+   without a visible ring there would be no way to tell it has focus. */
+.shell-resize-handle:focused {
+    -fx-border-color: transparent -color-accent-emphasis transparent transparent;
+    -fx-border-width: 0 2 0 0;
+    -fx-background-color: -color-accent-subtle;
+}
+

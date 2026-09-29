@@ -7,6 +7,7 @@ import java.util.Map;
 
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanWrapper;
+import javafx.scene.AccessibleRole;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -23,6 +24,8 @@ import javafx.scene.layout.VBox;
 
 import org.jspecify.annotations.Nullable;
 import org.kordamp.ikonli.javafx.FontIcon;
+
+import org.mindis.core.l10n.Localization;
 
 /// Minimal application shell: a permanent left sidebar with one navigation
 /// entry per module (bottom-pinned entries supported, e.g. Settings) and the
@@ -50,6 +53,8 @@ public final class AppShell extends BorderPane {
     private static final double MAX_WIDTH = 360;
     /// Drag narrower than this and the sidebar snaps to the icon-only rail.
     private static final double COLLAPSE_THRESHOLD = 120;
+    /// How far one arrow-key press moves the resize handle.
+    private static final double KEYBOARD_RESIZE_STEP = 16;
 
     private final Map<ShellModule, ToggleButton> navButtons = new LinkedHashMap<>();
     private final ToggleGroup navGroup = new ToggleGroup();
@@ -194,7 +199,37 @@ public final class AppShell extends BorderPane {
         });
         handle.addEventHandler(MouseEvent.MOUSE_DRAGGED, event ->
                 setSidebarWidth(dragStartWidth + (event.getSceneX() - dragStartSceneX)));
+
+        // Dragging is a mouse-only gesture, so the sidebar width was reachable only
+        // with a pointer. Focus the handle and the arrow keys do the same thing.
+        handle.setFocusTraversable(true);
+        handle.setAccessibleRole(AccessibleRole.SLIDER);
+        handle.setAccessibleText(Localization.lang("Sidebar width"));
+        handle.setOnKeyPressed(event -> {
+            switch (event.getCode()) {
+                case LEFT -> nudgeSidebar(-KEYBOARD_RESIZE_STEP);
+                case RIGHT -> nudgeSidebar(KEYBOARD_RESIZE_STEP);
+                default -> {
+                    return;
+                }
+            }
+            event.consume();
+        });
         return handle;
+    }
+
+    /// Arrow-key resizing, matching what a drag of the same direction would do:
+    /// stepping left off the narrowest labelled width collapses to the rail, and
+    /// from the rail only a step right leaves it - there is nothing narrower.
+    private void nudgeSidebar(double delta) {
+        if (collapsed) {
+            if (delta > 0) {
+                setSidebarWidth(EXPANDED_WIDTH);
+            }
+            return;
+        }
+        double next = currentWidth + delta;
+        setSidebarWidth(next < MIN_EXPANDED_WIDTH ? COLLAPSED_WIDTH : next);
     }
 
     /// Pins the sidebar to a width (min == pref == max so it never flexes in the
@@ -224,7 +259,7 @@ public final class AppShell extends BorderPane {
 
     private void updateToggleIcon() {
         toggleIcon.setIconLiteral(collapsed ? "mdi2c-chevron-right" : "mdi2c-chevron-left");
-        toggleTooltip.setText(collapsed ? "Expand" : "Collapse");
+        toggleTooltip.setText(collapsed ? Localization.lang("Expand") : Localization.lang("Collapse"));
     }
 
     private ToggleButton createNavButton(ShellModule module) {
