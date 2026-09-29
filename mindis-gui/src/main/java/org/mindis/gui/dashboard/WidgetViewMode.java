@@ -12,30 +12,39 @@ import org.mindis.core.l10n.Localization;
 public enum WidgetViewMode {
 
     /// A row of key figures - only the summary widget renders this way.
-    TILES("tiles", "Tiles"),
-    LIST("list", "List"),
-    BAR("bar", "Bar chart"),
-    STACKED_BAR("stacked-bar", "Stacked bar chart"),
-    PIE("pie", "Pie chart"),
-    DONUT("donut", "Donut chart"),
-    LINE("line", "Line chart"),
-    AREA("area", "Area chart");
+    TILES("tiles"),
+    LIST("list"),
+    BAR("bar"),
+    STACKED_BAR("stacked-bar"),
+    PIE("pie"),
+    DONUT("donut"),
+    LINE("line"),
+    AREA("area");
 
     private final String id;
-    private final String titleKey;
 
-    WidgetViewMode(String id, String titleKey) {
+    WidgetViewMode(String id) {
         this.id = id;
-        this.titleKey = titleKey;
     }
 
     public String id() {
         return id;
     }
 
-    /// Localized mode name; looked up lazily so it tracks the current language.
+    /// Localized mode name. Looked up per call (not stored) so it tracks the current
+    /// language, and written as a literal inside lang(...) so LocalizationConsistencyTest
+    /// can find the key.
     public String displayName() {
-        return Localization.lang(titleKey);
+        return switch (this) {
+            case TILES -> Localization.lang("Tiles");
+            case LIST -> Localization.lang("List");
+            case BAR -> Localization.lang("Bar chart");
+            case STACKED_BAR -> Localization.lang("Stacked bar chart");
+            case PIE -> Localization.lang("Pie chart");
+            case DONUT -> Localization.lang("Donut chart");
+            case LINE -> Localization.lang("Line chart");
+            case AREA -> Localization.lang("Area chart");
+        };
     }
 
     /// The icon shown for this mode in the widget header's mode menu.

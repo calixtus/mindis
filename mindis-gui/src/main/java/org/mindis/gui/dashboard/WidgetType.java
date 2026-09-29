@@ -15,36 +15,34 @@ import org.mindis.core.l10n.Localization;
 /// the default).
 public enum WidgetType {
 
-    SUMMARY("summary", "Summary", 0, 0, 12, 1, WidgetViewMode.TILES, WidgetViewMode.DONUT),
-    NEXT_SERVICES("next-services", "Next services", 0, 1, 6, 3,
+    SUMMARY("summary", 0, 0, 12, 1, WidgetViewMode.TILES, WidgetViewMode.DONUT),
+    NEXT_SERVICES("next-services", 0, 1, 6, 3,
             WidgetViewMode.LIST, WidgetViewMode.STACKED_BAR),
-    SERVER_LOAD("server-load", "Assignments per server", 6, 1, 6, 3,
+    SERVER_LOAD("server-load", 6, 1, 6, 3,
             WidgetViewMode.LIST, WidgetViewMode.BAR, WidgetViewMode.PIE),
-    ROLES("roles", "Roles", 0, 4, 6, 3,
+    ROLES("roles", 0, 4, 6, 3,
             WidgetViewMode.BAR, WidgetViewMode.PIE, WidgetViewMode.LIST),
-    SERVICE_TYPE_MIX("service-type-mix", "Service types", 6, 4, 6, 3,
+    SERVICE_TYPE_MIX("service-type-mix", 6, 4, 6, 3,
             WidgetViewMode.PIE, WidgetViewMode.BAR, WidgetViewMode.LIST),
-    COVERAGE_TREND("coverage-trend", "Coverage by week", 0, 7, 12, 3,
+    COVERAGE_TREND("coverage-trend", 0, 7, 12, 3,
             WidgetViewMode.STACKED_BAR, WidgetViewMode.LINE, WidgetViewMode.AREA, WidgetViewMode.LIST),
-    PEOPLE_AHEAD("absences-ahead", "Away and birthdays", 0, 10, 6, 3,
+    PEOPLE_AHEAD("absences-ahead", 0, 10, 6, 3,
             WidgetViewMode.LIST, WidgetViewMode.BAR),
-    PROBLEMS("problems", "Problems", 6, 10, 6, 3,
+    PROBLEMS("problems", 6, 10, 6, 3,
             WidgetViewMode.LIST, WidgetViewMode.BAR),
-    ARCHIVE_HISTORY("archive-history", "Archived services", 0, 13, 12, 3,
+    ARCHIVE_HISTORY("archive-history", 0, 13, 12, 3,
             WidgetViewMode.LINE, WidgetViewMode.BAR, WidgetViewMode.LIST);
 
     private final String id;
-    private final String titleKey;
     private final int defaultCol;
     private final int defaultRow;
     private final int defaultColSpan;
     private final int defaultRowSpan;
     private final List<WidgetViewMode> modes;
 
-    WidgetType(String id, String titleKey, int defaultCol, int defaultRow, int defaultColSpan, int defaultRowSpan,
+    WidgetType(String id, int defaultCol, int defaultRow, int defaultColSpan, int defaultRowSpan,
                WidgetViewMode... modes) {
         this.id = id;
-        this.titleKey = titleKey;
         this.defaultCol = defaultCol;
         this.defaultRow = defaultRow;
         this.defaultColSpan = defaultColSpan;
@@ -56,9 +54,21 @@ public enum WidgetType {
         return id;
     }
 
-    /// Localized widget title; looked up lazily so it tracks the current language.
+    /// Localized widget title. Looked up per call (not stored) so it tracks the current
+    /// language, and written as a literal inside lang(...) so LocalizationConsistencyTest
+    /// can find the key.
     public String title() {
-        return Localization.lang(titleKey);
+        return switch (this) {
+            case SUMMARY -> Localization.lang("Summary");
+            case NEXT_SERVICES -> Localization.lang("Next services");
+            case SERVER_LOAD -> Localization.lang("Assignments per server");
+            case ROLES -> Localization.lang("Roles");
+            case SERVICE_TYPE_MIX -> Localization.lang("Service types");
+            case COVERAGE_TREND -> Localization.lang("Coverage by week");
+            case PEOPLE_AHEAD -> Localization.lang("Away and birthdays");
+            case PROBLEMS -> Localization.lang("Problems");
+            case ARCHIVE_HISTORY -> Localization.lang("Archived services");
+        };
     }
 
     /// This type's placement on a fresh, never-arranged board.

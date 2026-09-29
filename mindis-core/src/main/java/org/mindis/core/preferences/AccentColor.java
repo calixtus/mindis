@@ -12,19 +12,17 @@ import org.mindis.core.l10n.Localization;
 /// <p>Core stays UI-free: this holds only the hex string. The GUI turns it into
 /// CSS. Display names are localized (color words translate cleanly).
 public enum AccentColor implements PreferenceEnumValue {
-    DEFAULT("Default", null),
-    BLUE("Blue", "#3b82f6"),
-    GREEN("Green", "#22c55e"),
-    PURPLE("Purple", "#8b5cf6"),
-    RED("Red", "#ef4444"),
-    ORANGE("Orange", "#f97316"),
-    TEAL("Teal", "#14b8a6");
+    DEFAULT(null),
+    BLUE("#3b82f6"),
+    GREEN("#22c55e"),
+    PURPLE("#8b5cf6"),
+    RED("#ef4444"),
+    ORANGE("#f97316"),
+    TEAL("#14b8a6");
 
-    private final String l10nKey;
     private final @Nullable String baseHex;
 
-    AccentColor(String l10nKey, @Nullable String baseHex) {
-        this.l10nKey = l10nKey;
+    AccentColor(@Nullable String baseHex) {
         this.baseHex = baseHex;
     }
 
@@ -36,6 +34,16 @@ public enum AccentColor implements PreferenceEnumValue {
 
     @Override
     public String displayName() {
-        return Localization.lang(l10nKey);
+        // Looked up per call (not stored) so it reflects the current language, and written
+        // as a literal inside lang(...) so LocalizationConsistencyTest can find the key.
+        return switch (this) {
+            case DEFAULT -> Localization.lang("Default");
+            case BLUE -> Localization.lang("Blue");
+            case GREEN -> Localization.lang("Green");
+            case PURPLE -> Localization.lang("Purple");
+            case RED -> Localization.lang("Red");
+            case ORANGE -> Localization.lang("Orange");
+            case TEAL -> Localization.lang("Teal");
+        };
     }
 }

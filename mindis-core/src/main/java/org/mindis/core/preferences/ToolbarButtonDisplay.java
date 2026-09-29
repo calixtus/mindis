@@ -6,19 +6,18 @@ import org.mindis.core.l10n.Localization;
 /// only, or both. A user preference (default [#BOTH]), applied app-wide.
 public enum ToolbarButtonDisplay implements PreferenceEnumValue {
 
-    TEXT("Text only"),
-    ICON("Icons only"),
-    BOTH("Text and icons");
-
-    private final String l10nKey;
-
-    ToolbarButtonDisplay(String l10nKey) {
-        this.l10nKey = l10nKey;
-    }
+    TEXT,
+    ICON,
+    BOTH;
 
     @Override
     public String displayName() {
-        // Looked up lazily (not cached) so it reflects the current language.
-        return Localization.lang(l10nKey);
+        // Looked up per call (not stored) so it reflects the current language, and written
+        // as a literal inside lang(...) so LocalizationConsistencyTest can find the key.
+        return switch (this) {
+            case TEXT -> Localization.lang("Text only");
+            case ICON -> Localization.lang("Icons only");
+            case BOTH -> Localization.lang("Text and icons");
+        };
     }
 }

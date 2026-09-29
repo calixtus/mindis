@@ -42,8 +42,10 @@ public final class MinDisConstraintProvider implements ConstraintProvider {
     // drift between the two.
     public static final long SPACING_THRESHOLD_DAYS = 1;
 
-    // Constraint names double as full-text localization keys (PLAN.md 2.3)
-    // and are reused by ViolationChecker for the per-assignment display.
+    // Constraint names are the stable identity of a constraint: Timefold reports them,
+    // ViolationChecker passes them through, and the preferences persist soft weights
+    // keyed by them. They read as English because that is what they are named after -
+    // the translation lives in ConstraintDisplay, which maps each one to a key.
     public static final String NOT_QUALIFIED = "Server not qualified for role";
     public static final String UNAVAILABLE = "Server unavailable";
     public static final String INACTIVE = "Server inactive";

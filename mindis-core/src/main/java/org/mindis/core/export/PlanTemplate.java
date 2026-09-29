@@ -158,7 +158,7 @@ final class PlanTemplate {
         public Object execute(Map<String, Object> args, PebbleTemplate self,
                               EvaluationContext context, int lineNumber) {
             Object text = args.get("text");
-            return text == null ? "" : Localization.lang(String.valueOf(text));
+            return text == null ? "" : Localization.translateDynamic(String.valueOf(text));
         }
     }
 }

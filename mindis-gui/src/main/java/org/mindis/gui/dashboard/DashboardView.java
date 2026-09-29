@@ -24,6 +24,7 @@ import javafx.scene.layout.VBox;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import org.mindis.core.l10n.EnumDisplay;
+import org.mindis.core.l10n.ConstraintDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.gui.util.DateTimes;
 
@@ -135,9 +136,8 @@ public final class DashboardView extends StackPane {
         List<DashboardViewModel.RosterIssue> issues = snapshot.rosterIssues();
         if (mode == WidgetViewMode.BAR) {
             List<Charts.Slice> slices = new ArrayList<>();
-            // Constraint names double as localization keys.
             problems.forEach(problem -> slices.add(
-                    new Charts.Slice(Localization.lang(problem.constraintName()), problem.assignments())));
+                    new Charts.Slice(ConstraintDisplay.of(problem.constraintName()), problem.assignments())));
             Map<DashboardViewModel.RosterIssueKind, Long> countByKind =
                     new EnumMap<>(DashboardViewModel.RosterIssueKind.class);
             issues.forEach(issue -> countByKind.merge(issue.kind(), 1L, Long::sum));
@@ -148,7 +148,7 @@ public final class DashboardView extends StackPane {
         }
         List<String> rows = new ArrayList<>();
         problems.forEach(problem -> rows.add(
-                Localization.lang(problem.constraintName()) + ": " + problem.assignments()));
+                ConstraintDisplay.of(problem.constraintName()) + ": " + problem.assignments()));
         if (!snapshot.problemsChecked()) {
             rows.add(Localization.lang("Too many services to check for conflicts here"));
         }
