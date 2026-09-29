@@ -3,6 +3,7 @@ package org.mindis.core.update;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -40,6 +41,6 @@ class ChecksumsTest {
         Path file = Files.writeString(tempDir.resolve("abd.txt"), "abd");
 
         IOException failure = assertThrows(IOException.class, () -> Checksums.verify(file, ABC_SHA256));
-        assertEquals(true, failure.getMessage().contains("Checksum mismatch"));
+        assertTrue(failure.getMessage().contains("Checksum mismatch"));
     }
 }
