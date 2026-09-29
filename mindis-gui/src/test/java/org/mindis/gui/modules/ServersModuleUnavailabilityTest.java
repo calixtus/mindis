@@ -128,13 +128,13 @@ class ServersModuleUnavailabilityTest {
         for (Node child : grid.getChildren()) {
             if (child instanceof VBox box
                     && box.getChildren().size() == 3
-                    && box.getChildren().get(0) instanceof ListView<?> periods
+                    && box.getChildren().getFirst() instanceof ListView<?> periods
                     && box.getChildren().get(1) instanceof FlowPane controls
                     && box.getChildren().get(2) instanceof Label error) {
                 @SuppressWarnings("unchecked")
                 ListView<UnavailabilityPeriod> typed = (ListView<UnavailabilityPeriod>) periods;
                 return new Editor(typed,
-                        (CalendarPicker) controls.getChildren().get(0),
+                        (CalendarPicker) controls.getChildren().getFirst(),
                         (CalendarPicker) controls.getChildren().get(1),
                         (Button) controls.getChildren().get(2),
                         error, store);
