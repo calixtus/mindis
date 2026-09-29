@@ -5,6 +5,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import javafx.animation.Interpolator;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.scene.AccessibleRole;
@@ -63,6 +67,8 @@ public final class AppShell extends BorderPane {
     /// On the icon-only rail the tooltip *is* the label, so it may not keep the
     /// ~1s delay a supplementary hint would get.
     private static final Duration RAIL_TOOLTIP_DELAY = Duration.millis(300);
+    /// Long enough to read as one movement, short enough not to be waited on.
+    private static final Duration COLLAPSE_ANIMATION = Duration.millis(160);
 
     private final Map<ShellModule, ToggleButton> navButtons = new LinkedHashMap<>();
     private final Map<ShellModule, Tooltip> railTooltips = new LinkedHashMap<>();
@@ -82,6 +88,7 @@ public final class AppShell extends BorderPane {
     private double dragStartSceneX;
     private double dragStartWidth;
     private double currentWidth;
+    private final Timeline widthAnimation = new Timeline();
 
     private AppShell(Builder builder) {
         List<ShellModule> all = new ArrayList<>(builder.modules);
@@ -206,7 +213,7 @@ public final class AppShell extends BorderPane {
         button.getStyleClass().add("shell-toggle-button");
         button.setMaxWidth(Double.MAX_VALUE);
         // Collapsed -> expand to a labelled width; expanded -> collapse to rail.
-        button.setOnAction(_ -> setSidebarWidth(collapsed ? EXPANDED_WIDTH : COLLAPSED_WIDTH));
+        button.setOnAction(_ -> setSidebarWidth(collapsed ? EXPANDED_WIDTH : COLLAPSED_WIDTH, true));
         return button;
     }
 
@@ -220,6 +227,9 @@ public final class AppShell extends BorderPane {
         handle.setPrefWidth(HANDLE_WIDTH);
         handle.setMaxHeight(Double.MAX_VALUE);
         handle.addEventHandler(MouseEvent.MOUSE_PRESSED, event -> {
+            // Grabbing the handle mid-glide hands control over immediately, rather
+            // than letting the animation keep writing widths under the drag.
+            widthAnimation.stop();
             dragStartSceneX = event.getSceneX();
             dragStartWidth = sidebar.getWidth();
         });
@@ -250,23 +260,50 @@ public final class AppShell extends BorderPane {
     private void nudgeSidebar(double delta) {
         if (collapsed) {
             if (delta > 0) {
-                setSidebarWidth(EXPANDED_WIDTH);
+                setSidebarWidth(EXPANDED_WIDTH, true);
             }
             return;
         }
         double next = currentWidth + delta;
-        setSidebarWidth(next < MIN_EXPANDED_WIDTH ? COLLAPSED_WIDTH : next);
+        boolean collapsing = next < MIN_EXPANDED_WIDTH;
+        // A step within the band is a nudge and should land at once; leaving the
+        // band is the same change the chevron makes, so it glides the same way.
+        setSidebarWidth(collapsing ? COLLAPSED_WIDTH : next, collapsing);
+    }
+
+    /// Applies a width without animating - what a drag wants, since the sidebar
+    /// has to track the pointer rather than chase it.
+    private void setSidebarWidth(double width) {
+        setSidebarWidth(width, false);
     }
 
     /// Pins the sidebar to a width (min == pref == max so it never flexes in the
     /// enclosing HBox) and derives collapsed state from it: narrower than
     /// [#COLLAPSE_THRESHOLD] snaps to the icon-only rail.
-    private void setSidebarWidth(double width) {
+    ///
+    /// @param animated glide to the new width instead of jumping to it. Only for
+    ///                 changes the user asked for as a whole - the chevron, an
+    ///                 arrow key - never for a drag, which would then lag behind
+    ///                 the pointer by the animation's duration.
+    private void setSidebarWidth(double width, boolean animated) {
         boolean shouldCollapse = width < COLLAPSE_THRESHOLD;
         double applied = shouldCollapse
                 ? COLLAPSED_WIDTH
                 : Math.min(MAX_WIDTH, Math.max(MIN_EXPANDED_WIDTH, width));
         currentWidth = applied;
+        widthAnimation.stop();
+        if (animated) {
+            // Collapsed state flips up front, not when the glide ends: collapsing
+            // drops the labels before the sidebar narrows onto them, and expanding
+            // lets the widening sidebar reveal them instead of popping them in.
+            setCollapsed(shouldCollapse);
+            widthAnimation.getKeyFrames().setAll(new KeyFrame(COLLAPSE_ANIMATION,
+                    new KeyValue(sidebar.minWidthProperty(), applied, Interpolator.EASE_BOTH),
+                    new KeyValue(sidebar.prefWidthProperty(), applied, Interpolator.EASE_BOTH),
+                    new KeyValue(sidebar.maxWidthProperty(), applied, Interpolator.EASE_BOTH)));
+            widthAnimation.playFromStart();
+            return;
+        }
         sidebar.setMinWidth(applied);
         sidebar.setPrefWidth(applied);
         sidebar.setMaxWidth(applied);
