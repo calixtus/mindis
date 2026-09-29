@@ -72,7 +72,7 @@ public final class SettingsModule extends ShellModule {
     private final UpdateCheckController updateCheck;
 
     public SettingsModule(String name, UiPreferences uiPreferences, UpdateCheckController updateCheck) {
-        super(name, "mdi2c-cog");
+        super(name, "mdi2c-cog-outline", "mdi2c-cog");
         this.uiPreferences = uiPreferences;
         this.updateCheck = updateCheck;
     }

@@ -26,16 +26,28 @@ public abstract class ShellModule {
 
     private final String name;
     private final @Nullable String iconLiteral;
+    private final @Nullable String selectedIconLiteral;
 
     protected ShellModule(String name) {
-        this(name, null);
+        this(name, null, null);
     }
 
     /// @param iconLiteral Ikonli icon literal (e.g. `"mdi2v-view-dashboard"`);
     ///                    `null` for a text-only sidebar entry
     protected ShellModule(String name, @Nullable String iconLiteral) {
+        this(name, iconLiteral, null);
+    }
+
+    /// @param iconLiteral         the entry's resting icon, conventionally the
+    ///                            `-outline` variant
+    /// @param selectedIconLiteral the icon while this module is the active one,
+    ///                            conventionally the filled variant of the same
+    ///                            glyph; `null` to keep [#getIconLiteral()]
+    ///                            in both states
+    protected ShellModule(String name, @Nullable String iconLiteral, @Nullable String selectedIconLiteral) {
         this.name = name;
         this.iconLiteral = iconLiteral;
+        this.selectedIconLiteral = selectedIconLiteral;
     }
 
     public final String getName() {
@@ -44,6 +56,12 @@ public abstract class ShellModule {
 
     public final @Nullable String getIconLiteral() {
         return iconLiteral;
+    }
+
+    /// The icon for the active entry - the filled counterpart of
+    /// [#getIconLiteral()], or it again where a module declares only one.
+    public final @Nullable String getSelectedIconLiteral() {
+        return selectedIconLiteral == null ? iconLiteral : selectedIconLiteral;
     }
 
     public abstract Node activate();

@@ -135,8 +135,9 @@ public abstract class CrudModule<T> extends ShellModule {
     private boolean suppressEditorRebuild;
     private boolean suppressLiveUpdates;
 
-    protected CrudModule(String name, String iconLiteral, LiveStore<T> store, ShellOverlays overlays) {
-        super(name, iconLiteral);
+    protected CrudModule(String name, String iconLiteral, String selectedIconLiteral,
+                         LiveStore<T> store, ShellOverlays overlays) {
+        super(name, iconLiteral, selectedIconLiteral);
         this.store = store;
         this.overlays = overlays;
         // Remember the selection's identity while one exists (a store

@@ -327,11 +327,18 @@ public final class AppShell extends BorderPane {
 
     private ToggleButton createNavButton(ShellModule module) {
         ToggleButton button = new ToggleButton();
-        if (module.getIconLiteral() != null) {
-            FontIcon icon = new FontIcon(module.getIconLiteral());
+        String iconLiteral = module.getIconLiteral();
+        if (iconLiteral != null) {
+            FontIcon icon = new FontIcon(iconLiteral);
             icon.getStyleClass().add("shell-nav-icon");
             button.setGraphic(icon);
             button.setGraphicTextGap(10);
+            // Outline at rest, filled when active: the selected entry then differs
+            // in glyph weight as well as in colour, which the rail needs most -
+            // there is no label there to carry the distinction.
+            String selectedLiteral = module.getSelectedIconLiteral();
+            button.selectedProperty().subscribe(selected ->
+                    icon.setIconLiteral(selected ? selectedLiteral : iconLiteral));
         }
         button.getStyleClass().add("shell-nav-button");
         button.setToggleGroup(navGroup);

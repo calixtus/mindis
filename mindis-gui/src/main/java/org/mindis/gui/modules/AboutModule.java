@@ -76,7 +76,7 @@ public final class AboutModule extends ShellModule {
     private final LogConsoleModel logConsole;
 
     public AboutModule(String name, HostServices hostServices, LogConsoleModel logConsole) {
-        super(name, "mdi2i-information-outline");
+        super(name, "mdi2i-information-outline", "mdi2i-information");
         this.hostServices = hostServices;
         this.logConsole = logConsole;
     }

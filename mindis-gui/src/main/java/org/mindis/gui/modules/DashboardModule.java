@@ -13,7 +13,7 @@ public final class DashboardModule extends ShellModule {
     private final DashboardViewModel viewModel;
 
     public DashboardModule(String name, DashboardViewModel viewModel) {
-        super(name, "mdi2v-view-dashboard");
+        super(name, "mdi2v-view-dashboard-outline", "mdi2v-view-dashboard");
         this.viewModel = viewModel;
     }
 

@@ -37,7 +37,7 @@ public final class RolesModule extends CrudModule<Role> {
 
     public RolesModule(String name, LiveStore<Role> roleStore, RoleRepository roleRepository,
                        ShellOverlays overlays) {
-        super(name, "mdi2t-tag-multiple", roleStore, overlays);
+        super(name, "mdi2t-tag-multiple-outline", "mdi2t-tag-multiple", roleStore, overlays);
         this.viewModel = new RolesViewModel(roleRepository);
 
         TableColumn<Role, String> nameColumn = new TableColumn<>(Localization.lang("Name"));

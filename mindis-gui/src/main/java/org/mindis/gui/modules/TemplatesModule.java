@@ -49,7 +49,7 @@ public final class TemplatesModule extends CrudModule<ServiceTemplate> {
 
     public TemplatesModule(String name, LiveStore<ServiceTemplate> templateStore, LiveStore<Role> roleStore,
                            RoleRepository roleRepository, ShellOverlays overlays) {
-        super(name, "mdi2c-calendar-sync", templateStore, overlays);
+        super(name, "mdi2c-calendar-sync-outline", "mdi2c-calendar-sync", templateStore, overlays);
         this.viewModel = new TemplatesViewModel(roleRepository);
         this.roleStore = roleStore;
 

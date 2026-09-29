@@ -152,7 +152,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
                           LiveStore<Server> serverStore, TemplateRepository templateRepository,
                           RoleRepository roleRepository, PlanningViewModel planningViewModel,
                           ShellOverlays overlays) {
-        super(name, "mdi2c-church", serviceStore, overlays);
+        super(name, "mdi2c-church-outline", "mdi2c-church", serviceStore, overlays);
         this.viewModel = new ServicesViewModel(templateRepository, roleRepository);
         this.planningViewModel = planningViewModel;
         this.roleStore = roleStore;

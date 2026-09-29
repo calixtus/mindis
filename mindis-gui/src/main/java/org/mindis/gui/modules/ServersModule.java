@@ -88,7 +88,7 @@ public final class ServersModule extends CrudModule<Server> {
     public ServersModule(String name, LiveStore<Server> serverStore, LiveStore<Role> roleStore,
                          ServerRepository serverRepository, RoleRepository roleRepository,
                          UiPreferences uiPreferences, ShellOverlays overlays) {
-        super(name, "mdi2a-account-group", serverStore, overlays);
+        super(name, "mdi2a-account-group-outline", "mdi2a-account-group", serverStore, overlays);
         this.viewModel = new ServersViewModel(serverRepository, roleRepository);
         this.uiPreferences = uiPreferences;
         this.roleStore = roleStore;
