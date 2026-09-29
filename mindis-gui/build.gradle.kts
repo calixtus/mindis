@@ -73,6 +73,14 @@ dependencies {
     implementation("org.slf4j:slf4j-jdk14")
 }
 
+// PickerFX declares ControlsFX in its published metadata but does not use it:
+// its module-info requires only java.base and javafx.controls, and none of its
+// 39 classes references org.controlsfx. Dropping it keeps a library mindis
+// never calls out of the installer and out of THIRD-PARTY-NOTICES.
+configurations.all {
+    exclude(group = "org.controlsfx", module = "controlsfx")
+}
+
 // The update manifest MinDis's own update check reads
 // (docs/adr/010-auto-update.md). jpackage only builds for the host, so this
 // describes the host's packages; CI runs it on each platform runner and
