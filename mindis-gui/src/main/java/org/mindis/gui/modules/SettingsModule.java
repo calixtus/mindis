@@ -26,6 +26,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.util.StringConverter;
 
+import org.mindis.core.l10n.ConstraintDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.planning.MinDisConstraintProvider;
 import org.mindis.core.preferences.AccentColor;
@@ -153,7 +154,7 @@ public final class SettingsModule extends ShellModule {
                 sliderWithValue(solverSecondsSlider)));
         for (String constraintName : MinDisConstraintProvider.tunableSoftConstraints()) {
             Slider weightSlider = PreferenceControls.intSlider(0, 20, uiPreferences.softWeightProperty(constraintName));
-            tiles.getChildren().add(tile(Localization.lang(constraintName),
+            tiles.getChildren().add(tile(ConstraintDisplay.of(constraintName),
                     Localization.lang("Constraint weight"), sliderWithValue(weightSlider)));
         }
         return groupPane(Localization.lang("Solver"), tiles, this::resetSolverToDefaults);
@@ -184,8 +185,8 @@ public final class SettingsModule extends ShellModule {
     }
 
     private void resetAppearanceToDefaults() {
-        String systemLanguage = "de".equals(Locale.getDefault().getLanguage()) ? "de" : "en";
-        uiPreferences.languageProperty().set(AppLanguage.fromTag(systemLanguage));
+        uiPreferences.languageProperty().set(
+                AppLanguage.fromTag(Localization.resolveSupportedLocale(Locale.getDefault()).getLanguage()));
         uiPreferences.themeProperty().set(MinDisPreferences.Theme.LIGHT);
         uiPreferences.accentColorProperty().set(AccentColor.DEFAULT);
         uiPreferences.fontFamilyProperty().set(MinDisPreferences.DEFAULT_FONT_FAMILY);

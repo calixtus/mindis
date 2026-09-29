@@ -50,21 +50,20 @@ public record MinDisPreferences(
     /// the GUI resolves it to a concrete [#LIGHT]/[#DARK] before
     /// styling.
     public enum Theme implements PreferenceEnumValue {
-        LIGHT("Light"),
-        DARK("Dark"),
-        SYSTEM("System");
-
-        private final String l10nKey;
-
-        Theme(String l10nKey) {
-            this.l10nKey = l10nKey;
-        }
+        LIGHT,
+        DARK,
+        SYSTEM;
 
         @Override
         public String displayName() {
-            // Looked up lazily (not cached): must reflect the current
-            // language, not the language active when this enum was loaded.
-            return Localization.lang(l10nKey);
+            // Looked up per call, not cached: must reflect the current language, not the
+            // one active when this enum was loaded. Written as a literal inside lang(...)
+            // so LocalizationConsistencyTest can find the key.
+            return switch (this) {
+                case LIGHT -> Localization.lang("Light");
+                case DARK -> Localization.lang("Dark");
+                case SYSTEM -> Localization.lang("System");
+            };
         }
     }
 
@@ -100,7 +99,7 @@ public record MinDisPreferences(
     }
 
     public static MinDisPreferences defaults() {
-        String language = "de".equals(Locale.getDefault().getLanguage()) ? "de" : "en";
+        String language = Localization.resolveSupportedLocale(Locale.getDefault()).getLanguage();
         return new MinDisPreferences(CURRENT_VERSION, language, Theme.LIGHT, null,
                 DEFAULT_SOLVER_SECONDS, MinDisConstraintProvider.defaultSoftWeights(),
                 AccentColor.DEFAULT, DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE, null, null, null,
