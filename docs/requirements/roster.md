@@ -99,7 +99,8 @@ Covers:
 `dsn~unavailability-period~1`
 
 `UnavailabilityPeriod(start, end)` is inclusive on both ends and rejects `end` before `start` at
-construction. `Server.isAvailableAt` is false iff any period contains the service's date.
+construction. `Server.isAvailableAt` is false iff any period contains the service's date. How the
+two dates are entered is `dsn~date-entry~1` in [ui.md](ui.md).
 
 Covers:
 - req~server-unavailability~1

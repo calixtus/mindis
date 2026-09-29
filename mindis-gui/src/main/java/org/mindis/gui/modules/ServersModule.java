@@ -39,6 +39,8 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
+import atlantafx.base.theme.Styles;
+
 import com.dlsc.gemsfx.CalendarPicker;
 import com.dlsc.gemsfx.ChipView;
 import com.dlsc.gemsfx.SearchField;
@@ -194,14 +196,6 @@ public final class ServersModule extends CrudModule<Server> {
         CheckBox activeCheck = new CheckBox();
         activeCheck.setSelected(server.active());
 
-        // Created here (not inline in the grid section below, where they
-        // used to be) so the dirty-recompute closures below - which run from
-        // listeners attached well before the grid is built - can already
-        // close over them.
-        Label qualificationsLabel = new Label(Localization.lang("Qualifications"));
-        Label preferredTimesLabel = new Label(Localization.lang("Preferred times"));
-        Label unavailabilityLabel = new Label(Localization.lang("Unavailable periods"));
-
         // Row height scales with the app font size (keeps rows compact and
         // legible when the user changes the font in Settings).
         DoubleBinding cellSize = Bindings.createDoubleBinding(
@@ -226,17 +220,46 @@ public final class ServersModule extends CrudModule<Server> {
         periodFromPicker.setPromptText(Localization.lang("From"));
         CalendarPicker periodToPicker = CalendarPickers.create();
         periodToPicker.setPromptText(Localization.lang("To"));
+        // Why a message instead of a disabled Add button: a date typed into a
+        // picker only becomes its value when the editor commits (Enter, or
+        // losing focus to the click on Add), so a button disabled on the
+        // still-empty value would swallow that very first click and force the
+        // user to click twice.
+        Label periodError = new Label();
+        periodError.getStyleClass().add(Styles.DANGER);
+        periodError.setWrapText(true);
+        // Stretched to the section's width and sized from that width, so a
+        // long message wraps onto a second line instead of being ellipsized to
+        // exactly the part that says what to do.
+        periodError.setMaxWidth(Double.MAX_VALUE);
+        periodError.setMinHeight(Region.USE_PREF_SIZE);
+        periodError.setVisible(false);
+        periodError.setManaged(false);
         Button addPeriodButton = new Button(Localization.lang("Add"));
         addPeriodButton.setOnAction(event -> {
             LocalDate from = periodFromPicker.getValue();
-            LocalDate to = periodToPicker.getValue();
-            if (from == null || to == null || to.isBefore(from)) {
+            // An absence of a single day needs no end date: an empty "To"
+            // means "same day as From".
+            LocalDate to = Objects.requireNonNullElse(periodToPicker.getValue(), from);
+            if (from == null) {
+                showPeriodError(periodError, Localization.lang(
+                        "Enter a start date (e.g. %0). Leave the end date empty for a single day.",
+                        CalendarPickers.ISO.format(LocalDate.now())));
                 return;
             }
+            if (to.isBefore(from)) {
+                showPeriodError(periodError, Localization.lang("The end date must not be before the start date"));
+                return;
+            }
+            showPeriodError(periodError, null);
             unavailabilityList.getItems().add(new UnavailabilityPeriod(from, to));
             periodFromPicker.setValue(null);
             periodToPicker.setValue(null);
         });
+        // Any correction clears the complaint, so it never outlives the input
+        // it was about.
+        periodFromPicker.valueProperty().addListener((obs, old, value) -> showPeriodError(periodError, null));
+        periodToPicker.valueProperty().addListener((obs, old, value) -> showPeriodError(periodError, null));
         Button removePeriodButton = new Button(Localization.lang("Remove"));
         removePeriodButton.setOnAction(event -> {
             UnavailabilityPeriod period = unavailabilityList.getSelectionModel().getSelectedItem();
@@ -286,7 +309,7 @@ public final class ServersModule extends CrudModule<Server> {
         FlowPane periodControls = new FlowPane(8, 8,
                 periodFromPicker, periodToPicker, addPeriodButton, removePeriodButton);
         periodControls.setMaxWidth(Double.MAX_VALUE);
-        VBox unavailabilityBox = new VBox(8, unavailabilityList, periodControls);
+        VBox unavailabilityBox = new VBox(8, unavailabilityList, periodControls, periodError);
         unavailabilityBox.setMaxWidth(Double.MAX_VALUE);
         periodControls.prefWrapLengthProperty().bind(unavailabilityBox.widthProperty());
         form.section(Localization.lang("Unavailable periods"), unavailabilityBox,
@@ -329,6 +352,15 @@ public final class ServersModule extends CrudModule<Server> {
         // refresh: the row's value changed externally (e.g. an Open, or a
         // revert) - the form pushes every declared row back into its control.
         return EditorBinding.of(content, form.refresh());
+    }
+
+    /// Shows `message` under the unavailability controls, or hides the label
+    /// again when it is `null`. Unmanaged while hidden, so an editor with
+    /// nothing to complain about keeps its usual layout.
+    private static void showPeriodError(Label label, @Nullable String message) {
+        label.setText(message == null ? "" : message);
+        label.setVisible(message != null);
+        label.setManaged(message != null);
     }
 
     /// Rebuilds `flow` from `times` - one closable [ChipView]

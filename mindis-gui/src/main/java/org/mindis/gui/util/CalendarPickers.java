@@ -5,9 +5,19 @@ import com.dlsc.gemsfx.CalendarView;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.chrono.IsoChronology;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
+import java.time.format.FormatStyle;
+import java.time.temporal.ChronoField;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javafx.util.StringConverter;
 
@@ -16,9 +26,18 @@ import org.jspecify.annotations.Nullable;
 /// ISO (`yyyy-MM-dd`) formatting for GemsFX [CalendarPicker]s,
 /// shared by every date field in the app (see ADR: date pickers use GemsFX's
 /// calendar popup instead of the stock JavaFX `DatePicker`).
+///
+/// <p>ISO is what a picker *displays* - one unambiguous format everywhere,
+/// whatever the UI language. What it *accepts* is deliberately wider: the rest
+/// of the app renders dates in the user's own locale ([DateTimes]), so a
+/// German user reading "30.07.2026" on every other screen will type
+/// "30.07.2026" into a date field too. That input used to be dropped on the
+/// floor - the converter returned `null`, the picker kept no value, and the
+/// typed text just sat there looking accepted - so [#parse] tries the locale's
+/// own date formats after ISO.
 public final class CalendarPickers {
 
-    /// The date format every `CalendarPicker` in the app displays and parses.
+    /// The date format every `CalendarPicker` in the app displays.
     public static final DateTimeFormatter ISO = DateTimeFormatter.ISO_LOCAL_DATE;
 
     /// GemsFX's bundled CSS (calendar-picker/calendar-view/year-view/
@@ -160,16 +179,82 @@ public final class CalendarPickers {
 
             @Override
             public @Nullable LocalDate fromString(@Nullable String text) {
-                String trimmed = text == null ? "" : text.strip();
-                if (trimmed.isEmpty()) {
-                    return null;
-                }
-                try {
-                    return LocalDate.parse(trimmed, ISO);
-                } catch (DateTimeParseException e) {
-                    return null;
-                }
+                return parse(text);
             }
         });
+    }
+
+    /// The date `text` denotes, or `null` if it is blank or none of the
+    /// accepted formats match: ISO first, then the current locale's own date
+    /// formats (see the class docs).
+    public static @Nullable LocalDate parse(@Nullable String text) {
+        String trimmed = text == null ? "" : text.strip();
+        if (trimmed.isEmpty()) {
+            return null;
+        }
+        for (DateTimeFormatter format : inputFormats()) {
+            try {
+                return LocalDate.parse(trimmed, format);
+            } catch (DateTimeParseException tryTheNextOne) {
+                // Expected: the formats are alternatives, not a chain.
+            }
+        }
+        return null;
+    }
+
+    /// Every format a typed date may be in, strictest first. Derived from the
+    /// current locale on every call rather than cached, for the reason
+    /// [DateTimes] spells out: `Localization.setLocale` moves that locale at
+    /// runtime.
+    ///
+    /// <p>Two localized styles, each contributing its own pattern plus a
+    /// relaxed variant that also takes a one-digit day or month and either a
+    /// two- or a four-digit year ("5.9.26" and "5.9.2026" both parse). The
+    /// field *order* always stays the locale's, so "3/4/2026" reads as March
+    /// 4th for an English UI and as April 3rd for a German one rather than
+    /// being guessed at. SHORT before MEDIUM because the German MEDIUM pattern
+    /// (`dd.MM.y`) would otherwise read "30.07.26" as the year 26.
+    private static List<DateTimeFormatter> inputFormats() {
+        Locale locale = Locale.getDefault(Locale.Category.FORMAT);
+        List<FormatStyle> styles = List.of(FormatStyle.SHORT, FormatStyle.MEDIUM);
+        List<DateTimeFormatter> formats = new ArrayList<>();
+        formats.add(ISO);
+        for (FormatStyle style : styles) {
+            formats.add(DateTimeFormatter.ofLocalizedDate(style).withLocale(locale));
+        }
+        for (FormatStyle style : styles) {
+            relaxed(localizedPattern(style, locale), locale).ifPresent(formats::add);
+        }
+        return formats;
+    }
+
+    private static String localizedPattern(FormatStyle style, Locale locale) {
+        return DateTimeFormatterBuilder.getLocalizedDateTimePattern(
+                style, null, IsoChronology.INSTANCE, locale);
+    }
+
+    /// `pattern` with its day and month fields widened to accept one digit as
+    /// well as two, and its year field replaced by a 2-to-4-digit one based at
+    /// 2000 (so "26" is 2026, and "2026" is itself). Empty for a pattern with
+    /// no year to widen, which no locale's short or medium date has.
+    private static Optional<DateTimeFormatter> relaxed(String pattern, Locale locale) {
+        // Single letters only: "MMM" is the month's *name*, which is already
+        // as wide as it gets, and narrowing it would break the pattern.
+        String widened = pattern.replaceAll("(?<!d)dd(?!d)", "d").replaceAll("(?<!M)MM(?!M)", "M");
+        Matcher year = Pattern.compile("y+|u+").matcher(widened);
+        if (!year.find()) {
+            return Optional.empty();
+        }
+        DateTimeFormatterBuilder builder = new DateTimeFormatterBuilder();
+        appendLiteralPattern(builder, widened.substring(0, year.start()));
+        builder.appendValueReduced(ChronoField.YEAR, 2, 4, 2000);
+        appendLiteralPattern(builder, widened.substring(year.end()));
+        return Optional.of(builder.toFormatter(locale));
+    }
+
+    private static void appendLiteralPattern(DateTimeFormatterBuilder builder, String pattern) {
+        if (!pattern.isEmpty()) {
+            builder.appendPattern(pattern);
+        }
     }
 }

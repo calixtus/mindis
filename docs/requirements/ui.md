@@ -315,6 +315,30 @@ names are intentionally untranslated. The global mutable static is a documented 
 Covers:
 - req~language-choice~1
 
+### Date entry accepts what the user writes
+`dsn~date-entry~1`
+
+Every date field is a GemsFX `CalendarPicker` set up by `CalendarPickers`, which *displays* ISO
+(`2026-07-30`) — one unambiguous format whatever the UI language — but *accepts* more than that:
+ISO first, then the current locale's own short and medium date formats, each also in a relaxed
+variant taking a one-digit day or month and a two- or four-digit year. The field order always stays
+the locale's, so `3/4/2026` reads as March 4th in English and as April 3rd in German rather than
+being guessed at. This matters because every other screen renders dates through `DateTimes`, i.e.
+in the user's locale, so that is what gets typed back in; ISO-only parsing silently dropped it and
+left the picker valueless while the typed text sat there looking accepted
+(`CalendarPickersTest`).
+
+Unavailability periods are added from such a pair of pickers: an empty end date means a single-day
+absence, and an input that cannot be added at all (no start date, or an end before the start) puts a
+message under the controls instead of doing nothing — cleared as soon as either picker changes. The
+button stays enabled while the input is incomplete on purpose: a typed date only becomes the
+picker's value when its editor commits, which for a mouse user is the very click on Add
+(`ServersModuleUnavailabilityTest`).
+
+Covers:
+- req~server-unavailability~1
+- req~language-choice~1
+
 ### Language change rebuilds the UI
 `dsn~language-rebuild~1`
 
