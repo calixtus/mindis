@@ -11,6 +11,8 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Labeled;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TitledPane;
+import javafx.scene.control.ToolBar;
 import javafx.scene.control.SplitPane;
 
 import org.jspecify.annotations.Nullable;
@@ -82,11 +84,11 @@ public final class FxTest {
     ///
     /// Walks the places a control's children actually live, which is not just
     /// [javafx.scene.Parent#getChildrenUnmodifiable()]: a `ScrollPane`'s content and a
-    /// `SplitPane`'s items hang off the control rather than its child list, and both
-    /// are invisible through the child list until a skin exists - which it does not,
-    /// for a graph no `Scene` has laid out yet. A `Labeled`'s graphic is reachable
-    /// only through the control too, and in this code base that is where a whole row
-    /// can sit (see `AppShell`'s nav entries).
+    /// `SplitPane`'s items, a `ToolBar`'s items and a `TitledPane`'s content all hang off
+    /// the control rather than its child list, and are invisible through that list until
+    /// a skin exists - which it does not, for a graph no `Scene` has laid out yet. A
+    /// `Labeled`'s graphic is reachable only through the control too, and in this code
+    /// base that is where a whole row can sit (see `AppShell`'s nav entries).
     public static <T extends Node> List<T> findAll(Node root, Class<T> type) {
         List<T> found = new ArrayList<>();
         collect(root, type, found);
@@ -114,6 +116,12 @@ public final class FxTest {
         }
         if (node instanceof SplitPane splitPane) {
             splitPane.getItems().forEach(item -> collect(item, type, into));
+        }
+        if (node instanceof ToolBar toolBar) {
+            toolBar.getItems().forEach(item -> collect(item, type, into));
+        }
+        if (node instanceof TitledPane titledPane && titledPane.getContent() != null) {
+            collect(titledPane.getContent(), type, into);
         }
     }
 

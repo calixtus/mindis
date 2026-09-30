@@ -459,8 +459,13 @@ Key elements copied from the JabRef approach:
 4. **Done when:** roster + services survive app restart (JSON round-trip), UI CRUD complete,
    both views fully localized.
    **As built (2026-07-06):** done — verified manually (create/save/restart/reload on a real
-   run) plus unit tests for repositories and template generator. TestFX still deferred
-   (see M1 note); template CRUD exercised via unit tests, not yet via UI click-through.
+   run) plus unit tests for repositories and template generator.
+   **UI click-through added 2026-09-30**, once the headless toolkit made it possible:
+   `TemplatesModuleCrudTest` and `ServicesModuleCrudTest` drive the screens' own toolbar
+   buttons — New stages a row and opens it for editing, editing a field writes through to the
+   repository, Delete removes it, and Delete stays disabled with nothing selected. Buttons are
+   found by Ikonli literal rather than label, so the tests do not depend on the machine's
+   language.
 
 ### M3 — Timefold integration
 1. Add Timefold annotations to planning types, `ServicePlan` solution, `ConstraintProvider`
