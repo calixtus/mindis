@@ -287,8 +287,16 @@ mindis/
 ├── config/
 │   └── checkstyle/checkstyle.xml     # JabRef-derived rules (§8)
 ├── docs/adr/                         # architecture decision records
-│   ├── 001-view-layer.md             # FxmlKit primary, FXML/2 parked (§2.1)
-│   └── 003-web-ui-path.md            # future web module options, decision deferred (§2.5)
+│   ├── 001-view-layer.md             # plain Java views, FXML parked (§2.1)
+│   ├── 002-packaging.md              # native vs jpackage — jpackage only (M7)
+│   ├── 003-web-ui-path.md            # future web module options, decision deferred (§2.5)
+│   ├── 004-preferences.md            # own JSON preference store (§2.6)
+│   ├── 005-shell.md                  # bespoke shell + GemsFX PowerPane (§4.1)
+│   ├── 006-preferences-architecture.md  # PreferenceEnumValue + PreferenceValue registry
+│   ├── 007-document-storage.md       # one user-chosen document file, not a data dir
+│   ├── 008-third-party-licensing.md  # permissive-only, enforced by checkLicense
+│   ├── 009-export-templating.md      # the Pebble template owns the document
+│   └── 010-auto-update.md            # check + verify; the platform installer installs
 ├── mindis-core/                      # module: org.mindis.core — UI-AGNOSTIC (§2.5)
 │   └── src/main/java/module-info.java
 │       # exports model, planning, persistence API, localization, preferences
@@ -516,8 +524,9 @@ Key elements copied from the JabRef approach:
    module-info to drop its `requires javafx.swing`. Local verification: app-image
    (`-PinstallerType=app-image`, WiX-free); packaged `MinDis.exe` boots with bundled runtime.
    CI: `build.yml` (ubuntu, push/PR), `release.yml` (tag `v*` → windows runner, WiX
-   preinstalled → exe installer → GitHub release). Version in gradle.properties (`0.6.0`,
-   MSI-compatible x.y.z).
+   preinstalled → exe installer → GitHub release). Version lives in gradle.properties and must
+   stay plain `x.y.z` — jpackage/MSI rejects suffixes. (The workflows were later renamed:
+   `on-push-tests.yml`, `binaries.yml`, `native-spike.yml`.)
 
 ### M7 — GraalVM Native Image (last, self-contained)
 All native work lives here; nothing before M6 depends on it, and failure leaves M6 as the
@@ -568,6 +577,19 @@ vs. JIT is acceptable. Same release pipeline ships both artifacts.
   guard is gone - a toolkit that will not start fails the test rather than quietly passing it.
   Software rendering is implied, so a future pixel/snapshot assertion would differ from a
   desktop run; nothing asserts on pixels today.
+- **Document storage (2026-07-23, ADR-007):** entity data is no longer a per-user data
+  directory but **one JSON document the user opens and saves like any other file**, which
+  supersedes the storage half of ADR-004 (preferences keep theirs). `MinDisDocument` holds
+  roles, servers, templates, services (assignments live on the slots) and the archive behind a
+  `version`; `DocumentStore` reads and writes it atomically and **throws on a failed read**
+  rather than yielding an empty document - the user picked that exact file and has to learn it
+  did not open. Repositories became pure in-memory stores of the open document, so `AppDatabase`
+  owns the path and the actions (`newDocument`/`open`/`save`/`saveAs`/`reload`) and an untitled
+  document has no path at all. `DocumentSession` (gui) owns the file chooser, the window title
+  and the Save/Discard/Cancel guard. Startup reopens `lastDocument` and falls back to a new
+  untitled document rather than failing to start. Default roles are seeded into a *new*
+  document, so a roster someone deliberately emptied stays empty.
+
 - **Sidebar collection switcher (2026-07-24, UX review #3):** the sidebar top
   carries an account-switcher-style control for the open collection (a document =
   one parish). It shows the collection's logo + name and an inline save button
@@ -617,6 +639,36 @@ vs. JIT is acceptable. Same release pipeline ships both artifacts.
   the app is unreleased. **Not built:** ICS/RRULE export — `PlanExportDocument` is a
   text-flattened view with no date, duration or location left on it, so a calendar export
   needs its own pipeline off `LiturgicalService` rather than a sixth `PlanExporter`.
+
+- **Third-party licensing (2026-08-12, ADR-008):** every shipped module must carry a permissive
+  license and **the build fails if one does not**. `config/licenses/allowed-licenses.json` is the
+  allowlist (Apache-2.0, MIT, BSD-2/3, CC0) plus name-pinned exceptions reviewed one at a time;
+  `org.mindis.gradle.check.licenses` runs the jk1 report over `:gui`'s `runtimeClasspath` - which
+  is exactly what jpackage bundles - and wires `checkLicense` into `check`. PDF export moved from
+  OpenPDF (MPL/LGPL) to **Apache PDFBox** for this reason, and `THIRD-PARTY-NOTICES.md` is
+  generated from the resolved dependency set, never hand-maintained, and shipped inside the jar
+  so About can show it. Adding a dependency now means checking its license too.
+
+- **Export templating (2026-08-13, ADR-009):** the export template owns the document; the
+  application only supplies values. `PlanTemplateModel` exposes `java.time` values and booleans
+  rather than formatted dates and dashes, and a **Pebble** template (`plan.md.peb`, BSD-3) does
+  the formatting, composition and wording. Its Markdown is parsed once by commonmark into a
+  `PlanBlock` list, which the per-format renderers draw: Markdown verbatim, TXT with underlined
+  headings and padded columns, RTF with bold runs and `\pngblip` images, PDF through
+  `PdfPlanRenderer`. A user copy of the template in the data directory overrides the bundled one
+  and falls back to it if it fails to render. The template reaches translations beyond `labels`
+  through its own `lang("...")` function - the one place a localization key legitimately is not a
+  literal in Java (see `Localization#translateDynamic`).
+
+- **Auto-update (2026-09-28, ADR-010):** MinDis checks, asks, downloads and verifies; **the
+  platform's own installer installs**, and nothing inside the running installation is ever
+  touched, so signatures, package databases and elevation stay the platform's business. There is
+  no update server: `:gui:updateManifest` writes one `latest-<platform>.json` per platform as a
+  release asset, fetched through GitHub's stable `releases/latest/download/…` URL - one manifest
+  per platform because each platform's packages are built on their own runner and can publish
+  without waiting on the others. Downloads are SHA-256 verified before anything is launched. The
+  check is on by default at startup, switchable in Settings, and quitting into an installer goes
+  through the same unsaved-changes prompt as closing the window.
 
 ### Future (explicitly out of scope for M0–M7): `mindis-web`
 
@@ -698,9 +750,12 @@ Reviewers/agents: cite the violated principle or item when rejecting code.
 
 ### General
 
-- One ADR per significant decision in `docs/adr/NNN-title.md`. Seeded: `001-view-layer`
-  (plain Java vs FXML), `002-packaging` (native vs jpackage, written in M7), `003-web-ui-path`
-  (web module deferred, §2.5), `004-preferences` (own JSON store, §2.6, written in M1).
+- One ADR per significant decision in `docs/adr/NNN-title.md`. Ten so far: `001-view-layer`
+  (plain Java vs FXML), `002-packaging` (native vs jpackage — jpackage only), `003-web-ui-path`
+  (web module deferred, §2.5), `004-preferences` (own JSON store, §2.6), `005-shell` (bespoke
+  shell, §4.1), `006-preferences-architecture`, `007-document-storage`,
+  `008-third-party-licensing`, `009-export-templating`, `010-auto-update`. Read the ADR before
+  re-deciding anything it covers.
 - **New user-facing setting = new field in `MinDisPreferences`** with default value; bump the
   record's `version` and add explicit migration when shape changes. No ad-hoc config files,
   no `java.util.prefs`.
