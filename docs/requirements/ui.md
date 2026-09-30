@@ -13,12 +13,14 @@ Design decisions: [ADR 001 — view layer](../adr/001-view-layer.md),
 ## Requirements
 
 ### Module-based main window
-`req~app-shell~1`
+`req~app-shell~2`
 
 The application presents its areas — dashboard, servers, roles, templates, services, settings,
-about — as modules of one shell window with a sidebar. The sidebar top carries the collection
-switcher (below), which owns the application-wide document actions (New, Open, Save, Save as — see
-[persistence.md](persistence.md)); there is no separate global toolbar.
+about — as modules of one shell window with a sidebar. Exactly one module is open at a time, and the
+sidebar always shows which. It can be resized, and narrowed to an icon-only rail for a small screen;
+its width is remembered. An entry may carry a count of work waiting in that module. The sidebar top
+carries the collection switcher (below), which owns the application-wide document actions (New,
+Open, Save, Save as — see [persistence.md](persistence.md)); there is no separate global toolbar.
 
 Covers:
 - feat~multilingual-desktop-app~1
@@ -147,7 +149,41 @@ deliberately unused for navigation: it overlays rather than pushes content, hide
 cannot be resized (ADR 005).
 
 Covers:
-- req~app-shell~1
+- req~app-shell~2
+
+### Sidebar navigation
+`dsn~sidebar-navigation~1`
+
+`AppShell` is a `BorderPane`: the sidebar left, the active module's content right. It **pushes** the
+content aside rather than overlaying it (ADR 005). One entry per module, built as an explicit row —
+icon, name, then a badge at the far edge — because a `ToggleButton` has no slot for a third thing
+after its label. Bottom-pinned entries (About, Settings) sit below a hairline, outside the module
+list's `ScrollPane`, so a window too short for every entry scrolls the middle instead of clipping
+the end. Re-clicking the active entry cannot deselect it: a `ToggleGroup` allows that by default and
+it would leave the shell with no module at all.
+
+The width model is in pixels, not fractions: an icon-only rail at 60, a labelled band of 200–360,
+and a drag below 120 snapping to the rail. A width from anywhere — a drag, the chevron, a value
+persisted by an older layout — goes through the same clamp. The chevron and the arrow keys glide
+between the two states over 160ms; a drag does not, because the sidebar has to track the pointer
+rather than chase it. The handle takes focus and resizes with the arrow keys, since dragging is a
+mouse-only gesture and the width was otherwise unreachable without one.
+
+Collapsed, the entry's label moves to a tooltip (shown after 300ms — on the rail the tooltip *is*
+the label) and its badge becomes a dot in the icon's corner, a number having nowhere to fit at 60px.
+Icons are outline at rest and filled when active, so the active entry differs in glyph weight and
+not only in colour — which the rail needs most, having no label to carry it. The active entry also
+gets an accent bar down its left edge, so the selection does not depend on colour alone.
+
+`ShellModule` carries the badge as an observable count; a module with nothing to report never sets
+it and shows nothing. `ServicesModule` sets it to the slots nobody is in, over services still to
+come — a slot nobody filled last month is a record, not work waiting, and counting it would leave a
+badge that could never be cleared.
+
+Covered by `AppShellNavigationTest`, `AppShellSidebarTest` and `AppShellReloadTest`.
+
+Covers:
+- req~app-shell~2
 
 ### Collection switcher
 `dsn~collection-switcher~1`
@@ -178,7 +214,7 @@ actions (the scene survives a language rebuild, so they do too).
 
 Covers:
 - req~collection-switcher~1
-- req~app-shell~1
+- req~app-shell~2
 
 ### Composition root and DI
 `dsn~composition-root~1`
@@ -189,7 +225,7 @@ stores and their unsaved edits survive a UI rebuild, and hands every module its 
 constructor. There is no view-layer DI hook and no service locator (ADR 001).
 
 Covers:
-- req~app-shell~1
+- req~app-shell~2
 
 ### Dashboard view model
 `dsn~dashboard-viewmodel~1`
@@ -239,14 +275,15 @@ Covers:
 ### Preferences record
 `dsn~preferences-record~1`
 
-`MinDisPreferences` is an immutable record with a `version` (currently 14) plus `languageTag`,
+`MinDisPreferences` is an immutable record with a `version` (currently 15) plus `languageTag`,
 `theme` (`Light`/`Dark`/`System`, where `System` follows the OS colour scheme live), `windowBounds`,
 `solverSecondsLimit` (default 30), `softConstraintWeights`, `accentColor`,
 `fontFamily`/`fontSize` (default 14, clamped 10–24), `lastExportDirectory`,
 `sidebarWidth`, `lastDocument`, `recentCollections` (the switcher's list, capped at five; see
 [persistence.md](persistence.md)), `toolbarButtonDisplay` (text / icon / both, default both) and
 `dashboardWidgets` (the board layout: per widget its id, grid position, spans and view mode; `null`
-until the user first arranges it, an empty list being a deliberately cleared board).
+until the user first arranges it, an empty list being a deliberately cleared board) and
+`checkUpdatesOnStart` (see [updates.md](updates.md)).
 Changes go through wither methods. The compact constructor fills
 absent or invalid values with defaults, which is what makes most version steps migration-free. The
 v11→v12 step is an explicit migration: the old standalone `followSystemTheme` boolean folds into the

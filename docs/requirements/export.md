@@ -15,16 +15,17 @@ The user exports the plan as a document listing every service with its role slot
 server, plus a per-server duty count summary.
 
 Covers:
-- feat~plan-distribution~1
+- feat~plan-distribution~2
 
 ### Several output formats
-`req~export-formats~1`
+`req~export-formats~2`
 
-The plan can be written as PDF, CSV, plain text, RTF or Markdown; the user picks the format when
+The plan can be written as PDF, CSV, plain text, RTF, Markdown or iCalendar; the user picks the
+format when
 saving.
 
 Covers:
-- feat~plan-distribution~1
+- feat~plan-distribution~2
 
 ### The exported document follows a template
 `req~export-template~1`
@@ -37,7 +38,7 @@ the application's. A template that cannot be read or rendered falls back to the 
 of failing the export.
 
 Covers:
-- feat~plan-distribution~1
+- feat~plan-distribution~2
 
 ### The parish logo appears on the plan
 `req~export-logo~1`
@@ -47,7 +48,7 @@ PDF and the RTF and as its alt text in the plain-text formats. Where it sits is 
 decision.
 
 Covers:
-- feat~plan-distribution~1
+- feat~plan-distribution~2
 
 ### Exports are localized
 `req~export-localized~1`
@@ -56,7 +57,7 @@ Headings, column headers, dates and service types in the exported document use t
 language and locale conventions.
 
 Covers:
-- feat~plan-distribution~1
+- feat~plan-distribution~2
 - feat~multilingual-desktop-app~1
 
 ### Archived plans export faithfully
@@ -66,17 +67,19 @@ An archived plan exports with the names it was archived with, even if those serv
 longer exist.
 
 Covers:
-- feat~plan-distribution~1
+- feat~plan-distribution~2
 - feat~plan-history~1
 
 ### Export dialog remembers its place
 `req~export-dialog~1`
 
 The save dialog opens in the last used export directory, preselects the filter for the format the
-user chose, and derives the actual format from the chosen filter and typed file name.
+user chose, and derives the actual format from the chosen filter and typed file name. Its filter
+list is built from `PlanExportFormat`'s own values and labels, so a format cannot exist without one
+— which it could when the list was maintained by hand, and the lookup then failed at runtime.
 
 Covers:
-- feat~plan-distribution~1
+- feat~plan-distribution~2
 
 ## Design
 
@@ -113,16 +116,21 @@ Covers:
 ### Exporters
 `dsn~plan-exporters~1`
 
-`PlanExportFormat` maps each format to its extension: `PDF`/pdf, `CSV`/csv, `TXT`/txt, `RTF`/rtf,
-`MARKDOWN`/md, with `fromExtension` for the reverse lookup. CSV is written straight from the
-structured document by a `PlanExporter` (`CsvPlanExporter`) — a spreadsheet wants columns, not a
-laid-out document. Every other format is a `PlanRenderer` (`PdfPlanRenderer` on Apache PDFBox,
-`TextPlanRenderer`, `RtfPlanRenderer`, `MarkdownPlanRenderer`) drawing the templated document. Both
-kinds are registered into `EnumMap`s in the service constructor; a format with neither is a
-programming error and fails fast.
+`PlanExportFormat` maps each format to its extension and to the label a file dialog shows for it:
+`PDF`/pdf, `CSV`/csv, `TXT`/txt, `RTF`/rtf, `MARKDOWN`/md, `ICS`/ics, with `fromExtension` for the
+reverse lookup.
+
+Three exporter shapes, by what the format needs. CSV is written straight from the structured
+document by a `PlanExporter` (`CsvPlanExporter`) — a spreadsheet wants columns, not a laid-out
+document. iCalendar is a `PlanCalendarExporter` (`IcsPlanExporter`), which reads the services
+themselves: the flattened `PlanExportDocument` has turned every heading into prose with no date,
+duration or location behind it, and a calendar cannot be built from that. Every other format is a
+`PlanRenderer` (`PdfPlanRenderer` on Apache PDFBox, `TextPlanRenderer`, `RtfPlanRenderer`,
+`MarkdownPlanRenderer`) drawing the templated document. All three kinds are registered into
+`EnumMap`s in the service constructor; a format with none is a programming error and fails fast.
 
 Covers:
-- req~export-formats~1
+- req~export-formats~2
 
 ### One template, every document format
 `dsn~plan-template~1`
@@ -142,7 +150,7 @@ export.
 
 Covers:
 - req~export-template~1
-- req~export-formats~1
+- req~export-formats~2
 
 ### What a template gets, and what it may not do
 `dsn~plan-template-model~1`
@@ -191,7 +199,7 @@ sheared rather than drawn from an oblique font, which keeps a third font file ou
 The library choice is [ADR 008](../adr/008-third-party-licensing.md).
 
 Covers:
-- req~export-formats~1
+- req~export-formats~2
 - req~export-localized~1
 
 ### Localized date and enum rendering

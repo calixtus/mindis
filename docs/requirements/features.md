@@ -31,9 +31,10 @@ is never overwritten by a later solve, and a solve can be scoped to a date windo
 service.
 
 ## Plan distribution
-`feat~plan-distribution~1`
+`feat~plan-distribution~2`
 
-A finished plan can be exported as a document to hand out or print (PDF and plain-text formats).
+A finished plan can be exported as a document to hand out or print (PDF and plain-text formats),
+or as a calendar file to subscribe to in the calendar application the servers already use.
 
 ## Plan history
 `feat~plan-history~1`

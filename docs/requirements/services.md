@@ -32,7 +32,7 @@ servers ("be there 15 minutes early") reaches them with the plan itself.
 
 Covers:
 - feat~liturgical-service-planning~1
-- feat~plan-distribution~1
+- feat~plan-distribution~2
 
 ### Role slots per service
 `req~service-role-slots~1`
