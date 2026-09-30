@@ -128,8 +128,11 @@ final class PlanTemplateModel {
 
     /// One service as the export sees it, whether it came from the live roster
     /// or from an archived snapshot.
-    record Service(LocalDateTime dateTime, ServiceType type, String name, String note,
-                   String location, List<Slot> slots) {
+    /// `id` and `durationMinutes` carry no weight in a laid-out document, but a
+    /// calendar export cannot do without them: one is the event's stable identity
+    /// across re-imports, the other its end time.
+    record Service(String id, LocalDateTime dateTime, int durationMinutes, ServiceType type,
+                   String name, String note, String location, List<Slot> slots) {
 
         Service {
             slots = List.copyOf(slots);

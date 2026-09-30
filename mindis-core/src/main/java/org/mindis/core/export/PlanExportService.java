@@ -45,6 +45,8 @@ public final class PlanExportService {
     private final PlanTemplate template;
     private final Map<PlanExportFormat, PlanExporter> exporters = new EnumMap<>(PlanExportFormat.class);
     private final Map<PlanExportFormat, PlanRenderer> renderers = new EnumMap<>(PlanExportFormat.class);
+    private final Map<PlanExportFormat, PlanCalendarExporter> calendarExporters =
+            new EnumMap<>(PlanExportFormat.class);
 
     public PlanExportService(ServerRepository serverRepository, RoleRepository roleRepository,
                              AppDatabase database, DataDirectory dataDirectory) {
@@ -58,6 +60,7 @@ public final class PlanExportService {
         register(new TextPlanRenderer());
         register(new RtfPlanRenderer());
         register(new MarkdownPlanRenderer());
+        register(new IcsPlanExporter());
     }
 
     private void register(PlanExporter exporter) {
@@ -66,6 +69,10 @@ public final class PlanExportService {
 
     private void register(PlanRenderer renderer) {
         renderers.put(renderer.format(), renderer);
+    }
+
+    private void register(PlanCalendarExporter exporter) {
+        calendarExporters.put(exporter.format(), exporter);
     }
 
     /// Exports the given live services, resolving names against the current roster.
@@ -87,8 +94,8 @@ public final class PlanExportService {
                         server == null ? null : server.displayName()));
             }
             views.add(new PlanTemplateModel.Service(
-                    service.dateTime(), service.type(), service.name(), service.note(),
-                    service.location(), slots));
+                    service.id(), service.dateTime(), service.durationMinutes(), service.type(),
+                    service.name(), service.note(), service.location(), slots));
         }
         dispatch(views, targetFile, format);
     }
@@ -104,16 +111,22 @@ public final class PlanExportService {
                         slot.roleName(), slot.roleName(), slot.serverName()));
             }
             views.add(new PlanTemplateModel.Service(
-                    service.dateTime(), service.type(), service.name(), service.note(),
-                    service.location(), slots));
+                    service.id(), service.dateTime(), service.durationMinutes(), service.type(),
+                    service.name(), service.note(), service.location(), slots));
         }
         dispatch(views, targetFile, format);
     }
 
-    /// CSV is written straight from the structured document - a spreadsheet
-    /// wants columns, not a laid-out document. Every other format goes through
-    /// the template, so all of them share one layout.
+    /// Three shapes, by what the format actually needs. A calendar reads the services
+    /// themselves, because it needs their start, end and place as values. CSV is written
+    /// straight from the structured document - a spreadsheet wants columns, not a laid-out
+    /// document. Everything else goes through the template, so all of those share one layout.
     private void dispatch(List<PlanTemplateModel.Service> views, Path targetFile, PlanExportFormat format) {
+        PlanCalendarExporter calendarExporter = calendarExporters.get(format);
+        if (calendarExporter != null) {
+            calendarExporter.export(views, targetFile);
+            return;
+        }
         PlanExportDocument document = buildDocument(views);
         PlanExporter exporter = exporters.get(format);
         if (exporter != null) {

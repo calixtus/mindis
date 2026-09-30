@@ -639,6 +639,15 @@ vs. JIT is acceptable. Same release pipeline ships both artifacts.
   the app is unreleased. **Not built:** ICS/RRULE export — `PlanExportDocument` is a
   text-flattened view with no date, duration or location left on it, so a calendar export
   needs its own pipeline off `LiturgicalService` rather than a sixth `PlanExporter`.
+  **Built 2026-09-30:** that pipeline is `PlanCalendarExporter`, a third exporter shape beside
+  `PlanExporter` (flattened document, CSV) and `PlanRenderer` (the template's Markdown). It reads
+  `PlanTemplateModel.Service`, which gained the two fields a calendar cannot do without - the
+  service `id`, for a `UID` stable across re-imports, and `durationMinutes`, for `DTEND`.
+  `IcsPlanExporter` writes RFC 5545: CRLF endings, TEXT escaping, line folding at 75 **octets**
+  without splitting a UTF-8 sequence, and **floating** local times - no `Z`, no `TZID`, because a
+  10:00 mass is at 10:00 where the parish is and must not shift when the file is opened elsewhere.
+  The file-chooser filters are now derived from `PlanExportFormat` rather than listed by hand,
+  which is what had let a format exist with no filter for `filterFor` to find.
 
 - **Third-party licensing (2026-08-12, ADR-008):** every shipped module must carry a permissive
   license and **the build fails if one does not**. `config/licenses/allowed-licenses.json` is the

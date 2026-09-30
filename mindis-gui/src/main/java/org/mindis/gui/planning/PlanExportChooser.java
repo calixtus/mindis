@@ -4,6 +4,7 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
@@ -19,12 +20,12 @@ import org.mindis.core.l10n.Localization;
 /// filter.
 public final class PlanExportChooser {
 
-    private static final List<FileChooser.ExtensionFilter> FILTERS = List.of(
-            new FileChooser.ExtensionFilter("PDF", "*.pdf"),
-            new FileChooser.ExtensionFilter("CSV", "*.csv"),
-            new FileChooser.ExtensionFilter("TXT", "*.txt"),
-            new FileChooser.ExtensionFilter("RTF", "*.rtf"),
-            new FileChooser.ExtensionFilter("Markdown", "*.md"));
+    /// Derived from the enum rather than listed here: a hand-kept list silently fell out
+    /// of step with a new format, and `filterFor` then threw for it.
+    private static final List<FileChooser.ExtensionFilter> FILTERS =
+            Stream.of(PlanExportFormat.values())
+                  .map(format -> new FileChooser.ExtensionFilter(format.label(), "*." + format.extension()))
+                  .toList();
 
     private PlanExportChooser() {
     }
