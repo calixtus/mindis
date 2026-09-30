@@ -1,14 +1,17 @@
 package org.mindis.gui;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javafx.application.Platform;
 import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.control.Labeled;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SplitPane;
-import javafx.scene.layout.Pane;
 
 import org.jspecify.annotations.Nullable;
 
@@ -68,10 +71,25 @@ public final class FxTest {
     /// The first node of the given type below `root`, or throws - a missing
     /// node means the view changed shape and the test's assumptions are stale.
     public static <T extends Node> T find(Node root, Class<T> type) {
-        T found = findOrNull(root, type);
-        if (found == null) {
+        List<T> found = findAll(root, type);
+        if (found.isEmpty()) {
             throw new AssertionError("no " + type.getSimpleName() + " in scene graph");
         }
+        return found.getFirst();
+    }
+
+    /// Every node of the given type below `root`, in scene-graph order.
+    ///
+    /// Walks the places a control's children actually live, which is not just
+    /// [javafx.scene.Parent#getChildrenUnmodifiable()]: a `ScrollPane`'s content and a
+    /// `SplitPane`'s items hang off the control rather than its child list, and both
+    /// are invisible through the child list until a skin exists - which it does not,
+    /// for a graph no `Scene` has laid out yet. A `Labeled`'s graphic is reachable
+    /// only through the control too, and in this code base that is where a whole row
+    /// can sit (see `AppShell`'s nav entries).
+    public static <T extends Node> List<T> findAll(Node root, Class<T> type) {
+        List<T> found = new ArrayList<>();
+        collect(root, type, found);
         return found;
     }
 
@@ -81,30 +99,22 @@ public final class FxTest {
         return new TestablePreferencesService(file);
     }
 
-    private static <T extends Node> @Nullable T findOrNull(Node root, Class<T> type) {
-        if (type.isInstance(root)) {
-            return type.cast(root);
+    private static <T extends Node> void collect(Node node, Class<T> type, List<T> into) {
+        if (type.isInstance(node)) {
+            into.add(type.cast(node));
         }
-        if (root instanceof Pane pane) {
-            for (Node child : pane.getChildrenUnmodifiable()) {
-                T found = findOrNull(child, type);
-                if (found != null) {
-                    return found;
-                }
-            }
+        if (node instanceof Parent parent) {
+            parent.getChildrenUnmodifiable().forEach(child -> collect(child, type, into));
         }
-        if (root instanceof ScrollPane scrollPane) {
-            return findOrNull(scrollPane.getContent(), type);
+        if (node instanceof Labeled labeled && labeled.getGraphic() != null) {
+            collect(labeled.getGraphic(), type, into);
         }
-        if (root instanceof SplitPane splitPane) {
-            for (Node child : splitPane.getItems()) {
-                T found = findOrNull(child, type);
-                if (found != null) {
-                    return found;
-                }
-            }
+        if (node instanceof ScrollPane scrollPane && scrollPane.getContent() != null) {
+            collect(scrollPane.getContent(), type, into);
         }
-        return null;
+        if (node instanceof SplitPane splitPane) {
+            splitPane.getItems().forEach(item -> collect(item, type, into));
+        }
     }
 
     private static final class TestablePreferencesService extends PreferencesService {

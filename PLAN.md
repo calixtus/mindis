@@ -425,10 +425,17 @@ Key elements copied from the JabRef approach:
 4. Preferences (§2.6): `MinDisPreferences` record + `PreferencesService` in core (Jackson,
    atomic write); gui adapter; locale, theme and window geometry persisted and applied at
    startup. Write `docs/adr/004-preferences.md`.
-5. Smoke tests for shell behaviour (open/close modules, drawer, dialog), as plain JUnit
-   driving the FX thread through `FxTest`. **Unblocked 2026-09-30:** the headless-toolkit
-   problem is solved by JavaFX itself - `glass.platform=Headless` plus `prism.order=sw` on the
-   `:gui` test task, no Monocle and no TestFX, so these run on CI instead of skipping.
+5. Smoke tests for shell behaviour, as plain JUnit driving the FX thread through `FxTest`.
+   **Built 2026-09-30**, once JavaFX's own headless platform removed the blocker
+   (`glass.platform=Headless` + `prism.order=sw` on the `:gui` test task — no Monocle, no
+   TestFX): `AppShellNavigationTest` (every module reachable, bottom-pinned ones included,
+   the active entry cannot be deselected, re-opening by class name — which is how the
+   selection survives a language rebuild), `AppShellSidebarTest` (the width model at its
+   boundaries: rail 60, minimum 200, maximum 360, collapse below 120, plus labels moving to
+   tooltips on the rail and the badge's pill/dot), `AppShellReloadTest` and
+   `ShellOverlaysTest` (dialog layer, notification grouping). The drawer is the one listed
+   item with no test: `PowerPane` provides the layer but nothing in mindis puts anything in
+   it, so there is no mindis behaviour to cover — see ADR 005.
 6. **Done when:** app starts, five modules open/close, theme + language switch (en↔de) work
    **and survive restart**, with no third-party shell library on the class path.
 
