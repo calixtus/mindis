@@ -73,6 +73,21 @@ dependencies {
     implementation("org.slf4j:slf4j-jdk14")
 }
 
+// JavaFX's own headless platform, so the toolkit starts on a machine with no
+// display and the UI tests run on CI instead of skipping there. This is what
+// JabRef moved to when it dropped TestFX
+// (https://github.com/JabRef/jabref/pull/16850); it needs no library and no
+// Monocle, only these two properties. Measured on this suite: 27 of 91 :gui
+// tests used to skip without a display, now none do, at no cost in wall time.
+//
+// Software rendering is part of the deal - there is no GPU to render against -
+// so a future pixel or snapshot assertion would see different output than a
+// desktop run. Nothing here asserts on pixels.
+tasks.test {
+    systemProperty("glass.platform", "Headless")
+    systemProperty("prism.order", "sw")
+}
+
 // PickerFX declares ControlsFX in its published metadata but does not use it:
 // its module-info requires only java.base and javafx.controls, and none of its
 // 39 classes references org.controlsfx. Dropping it keeps a library mindis

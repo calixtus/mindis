@@ -12,26 +12,25 @@ import javafx.scene.layout.Pane;
 
 import org.jspecify.annotations.Nullable;
 
-import org.junit.jupiter.api.Assumptions;
-
 import org.mindis.core.preferences.PreferencesService;
 
 /// Shared scaffolding for the tests that have to build real controls.
 ///
-/// Boots the JavaFX toolkit once per JVM and skips - rather than fails - where
-/// there is none, so a headless CI run reports these as skipped instead of
-/// red. That is the current stopgap; a proper headless harness (Monocle) is
-/// still open, see PLAN.md M1.
+/// Boots the JavaFX toolkit once per JVM. The `:gui` test task runs JavaFX in its
+/// own headless platform (`glass.platform=Headless`, see `mindis-gui/build.gradle.kts`),
+/// so a display is not needed and a missing toolkit is a real failure rather than a
+/// reason to skip: skipping is how 27 of these tests went unnoticed on CI for months.
 public final class FxTest {
 
     private static final AtomicBoolean STARTED = new AtomicBoolean(false);
-    private static volatile boolean available = true;
+    /// Why the toolkit could not start, if it could not; reported by every test that
+    /// then asks for it, not only the first one to try.
+    private static volatile @Nullable Throwable startupFailure;
 
     private FxTest() {
     }
 
-    /// Runs `body` on the FX thread and waits for it, rethrowing whatever it
-    /// threw. Skips the test when no toolkit can be started.
+    /// Runs `body` on the FX thread and waits for it, rethrowing whatever it threw.
     public static void runAndWait(Runnable body) throws InterruptedException {
         if (STARTED.compareAndSet(false, true)) {
             try {
@@ -39,12 +38,16 @@ public final class FxTest {
             } catch (IllegalStateException alreadyRunning) {
                 // Toolkit already booted by another test in this JVM; fine.
             } catch (UnsupportedOperationException noToolkit) {
-                // Headless environment with no JavaFX platform (e.g. Linux CI
-                // without a display or Monocle). Can't run a UI test here.
-                available = false;
+                startupFailure = noToolkit;
             }
         }
-        Assumptions.assumeTrue(available, "JavaFX toolkit unavailable (headless); skipping UI test");
+        Throwable failure = startupFailure;
+        if (failure != null) {
+            throw new AssertionError(
+                    "No JavaFX platform. The :gui test task sets glass.platform=Headless and "
+                            + "prism.order=sw so the toolkit starts without a display - check that "
+                            + "those are still set in mindis-gui/build.gradle.kts.", failure);
+        }
         CountDownLatch latch = new CountDownLatch(1);
         Throwable[] error = new Throwable[1];
         Platform.runLater(() -> {

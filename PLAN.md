@@ -41,7 +41,7 @@ The application is **multilingual from the start** (German + English; parish con
 | Persistence          | Jackson (JSON files in user data dir)    | 2.x                     | Simple start; DB later if needed |
 | Logging              | SLF4J + Logback                          | latest                  | |
 | Code style           | JabRef code style, enforced via Checkstyle | —                     | See §8 |
-| Testing              | JUnit 5, TestFX (UI), Timefold test API  | latest                  | `org.gradlex.java-module-testing` |
+| Testing              | JUnit 5, JavaFX headless platform (UI), Timefold test API | latest | `org.gradlex.java-module-testing` |
 
 ### 2.1 View layer: plain Java, no FXML
 
@@ -383,7 +383,7 @@ Key elements copied from the JabRef approach:
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
 | GemsFX single-vendor dependency (DLSC) | Abandonment would strand the date/time pickers, chips and the PowerPane overlays | Each is used behind a thin local wrapper (`CalendarPickers`, `TimePickers`, `ShellOverlays`), so a swap is contained; plain JavaFX equivalents exist for all of them. |
-| Bespoke shell = own maintenance burden | Bug fixes on us forever | Keep it minimal (§4.1) — ~300 lines, no features beyond what a screen actually needs; TestFX coverage on shell behavior once the headless harness is solved. |
+| Bespoke shell = own maintenance burden | Bug fixes on us forever | Keep it minimal (§4.1) — ~300 lines, no features beyond what a screen actually needs; shell behaviour covered by headless FX tests (`FxTest`), which run on CI since 2026-09-30. |
 | **GraalVM (all M7):** JavaFX native fragility, Timefold AOT (Quarkus-tested, plain-Java less trodden), Jackson reflection | M7 fails or slips | Whole risk deferred to M7 by design — **jpackage (M6) is the shipping path and stays regardless**, so native is pure upside. In M7: GluonFX plugin, tracing-agent metadata, headless solver spike first. Views are plain Java (§2.1), so they contribute no reachability metadata. Rules §2.2 keep M0–M6 code from making it worse. |
 | Full-text keys clash with properties format (spaces, `=`, `:` need escaping) | Messy bundle files | Exactly JabRef's trade-off — proven workable; localization check task (§5) catches drift; consider JabRef's tooling for bundle maintenance. |
 | Timefold under JPMS | Reflection failures at runtime | `opens org.mindis.core.model, org.mindis.core.planning to ai.timefold.solver.core;` — covered by solver smoke test in CI. |
@@ -425,9 +425,10 @@ Key elements copied from the JabRef approach:
 4. Preferences (§2.6): `MinDisPreferences` record + `PreferencesService` in core (Jackson,
    atomic write); gui adapter; locale, theme and window geometry persisted and applied at
    startup. Write `docs/adr/004-preferences.md`.
-5. TestFX smoke tests for shell (open/close modules, drawer, dialog). Blocked on a
-   headless-toolkit harness (Monocle) that fights JPMS; shell behavior is covered by plain
-   JUnit tests driving the FX thread until that is solved.
+5. Smoke tests for shell behaviour (open/close modules, drawer, dialog), as plain JUnit
+   driving the FX thread through `FxTest`. **Unblocked 2026-09-30:** the headless-toolkit
+   problem is solved by JavaFX itself - `glass.platform=Headless` plus `prism.order=sw` on the
+   `:gui` test task, no Monocle and no TestFX, so these run on CI instead of skipping.
 6. **Done when:** app starts, five modules open/close, theme + language switch (en↔de) work
    **and survive restart**, with no third-party shell library on the class path.
 
@@ -552,7 +553,14 @@ vs. JIT is acceptable. Same release pipeline ships both artifacts.
 - **Not built — reactive repository→UI layer:** activation-refresh covers every observable
   case in a single-window app; an event/ObservableList layer would add machinery with no
   visible behavior change (YAGNI). Revisit only if multi-window or background imports arrive.
-- Still deferred: TestFX harness (user decision).
+- **Headless UI tests (2026-09-30):** TestFX is not needed and was never adopted. JavaFX's own
+  headless platform (`glass.platform=Headless`, `prism.order=sw` on the `:gui` test task) starts
+  the toolkit with no display, which is the route JabRef took when it dropped TestFX
+  (https://github.com/JabRef/jabref/pull/16850). 27 of 91 `:gui` tests had been skipping on CI
+  through `FxTest`'s headless guard; all 91 now run, at no measurable cost in wall time. The
+  guard is gone - a toolkit that will not start fails the test rather than quietly passing it.
+  Software rendering is implied, so a future pixel/snapshot assertion would differ from a
+  desktop run; nothing asserts on pixels today.
 - **Sidebar collection switcher (2026-07-24, UX review #3):** the sidebar top
   carries an account-switcher-style control for the open collection (a document =
   one parish). It shows the collection's logo + name and an inline save button
