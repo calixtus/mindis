@@ -181,6 +181,19 @@ public final class AppShell extends BorderPane {
         return currentWidth;
     }
 
+    /// Rebuilds the active module's content in place.
+    ///
+    /// Selecting a module already calls [ShellModule#activate()]; this is for
+    /// when the data underneath the active one was replaced without the selection
+    /// changing - another document opened, say. A module that mirrors a
+    /// [org.mindis.gui.data.LiveStore] follows such a change on its own, but one
+    /// that reads a repository while building its content has no way to notice it.
+    public void reloadActiveModule() {
+        if (activeModule != null) {
+            contentPane.getChildren().setAll(activeModule.activate());
+        }
+    }
+
     /// Selects the module in the sidebar (activating it).
     public void openModule(ShellModule module) {
         ToggleButton button = navButtons.get(module);

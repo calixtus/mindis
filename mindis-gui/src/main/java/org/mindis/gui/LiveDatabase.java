@@ -14,6 +14,8 @@ import javafx.beans.binding.NumberBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyIntegerProperty;
+import javafx.beans.property.ReadOnlyIntegerWrapper;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -62,6 +64,8 @@ public final class LiveDatabase {
     // The collection identity (name/logo) is not a row of any LiveStore, so its
     // edits need their own staged-change flag, mirrored into the dirty signal.
     private final BooleanProperty metaDirty = new SimpleBooleanProperty(false);
+    private final ReadOnlyIntegerWrapper documentGeneration =
+            new ReadOnlyIntegerWrapper(this, "documentGeneration", 0);
     private final BooleanBinding dirty;
 
     public LiveDatabase(AppDatabase database, RoleRepository roleRepository,
@@ -149,18 +153,31 @@ public final class LiveDatabase {
         return archiveDirty;
     }
 
+    /// Bumped whenever the open document's contents are replaced wholesale - a new
+    /// document, another file opened, a revert to what is on disk. Everything
+    /// showing on screen describes the document that was there before, so whoever
+    /// owns the screen has to rebuild it.
+    ///
+    /// <p>Deliberately not bumped by a save: that writes the same data back out and
+    /// nothing on screen goes stale, so rebuilding would only lose the user's place.
+    public ReadOnlyIntegerProperty documentGenerationProperty() {
+        return documentGeneration.getReadOnlyProperty();
+    }
+
     // --- Document actions ---
 
     /// Replaces the open document with an empty untitled one (default roles seeded).
     public void newDocument() {
         database.newDocument();
         afterDocumentChange();
+        documentGeneration.set(documentGeneration.get() + 1);
     }
 
     /// Opens `file`; staged edits of the previous document are discarded.
     public void open(Path file) throws IOException {
         database.open(file);
         afterDocumentChange();
+        documentGeneration.set(documentGeneration.get() + 1);
     }
 
     /// Writes the open document back to its own file. Only valid once it has
@@ -180,6 +197,7 @@ public final class LiveDatabase {
     public void reload() throws IOException {
         database.reload();
         afterDocumentChange();
+        documentGeneration.set(documentGeneration.get() + 1);
     }
 
     /// Sum of all stores' dirty counts; the row-level half of [#dirtyProperty()].
