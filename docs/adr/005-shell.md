@@ -68,8 +68,12 @@ hover-reveal-and-hide is the wanted behavior.
 
 ## Consequences
 
-- Full control over shell behavior and styling; the maintenance burden is ours, but the shell is
-  ~300 lines.
+- Full control over shell behavior and styling; the maintenance burden is ours. `AppShell` was
+  ~300 lines when this was written and is ~500 now — the growth is the sidebar's own behaviour
+  (resizable width model with an icon-only rail, badges, a scrolling module list), which is
+  specified in [requirements/ui.md](../requirements/ui.md) as `dsn~sidebar-navigation~1` and
+  covered by `AppShellNavigationTest` and `AppShellSidebarTest`. Still a fraction of
+  WorkbenchFX's 36 files, and still no third-party shell code to track.
 - No third-party shell library is a dependency.
 - GemsFX's overlay panes each override `getUserAgentStylesheet()`, so the application-wide
   user-agent stylesheet (`ThemeStyler`) loses property-for-property ties against them — the same

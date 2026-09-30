@@ -530,8 +530,9 @@ Key elements copied from the JabRef approach:
    (`-PinstallerType=app-image`, WiX-free); packaged `MinDis.exe` boots with bundled runtime.
    CI: `build.yml` (ubuntu, push/PR), `release.yml` (tag `v*` → windows runner, WiX
    preinstalled → exe installer → GitHub release). Version lives in gradle.properties and must
-   stay plain `x.y.z` — jpackage/MSI rejects suffixes. (The workflows were later renamed:
-   `on-push-tests.yml`, `binaries.yml`, `native-spike.yml`.)
+   stay plain `x.y.z` — jpackage/MSI rejects suffixes. (The workflows are now `on-push-tests.yml` and
+   `binaries.yml`; `native-spike.yml` and the `:native-spike` project were removed on 2026-09-22,
+   once ADR 002 had settled that no native artifact ships.)
 
 ### M7 — GraalVM Native Image (last, self-contained)
 All native work lives here; nothing before M6 depends on it, and failure leaves M6 as the

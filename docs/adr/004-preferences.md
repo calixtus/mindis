@@ -1,7 +1,10 @@
 # ADR 004: Preferences — own JSON store in core, no framework
 
 Date: 2026-07-06
-Status: accepted
+Status: accepted; **storage superseded in part** by
+[ADR 007](007-document-storage.md) (2026-07-23), which moved *entity* data out of the user data
+directory into one document file the user picks. Preferences themselves are unaffected and still
+live exactly as decided here.
 
 ## Context
 
@@ -20,7 +23,9 @@ Hand-rolled store in `org.mindis.core.preferences` (~150 lines):
   never a crash; plain `Consumer` listeners (no `ObservableValue` in core).
 - Storage: `preferences.json` (Jackson, pretty-printed, unknown properties ignored) in the
   user data dir (`AppDirectories`: `%APPDATA%\MinDis`, `~/Library/Application Support/MinDis`,
-  XDG) — same serializer and directory family as the M2 repositories.
+  XDG). At the time this shared a serializer and a directory family with the per-entity
+  repositories; since ADR 007 those are one user-chosen document instead, and `preferences.json`
+  plus the log directory are all that remains in the user data directory.
 - GUI applies locale + theme before the first scene; language change rebuilds the UI;
   window geometry saved in `Application.stop()`.
 

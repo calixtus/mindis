@@ -28,7 +28,17 @@ services + parish → Pebble (plan.md.peb) → Markdown
                     ├─ TXT      : headings underlined, tables as padded columns
                     ├─ RTF      : bold runs, tab-separated rows, \pngblip images
                     └─ PDF      : PDFBox page painter (PdfPlanRenderer.Layout)
+
+two formats deliberately bypass all of the above
+                    ├─ CSV      : columns straight off PlanExportDocument
+                    └─ ICS      : events straight off the services (added 2026-09-30)
 ```
+
+Not every format is a document. CSV is a spreadsheet's input, so it is written from the structured
+`PlanExportDocument` rather than from a laid-out page. iCalendar needs the start, end and place of
+each service as *values*, and by the time the template has run they are prose in a heading — so it
+reads the services themselves. Both sit outside this decision rather than bending it; see
+[requirements/export.md](../requirements/export.md), `dsn~plan-exporters~1`.
 
 - **Values, not sentences.** `PlanTemplateModel` exposes `java.time` values, not formatted dates;
   `slot.assigned = false`, not a `-`; `service.location` and `service.typeLabel` as separate fields,

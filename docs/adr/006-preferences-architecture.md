@@ -21,7 +21,7 @@ Adopt the two transferable ideas, keep our persistence and DI model:
 1. **`PreferenceEnumValue`** (core): `displayName()` + `isSelectable()`. `Theme` localizes
    its name via the full-text key; `AppLanguage` (new typed view over the persisted BCP-47
    `languageTag`) deliberately never translates language names. Gui renders any such value
-   with the generic `PrefsControls.choiceBox(values, property)` — one line per settings row,
+   with the generic `PreferenceControls.choiceBox(values, property)` — one line per settings row,
    display switches deleted.
 2. **`PreferenceValue<T>` registry** (gui): `UiPreferences` defines each setting exactly once 
    via `register(getter, wither)`; initial load, write-through and external re-sync are wired
