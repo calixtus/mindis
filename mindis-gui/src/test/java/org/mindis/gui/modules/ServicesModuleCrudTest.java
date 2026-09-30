@@ -39,6 +39,7 @@ import org.mindis.gui.FxTest;
 import org.mindis.gui.data.LiveStore;
 import org.mindis.gui.planning.PlanningViewModel;
 import org.mindis.gui.shell.ShellOverlays;
+import org.mindis.gui.TestPreferences;
 
 /// Service CRUD driven through the screen's own toolbar, the other half of the UI
 /// click-through PLAN.md M2 left open. Buttons are found by Ikonli literal, so the test
@@ -78,7 +79,7 @@ class ServicesModuleCrudTest {
     }
 
     private ServicesModule newModule(LiveStore<LiturgicalService> store) {
-        PreferencesService preferences = FxTest.preferencesAt(tempDir.resolve("preferences.json"));
+        PreferencesService preferences = TestPreferences.at(tempDir.resolve("preferences.json"));
         ArchiveService archiveService = new ArchiveService(roles, servers, services, archived);
         planningService = new PlanningService(servers, services, roles, preferences, archiveService);
         AppDatabase database = new AppDatabase(roles, servers, new TemplateRepository(), services, archived);

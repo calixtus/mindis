@@ -28,6 +28,7 @@ import org.mindis.gui.FxTest;
 import org.mindis.gui.data.LiveStore;
 import org.mindis.gui.preferences.UiPreferences;
 import org.mindis.gui.shell.ShellOverlays;
+import org.mindis.gui.TestPreferences;
 
 /// The Servers editor is the largest of the four and the one the EditorForm
 /// extraction rewrote most, so its unsaved-change accent is pinned here: it
@@ -56,7 +57,7 @@ class ServersModuleDirtyFlagTest {
 
             ServersModule module = new ServersModule("Servers", serverStore, roleStore,
                     new ServerRepository(), new RoleRepository(),
-                    new UiPreferences(FxTest.preferencesAt(tempDir.resolve("preferences.json"))),
+                    new UiPreferences(TestPreferences.at(tempDir.resolve("preferences.json"))),
                     new ShellOverlays(PowerPane::new));
             Node content = module.activate();
 

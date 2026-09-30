@@ -33,6 +33,7 @@ import org.mindis.core.preferences.DataDirectory;
 import org.mindis.core.preferences.PreferencesService;
 import org.mindis.gui.planning.PlanningViewModel;
 import org.mindis.gui.shell.ShellOverlays;
+import org.mindis.gui.TestPreferences;
 
 /// Covers the guard paths of the solver controller - the branches that decide
 /// *not* to start a solve. Those are what collapsing three near-identical
@@ -68,7 +69,7 @@ class ServicesSolverControllerTest {
     }
 
     private ServicesSolverController newController() {
-        PreferencesService preferences = new TestablePreferencesService(tempDir.resolve("preferences.json"));
+        PreferencesService preferences = TestPreferences.at(tempDir.resolve("preferences.json"));
         ArchiveService archiveService = new ArchiveService(roles, servers, services, archived);
         planningService = new PlanningService(servers, services, roles, preferences, archiveService);
         AppDatabase database = new AppDatabase(roles, servers, new TemplateRepository(), services, archived);
@@ -160,13 +161,5 @@ class ServicesSolverControllerTest {
     private static Server server(String id) {
         return new Server(id, "Anna", "Becker", "", null, null,
                 Set.of("ACOLYTE"), Set.of(), List.of(), Set.of(), false, true);
-    }
-
-    /// Exposes the package-private path constructor, as `UiPreferencesTest`
-    /// does - the real one resolves the user's data directory.
-    private static final class TestablePreferencesService extends PreferencesService {
-        TestablePreferencesService(Path file) {
-            super(file);
-        }
     }
 }

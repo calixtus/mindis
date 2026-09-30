@@ -1,6 +1,5 @@
 package org.mindis.gui;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -16,8 +15,6 @@ import javafx.scene.control.ToolBar;
 import javafx.scene.control.SplitPane;
 
 import org.jspecify.annotations.Nullable;
-
-import org.mindis.core.preferences.PreferencesService;
 
 /// Shared scaffolding for the tests that have to build real controls.
 ///
@@ -95,12 +92,6 @@ public final class FxTest {
         return found;
     }
 
-    /// A [PreferencesService] over `file` instead of the user's real data
-    /// directory, reaching the package-private path constructor.
-    public static PreferencesService preferencesAt(Path file) {
-        return new TestablePreferencesService(file);
-    }
-
     private static <T extends Node> void collect(Node node, Class<T> type, List<T> into) {
         if (type.isInstance(node)) {
             into.add(type.cast(node));
@@ -122,12 +113,6 @@ public final class FxTest {
         }
         if (node instanceof TitledPane titledPane && titledPane.getContent() != null) {
             collect(titledPane.getContent(), type, into);
-        }
-    }
-
-    private static final class TestablePreferencesService extends PreferencesService {
-        TestablePreferencesService(Path file) {
-            super(file);
         }
     }
 }

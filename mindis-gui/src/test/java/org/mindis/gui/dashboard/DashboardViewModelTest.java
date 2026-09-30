@@ -32,6 +32,7 @@ import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.planning.MinDisConstraintProvider;
 import org.mindis.core.preferences.DashboardWidgetLayout;
 import org.mindis.core.preferences.PreferencesService;
+import org.mindis.gui.TestPreferences;
 
 /// Covers the aggregation the dashboard is built from. Possible as a plain unit
 /// test - no JavaFX toolkit, no stage - only because the view model returns
@@ -50,7 +51,7 @@ class DashboardViewModelTest {
     private DashboardViewModel newViewModel() {
         // Never read in these tests (only loadLayout/saveLayout touch it), but
         // pointed at a temp file so a stray read cannot reach real preferences.
-        return new DashboardViewModel(services, servers, roles, archive, new TestablePreferencesService(
+        return new DashboardViewModel(services, servers, roles, archive, TestPreferences.at(
                 tempDir.resolve("preferences.json")));
     }
 
@@ -521,7 +522,7 @@ class DashboardViewModelTest {
     /// lose the widget; it falls back to the type's default mode.
     @Test
     void loadLayout_unknownOrUnsupportedMode_fallsBackToTheDefault() {
-        PreferencesService preferences = new TestablePreferencesService(tempDir.resolve("preferences.json"));
+        PreferencesService preferences = TestPreferences.at(tempDir.resolve("preferences.json"));
         preferences.update(p -> p.withDashboardWidgets(List.of(
                 new DashboardWidgetLayout(WidgetType.SERVER_LOAD.id(), 0, 0, 6, 3, "sunburst"),
                 new DashboardWidgetLayout(WidgetType.NEXT_SERVICES.id(), 0, 3, 6, 3, null))));
@@ -580,13 +581,5 @@ class DashboardViewModelTest {
         return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), server.birthDate(),
                 server.familyId(), server.qualifications(), server.incompatibleRoles(), server.unavailabilities(), server.preferredTimes(),
                 server.experienced(), false);
-    }
-
-    /// Exposes the package-private path constructor, as `UiPreferencesTest`
-    /// does - the real one resolves the user's data directory.
-    private static final class TestablePreferencesService extends PreferencesService {
-        TestablePreferencesService(Path file) {
-            super(file);
-        }
     }
 }

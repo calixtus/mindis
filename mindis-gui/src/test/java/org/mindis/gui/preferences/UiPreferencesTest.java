@@ -11,6 +11,7 @@ import org.mindis.core.planning.MinDisConstraintProvider;
 import org.mindis.core.preferences.AppLanguage;
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.preferences.PreferencesService;
+import org.mindis.gui.TestPreferences;
 
 /// Registry behavior; runs headless - javafx.base properties need no toolkit.
 class UiPreferencesTest {
@@ -19,7 +20,7 @@ class UiPreferencesTest {
     Path tempDir;
 
     private PreferencesService service() {
-        return new TestablePreferencesService(tempDir.resolve("preferences.json"));
+        return TestPreferences.at(tempDir.resolve("preferences.json"));
     }
 
     @Test
@@ -54,13 +55,5 @@ class UiPreferencesTest {
 
         assertThrows(IllegalArgumentException.class,
                 () -> uiPreferences.softWeightProperty("No such constraint"));
-    }
-
-    /// Exposes the package-private path constructor for tests outside the
-    /// core package.
-    private static final class TestablePreferencesService extends PreferencesService {
-        TestablePreferencesService(Path file) {
-            super(file);
-        }
     }
 }
