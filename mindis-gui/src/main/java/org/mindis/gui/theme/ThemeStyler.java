@@ -169,6 +169,27 @@ public final class ThemeStyler {
             }
             """;
 
+    /// Text on accent fills goes through `-color-accent-on`, which [#buildCss] points at
+    /// `-color-dark` when [#needsDarkTextOn] says so. AtlantaFX paints that text with
+    /// `-color-fg-emphasis` through many per-variant variables (`-color-button-fg`,
+    /// `-fg-hover`, `-fg-pressed`, outlined and flat variants...), so instead of overriding
+    /// each, `-color-fg-emphasis` itself is redefined inside the controls whose fill is the
+    /// accent; lookups resolve from the nearest definition, so everything those controls
+    /// derive from it follows. The date picker's selected day is a direct variable.
+    private static final String ACCENT_TEXT_CSS = """
+            .root {
+              -color-accent-on: -color-light;
+            }
+            .button:default, .button.accent,
+            .menu-button.accent, .split-menu-button.accent,
+            .toggle-button:selected {
+              -color-fg-emphasis: -color-accent-on;
+            }
+            .date-picker-popup {
+              -color-date-day-fg-selected: -color-accent-on;
+            }
+            """;
+
     static String buildCss(MinDisPreferences.Theme theme, String accentHex,
                            String fontFamily, int fontSize) {
         StringBuilder root = new StringBuilder();
@@ -185,6 +206,9 @@ public final class ThemeStyler {
             root.append("  -color-accent-emphasis: ").append(base).append(";\n");
             root.append("  -color-accent-muted: ").append(muted).append(";\n");
             root.append("  -color-accent-subtle: ").append(subtle).append(";\n");
+            if (needsDarkTextOn(base)) {
+                root.append("  -color-accent-on: -color-dark;\n");
+            }
         }
 
         if (fontFamily != null && !fontFamily.isBlank()
@@ -195,11 +219,37 @@ public final class ThemeStyler {
             root.append("  -fx-font-size: ").append(fontSize).append("px;\n");
         }
 
-        StringBuilder css = new StringBuilder(MODENA_COMPAT_CSS);
+        StringBuilder css = new StringBuilder(MODENA_COMPAT_CSS).append(ACCENT_TEXT_CSS);
         if (!root.isEmpty()) {
             css.append(".root {\n").append(root).append("}\n");
         }
         return css.toString();
+    }
+
+    /// Whether text on a fill of `accentHex` has to be dark: AtlantaFX always puts its
+    /// light text there, which falls below 3:1 on light accents such as green, orange or
+    /// teal. 3:1 rather than 4.5:1 so that mid-tone accents (blue, red, purple) keep
+    /// the light text the themes were designed with.
+    static boolean needsDarkTextOn(String accentHex) {
+        return contrast(Color.web(accentHex), LIGHT_TEXT) < 3.0;
+    }
+
+    /// AtlantaFX's `-color-light`; Nord Light and Nord Dark differ only in the last digit.
+    private static final Color LIGHT_TEXT = Color.web("#fafafc");
+
+    private static double contrast(Color a, Color b) {
+        double la = relativeLuminance(a);
+        double lb = relativeLuminance(b);
+        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    }
+
+    /// WCAG 2 relative luminance.
+    private static double relativeLuminance(Color c) {
+        return 0.2126 * linear(c.getRed()) + 0.7152 * linear(c.getGreen()) + 0.0722 * linear(c.getBlue());
+    }
+
+    private static double linear(double channel) {
+        return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
     }
 
     /// JavaFX `derive()` lightens (positive) or darkens (negative) a color

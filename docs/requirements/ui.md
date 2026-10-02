@@ -337,7 +337,10 @@ Covers:
 `ThemeStyler` composes the base AtlantaFX theme (`@import`) plus the user's accent and font `.root`
 overrides into a single `data:` URI installed as the *user-agent* stylesheet — not a scene override
 — because popup windows (ComboBox popups etc.) consult only the user-agent stylesheet. Accent tokens
-(`-color-accent-fg/emphasis/muted/subtle`) are derived from one base hex per theme mode. It also
+(`-color-accent-fg/emphasis/muted/subtle`) are derived from one base hex per theme mode. Text on an
+accent fill — accent and default buttons, a selected toggle, the date picker's selected day — goes
+through `-color-accent-on`: AtlantaFX's light text, or `-color-dark` when that would fall below 3:1
+on the accent (green, orange, teal), since AtlantaFX itself always uses the light one. It also
 defines the legacy Modena tokens GemsFX's bundled control CSS looks up but AtlantaFX never defines,
 and nothing else: rules for one screen live in that screen's own stylesheet (`services.css`,
 `settings.css`, `shell.css`), which reaches everything the screen shows. The theme is imported through

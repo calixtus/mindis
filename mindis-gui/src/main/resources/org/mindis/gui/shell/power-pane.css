@@ -24,7 +24,7 @@
    fixed regardless of theme. */
 .drawer-stackpane > .drawer > .top > .header > .tool-bar > .container > .button {
     -fx-background-color: -color-accent-emphasis;
-    -fx-text-fill: -color-fg-emphasis;
+    -fx-text-fill: -color-accent-on;
 }
 
 /* Notification severities: gemsfx uses the raw 'yellow'/'red'/'green'
