@@ -34,6 +34,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.geometry.Pos;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.Rectangle;
 
 import org.jspecify.annotations.Nullable;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -106,6 +107,13 @@ public final class AppShell extends BorderPane {
         getStylesheets().add(AppShell.class.getResource("shell.css").toExternalForm());
 
         sidebar.getStyleClass().add("shell-sidebar");
+        // Expanding shows the labels before the glide widens the sidebar onto
+        // them (see #setSidebarWidth), so without a clip they would spill over
+        // the resize handle and the content until it catches up.
+        Rectangle clip = new Rectangle();
+        clip.widthProperty().bind(sidebar.widthProperty());
+        clip.heightProperty().bind(sidebar.heightProperty());
+        sidebar.setClip(clip);
         // Chevron on top of everything, then the sidebar header (collection
         // switcher), then the navigation entries.
         sidebar.getChildren().add(createToggleButton());
@@ -199,11 +207,14 @@ public final class AppShell extends BorderPane {
         }
     }
 
-    /// Selects the module in the sidebar (activating it).
+    /// Selects the module in the sidebar (activating it) and scrolls its entry
+    /// into view, since the call may come from anywhere - a link elsewhere in the
+    /// app, say - with the entry scrolled out of the module list.
     public void openModule(ShellModule module) {
         ToggleButton button = navButtons.get(module);
         if (button != null) {
             button.setSelected(true);
+            scrollIntoView(button);
         }
     }
 
@@ -220,9 +231,9 @@ public final class AppShell extends BorderPane {
         if (className == null) {
             return;
         }
-        for (Map.Entry<ShellModule, ToggleButton> entry : navButtons.entrySet()) {
-            if (entry.getKey().getClass().getName().equals(className)) {
-                entry.getValue().setSelected(true);
+        for (ShellModule module : navButtons.keySet()) {
+            if (module.getClass().getName().equals(className)) {
+                openModule(module);
                 return;
             }
         }
@@ -405,8 +416,9 @@ public final class AppShell extends BorderPane {
         return button;
     }
 
-    /// Arrow keys move focus between entries, wrapping at either end, without
-    /// opening anything; Enter opens the focused entry, as Space already does.
+    /// Arrow keys move focus between entries, wrapping at either end, and Home and
+    /// End jump to the first and last, without opening anything; Enter opens the
+    /// focused entry, as Space already does.
     /// A filter, because `ToggleButton`'s own behaviour selects the neighbour on
     /// every arrow press, so arrowing past a module would activate (and build) it.
     /// Left and Right are swallowed for the same reason.
@@ -419,6 +431,8 @@ public final class AppShell extends BorderPane {
         switch (event.getCode()) {
             case UP -> focusNavButton(buttons.get(Math.floorMod(index - 1, buttons.size())));
             case DOWN -> focusNavButton(buttons.get(Math.floorMod(index + 1, buttons.size())));
+            case HOME -> focusNavButton(buttons.getFirst());
+            case END -> focusNavButton(buttons.getLast());
             case ENTER -> button.setSelected(true);
             case LEFT, RIGHT -> {
                 // consumed only
@@ -436,7 +450,8 @@ public final class AppShell extends BorderPane {
     }
 
     /// Scrolls the module list just far enough to show `node`; a no-op for the
-    /// bottom-pinned entries, which sit outside it.
+    /// bottom-pinned entries, which sit outside it, and before the list is first
+    /// laid out, when there are no positions to scroll to yet.
     private void scrollIntoView(Node node) {
         Node content = navScroll.getContent();
         if (!isDescendant(node, content)) {
@@ -445,7 +460,7 @@ public final class AppShell extends BorderPane {
         Bounds bounds = content.sceneToLocal(node.localToScene(node.getBoundsInLocal()));
         double viewportHeight = navScroll.getViewportBounds().getHeight();
         double scrollable = content.getLayoutBounds().getHeight() - viewportHeight;
-        if (scrollable <= 0) {
+        if (viewportHeight <= 0 || scrollable <= 0) {
             return;
         }
         double top = navScroll.getVvalue() * scrollable;

@@ -164,7 +164,8 @@ it would leave the shell with no module at all.
 
 The entries are one Tab stop, landing on the active entry. From there Up and Down move focus
 between entries — top and bottom-pinned alike, wrapping at either end, scrolling the module list to
-keep the focused one visible — without opening anything; Enter or Space opens it. `ToggleButton`'s
+keep the focused one visible — and Home and End jump to the first and last, without opening
+anything; Enter or Space opens it. Opening a module from code scrolls its entry into view too. `ToggleButton`'s
 own arrow handling would select every entry it passes, building each module on the way, so the
 shell intercepts the arrows (Left and Right included) before it.
 
@@ -172,7 +173,8 @@ The width model is in pixels, not fractions: an icon-only rail at 60, a labelled
 and a drag below 120 snapping to the rail. A width from anywhere — a drag, the chevron, a value
 persisted by an older layout — goes through the same clamp. The chevron and the arrow keys glide
 between the two states over 160ms; a drag does not, because the sidebar has to track the pointer
-rather than chase it. The handle takes focus and resizes with the arrow keys, since dragging is a
+rather than chase it. Expanding shows the labels at the start of the glide, so the sidebar clips
+to its current width rather than letting them spill over the content. The handle takes focus and resizes with the arrow keys, since dragging is a
 mouse-only gesture and the width was otherwise unreachable without one.
 
 Collapsed, the entry's label moves to a tooltip (shown after 300ms — on the rail the tooltip *is*

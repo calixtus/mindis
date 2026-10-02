@@ -9,10 +9,12 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.stream.IntStream;
 
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -253,6 +255,47 @@ class AppShellNavigationTest {
             assertAll(
                     () -> assertFalse(buttons.getFirst().isFocusTraversable()),
                     () -> assertTrue(buttons.get(1).isFocusTraversable()));
+        });
+    }
+
+    @Test
+    void homeAndEndJumpToTheEnds() throws InterruptedException {
+        FxTest.runAndWait(() -> {
+            TestModule dashboard = new TestModule("Dashboard");
+            AppShell shell = AppShell.builder(dashboard, new TestModule("Roles"), new TestModule("Servers"))
+                    .bottomModule(new TestModule("Settings"))
+                    .build();
+            Scene scene = laidOut(shell);
+            List<ToggleButton> buttons = navButtons(shell);
+            buttons.get(1).requestFocus();
+
+            press(buttons.get(1), KeyCode.END);
+            Node atEnd = scene.getFocusOwner();
+            press(buttons.getLast(), KeyCode.HOME);
+
+            assertAll(
+                    () -> assertSame(buttons.getLast(), atEnd),
+                    () -> assertSame(buttons.getFirst(), scene.getFocusOwner()),
+                    () -> assertSame(dashboard, shell.getActiveModule(), "jumping opens nothing"));
+        });
+    }
+
+    /// `openModule` may come from anywhere in the app, with the entry scrolled out of the list.
+    @Test
+    void openingAModuleScrollsItsEntryIntoView() throws InterruptedException {
+        FxTest.runAndWait(() -> {
+            List<TestModule> modules = IntStream.range(0, 12)
+                    .mapToObj(i -> new TestModule("Module " + i))
+                    .toList();
+            AppShell shell = AppShell.builder(modules.toArray(ShellModule[]::new)).build();
+            new Scene(shell, 800, 200);
+            shell.applyCss();
+            shell.layout();
+            ScrollPane navScroll = FxTest.find(shell.getLeft(), ScrollPane.class);
+
+            shell.openModule(modules.getLast());
+
+            assertEquals(1.0, navScroll.getVvalue(), 1e-9, "the last entry needs the list scrolled to its end");
         });
     }
 }

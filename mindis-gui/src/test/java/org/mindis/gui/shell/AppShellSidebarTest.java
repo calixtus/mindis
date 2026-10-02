@@ -10,9 +10,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.Region;
+import javafx.scene.shape.Rectangle;
 
 import org.junit.jupiter.api.Test;
 
@@ -170,6 +172,25 @@ class AppShellSidebarTest {
             assertAll(
                     () -> assertFalse(((Label) styled(shell, "shell-nav-badge").getFirst()).isVisible()),
                     () -> assertFalse(styled(shell, "shell-nav-badge-dot").getFirst().isVisible()));
+        });
+    }
+
+    /// Expanding shows the labels before the glide has widened the sidebar onto them.
+    @Test
+    void theSidebarClipsWhatDoesNotFitItsCurrentWidth() throws InterruptedException {
+        FxTest.runAndWait(() -> {
+            AppShell shell = shellAt(220);
+            new Scene(shell, 800, 400);
+            shell.applyCss();
+            shell.layout();
+            Region sidebar = (Region) styled(shell, "shell-sidebar").getFirst();
+
+            Rectangle clip = (Rectangle) sidebar.getClip();
+
+            assertAll(
+                    () -> assertNotNull(clip),
+                    () -> assertEquals(sidebar.getWidth(), clip.getWidth()),
+                    () -> assertEquals(sidebar.getHeight(), clip.getHeight()));
         });
     }
 }
