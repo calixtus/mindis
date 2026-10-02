@@ -40,7 +40,7 @@ import org.mindis.core.l10n.Localization;
 
 /// Minimal application shell: a permanent left sidebar with one navigation
 /// entry per module (bottom-pinned entries supported, e.g. Settings) and the
-/// active module's content on the right. Written from scratch against JavaFX 26
+/// active module's content on the right. Written from scratch against JavaFX
 /// and AtlantaFX styling (see docs/adr/005-shell.md).
 ///
 /// <p>Wrapped by a [com.dlsc.gemsfx.PowerPane] in `MinDisApp`,

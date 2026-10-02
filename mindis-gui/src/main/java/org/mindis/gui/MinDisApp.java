@@ -2,6 +2,7 @@ package org.mindis.gui;
 
 import atlantafx.base.theme.NordDark;
 import atlantafx.base.theme.NordLight;
+import atlantafx.base.theme.Theme;
 import com.dlsc.gemsfx.PowerPane;
 
 import io.avaje.inject.BeanScope;
@@ -339,9 +340,13 @@ public class MinDisApp extends Application {
         // resolveTheme() collapses SYSTEM to a concrete LIGHT/DARK, so only
         // those two reach the base-theme choice here.
         MinDisPreferences.Theme theme = resolveTheme();
-        String baseUrl = theme == MinDisPreferences.Theme.DARK
-                ? new NordDark().getUserAgentStylesheet()
-                : new NordLight().getUserAgentStylesheet();
+        Theme baseTheme = theme == MinDisPreferences.Theme.DARK ? new NordDark() : new NordLight();
+        // The plain `.css` path would make JavaFX import the theme's precompiled
+        // `.bss` sibling instead, and JavaFX 27 fails with an NPE when a text
+        // stylesheet imports a binary one (rules lazily decode against the
+        // importer's string store, which a parsed stylesheet doesn't have).
+        // AtlantaFX's `stylesheet:` URL, listing every module, serves the CSS text.
+        String baseUrl = baseTheme.getUserAgentStylesheet(baseTheme.getManifest().getModules().keySet());
         setUserAgentStylesheet(ThemeStyler.userAgentStylesheet(
                 baseUrl,
                 theme,
