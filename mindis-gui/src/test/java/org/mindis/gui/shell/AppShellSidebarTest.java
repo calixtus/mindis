@@ -4,15 +4,21 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
+import atlantafx.base.theme.NordDark;
+import atlantafx.base.theme.Theme;
+
+import javafx.application.Application;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Region;
 import javafx.scene.shape.Rectangle;
 
@@ -191,6 +197,32 @@ class AppShellSidebarTest {
                     () -> assertNotNull(clip),
                     () -> assertEquals(sidebar.getWidth(), clip.getWidth()),
                     () -> assertEquals(sidebar.getHeight(), clip.getHeight()));
+        });
+    }
+
+    /// The names once took `-fx-text-fill: inherit` from their row `HBox`, which has
+    /// no fill to inherit, so they were black in every theme - unreadable in a dark one.
+    @Test
+    void entryNamesTakeTheThemeTextColour() throws InterruptedException {
+        FxTest.runAndWait(() -> {
+            Theme dark = new NordDark();
+            Application.setUserAgentStylesheet(dark.getUserAgentStylesheet(dark.getManifest().getModules().keySet()));
+            try {
+                AppShell shell = shellAt(220, new TestModule("Dashboard"), new TestModule("Roles"));
+                Label reference = new Label();
+                new Scene(new HBox(shell, reference));
+                shell.applyCss();
+                reference.applyCss();
+                List<Label> names = styled(shell, "shell-nav-name").stream().distinct().map(Label.class::cast).toList();
+
+                assertAll(
+                        () -> assertNotEquals(names.getFirst().getTextFill(), names.get(1).getTextFill(),
+                                "the active entry's name is accented"),
+                        () -> assertEquals(reference.getTextFill(), names.get(1).getTextFill(),
+                                "an inactive entry's name is the theme's default text colour"));
+            } finally {
+                Application.setUserAgentStylesheet(null);
+            }
         });
     }
 }

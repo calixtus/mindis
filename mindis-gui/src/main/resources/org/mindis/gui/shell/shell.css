@@ -179,8 +179,14 @@
     -fx-spacing: 10;
 }
 
+/* Set here rather than inherited from the button: the name's parent is the row
+   HBox, which has no text fill to inherit, so `inherit` resolves to black. */
 .shell-nav-name {
-    -fx-text-fill: inherit;
+    -fx-text-fill: -color-fg-default;
+}
+
+.shell-nav-button:selected .shell-nav-name {
+    -fx-text-fill: -color-accent-fg;
 }
 
 /* Count pill. -color-danger-* rather than the accent: a badge here means slots
