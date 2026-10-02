@@ -318,4 +318,24 @@ class AppShellNavigationTest {
             assertFalse(buttons.get(1).getPseudoClassStates().contains(KEYBOARD_FOCUS));
         });
     }
+
+    /// The language change rebuilds the shell and reopens the active module before the
+    /// new shell has been laid out, when there is nothing to scroll yet.
+    @Test
+    void aModuleOpenedBeforeLayoutIsScrolledToOnceLaidOut() throws InterruptedException {
+        List<TestModule> modules = IntStream.range(0, 12)
+                .mapToObj(i -> new TestModule("Module " + i))
+                .toList();
+        AppShell[] shell = new AppShell[1];
+        FxTest.runAndWait(() -> {
+            shell[0] = AppShell.builder(modules.toArray(ShellModule[]::new)).build();
+            shell[0].openModule(modules.getLast());
+            new Scene(shell[0], 800, 200);
+            shell[0].applyCss();
+            shell[0].layout();
+        });
+        // A second turn of the FX thread, after the scroll deferred to the end of the layout.
+        FxTest.runAndWait(() -> assertEquals(1.0,
+                FxTest.find(shell[0].getLeft(), ScrollPane.class).getVvalue(), 1e-9));
+    }
 }

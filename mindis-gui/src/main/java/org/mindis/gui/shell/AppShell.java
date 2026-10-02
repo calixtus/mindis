@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import javafx.animation.Interpolator;
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
@@ -97,6 +98,9 @@ public final class AppShell extends BorderPane {
     private final Tooltip toggleTooltip = new Tooltip();
 
     private @Nullable ShellModule activeModule;
+    /// The entry [#openModule(ShellModule)] asked to show before the module list had a
+    /// size to scroll in - a module restored into a freshly built shell.
+    private @Nullable Node pendingScrollTarget;
     private boolean collapsed;
     /// Observable mirror of [#collapsed] so a sidebar header (e.g. the
     /// collection switcher) can adapt to the icon-only rail.
@@ -138,6 +142,19 @@ public final class AppShell extends BorderPane {
         // so a window too short for every entry at once still leaves Settings and
         // About reachable instead of clipping them off the end.
         navScroll.setContent(navList);
+        // The viewport gets its size in the ScrollPane's layout, before the list lays out
+        // its entries, so the scroll waits for the end of that pulse.
+        navScroll.viewportBoundsProperty().subscribe(bounds -> {
+            if (pendingScrollTarget != null && bounds.getHeight() > 0) {
+                Platform.runLater(() -> {
+                    Node target = pendingScrollTarget;
+                    pendingScrollTarget = null;
+                    if (target != null) {
+                        scrollIntoView(target);
+                    }
+                });
+            }
+        });
         navScroll.getStyleClass().add("shell-nav-scroll");
         navScroll.setFitToWidth(true);
         navScroll.setHbarPolicy(ScrollBarPolicy.NEVER);
@@ -230,7 +247,11 @@ public final class AppShell extends BorderPane {
         ToggleButton button = navButtons.get(module);
         if (button != null) {
             button.setSelected(true);
-            scrollIntoView(button);
+            if (navScroll.getViewportBounds().getHeight() > 0) {
+                scrollIntoView(button);
+            } else {
+                pendingScrollTarget = button;
+            }
         }
     }
 

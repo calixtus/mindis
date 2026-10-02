@@ -165,7 +165,8 @@ it would leave the shell with no module at all.
 The entries are one Tab stop, landing on the active entry. From there Up and Down move focus
 between entries — top and bottom-pinned alike, wrapping at either end, scrolling the module list to
 keep the focused one visible — and Home and End jump to the first and last, without opening
-anything; Enter or Space opens it. Opening a module from code scrolls its entry into view too. `ToggleButton`'s
+anything; Enter or Space opens it. Opening a module from code scrolls its entry into view too, also
+before the shell is laid out, as when a language change rebuilds it. `ToggleButton`'s
 own arrow handling would select every entry it passes, building each module on the way, so the
 shell intercepts the arrows (Left and Right included) before it.
 
