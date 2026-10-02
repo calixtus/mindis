@@ -28,4 +28,10 @@ tasks.withType<Test>().configureEach {
     // https://docs.gradle.org/current/userguide/performance.html#execute_tests_in_parallel
     maxParallelForks = (Runtime.getRuntime().availableProcessors() - 1).coerceAtLeast(1)
     forkEvery = 100
+
+    // Localization picks its bundle from the default locale, so without this an
+    // assertion on English text passes on an English machine and fails on a
+    // German one. Tests about another locale set it themselves.
+    systemProperty("user.language", "en")
+    systemProperty("user.country", "US")
 }
