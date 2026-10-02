@@ -167,39 +167,6 @@ public final class ThemeStyler {
             .search-field-list-view > .virtual-flow > .clipped-container > .sheet > .list-cell {
               -fx-background-color: -color-bg-overlay;
             }
-            .tile .title {
-              -fx-wrap-text: false;
-              -fx-text-overrun: ellipsis;
-            }
-            .altar-warning-icon {
-              -fx-icon-color: -color-danger-fg;
-            }
-            .field-changed {
-              -fx-border-color: -color-accent-emphasis;
-              -fx-border-width: 0 0 0 3;
-              -fx-border-insets: 0;
-              -fx-padding: 0 0 0 6;
-            }
-            .services-tile-table .column-header-background {
-              -fx-max-height: 0;
-              -fx-pref-height: 0;
-              visibility: hidden;
-            }
-            .services-tile-table .table-row-cell {
-              -fx-border-color: transparent transparent -color-border-default transparent;
-              -fx-border-width: 0 0 1 0;
-            }
-            .service-tile-datetime {
-              -fx-font-size: 1.3em;
-              -fx-font-weight: bold;
-            }
-            .service-tile-role {
-              -fx-font-weight: bold;
-              -fx-text-fill: -color-fg-muted;
-            }
-            .service-tile-archived {
-              -fx-opacity: 0.55;
-            }
             """;
 
     static String buildCss(MinDisPreferences.Theme theme, String accentHex,

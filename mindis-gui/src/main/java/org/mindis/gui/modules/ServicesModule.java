@@ -110,6 +110,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
     private static final double TILE_INFO_WIDTH = 180;
     private static final double ROLE_COLUMN_WIDTH = 100;
     private static final double SLOT_COLUMN_WIDTH = 90;
+    private static final String STYLESHEET = ServicesModule.class.getResource("services.css").toExternalForm();
     private static final String GENERATE_POPUP_STYLE = """
             -fx-background-color: -color-bg-overlay;
             -fx-border-color: -color-border-default;
@@ -185,6 +186,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
         table().getColumns().add(tileColumn);
         table().setTableMenuButtonVisible(false);
         table().getStyleClass().add("services-tile-table");
+        table().getStylesheets().add(STYLESHEET);
         // Re-render the tiles when a role or server changes anywhere (its
         // display name appears on the tiles) - see tileDependencySubscription.
         tileDependencySubscription = serverStore.items().subscribe(() -> table().refresh())
@@ -579,6 +581,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
             content = new VBox(10, grid, altarSeparator, altarServersHeader, assignmentSection);
             content.setPadding(new Insets(12));
             content.setMinHeight(EDITOR_MIN_HEIGHT);
+            content.getStylesheets().add(STYLESHEET);
             markDirtyOnChange(dateField.valueProperty(), () -> baselineSupplier.get().dateTime().toLocalDate(), dateLabel);
             markDirtyOnChange(timeField.timeProperty(), () -> baselineSupplier.get().dateTime().toLocalTime(), timeLabel);
             markDirtyOnChange(typeBox.valueProperty(), () -> baselineSupplier.get().type(), typeLabel);

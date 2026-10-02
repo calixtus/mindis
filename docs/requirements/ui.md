@@ -336,7 +336,13 @@ Covers:
 overrides into a single `data:` URI installed as the *user-agent* stylesheet — not a scene override
 — because popup windows (ComboBox popups etc.) consult only the user-agent stylesheet. Accent tokens
 (`-color-accent-fg/emphasis/muted/subtle`) are derived from one base hex per theme mode. It also
-defines the legacy Modena tokens GemsFX's bundled control CSS looks up but AtlantaFX never defines.
+defines the legacy Modena tokens GemsFX's bundled control CSS looks up but AtlantaFX never defines,
+and nothing else: rules for one screen live in that screen's own stylesheet (`services.css`,
+`settings.css`, `shell.css`), which reaches everything the screen shows. The theme is imported through
+AtlantaFX's `stylesheet:` URL with every module listed, not its `.css` path — JavaFX would otherwise
+import the precompiled `.bss` beside it, and JavaFX 27 throws when a text stylesheet imports a binary
+one. The `data:` URI stays Base64: in a plain one JavaFX percent-decodes the payload, and the
+derived accent tokens contain `%`.
 `MinDisApp` reapplies the whole stylesheet whenever theme, accent, font family
 or font size changes, and subscribes to the OS color scheme and OS accent so `AccentColor.DEFAULT`
 and the `System` theme track live.

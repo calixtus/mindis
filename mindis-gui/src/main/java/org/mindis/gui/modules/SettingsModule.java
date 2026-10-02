@@ -92,6 +92,7 @@ public final class SettingsModule extends ShellModule {
         // horizontally instead of squeezing tiles further.
         scroll.setFitToWidth(true);
         scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scroll.getStylesheets().add(SettingsModule.class.getResource("settings.css").toExternalForm());
         return scroll;
     }
 
@@ -265,13 +266,10 @@ public final class SettingsModule extends ShellModule {
         return box;
     }
 
-    /// A Tile with a hover highlight - AtlantaFX's own styling doesn't distinguish a hovered
-    /// settings row otherwise.
+    /// A settings row; `settings.css` gives it the hover highlight AtlantaFX's own styling lacks.
     private Tile tile(String title, @Nullable String description, Node action) {
         Tile tile = new Tile(title, description);
         tile.setAction(action);
-        tile.setOnMouseEntered(e -> tile.setStyle("-fx-background-color: -color-bg-subtle;"));
-        tile.setOnMouseExited(e -> tile.setStyle(null));
         return tile;
     }
 

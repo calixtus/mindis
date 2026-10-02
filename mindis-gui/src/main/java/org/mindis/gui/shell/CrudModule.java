@@ -404,8 +404,7 @@ public abstract class CrudModule<T> extends ShellModule {
         setFieldChanged(label, !Objects.equals(property.getValue(), original.get()));
     }
 
-    /// Toggles the left-border "unsaved change" accent (see `.field-changed` in the app's theme
-    /// stylesheet) on or off.
+    /// Toggles the left-border "unsaved change" accent (see `.field-changed` in `shell.css`).
     protected static void setFieldChanged(Region label, boolean changed) {
         if (changed) {
             if (!label.getStyleClass().contains("field-changed")) {

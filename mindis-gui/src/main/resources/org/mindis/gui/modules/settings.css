@@ -1,0 +1,11 @@
+/* Settings module. */
+
+/* AtlantaFX gives a hovered Tile no highlight of its own. */
+.tile:hover {
+    -fx-background-color: -color-bg-subtle;
+}
+
+.tile .title {
+    -fx-wrap-text: false;
+    -fx-text-overrun: ellipsis;
+}
