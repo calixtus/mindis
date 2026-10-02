@@ -162,6 +162,12 @@ list's `ScrollPane`, so a window too short for every entry scrolls the middle in
 the end. Re-clicking the active entry cannot deselect it: a `ToggleGroup` allows that by default and
 it would leave the shell with no module at all.
 
+The entries are one Tab stop, landing on the active entry. From there Up and Down move focus
+between entries — top and bottom-pinned alike, wrapping at either end, scrolling the module list to
+keep the focused one visible — without opening anything; Enter or Space opens it. `ToggleButton`'s
+own arrow handling would select every entry it passes, building each module on the way, so the
+shell intercepts the arrows (Left and Right included) before it.
+
 The width model is in pixels, not fractions: an icon-only rail at 60, a labelled band of 200–360,
 and a drag below 120 snapping to the rail. A width from anywhere — a drag, the chevron, a value
 persisted by an older layout — goes through the same clamp. The chevron and the arrow keys glide

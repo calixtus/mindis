@@ -1,6 +1,7 @@
 package org.mindis.gui.shell;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -10,8 +11,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.StackPane;
 
 import org.junit.jupiter.api.Test;
@@ -148,6 +152,107 @@ class AppShellNavigationTest {
             shell.openModule((String) null);
 
             assertSame(dashboard, shell.getActiveModule());
+        });
+    }
+
+    /// A scene with skins applied: without one the module list's `ScrollPane` has no
+    /// skin, its content no parent, and key events never reach the sidebar.
+    private static Scene laidOut(AppShell shell) {
+        Scene scene = new Scene(shell);
+        shell.applyCss();
+        shell.layout();
+        return scene;
+    }
+
+    private static void press(Node target, KeyCode code) {
+        target.fireEvent(new KeyEvent(KeyEvent.KEY_PRESSED, "", "", code, false, false, false, false));
+    }
+
+    /// `ToggleButton`'s own arrow handling selects the neighbour, which would build
+    /// every module the user merely arrows past.
+    @Test
+    void arrowKeysMoveFocusWithoutOpeningAnything() throws InterruptedException {
+        FxTest.runAndWait(() -> {
+            TestModule dashboard = new TestModule("Dashboard");
+            TestModule servers = new TestModule("Servers");
+            AppShell shell = AppShell.builder(dashboard, servers).build();
+            Scene scene = laidOut(shell);
+            List<ToggleButton> buttons = navButtons(shell);
+            buttons.getFirst().requestFocus();
+
+            press(buttons.getFirst(), KeyCode.DOWN);
+
+            assertAll(
+                    () -> assertSame(buttons.get(1), scene.getFocusOwner()),
+                    () -> assertSame(dashboard, shell.getActiveModule()),
+                    () -> assertEquals(0, servers.activations));
+        });
+    }
+
+    @Test
+    void arrowKeysWrapAcrossTopAndBottomEntries() throws InterruptedException {
+        FxTest.runAndWait(() -> {
+            AppShell shell = AppShell.builder(new TestModule("Dashboard"), new TestModule("Servers"))
+                    .bottomModule(new TestModule("Settings"))
+                    .build();
+            Scene scene = laidOut(shell);
+            List<ToggleButton> buttons = navButtons(shell);
+            buttons.getFirst().requestFocus();
+
+            press(buttons.getFirst(), KeyCode.UP);
+            Node wrappedToLast = scene.getFocusOwner();
+            press(buttons.getLast(), KeyCode.DOWN);
+
+            assertAll(
+                    () -> assertSame(buttons.getLast(), wrappedToLast),
+                    () -> assertSame(buttons.getFirst(), scene.getFocusOwner()));
+        });
+    }
+
+    @Test
+    void enterOpensTheFocusedEntry() throws InterruptedException {
+        FxTest.runAndWait(() -> {
+            TestModule servers = new TestModule("Servers");
+            AppShell shell = AppShell.builder(new TestModule("Dashboard"), servers).build();
+            laidOut(shell);
+            ToggleButton serversButton = navButtons(shell).get(1);
+            serversButton.requestFocus();
+
+            press(serversButton, KeyCode.ENTER);
+
+            assertSame(servers, shell.getActiveModule());
+        });
+    }
+
+    @Test
+    void leftAndRightDoNotSwitchModules() throws InterruptedException {
+        FxTest.runAndWait(() -> {
+            TestModule dashboard = new TestModule("Dashboard");
+            AppShell shell = AppShell.builder(dashboard, new TestModule("Servers")).build();
+            laidOut(shell);
+            ToggleButton first = navButtons(shell).getFirst();
+            first.requestFocus();
+
+            press(first, KeyCode.RIGHT);
+            press(first, KeyCode.LEFT);
+
+            assertSame(dashboard, shell.getActiveModule());
+        });
+    }
+
+    /// Tab reaches the list once, on the active entry, instead of stopping at every module.
+    @Test
+    void onlyTheActiveEntryIsATabStop() throws InterruptedException {
+        FxTest.runAndWait(() -> {
+            TestModule servers = new TestModule("Servers");
+            AppShell shell = AppShell.builder(new TestModule("Dashboard"), servers).build();
+            List<ToggleButton> buttons = navButtons(shell);
+
+            shell.openModule(servers);
+
+            assertAll(
+                    () -> assertFalse(buttons.getFirst().isFocusTraversable()),
+                    () -> assertTrue(buttons.get(1).isFocusTraversable()));
         });
     }
 }

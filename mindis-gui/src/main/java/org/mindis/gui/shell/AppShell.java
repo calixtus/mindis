@@ -12,6 +12,7 @@ import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanWrapper;
+import javafx.geometry.Bounds;
 import javafx.scene.AccessibleRole;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
@@ -24,6 +25,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.util.Duration;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -82,6 +84,7 @@ public final class AppShell extends BorderPane {
     private final List<ShellModule> modules;
 
     private final VBox sidebar = new VBox();
+    private final ScrollPane navScroll = new ScrollPane();
     private final FontIcon toggleIcon = new FontIcon();
     private final Tooltip toggleTooltip = new Tooltip();
 
@@ -119,7 +122,7 @@ public final class AppShell extends BorderPane {
         // Only the module list scrolls. The bottom-pinned entries stay outside it,
         // so a window too short for every entry at once still leaves Settings and
         // About reachable instead of clipping them off the end.
-        ScrollPane navScroll = new ScrollPane(navList);
+        navScroll.setContent(navList);
         navScroll.getStyleClass().add("shell-nav-scroll");
         navScroll.setFitToWidth(true);
         navScroll.setHbarPolicy(ScrollBarPolicy.NEVER);
@@ -144,6 +147,8 @@ public final class AppShell extends BorderPane {
                 navGroup.selectToggle(oldToggle);
             }
         });
+
+        sidebar.addEventFilter(KeyEvent.KEY_PRESSED, this::handleNavKey);
 
         setLeft(new HBox(sidebar, createResizeHandle()));
         setCenter(contentPane);
@@ -380,6 +385,9 @@ public final class AppShell extends BorderPane {
         button.getStyleClass().add("shell-nav-button");
         button.setToggleGroup(navGroup);
         button.setMaxWidth(Double.MAX_VALUE);
+        // One Tab stop for the whole list, landing on the active entry; the arrow
+        // keys move between entries from there (see #handleNavKey).
+        button.focusTraversableProperty().bind(button.selectedProperty());
         // A Labeled lays its graphic out at the graphic's own preferred width, so
         // without this the row would be as wide as its contents and the badge
         // would sit against the name instead of at the entry's far edge. Insets
@@ -395,6 +403,69 @@ public final class AppShell extends BorderPane {
         navButtons.put(module, button);
         applyButtonMode(module, button);
         return button;
+    }
+
+    /// Arrow keys move focus between entries, wrapping at either end, without
+    /// opening anything; Enter opens the focused entry, as Space already does.
+    /// A filter, because `ToggleButton`'s own behaviour selects the neighbour on
+    /// every arrow press, so arrowing past a module would activate (and build) it.
+    /// Left and Right are swallowed for the same reason.
+    private void handleNavKey(KeyEvent event) {
+        if (!(event.getTarget() instanceof ToggleButton button) || button.getToggleGroup() != navGroup) {
+            return;
+        }
+        List<ToggleButton> buttons = List.copyOf(navButtons.values());
+        int index = buttons.indexOf(button);
+        switch (event.getCode()) {
+            case UP -> focusNavButton(buttons.get(Math.floorMod(index - 1, buttons.size())));
+            case DOWN -> focusNavButton(buttons.get(Math.floorMod(index + 1, buttons.size())));
+            case ENTER -> button.setSelected(true);
+            case LEFT, RIGHT -> {
+                // consumed only
+            }
+            default -> {
+                return;
+            }
+        }
+        event.consume();
+    }
+
+    private void focusNavButton(ToggleButton button) {
+        button.requestFocus();
+        scrollIntoView(button);
+    }
+
+    /// Scrolls the module list just far enough to show `node`; a no-op for the
+    /// bottom-pinned entries, which sit outside it.
+    private void scrollIntoView(Node node) {
+        Node content = navScroll.getContent();
+        if (!isDescendant(node, content)) {
+            return;
+        }
+        Bounds bounds = content.sceneToLocal(node.localToScene(node.getBoundsInLocal()));
+        double viewportHeight = navScroll.getViewportBounds().getHeight();
+        double scrollable = content.getLayoutBounds().getHeight() - viewportHeight;
+        if (scrollable <= 0) {
+            return;
+        }
+        double top = navScroll.getVvalue() * scrollable;
+        if (bounds.getMinY() < top) {
+            top = bounds.getMinY();
+        } else if (bounds.getMaxY() > top + viewportHeight) {
+            top = bounds.getMaxY() - viewportHeight;
+        } else {
+            return;
+        }
+        navScroll.setVvalue(top / scrollable);
+    }
+
+    private static boolean isDescendant(Node node, Node ancestor) {
+        for (Node current = node; current != null; current = current.getParent()) {
+            if (current == ancestor) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// Shows or hides the module label per collapsed state; when collapsed the
