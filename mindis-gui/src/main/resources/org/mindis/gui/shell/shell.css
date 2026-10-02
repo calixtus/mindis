@@ -159,6 +159,21 @@
     -fx-border-radius: 6 0 0 6;
 }
 
+/* The arrow keys move focus between entries, so it has to show - and the rule
+   above, being author-level, already hides AtlantaFX's own focus ring. A ring
+   drawn as an outer background layer rather than a border, because a border
+   adds to the insets and would shift the entry's content. focus-visible, so a
+   click does not leave one behind. */
+.shell-nav-button:focus-visible {
+    -fx-background-color: -color-accent-emphasis, -color-bg-subtle;
+    -fx-background-insets: 0, 2;
+    -fx-background-radius: 6, 4;
+}
+
+.shell-nav-button:selected:focus-visible {
+    -fx-background-color: -color-accent-emphasis, -color-accent-subtle;
+}
+
 /* The entry's content row: icon, name, then the badge pushed to the far edge. */
 .shell-nav-row {
     -fx-spacing: 10;
