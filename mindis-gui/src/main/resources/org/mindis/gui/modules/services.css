@@ -22,6 +22,11 @@
     -fx-text-fill: -color-fg-muted;
 }
 
+/* Muted grey on the selected row's fill is too faint in a dark theme. */
+.services-tile-table .table-row-cell:selected .service-tile-role {
+    -fx-text-fill: -color-fg-default;
+}
+
 .altar-warning-icon {
     -fx-icon-color: -color-danger-fg;
 }

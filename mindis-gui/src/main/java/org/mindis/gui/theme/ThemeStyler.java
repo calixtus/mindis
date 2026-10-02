@@ -18,7 +18,7 @@ import org.mindis.core.preferences.MinDisPreferences;
 /// <p>Accent tokens are derived from a single base hex per theme mode, mirroring
 /// how AtlantaFX relates `-color-accent-fg/emphasis/muted/subtle`: on dark
 /// the foreground is a lightened base and muted/subtle darken toward the
-/// background; on light it inverts.
+/// background; on light it inverts, the foreground a darkened base.
 public final class ThemeStyler {
 
     private ThemeStyler() {
@@ -176,7 +176,9 @@ public final class ThemeStyler {
         if (accentHex != null && !accentHex.isBlank()) {
             String base = accentHex;
             boolean dark = theme == MinDisPreferences.Theme.DARK;
-            String fg = dark ? derive(base, 40) : base;
+            // Light: darker than the base, as in AtlantaFX's own light themes - the base itself
+            // reads at about 2.5:1 on the subtle fill a selected sidebar entry sits on.
+            String fg = dark ? derive(base, 40) : derive(base, -30);
             String muted = dark ? derive(base, -25) : derive(base, 55);
             String subtle = dark ? derive(base, -55) : derive(base, 80);
             root.append("  -color-accent-fg: ").append(fg).append(";\n");

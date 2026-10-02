@@ -323,6 +323,13 @@
     -fx-icon-color: -color-fg-emphasis;
 }
 
+/* The text sits in the skin's own label, which -fx-text-fill on the MenuButton does
+   not reach; left alone it takes the theme's default text colour, dark on the accent
+   fill in a light theme. */
+.dashboard-add-button > .label {
+    -fx-text-fill: -color-fg-emphasis;
+}
+
 .dashboard-add-button > .arrow-button > .arrow {
     -fx-background-color: -color-fg-emphasis;
 }
