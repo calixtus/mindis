@@ -12,10 +12,12 @@ import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyBooleanWrapper;
+import javafx.css.PseudoClass;
 import javafx.geometry.Bounds;
 import javafx.scene.AccessibleRole;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
@@ -76,6 +78,11 @@ public final class AppShell extends BorderPane {
     private static final Duration RAIL_TOOLTIP_DELAY = Duration.millis(300);
     /// Long enough to read as one movement, short enough not to be waited on.
     private static final Duration COLLAPSE_ANIMATION = Duration.millis(160);
+    /// Set on an entry the arrow keys moved focus to. `:focus-visible` cannot
+    /// mark it: [Node#requestFocus()] clears that flag, and the public traversal
+    /// API that sets it only visits focus-traversable nodes, which all but the
+    /// active entry are not.
+    private static final PseudoClass KEYBOARD_FOCUS = PseudoClass.getPseudoClass("keyboard-focus");
 
     private final Map<ShellModule, ToggleButton> navButtons = new LinkedHashMap<>();
     private final Map<ShellModule, Tooltip> railTooltips = new LinkedHashMap<>();
@@ -157,6 +164,15 @@ public final class AppShell extends BorderPane {
         });
 
         sidebar.addEventFilter(KeyEvent.KEY_PRESSED, this::handleNavKey);
+        // The keyboard-focus mark follows the scene's focus owner rather than each
+        // entry's focused flag, which also drops while the window is inactive and
+        // would lose the mark on every switch to another application.
+        sceneProperty().flatMap(Scene::focusOwnerProperty).subscribe(owner ->
+                navButtons.values().forEach(button -> {
+                    if (button != owner) {
+                        button.pseudoClassStateChanged(KEYBOARD_FOCUS, false);
+                    }
+                }));
 
         setLeft(new HBox(sidebar, createResizeHandle()));
         setCenter(contentPane);
@@ -399,6 +415,7 @@ public final class AppShell extends BorderPane {
         // One Tab stop for the whole list, landing on the active entry; the arrow
         // keys move between entries from there (see #handleNavKey).
         button.focusTraversableProperty().bind(button.selectedProperty());
+        button.addEventHandler(MouseEvent.MOUSE_PRESSED, _ -> button.pseudoClassStateChanged(KEYBOARD_FOCUS, false));
         // A Labeled lays its graphic out at the graphic's own preferred width, so
         // without this the row would be as wide as its contents and the badge
         // would sit against the name instead of at the entry's far edge. Insets
@@ -446,6 +463,7 @@ public final class AppShell extends BorderPane {
 
     private void focusNavButton(ToggleButton button) {
         button.requestFocus();
+        button.pseudoClassStateChanged(KEYBOARD_FOCUS, true);
         scrollIntoView(button);
     }
 

@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 import java.util.stream.IntStream;
 
+import javafx.css.PseudoClass;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -32,6 +33,8 @@ import org.mindis.gui.FxTest;
 /// bugs worth catching here have all been in the wiring - a nav button that could
 /// deselect itself, a label left visible on the rail, a width that did not snap.
 class AppShellNavigationTest {
+
+    private static final PseudoClass KEYBOARD_FOCUS = PseudoClass.getPseudoClass("keyboard-focus");
 
     private static final class TestModule extends ShellModule {
 
@@ -186,6 +189,8 @@ class AppShellNavigationTest {
 
             assertAll(
                     () -> assertSame(buttons.get(1), scene.getFocusOwner()),
+                    () -> assertTrue(buttons.get(1).getPseudoClassStates().contains(KEYBOARD_FOCUS),
+                            "requestFocus clears :focus-visible, so the ring needs its own state"),
                     () -> assertSame(dashboard, shell.getActiveModule()),
                     () -> assertEquals(0, servers.activations));
         });
@@ -296,6 +301,21 @@ class AppShellNavigationTest {
             shell.openModule(modules.getLast());
 
             assertEquals(1.0, navScroll.getVvalue(), 1e-9, "the last entry needs the list scrolled to its end");
+        });
+    }
+
+    @Test
+    void theKeyboardFocusMarkGoesWithTheFocus() throws InterruptedException {
+        FxTest.runAndWait(() -> {
+            AppShell shell = AppShell.builder(new TestModule("Dashboard"), new TestModule("Servers")).build();
+            laidOut(shell);
+            List<ToggleButton> buttons = navButtons(shell);
+            buttons.getFirst().requestFocus();
+
+            press(buttons.getFirst(), KeyCode.DOWN);
+            buttons.getFirst().requestFocus();
+
+            assertFalse(buttons.get(1).getPseudoClassStates().contains(KEYBOARD_FOCUS));
         });
     }
 }

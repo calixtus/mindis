@@ -162,15 +162,18 @@
 /* The arrow keys move focus between entries, so it has to show - and the rule
    above, being author-level, already hides AtlantaFX's own focus ring. A ring
    drawn as an outer background layer rather than a border, because a border
-   adds to the insets and would shift the entry's content. focus-visible, so a
-   click does not leave one behind. */
-.shell-nav-button:focus-visible {
+   adds to the insets and would shift the entry's content. focus-visible covers
+   Tab, keyboard-focus the arrow keys (see AppShell#KEYBOARD_FOCUS); a click
+   shows neither. */
+.shell-nav-button:focus-visible,
+.shell-nav-button:keyboard-focus {
     -fx-background-color: -color-accent-emphasis, -color-bg-subtle;
     -fx-background-insets: 0, 2;
     -fx-background-radius: 6, 4;
 }
 
-.shell-nav-button:selected:focus-visible {
+.shell-nav-button:selected:focus-visible,
+.shell-nav-button:selected:keyboard-focus {
     -fx-background-color: -color-accent-emphasis, -color-accent-subtle;
 }
 
