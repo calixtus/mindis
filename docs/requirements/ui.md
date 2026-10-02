@@ -338,7 +338,8 @@ Covers:
 overrides into a single `data:` URI installed as the *user-agent* stylesheet — not a scene override
 — because popup windows (ComboBox popups etc.) consult only the user-agent stylesheet. Accent tokens
 (`-color-accent-fg/emphasis/muted/subtle`) are derived from one base hex per theme mode. Text on an
-accent fill — accent and default buttons, a selected toggle, the date picker's selected day — goes
+accent fill — accent and default buttons, a selected toggle, the date picker's selected day, and the
+check tick, radio dot, switch knob and progress tick drawn on one — goes
 through `-color-accent-on`: AtlantaFX's light text, or `-color-dark` when that would fall below 3:1
 on the accent (green, orange, teal), since AtlantaFX itself always uses the light one. It also
 defines the legacy Modena tokens GemsFX's bundled control CSS looks up but AtlantaFX never defines,

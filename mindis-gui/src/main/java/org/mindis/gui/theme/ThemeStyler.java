@@ -169,21 +169,31 @@ public final class ThemeStyler {
             }
             """;
 
-    /// Text on accent fills goes through `-color-accent-on`, which [#buildCss] points at
+    /// Text and marks (check tick, radio dot, switch knob, progress tick) on accent fills go
+    /// through `-color-accent-on`, which [#buildCss] points at
     /// `-color-dark` when [#needsDarkTextOn] says so. AtlantaFX paints that text with
     /// `-color-fg-emphasis` through many per-variant variables (`-color-button-fg`,
     /// `-fg-hover`, `-fg-pressed`, outlined and flat variants...), so instead of overriding
     /// each, `-color-fg-emphasis` itself is redefined inside the controls whose fill is the
     /// accent; lookups resolve from the nearest definition, so everything those controls
-    /// derive from it follows. The date picker's selected day is a direct variable.
+    /// derive from it follows. A switch's success and danger fills are not the accent, so
+    /// their knob stays light. The date picker's selected day is a direct variable.
     private static final String ACCENT_TEXT_CSS = """
             .root {
               -color-accent-on: -color-light;
             }
             .button:default, .button.accent,
             .menu-button.accent, .split-menu-button.accent,
-            .toggle-button:selected {
+            .toggle-button:selected,
+            .check-box:selected > .box > .mark,
+            .radio-button:selected > .radio > .dot,
+            .toggle-switch:selected > .thumb,
+            .progress-indicator > .determinate-indicator > .tick {
               -color-fg-emphasis: -color-accent-on;
+            }
+            .toggle-switch:selected:success > .thumb,
+            .toggle-switch:selected:danger > .thumb {
+              -color-fg-emphasis: -color-light;
             }
             .date-picker-popup {
               -color-date-day-fg-selected: -color-accent-on;
