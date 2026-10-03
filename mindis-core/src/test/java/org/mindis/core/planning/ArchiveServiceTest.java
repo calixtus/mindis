@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
 import org.mindis.core.persistence.ArchivedServiceRepository;
@@ -45,7 +46,7 @@ class ArchiveServiceTest {
     @Test
     void archive_pastServices_snapshotsThemAndReturnsRemovedIds() {
         addServer();
-        addService("jul", LocalDate.of(2026, 7, 5), new Slot("s1", Role.ACOLYTE, "srv", false));
+        addService("jul", LocalDate.of(2026, 7, 5), new Slot("s1", Role.ACOLYTE, new ServerId("srv"), false));
         addService("aug", LocalDate.of(2026, 8, 5), new Slot("s2", Role.ACOLYTE, null, false));
 
         ServiceArchiver.Result result = archiveService.archive(LocalDate.of(2026, 7, 31));
@@ -60,7 +61,7 @@ class ArchiveServiceTest {
     @Test
     void archive_nothingBeforeCutoff_returnsEmpty() {
         addServer();
-        addService("aug", LocalDate.of(2026, 8, 5), new Slot("s1", Role.ACOLYTE, "srv", false));
+        addService("aug", LocalDate.of(2026, 8, 5), new Slot("s1", Role.ACOLYTE, new ServerId("srv"), false));
 
         ServiceArchiver.Result result = archiveService.archive(LocalDate.of(2026, 7, 31));
 
@@ -71,19 +72,19 @@ class ArchiveServiceTest {
     void priorFromArchived_serviceInTheSpacingTail_bridgesAcrossTheBoundary() {
         addServer();
         // Archive a service the day before the window start.
-        addService("prev", LocalDate.of(2026, 7, 31), new Slot("s1", Role.ACOLYTE, "srv", false));
+        addService("prev", LocalDate.of(2026, 7, 31), new Slot("s1", Role.ACOLYTE, new ServerId("srv"), false));
         archiveService.archive(LocalDate.of(2026, 7, 31));
 
         List<PriorAssignment> prior = archiveService.priorFromArchived(LocalDate.of(2026, 8, 1));
 
         assertEquals(1, prior.size());
-        assertEquals("srv", prior.getFirst().server().id());
+        assertEquals(new ServerId("srv"), prior.getFirst().server().id());
     }
 
     @Test
     void priorFromArchived_serviceOutsideTheTail_isIgnored() {
         addServer();
-        addService("old", LocalDate.of(2026, 7, 1), new Slot("s1", Role.ACOLYTE, "srv", false));
+        addService("old", LocalDate.of(2026, 7, 1), new Slot("s1", Role.ACOLYTE, new ServerId("srv"), false));
         archiveService.archive(LocalDate.of(2026, 7, 1));
 
         // Aug 1 is well past the spacing tail of a July 1 service.
@@ -99,7 +100,7 @@ class ArchiveServiceTest {
     @Test
     void deleteArchived_removesTheSnapshot() {
         addServer();
-        addService("jul", LocalDate.of(2026, 7, 5), new Slot("s1", Role.ACOLYTE, "srv", false));
+        addService("jul", LocalDate.of(2026, 7, 5), new Slot("s1", Role.ACOLYTE, new ServerId("srv"), false));
         archiveService.archive(LocalDate.of(2026, 7, 31));
 
         archiveService.deleteArchived(archiveService.listArchived().getFirst().id());
@@ -113,7 +114,7 @@ class ArchiveServiceTest {
     }
 
     private void addServer() {
-        servers.save(Server.named("srv", "Anna", "B").withQualifications(Set.of(Role.ACOLYTE)));
+        servers.save(Server.named(new ServerId("srv"), "Anna", "B").withQualifications(Set.of(Role.ACOLYTE)));
     }
 
     private void addService(String id, LocalDate date, Slot slot) {

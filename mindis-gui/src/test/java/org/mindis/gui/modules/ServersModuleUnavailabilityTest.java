@@ -27,6 +27,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.UnavailabilityPeriod;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
@@ -98,7 +99,7 @@ class ServersModuleUnavailabilityTest {
 
     private Editor openEditor() {
         List<Server> staged = new ArrayList<>();
-        staged.add(Server.named("S1", "Anna", "Becker"));
+        staged.add(Server.named(new ServerId("S1"), "Anna", "Becker"));
         LiveStore<Server> serverStore = new LiveStore<>(
                 () -> new ArrayList<>(staged),
                 server -> {

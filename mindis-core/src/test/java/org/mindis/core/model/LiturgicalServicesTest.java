@@ -16,8 +16,8 @@ class LiturgicalServicesTest {
     /// `"-"` marks an unfilled slot.
     private static LiturgicalService service(LocalDateTime when, String... serverIds) {
         List<Slot> slots = Arrays.stream(serverIds)
-                .map(serverId -> new Slot("slot-" + serverId, "Acolyte",
-                        "-".equals(serverId) ? null : serverId, false))
+                .map(serverId -> new Slot("slot-" + serverId, new RoleId("Acolyte"),
+                        "-".equals(serverId) ? null : new ServerId(serverId), false))
                 .toList();
         return new LiturgicalService("s-" + when, when, 60, "St. Mary",
                 ServiceType.SUNDAY_MASS, "", slots, "");

@@ -18,7 +18,9 @@ import org.mindis.core.model.ArchivedService;
 import org.mindis.core.model.Indexes;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
 import org.mindis.core.model.UnavailabilityPeriod;
@@ -180,10 +182,10 @@ final class PlanOverviewCalculator {
     /// load does with server ids.
     private List<RoleStatus> roleStatus(List<LiturgicalService> ahead) {
         List<Server> active = servers.stream().filter(Server::active).toList();
-        Map<String, Integer> openByRole = new LinkedHashMap<>();
-        Map<String, Integer> peakByRole = new LinkedHashMap<>();
+        Map<RoleId, Integer> openByRole = new LinkedHashMap<>();
+        Map<RoleId, Integer> peakByRole = new LinkedHashMap<>();
         for (LiturgicalService service : ahead) {
-            Map<String, Integer> perService = new LinkedHashMap<>();
+            Map<RoleId, Integer> perService = new LinkedHashMap<>();
             for (Slot slot : service.slots()) {
                 perService.merge(slot.role(), 1, Integer::sum);
                 if (slot.serverId() == null) {
@@ -193,7 +195,7 @@ final class PlanOverviewCalculator {
             perService.forEach((role, count) -> peakByRole.merge(role, count, Math::max));
         }
         List<RoleStatus> status = new ArrayList<>();
-        Set<String> known = new LinkedHashSet<>();
+        Set<RoleId> known = new LinkedHashSet<>();
         for (Role role : roles) {
             known.add(role.id());
             status.add(new RoleStatus(role.displayName(),
@@ -203,7 +205,7 @@ final class PlanOverviewCalculator {
         }
         peakByRole.keySet().stream()
                 .filter(roleId -> !known.contains(roleId))
-                .forEach(roleId -> status.add(new RoleStatus(roleId, openByRole.getOrDefault(roleId, 0), 0,
+                .forEach(roleId -> status.add(new RoleStatus(roleId.value(), openByRole.getOrDefault(roleId, 0), 0,
                         peakByRole.getOrDefault(roleId, 0))));
         // Roles that cannot be staffed at all first, then the tightest ones,
         // then the ones with the most work left.
@@ -274,12 +276,12 @@ final class PlanOverviewCalculator {
     /// only discover by reading every service. Deliberately not the solver's
     /// constraint check: this is about the roster, not about one plan's score.
     private List<RosterIssue> rosterIssues(List<LiturgicalService> ahead) {
-        Map<String, Server> serversById = Indexes.byKey(servers, Server::id);
-        Set<String> assignedAhead = new LinkedHashSet<>();
+        Map<ServerId, Server> serversById = Indexes.byKey(servers, Server::id);
+        Set<ServerId> assignedAhead = new LinkedHashSet<>();
         List<RosterIssue> issues = new ArrayList<>();
         for (LiturgicalService service : ahead) {
             for (Slot slot : service.slots()) {
-                String serverId = slot.serverId();
+                ServerId serverId = slot.serverId();
                 if (serverId == null) {
                     continue;
                 }
@@ -361,8 +363,8 @@ final class PlanOverviewCalculator {
     }
 
     private List<ServerLoad> serverLoad(List<LiturgicalService> services) {
-        Map<String, Server> serversById = Indexes.byKey(servers, Server::id);
-        Map<String, Long> countByServer = new LinkedHashMap<>();
+        Map<ServerId, Server> serversById = Indexes.byKey(servers, Server::id);
+        Map<ServerId, Long> countByServer = new LinkedHashMap<>();
         // Active servers start at zero: someone who is never assigned is the
         // most interesting entry of this widget, and would otherwise be the one
         // entry missing from it. Inactive servers are not expected to serve, so
@@ -382,7 +384,7 @@ final class PlanOverviewCalculator {
                     Server server = serversById.get(entry.getKey());
                     // An id with no server left (deleted while still assigned)
                     // falls back to the raw id rather than vanishing.
-                    return new ServerLoad(server == null ? entry.getKey() : server.displayName(), entry.getValue());
+                    return new ServerLoad(server == null ? entry.getKey().value() : server.displayName(), entry.getValue());
                 })
                 // Most-loaded first, then by name so equal loads keep a stable,
                 // readable order rather than repository order.

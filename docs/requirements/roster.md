@@ -79,11 +79,13 @@ Covers:
 ### Server record
 `dsn~server-record~1`
 
-`org.mindis.core.model.Server` is an immutable record: `id`, `firstName`, `lastName`, `contact`,
-nullable `birthDate`, nullable `familyId`, `qualifications` (a set of `Role.id()`),
-`incompatibleRoles` (likewise a set of `Role.id()`), `unavailabilities`, `preferredTimes`,
-`experienced`, `active`. Ids are random UUIDs
-(`Server.newId()`). The compact constructor is null-tolerant and defensively copies every
+`org.mindis.core.model.Server` is an immutable record: `id` (a `ServerId`), `firstName`, `lastName`,
+`contact`, nullable `birthDate`, nullable `familyId`, `qualifications` (a set of `RoleId`),
+`incompatibleRoles` (likewise a set of `RoleId`), `unavailabilities`, `preferredTimes`,
+`experienced`, `active`. Ids are random UUIDs (`ServerId.newId()`). Role and server ids are their
+own types so one cannot be passed for the other, but they are written to the document as the bare
+strings they always were (`IdModule`, covered by `DocumentIdFormatTest`). `Server.named(id, first,
+last)` builds a plain active server and the `with…` methods change one field at a time. The compact constructor is null-tolerant and defensively copies every
 collection, so JSON written before a field existed still deserializes (absent collection → empty).
 Derived helpers: `displayName()`, `isAvailableAt(dateTime)`, `isExcludedFrom(service)` (true as soon
 as any slot of the service asks for one of `incompatibleRoles`), `prefers(dateTime)`, and

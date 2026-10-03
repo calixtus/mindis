@@ -5,6 +5,7 @@ import jakarta.inject.Singleton;
 import java.util.Comparator;
 
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 
 /// Role storage: the roles of the currently open document, ordered by the
 /// user's own sort order (see [InMemoryRepository]).
@@ -15,7 +16,7 @@ import org.mindis.core.model.Role;
 /// empty. Their ids match the former `Role` enum constants, so data
 /// referencing those names still resolves.
 @Singleton
-public final class RoleRepository extends InMemoryRepository<Role> {
+public final class RoleRepository extends InMemoryRepository<Role, RoleId> {
 
     private static final int SORT_ORDER_STEP = 10;
 

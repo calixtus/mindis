@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.Slot;
 
 /// Reconciles a role's slot count edit (from [SlotCountEditor]) into a
@@ -26,8 +27,8 @@ final class SlotReconciler {
     private SlotReconciler() {
     }
 
-    static List<Slot> reconcile(List<Slot> existing, Map<String, Integer> counts, Predicate<Slot> isFilled) {
-        Map<String, List<Slot>> byRole = groupByRole(existing);
+    static List<Slot> reconcile(List<Slot> existing, Map<RoleId, Integer> counts, Predicate<Slot> isFilled) {
+        Map<RoleId, List<Slot>> byRole = groupByRole(existing);
         // Existing roles keep their current order; a role newly given a
         // count by the editor (previously zero, no existing Slot instances)
         // is appended after. A role with existing slots but *omitted* from
@@ -35,11 +36,11 @@ final class SlotReconciler {
         // still in byRole.keySet(), so it's still visited here - getOrDefault
         // below reads that as "wanted = 0", correctly shrinking it to nothing
         // rather than leaving its old slots untouched.
-        Set<String> roleIds = new LinkedHashSet<>(byRole.keySet());
+        Set<RoleId> roleIds = new LinkedHashSet<>(byRole.keySet());
         roleIds.addAll(counts.keySet());
 
         List<Slot> result = new ArrayList<>();
-        for (String roleId : roleIds) {
+        for (RoleId roleId : roleIds) {
             int wanted = counts.getOrDefault(roleId, 0);
             List<Slot> current = byRole.getOrDefault(roleId, List.of());
             if (current.size() <= wanted) {
@@ -62,8 +63,8 @@ final class SlotReconciler {
         return result;
     }
 
-    private static Map<String, List<Slot>> groupByRole(List<Slot> slots) {
-        Map<String, List<Slot>> byRole = new LinkedHashMap<>();
+    private static Map<RoleId, List<Slot>> groupByRole(List<Slot> slots) {
+        Map<RoleId, List<Slot>> byRole = new LinkedHashMap<>();
         for (Slot slot : slots) {
             byRole.computeIfAbsent(slot.role(), roleId -> new ArrayList<>()).add(slot);
         }

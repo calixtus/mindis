@@ -6,6 +6,7 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 
 /// CSV row mapping for [Role], shared by every consumer that offers
 /// Roles import/export (currently the GUI's Roles module; PLAN.md's future
@@ -27,7 +28,7 @@ public final class RoleCsvMapper implements CsvRowMapper<Role> {
     @Override
     public List<String> toRow(Role role) {
         return List.of(
-                role.id(),
+                role.id().value(),
                 role.name(),
                 role.minAge() == null ? "" : role.minAge().toString(),
                 role.maxAge() == null ? "" : role.maxAge().toString(),
@@ -52,7 +53,7 @@ public final class RoleCsvMapper implements CsvRowMapper<Role> {
             maxAge = minAge;
         }
         return new Role(
-                id.isEmpty() ? Role.newId() : id,
+                id.isEmpty() ? RoleId.newId() : new RoleId(id),
                 name,
                 minAge,
                 maxAge,

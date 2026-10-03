@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import org.jspecify.annotations.NullMarked;
 
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.RoleSlot;
 
 /// CSV encoding of a [RoleSlot] list ("required servers"), shared by
@@ -52,7 +53,7 @@ final class RoleSlotCsv {
         return slots;
     }
 
-    private static String roleName(String roleId, RoleRepository roleRepository) {
-        return roleRepository.findById(roleId).map(Role::name).orElse(roleId);
+    private static String roleName(RoleId roleId, RoleRepository roleRepository) {
+        return roleRepository.findById(roleId).map(Role::name).orElse(roleId.value());
     }
 }

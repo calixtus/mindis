@@ -10,6 +10,8 @@ import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.model.ArchivedService;
 import org.mindis.core.model.LiturgicalService;
+import org.mindis.core.model.RoleId;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.Slot;
 
 /// Pure logic for freezing live services up to an archive cutoff into
@@ -44,8 +46,8 @@ public final class ServiceArchiver {
     /// stored id, so archiving never loses a slot. Services after the cutoff
     /// are left untouched.
     public static Result archive(List<LiturgicalService> live, LocalDate cutoff, Instant archivedAt,
-                                 Function<String, @Nullable String> roleName,
-                                 Function<String, @Nullable String> serverName) {
+                                 Function<RoleId, @Nullable String> roleName,
+                                 Function<ServerId, @Nullable String> serverName) {
         List<ArchivedService> archived = new ArrayList<>();
         List<String> removed = new ArrayList<>();
         for (LiturgicalService service : live) {
@@ -54,9 +56,9 @@ public final class ServiceArchiver {
             }
             List<ArchivedService.ArchivedSlot> slots = new ArrayList<>();
             for (Slot slot : service.slots()) {
-                String role = orElse(roleName.apply(slot.role()), slot.role());
-                String serverId = slot.serverId();
-                String server = serverId == null ? null : orElse(serverName.apply(serverId), serverId);
+                String role = orElse(roleName.apply(slot.role()), slot.role().value());
+                ServerId serverId = slot.serverId();
+                String server = serverId == null ? null : orElse(serverName.apply(serverId), serverId.value());
                 slots.add(new ArchivedService.ArchivedSlot(role, serverId, server));
             }
             archived.add(new ArchivedService(service.id(), service.dateTime(), service.durationMinutes(),

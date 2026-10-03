@@ -14,12 +14,14 @@ import org.junit.jupiter.api.Test;
 
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.ServiceType;
 
 class AutofillTest {
 
-    private static final Role ACOLYTE = new Role("ACOLYTE", "Acolyte", null, null, 0);
+    private static final Role ACOLYTE = new Role(new RoleId("ACOLYTE"), "Acolyte", null, null, 0);
 
     private static LiturgicalService service(String id, LocalDate date) {
         return new LiturgicalService(id, LocalDateTime.of(date, LocalTime.of(10, 0)), 60,
@@ -31,7 +33,7 @@ class AutofillTest {
     }
 
     private static Server server() {
-        return Server.named("srv", "Anna", "B");
+        return Server.named(new ServerId("srv"), "Anna", "B");
     }
 
     @Test

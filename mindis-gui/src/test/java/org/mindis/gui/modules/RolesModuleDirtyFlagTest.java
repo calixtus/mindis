@@ -16,6 +16,7 @@ import javafx.scene.layout.GridPane;
 import org.junit.jupiter.api.Test;
 
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.gui.FxTest;
 import org.mindis.gui.data.LiveStore;
@@ -34,7 +35,7 @@ class RolesModuleDirtyFlagTest {
     void dirtyAccentClearsRightAfterSaveAll() throws Exception {
         FxTest.runAndWait(() -> {
             List<Role> staged = new ArrayList<>();
-            staged.add(new Role("R1", "Acolyte", null, null, 0));
+            staged.add(new Role(new RoleId("R1"), "Acolyte", null, null, 0));
 
             LiveStore<Role> store = new LiveStore<>(
                     () -> new ArrayList<>(staged),

@@ -25,6 +25,8 @@ import org.mindis.core.model.ArchivedService;
 import org.mindis.core.model.CollectionMeta;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.RecurrenceRule;
+import org.mindis.core.model.RoleId;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.ServiceSchedule;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.RoleSlot;
@@ -46,13 +48,13 @@ class DocumentRoundTripTest {
         Path file = tempDir.resolve("parish.json");
         Fixture original = new Fixture();
         Server server = new Server(
-                Server.newId(), "Anna", "Muster", "anna@example.org",
+                ServerId.newId(), "Anna", "Muster", "anna@example.org",
                 LocalDate.of(2012, 5, 14), "muster",
                 Set.of(Role.ACOLYTE, Role.THURIFER),
                 Set.of(Role.THURIFER),
                 List.of(new UnavailabilityPeriod(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 15))),
                 Set.of(LocalTime.of(10, 0)), true, true);
-        Role role = new Role(Role.newId(), "Thurifer", 14, 99, 50);
+        Role role = new Role(RoleId.newId(), "Thurifer", 14, 99, 50);
         ServiceTemplate template = new ServiceTemplate(ServiceTemplate.newId(),
                 ServiceSchedule.of(RecurrenceRule.allOf(RecurrenceRule.nthWeekdayOfMonth(3, DayOfWeek.SUNDAY),
                         RecurrenceRule.not(RecurrenceRule.fixedMonthDay(Month.DECEMBER, 25)))),
@@ -66,7 +68,7 @@ class DocumentRoundTripTest {
         ArchivedService archived = new ArchivedService(
                 LiturgicalService.newId(), LocalDateTime.of(2026, 6, 7, 9, 0), 60, "St. Mary",
                 ServiceType.SUNDAY_MASS, "", "",
-                List.of(new ArchivedService.ArchivedSlot("Acolyte", "gone", "Deleted Server")),
+                List.of(new ArchivedService.ArchivedSlot("Acolyte", new ServerId("gone"), "Deleted Server")),
                 Instant.parse("2026-06-08T10:15:30Z"));
 
         original.servers.save(server);
@@ -113,7 +115,7 @@ class DocumentRoundTripTest {
         fixture.database.saveAs(file);
 
         fixture.servers.save(server("id-2", "Ben"));
-        fixture.servers.delete("id-1");
+        fixture.servers.delete(new ServerId("id-1"));
 
         Fixture onDisk = new Fixture();
         onDisk.database.open(file);
@@ -199,7 +201,7 @@ class DocumentRoundTripTest {
     }
 
     private static Server server(String id, String firstName) {
-        return Server.named(id, firstName, "Muster");
+        return Server.named(new ServerId(id), firstName, "Muster");
     }
 
     /// One document's repositories plus the [AppDatabase] over them -

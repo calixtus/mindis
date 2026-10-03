@@ -7,7 +7,9 @@ import java.util.Map;
 import org.mindis.core.model.Indexes;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.Slot;
 
 /// Builds the transient [ServicePlan] view over a set of services: one
@@ -31,8 +33,8 @@ public final class ServicePlans {
     ///        exists is skipped, since there is nothing to assign it against
     public static ServicePlan build(List<LiturgicalService> services, List<Server> servers, List<Role> roles,
                                     List<PriorAssignment> priorAssignments) {
-        Map<String, Server> serversById = Indexes.byKey(servers, Server::id);
-        Map<String, Role> rolesById = Indexes.byKey(roles, Role::id);
+        Map<ServerId, Server> serversById = Indexes.byKey(servers, Server::id);
+        Map<RoleId, Role> rolesById = Indexes.byKey(roles, Role::id);
 
         List<Assignment> assignments = new ArrayList<>();
         for (LiturgicalService service : services) {

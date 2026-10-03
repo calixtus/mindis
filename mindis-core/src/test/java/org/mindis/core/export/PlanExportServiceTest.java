@@ -30,6 +30,7 @@ import org.mindis.core.model.ArchivedService;
 import org.mindis.core.model.CollectionMeta;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
 import org.mindis.core.persistence.AppDatabase;
@@ -101,7 +102,7 @@ class PlanExportServiceTest {
         // Sans has to carry names like this one through unchanged.
         ArchivedService archived = new ArchivedService("svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60,
                 "St. Mary", ServiceType.SUNDAY_MASS, "", "",
-                List.of(new ArchivedService.ArchivedSlot("Acolyte", "s1", "Zoë Šimeček")),
+                List.of(new ArchivedService.ArchivedSlot("Acolyte", new ServerId("s1"), "Zoë Šimeček")),
                 Instant.now());
         Path target = tempDir.resolve("unicode.pdf");
 
@@ -114,7 +115,7 @@ class PlanExportServiceTest {
     void pdfListsRolesAndServers() throws IOException {
         ArchivedService archived = new ArchivedService("svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60,
                 "St. Mary", ServiceType.SUNDAY_MASS, "", "",
-                List.of(new ArchivedService.ArchivedSlot("Acolyte", "s1", "Anna Meier")),
+                List.of(new ArchivedService.ArchivedSlot("Acolyte", new ServerId("s1"), "Anna Meier")),
                 Instant.now());
         Path target = tempDir.resolve("content.pdf");
 
@@ -243,7 +244,7 @@ class PlanExportServiceTest {
 
         String content = Files.readString(target);
         assertFalse(content.contains("TOP SECRET"), "template read a file outside the template directory");
-        assertTrue(content.contains(Role.ACOLYTE), "fallback template did not render the plan");
+        assertTrue(content.contains(Role.ACOLYTE.value()), "fallback template did not render the plan");
     }
 
     @Test
@@ -255,7 +256,7 @@ class PlanExportServiceTest {
 
         String content = Files.readString(target);
         // The role id itself: an empty role repository has no display name for it.
-        assertTrue(content.contains(Role.ACOLYTE), "Fallback template did not render the plan");
+        assertTrue(content.contains(Role.ACOLYTE.value()), "Fallback template did not render the plan");
         assertFalse(content.contains("never closed"), "Broken template was used anyway");
     }
 
@@ -264,7 +265,7 @@ class PlanExportServiceTest {
         // A pipe would split a table cell, an asterisk would start emphasis.
         ArchivedService archived = new ArchivedService("svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60,
                 "St. Mary", ServiceType.SUNDAY_MASS, "", "",
-                List.of(new ArchivedService.ArchivedSlot("Acolyte", "s1", "A|B *C*")),
+                List.of(new ArchivedService.ArchivedSlot("Acolyte", new ServerId("s1"), "A|B *C*")),
                 Instant.now());
 
         Path text = tempDir.resolve("escaped.txt");
@@ -318,7 +319,7 @@ class PlanExportServiceTest {
         // snapshot still renders the captured display names.
         ArchivedService archived = new ArchivedService("svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60,
                 "St. Mary", ServiceType.SUNDAY_MASS, "", "",
-                List.of(new ArchivedService.ArchivedSlot("Acolyte", "gone", "Deleted Server")),
+                List.of(new ArchivedService.ArchivedSlot("Acolyte", new ServerId("gone"), "Deleted Server")),
                 Instant.now());
         Path target = tempDir.resolve("archived.md");
 

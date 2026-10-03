@@ -17,8 +17,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
 
@@ -27,7 +29,7 @@ import org.mindis.core.model.Slot;
 /// without any UI module.
 class PlanningEndToEndTest {
 
-    private static final Map<String, Role> ROLES = Map.of(
+    private static final Map<RoleId, Role> ROLES = Map.of(
             Role.ACOLYTE, new Role(Role.ACOLYTE, "Acolyte", null, null, 0),
             Role.CROSS_BEARER, new Role(Role.CROSS_BEARER, "Cross bearer", null, null, 1),
             Role.THURIFER, new Role(Role.THURIFER, "Thurifer", null, null, 2),
@@ -43,13 +45,13 @@ class PlanningEndToEndTest {
     void realisticMonthYieldsFeasiblePlan() {
         List<Server> servers = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
-            Set<String> qualifications = switch (i % 4) {
+            Set<RoleId> qualifications = switch (i % 4) {
                 case 0 -> Set.of(Role.ACOLYTE, Role.THURIFER, Role.BOAT_BEARER);
                 case 1 -> Set.of(Role.ACOLYTE, Role.CROSS_BEARER);
                 case 2 -> Set.of(Role.ACOLYTE, Role.MASTER_OF_CEREMONIES);
                 default -> Set.of(Role.ACOLYTE);
             };
-            servers.add(Server.named("server-" + i, "First" + i, "Last" + i)
+            servers.add(Server.named(new ServerId("server-" + i), "First" + i, "Last" + i)
                     .withFamilyId(i % 5 == 0 ? "family-" + (i / 5) : null)
                     .withQualifications(qualifications));
         }
@@ -99,12 +101,12 @@ class PlanningEndToEndTest {
     void serverIntolerantOfARoleIsKeptOutOfServicesStaffingIt() {
         // Sunday masses staff a thurifer, weekday masses do not - so the
         // incense-intolerant server may only serve the weekday ones.
-        Server noIncense = Server.named("no-incense", "Bea", "Muster")
+        Server noIncense = Server.named(new ServerId("no-incense"), "Bea", "Muster")
                 .withQualifications(Set.of(Role.ACOLYTE))
                 .withIncompatibleRoles(Set.of(Role.THURIFER));
         List<Server> servers = new ArrayList<>(List.of(noIncense));
         for (int i = 0; i < 6; i++) {
-            servers.add(Server.named("server-" + i, "First" + i, "Last" + i)
+            servers.add(Server.named(new ServerId("server-" + i), "First" + i, "Last" + i)
                     .withQualifications(Set.of(Role.ACOLYTE, Role.THURIFER, Role.CROSS_BEARER)));
         }
 

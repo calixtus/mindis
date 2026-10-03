@@ -18,6 +18,7 @@ import javafx.scene.layout.VBox;
 
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 
 /// "Required servers" role/slot-count editor shared by [ServicesModule]
 /// and [TemplatesModule]: one compact row per role (name left, a small
@@ -46,12 +47,12 @@ final class SlotCountEditor {
     final Label label = new Label(Localization.lang("Required servers"));
 
     private final ObservableList<Role> roles;
-    private final Consumer<Map<String, Integer>> onChange;
-    private final Map<String, Spinner<Integer>> spinners = new LinkedHashMap<>();
+    private final Consumer<Map<RoleId, Integer>> onChange;
+    private final Map<RoleId, Spinner<Integer>> spinners = new LinkedHashMap<>();
     private final VBox list = new VBox(8);
     private final ListChangeListener<Role> rolesListener = change -> rebuildRows(this::currentOrZero);
 
-    SlotCountEditor(ObservableList<Role> roles, Map<String, Integer> initialCounts) {
+    SlotCountEditor(ObservableList<Role> roles, Map<RoleId, Integer> initialCounts) {
         this(roles, initialCounts, counts -> { });
     }
 
@@ -59,7 +60,7 @@ final class SlotCountEditor {
     ///                 whenever any spinner's count changes - lets a caller
     ///                 (e.g. [ServicesModule]'s per-slot assignment
     ///                 rows) stay in sync with counts live, before Save.
-    SlotCountEditor(ObservableList<Role> roles, Map<String, Integer> initialCounts, Consumer<Map<String, Integer>> onChange) {
+    SlotCountEditor(ObservableList<Role> roles, Map<RoleId, Integer> initialCounts, Consumer<Map<RoleId, Integer>> onChange) {
         this.roles = roles;
         this.onChange = onChange;
         rebuildRows(roleId -> initialCounts.getOrDefault(roleId, 0));
@@ -86,13 +87,13 @@ final class SlotCountEditor {
     /// externally, e.g. a Save/Open reverting an unflushed count), not
     /// for a role-list change (handled internally). Does not itself call
     /// `onChange`.
-    void setCounts(Map<String, Integer> counts) {
+    void setCounts(Map<RoleId, Integer> counts) {
         rebuildRows(roleId -> counts.getOrDefault(roleId, 0));
     }
 
     /// Counts entered in the editor (zero-count roles omitted), for saving.
-    Map<String, Integer> collectCounts() {
-        Map<String, Integer> counts = new LinkedHashMap<>();
+    Map<RoleId, Integer> collectCounts() {
+        Map<RoleId, Integer> counts = new LinkedHashMap<>();
         spinners.forEach((roleId, spinner) -> {
             int count = spinner.getValue();
             if (count > 0) {
@@ -104,7 +105,7 @@ final class SlotCountEditor {
 
     /// This role's currently entered count, or 0 if it has no row yet (a role just added
     /// elsewhere).
-    private int currentOrZero(String roleId) {
+    private int currentOrZero(RoleId roleId) {
         Spinner<Integer> spinner = spinners.get(roleId);
         return spinner == null ? 0 : spinner.getValue();
     }
@@ -114,7 +115,7 @@ final class SlotCountEditor {
     /// item's persisted counts, a later role-list change seeds from whatever
     /// is already entered, so mid-edit counts survive a role being added or
     /// removed elsewhere).
-    private void rebuildRows(ToIntFunction<String> seed) {
+    private void rebuildRows(ToIntFunction<RoleId> seed) {
         spinners.clear();
         List<HBox> rows = new ArrayList<>();
         for (Role role : roles) {

@@ -43,7 +43,7 @@ public record ArchivedService(
     /// resolved against the live roster for display.
     public record ArchivedSlot(
             String roleName,
-            @Nullable String serverId,
+            @Nullable ServerId serverId,
             @Nullable String serverName) {
     }
 }

@@ -42,7 +42,9 @@ import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
 import org.mindis.core.planning.AssignmentKey;
@@ -209,11 +211,11 @@ final class ServiceEditor {
         return content;
     }
 
-    private boolean slotsChanged(Map<String, Integer> liveCounts) {
+    private boolean slotsChanged(Map<RoleId, Integer> liveCounts) {
         return !liveCounts.equals(countsByRole(baselineSupplier.get().slots()));
     }
 
-    private void onSlotCountsChanged(Map<String, Integer> liveCounts) {
+    private void onSlotCountsChanged(Map<RoleId, Integer> liveCounts) {
         liveSlots = reconcileSlots(liveSlots, liveCounts);
         FieldAccents.setFieldChanged(slotsEditor.label, slotsChanged(liveCounts));
         // pushLive replaces this service's row item, which re-renders its
@@ -252,8 +254,8 @@ final class ServiceEditor {
         if (liveSlots.isEmpty()) {
             return List.of();
         }
-        Map<String, Server> serversById = roster.serversById();
-        Map<String, Role> rolesById = roster.rolesById();
+        Map<ServerId, Server> serversById = roster.serversById();
+        Map<RoleId, Role> rolesById = roster.rolesById();
         // Violations come from a transient problem over the whole live
         // board (double-booking spans services), keyed by assignment id.
         ServicePlan plan = planningViewModel.buildProblem();
@@ -265,7 +267,7 @@ final class ServiceEditor {
         List<Node> rows = new ArrayList<>();
         for (Slot slot : liveSlots) {
             Role role = rolesById.get(slot.role());
-            String roleName = role == null ? slot.role() : role.name();
+            String roleName = role == null ? slot.role().value() : role.name();
             String assignmentId = new AssignmentKey(service.id(), slot.id()).toId();
             Server current = slot.serverId() == null ? null : serversById.get(slot.serverId());
 
@@ -346,7 +348,7 @@ final class ServiceEditor {
         }
         for (Slot slot : liveSlots) {
             Slot original = baseline.get(slot.id());
-            String originalServer = original == null ? null : original.serverId();
+            ServerId originalServer = original == null ? null : original.serverId();
             boolean originalPinned = original != null && original.pinned();
             if (!Objects.equals(slot.serverId(), originalServer) || slot.pinned() != originalPinned) {
                 return true;
@@ -384,13 +386,13 @@ final class ServiceEditor {
     /// Reconciles a role's slot count edit, keeping a filled/pinned slot as
     /// long as possible - the `isFilled` seam is now the slot's own
     /// stored assignment, no plan lookup needed.
-    private static List<Slot> reconcileSlots(List<Slot> existing, Map<String, Integer> counts) {
+    private static List<Slot> reconcileSlots(List<Slot> existing, Map<RoleId, Integer> counts) {
         return SlotReconciler.reconcile(existing, counts, slot -> slot.serverId() != null || slot.pinned());
     }
 
     /// Slot counts per role, for the [SlotCountEditor].
-    private static Map<String, Integer> countsByRole(List<Slot> slots) {
-        Map<String, Integer> counts = new LinkedHashMap<>();
+    private static Map<RoleId, Integer> countsByRole(List<Slot> slots) {
+        Map<RoleId, Integer> counts = new LinkedHashMap<>();
         for (Slot slot : slots) {
             counts.merge(slot.role(), 1, Integer::sum);
         }

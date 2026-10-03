@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import org.mindis.core.model.LiturgicalService;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
 import org.mindis.core.persistence.ArchivedServiceRepository;
@@ -50,7 +51,7 @@ class DashboardModuleTest {
 
     private static LiturgicalService upcomingService() {
         return new LiturgicalService(LiturgicalService.newId(), LocalDateTime.now().plusDays(3), 60, "St. Mary",
-                ServiceType.SUNDAY_MASS, "", List.of(new Slot(Slot.newId(), "ACOLYTE", null, false)), "");
+                ServiceType.SUNDAY_MASS, "", List.of(new Slot(Slot.newId(), new RoleId("ACOLYTE"), null, false)), "");
     }
 
     private static Node board(Node host) {

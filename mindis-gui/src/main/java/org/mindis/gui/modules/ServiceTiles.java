@@ -21,7 +21,9 @@ import org.kordamp.ikonli.javafx.FontIcon;
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.Slot;
 
 import org.mindis.gui.util.DateTimes;
@@ -84,14 +86,14 @@ final class ServiceTiles {
         grid.getColumnConstraints().addAll(roleSlotColumn(ROLE_COLUMN_WIDTH), roleSlotColumn(SLOT_COLUMN_WIDTH),
                 roleSlotColumn(SLOT_COLUMN_WIDTH));
 
-        Map<String, Server> serversById = roster.serversById();
-        Map<String, Role> rolesById = roster.rolesById();
+        Map<ServerId, Server> serversById = roster.serversById();
+        Map<RoleId, Role> rolesById = roster.rolesById();
 
         int gridRow = 0;
-        for (Map.Entry<String, List<Slot>> entry : slotsByRole(service.slots()).entrySet()) {
+        for (Map.Entry<RoleId, List<Slot>> entry : slotsByRole(service.slots()).entrySet()) {
             List<Slot> roleSlots = entry.getValue();
             Role role = rolesById.get(entry.getKey());
-            Label roleLabel = new Label(role == null ? entry.getKey() : role.name());
+            Label roleLabel = new Label(role == null ? entry.getKey().value() : role.name());
             roleLabel.getStyleClass().add("service-tile-role");
             roleLabel.setMaxWidth(ROLE_COLUMN_WIDTH);
             roleLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
@@ -119,8 +121,8 @@ final class ServiceTiles {
     }
 
     /// `slots`, grouped by role in first-encountered order.
-    private static Map<String, List<Slot>> slotsByRole(List<Slot> slots) {
-        Map<String, List<Slot>> byRole = new LinkedHashMap<>();
+    private static Map<RoleId, List<Slot>> slotsByRole(List<Slot> slots) {
+        Map<RoleId, List<Slot>> byRole = new LinkedHashMap<>();
         for (Slot slot : slots) {
             byRole.computeIfAbsent(slot.role(), roleId -> new ArrayList<>()).add(slot);
         }

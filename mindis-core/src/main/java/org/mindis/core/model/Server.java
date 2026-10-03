@@ -6,7 +6,6 @@ import java.time.LocalTime;
 import java.time.Period;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
 
@@ -23,14 +22,14 @@ import org.jspecify.annotations.Nullable;
 ///        entirely (e.g. incense intolerance rules out every service with a
 ///        thurifer, not just the thurifer slot)
 public record Server(
-        String id,
+        ServerId id,
         String firstName,
         String lastName,
         String contact,
         @Nullable LocalDate birthDate,
         @Nullable String familyId,
-        Set<String> qualifications,
-        Set<String> incompatibleRoles,
+        Set<RoleId> qualifications,
+        Set<RoleId> incompatibleRoles,
         List<UnavailabilityPeriod> unavailabilities,
         Set<LocalTime> preferredTimes,
         boolean experienced,
@@ -46,7 +45,7 @@ public record Server(
 
     /// An active server with only a name: no contact, birth date, family,
     /// qualifications or preferences yet. Refine it with the `with` methods.
-    public static Server named(String id, String firstName, String lastName) {
+    public static Server named(ServerId id, String firstName, String lastName) {
         return new Server(id, firstName, lastName, "", null, null, Set.of(), Set.of(), List.of(), Set.of(),
                 false, true);
     }
@@ -61,12 +60,12 @@ public record Server(
                 incompatibleRoles, unavailabilities, preferredTimes, experienced, active);
     }
 
-    public Server withQualifications(Set<String> qualifications) {
+    public Server withQualifications(Set<RoleId> qualifications) {
         return new Server(id, firstName, lastName, contact, birthDate, familyId, qualifications,
                 incompatibleRoles, unavailabilities, preferredTimes, experienced, active);
     }
 
-    public Server withIncompatibleRoles(Set<String> incompatibleRoles) {
+    public Server withIncompatibleRoles(Set<RoleId> incompatibleRoles) {
         return new Server(id, firstName, lastName, contact, birthDate, familyId, qualifications,
                 incompatibleRoles, unavailabilities, preferredTimes, experienced, active);
     }
@@ -89,10 +88,6 @@ public record Server(
     public Server withActive(boolean active) {
         return new Server(id, firstName, lastName, contact, birthDate, familyId, qualifications,
                 incompatibleRoles, unavailabilities, preferredTimes, experienced, active);
-    }
-
-    public static String newId() {
-        return UUID.randomUUID().toString();
     }
 
     public String displayName() {

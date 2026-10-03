@@ -20,6 +20,7 @@ import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.l10n.RecurrenceText;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.RoleSlot;
 import org.mindis.core.model.ServiceTemplate;
 import org.jspecify.annotations.Nullable;
@@ -154,13 +155,13 @@ public final class TemplatesModule extends CrudModule<ServiceTemplate> {
         return new EditorBinding<>(content, form.refresh(), slotsEditor::dispose);
     }
 
-    private static Map<String, Integer> countsByRole(List<RoleSlot> slots) {
-        Map<String, Integer> counts = new LinkedHashMap<>();
+    private static Map<RoleId, Integer> countsByRole(List<RoleSlot> slots) {
+        Map<RoleId, Integer> counts = new LinkedHashMap<>();
         slots.forEach(slot -> counts.put(slot.role(), slot.count()));
         return counts;
     }
 
-    private static List<RoleSlot> toRoleSlots(Map<String, Integer> counts) {
+    private static List<RoleSlot> toRoleSlots(Map<RoleId, Integer> counts) {
         return counts.entrySet().stream().map(entry -> new RoleSlot(entry.getKey(), entry.getValue())).toList();
     }
 }

@@ -49,6 +49,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
 
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.UnavailabilityPeriod;
 import org.mindis.core.persistence.RoleRepository;
@@ -433,12 +434,12 @@ public final class ServersModule extends CrudModule<Server> {
     /// immediately.
     private final class RoleChecklist {
 
-        private final Map<String, BooleanProperty> selected = new HashMap<>();
+        private final Map<RoleId, BooleanProperty> selected = new HashMap<>();
         private final ListView<Role> list;
-        private final Set<String> initial;
+        private final Set<RoleId> initial;
         private final Runnable onEdit;
 
-        RoleChecklist(Set<String> initial, DoubleBinding cellSize, Runnable onEdit) {
+        RoleChecklist(Set<RoleId> initial, DoubleBinding cellSize, Runnable onEdit) {
             this.initial = Set.copyOf(initial);
             this.onEdit = onEdit;
             // Seed eagerly for every current role: selection() rebuilds the
@@ -470,8 +471,8 @@ public final class ServersModule extends CrudModule<Server> {
         }
 
         /// The currently ticked role ids.
-        Set<String> selection() {
-            Set<String> live = new HashSet<>();
+        Set<RoleId> selection() {
+            Set<RoleId> live = new HashSet<>();
             selected.forEach((roleId, ticked) -> {
                 if (ticked.get()) {
                     live.add(roleId);
@@ -481,11 +482,11 @@ public final class ServersModule extends CrudModule<Server> {
         }
 
         /// Pushes `roleIds` back into the tick boxes (the form's refresh path).
-        void show(Set<String> roleIds) {
+        void show(Set<RoleId> roleIds) {
             selected.forEach((roleId, ticked) -> ticked.set(roleIds.contains(roleId)));
         }
 
-        private BooleanProperty property(String roleId) {
+        private BooleanProperty property(RoleId roleId) {
             SimpleBooleanProperty ticked = new SimpleBooleanProperty(initial.contains(roleId));
             // Reported through the form: the write-through callback reads
             // every control, so it does not exist yet when the first checkbox

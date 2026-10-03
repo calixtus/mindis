@@ -3,6 +3,7 @@ package org.mindis.gui.modules;
 import org.jspecify.annotations.NullMarked;
 
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.persistence.RoleRepository;
 
 /// ViewModel for [RolesModule]: owns the [RoleRepository] reads the
@@ -20,6 +21,6 @@ final class RolesViewModel {
 
     /// A blank role with the next free sort order, for the New action.
     Role createStub() {
-        return new Role(Role.newId(), "", null, null, roleRepository.nextSortOrder());
+        return new Role(RoleId.newId(), "", null, null, roleRepository.nextSortOrder());
     }
 }

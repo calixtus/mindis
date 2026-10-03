@@ -25,21 +25,21 @@ import org.jspecify.annotations.Nullable;
 /// `pinned` were added after the field-less original release; a slot
 /// written before they existed deserializes `serverId` as `null`
 /// (open) and `pinned` as `false`.
-public record Slot(String id, String role, @Nullable String serverId, boolean pinned) {
+public record Slot(String id, RoleId role, @Nullable ServerId serverId, boolean pinned) {
 
     public static String newId() {
         return UUID.randomUUID().toString();
     }
 
     /// An open slot for `role` (no server, not pinned) with a fresh id.
-    public static Slot open(String role) {
+    public static Slot open(RoleId role) {
         return new Slot(newId(), role, null, false);
     }
 
     /// This slot filled by `serverId` (or cleared when `null`),
     /// carrying `pinned` - keeps the same id so any UI/lookup keyed on it
     /// stays stable across a pick.
-    public Slot withServer(@Nullable String serverId, boolean pinned) {
+    public Slot withServer(@Nullable ServerId serverId, boolean pinned) {
         return new Slot(id, role, serverId, pinned && serverId != null);
     }
 
@@ -65,7 +65,7 @@ public record Slot(String id, String role, @Nullable String serverId, boolean pi
     /// concrete service's slots need to round-trip through a role/count
     /// representation, e.g. CSV export (see `ServiceCsvMapper`).
     public static List<RoleSlot> collapse(List<Slot> slots) {
-        Map<String, Integer> counts = new TreeMap<>();
+        Map<RoleId, Integer> counts = new TreeMap<>();
         for (Slot slot : slots) {
             counts.merge(slot.role(), 1, Integer::sum);
         }
@@ -94,7 +94,7 @@ public record Slot(String id, String role, @Nullable String serverId, boolean pi
 
     /// Order/id-independent key for [#sameSlots]: what a slot means for
     /// dirty tracking, minus its instance id.
-    private record Assignment(String role, @Nullable String serverId, boolean pinned)
+    private record Assignment(RoleId role, @Nullable ServerId serverId, boolean pinned)
             implements Comparable<Assignment> {
         @Override
         public int compareTo(Assignment other) {
@@ -103,7 +103,7 @@ public record Slot(String id, String role, @Nullable String serverId, boolean pi
                 return byRole;
             }
             int byServer = Objects.compare(serverId, other.serverId,
-                    java.util.Comparator.nullsFirst(String::compareTo));
+                    java.util.Comparator.nullsFirst(ServerId::compareTo));
             if (byServer != 0) {
                 return byServer;
             }

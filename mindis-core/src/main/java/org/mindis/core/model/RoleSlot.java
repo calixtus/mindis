@@ -7,7 +7,7 @@ import java.util.TreeMap;
 /// How many servers of a given role a service requires. `role` is the
 /// [Role#id()] (the JSON field name stays `role` so pre-existing
 /// data written with the former enum names still deserializes).
-public record RoleSlot(String role, int count) {
+public record RoleSlot(RoleId role, int count) {
 
     public RoleSlot {
         if (count < 0) {
@@ -22,8 +22,8 @@ public record RoleSlot(String role, int count) {
         return normalized(a).equals(normalized(b));
     }
 
-    private static Map<String, Integer> normalized(List<RoleSlot> slots) {
-        Map<String, Integer> byRole = new TreeMap<>();
+    private static Map<RoleId, Integer> normalized(List<RoleSlot> slots) {
+        Map<RoleId, Integer> byRole = new TreeMap<>();
         for (RoleSlot slot : slots) {
             if (slot.count() > 0) {
                 byRole.put(slot.role(), slot.count());

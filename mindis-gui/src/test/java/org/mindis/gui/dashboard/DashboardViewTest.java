@@ -24,7 +24,9 @@ import org.junit.jupiter.api.io.TempDir;
 import org.kordamp.ikonli.javafx.FontIcon;
 
 import org.mindis.core.model.LiturgicalService;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
 import org.mindis.core.persistence.ArchivedServiceRepository;
@@ -229,9 +231,9 @@ class DashboardViewTest {
     }
 
     private void givenAssignedService() {
-        servers.save(Server.named("srv1", "Anna", "Becker"));
+        servers.save(Server.named(new ServerId("srv1"), "Anna", "Becker"));
         services.save(new LiturgicalService("s1", LocalDateTime.now().plusDays(1), 60, "St. Mary",
-                ServiceType.SUNDAY_MASS, "", List.of(new Slot(Slot.newId(), "ACOLYTE", "srv1", false)), ""));
+                ServiceType.SUNDAY_MASS, "", List.of(new Slot(Slot.newId(), new RoleId("ACOLYTE"), new ServerId("srv1"), false)), ""));
     }
 
     private static String savedMode(PreferencesService preferences, WidgetType type) {

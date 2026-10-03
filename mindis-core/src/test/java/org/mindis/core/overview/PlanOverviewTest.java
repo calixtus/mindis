@@ -9,8 +9,9 @@ import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
@@ -19,7 +20,9 @@ import org.jspecify.annotations.Nullable;
 import org.mindis.core.model.ArchivedService;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
 import org.mindis.core.model.UnavailabilityPeriod;
@@ -56,8 +59,8 @@ class PlanOverviewTest {
 
     @Test
     void loadOverview_countsOpenSlotsAcrossAllServices() {
-        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv1"), Slot.open("ACOLYTE"))));
-        services.save(service("s2", inDays(2), List.of(Slot.open("THURIFER"))));
+        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv1"), Slot.open(new RoleId("ACOLYTE")))));
+        services.save(service("s2", inDays(2), List.of(Slot.open(new RoleId("THURIFER")))));
 
         PlanOverview snapshot = overview();
 
@@ -71,8 +74,8 @@ class PlanOverviewTest {
     /// slot totals, which are about the document as a whole.
     @Test
     void loadOverview_upcomingServices_excludesPastOnes() {
-        services.save(service("past", inDays(-1), List.of(Slot.open("ACOLYTE"))));
-        services.save(service("future", inDays(1), List.of(Slot.open("ACOLYTE"))));
+        services.save(service("past", inDays(-1), List.of(Slot.open(new RoleId("ACOLYTE")))));
+        services.save(service("future", inDays(1), List.of(Slot.open(new RoleId("ACOLYTE")))));
 
         PlanOverview snapshot = overview();
 
@@ -84,7 +87,7 @@ class PlanOverviewTest {
     @Test
     void loadOverview_upcomingServices_carriesAssignedAndTotalCounts() {
         services.save(service("s1", inDays(1),
-                List.of(filled("ACOLYTE", "srv1"), filled("ACOLYTE", "srv2"), Slot.open("THURIFER"))));
+                List.of(filled("ACOLYTE", "srv1"), filled("ACOLYTE", "srv2"), Slot.open(new RoleId("THURIFER")))));
 
         PlanOverview.UpcomingService upcoming = overview().upcomingServices().getFirst();
 
@@ -133,10 +136,10 @@ class PlanOverviewTest {
     void loadOverview_carriesTheSummaryFigures() {
         servers.save(server("srv1", "Anna", "Becker"));
         servers.save(server("srv2", "Ben", "Meier").withActive(false));
-        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        roles.save(new Role(new RoleId("ACOLYTE"), "Acolyte", null, null, 0));
         services.save(service("past", inDays(-1), List.of(filled("ACOLYTE", "srv1"))));
-        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv1"), Slot.open("ACOLYTE"))));
-        services.save(service("s2", inDays(2), List.of(Slot.open("ACOLYTE"))));
+        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv1"), Slot.open(new RoleId("ACOLYTE")))));
+        services.save(service("s2", inDays(2), List.of(Slot.open(new RoleId("ACOLYTE")))));
 
         PlanOverview snapshot = overview();
 
@@ -157,8 +160,8 @@ class PlanOverviewTest {
     /// still ahead - so editing a service in the past moves none of them.
     @Test
     void loadOverview_openSlotsAhead_ignoresServicesThatHavePassed() {
-        services.save(service("past", inDays(-1), List.of(Slot.open("ACOLYTE"), Slot.open("ACOLYTE"))));
-        services.save(service("s1", inDays(1), List.of(Slot.open("ACOLYTE"))));
+        services.save(service("past", inDays(-1), List.of(Slot.open(new RoleId("ACOLYTE")), Slot.open(new RoleId("ACOLYTE")))));
+        services.save(service("s1", inDays(1), List.of(Slot.open(new RoleId("ACOLYTE")))));
 
         PlanOverview snapshot = overview();
 
@@ -196,11 +199,11 @@ class PlanOverviewTest {
     /// already happened cannot be staffed any more.
     @Test
     void loadOverview_roleStatus_countsFutureOpenSlotsAndUsesRoleNames() {
-        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
-        services.save(service("past", inDays(-1), List.of(Slot.open("ACOLYTE"))));
+        roles.save(new Role(new RoleId("ACOLYTE"), "Acolyte", null, null, 0));
+        services.save(service("past", inDays(-1), List.of(Slot.open(new RoleId("ACOLYTE")))));
         services.save(service("s1", inDays(1),
-                List.of(Slot.open("ACOLYTE"), Slot.open("ACOLYTE"), filled("ACOLYTE", "srv1"))));
-        services.save(service("s2", inDays(2), List.of(Slot.open("THURIFER"))));
+                List.of(Slot.open(new RoleId("ACOLYTE")), Slot.open(new RoleId("ACOLYTE")), filled("ACOLYTE", "srv1"))));
+        services.save(service("s2", inDays(2), List.of(Slot.open(new RoleId("THURIFER")))));
 
         List<PlanOverview.RoleStatus> status = overview().roleStatus();
 
@@ -217,11 +220,11 @@ class PlanOverviewTest {
 
     @Test
     void loadOverview_serviceTypeMix_countsUpcomingServicesPerType() {
-        services.save(service("past", inDays(-1), List.of(Slot.open("ACOLYTE"))));
-        services.save(service("s1", inDays(1), List.of(Slot.open("ACOLYTE"))));
-        services.save(service("s2", inDays(2), List.of(Slot.open("ACOLYTE"))));
+        services.save(service("past", inDays(-1), List.of(Slot.open(new RoleId("ACOLYTE")))));
+        services.save(service("s1", inDays(1), List.of(Slot.open(new RoleId("ACOLYTE")))));
+        services.save(service("s2", inDays(2), List.of(Slot.open(new RoleId("ACOLYTE")))));
         services.save(new LiturgicalService("s3", inDays(3), 60, "St. Mary", ServiceType.WEDDING, "",
-                List.of(Slot.open("ACOLYTE")), ""));
+                List.of(Slot.open(new RoleId("ACOLYTE"))), ""));
 
         List<PlanOverview.ServiceTypeCount> mix = overview().serviceTypeMix();
 
@@ -237,7 +240,7 @@ class PlanOverviewTest {
     /// services shows up as an empty week rather than being skipped.
     @Test
     void loadOverview_coverageTrend_bucketsSlotsIntoWholeWeeks() {
-        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv1"), Slot.open("ACOLYTE"))));
+        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv1"), Slot.open(new RoleId("ACOLYTE")))));
 
         List<PlanOverview.WeekCoverage> trend = overview().coverageTrend();
         PlanOverview.WeekCoverage weekOfTheService = trend.stream()
@@ -260,12 +263,12 @@ class PlanOverviewTest {
     /// asks of that role - because that is what has to be covered at once.
     @Test
     void loadOverview_roleStatus_comparesQualifiedServersWithThePeakNeed() {
-        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
-        roles.save(new Role("THURIFER", "Thurifer", null, null, 1));
+        roles.save(new Role(new RoleId("ACOLYTE"), "Acolyte", null, null, 0));
+        roles.save(new Role(new RoleId("THURIFER"), "Thurifer", null, null, 1));
         servers.save(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE"));
         servers.save(qualified(server("srv2", "Ben", "Meier"), "ACOLYTE").withActive(false));
-        services.save(service("s1", inDays(1), List.of(Slot.open("ACOLYTE"), Slot.open("ACOLYTE"))));
-        services.save(service("s2", inDays(2), List.of(Slot.open("ACOLYTE"))));
+        services.save(service("s1", inDays(1), List.of(Slot.open(new RoleId("ACOLYTE")), Slot.open(new RoleId("ACOLYTE")))));
+        services.save(service("s2", inDays(2), List.of(Slot.open(new RoleId("ACOLYTE")))));
 
         List<PlanOverview.RoleStatus> status = overview().roleStatus();
 
@@ -391,11 +394,11 @@ class PlanOverviewTest {
     /// open-slots widget already carry it.
     @Test
     void loadOverview_problems_countsConflictsButNotOpenSlots() {
-        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        roles.save(new Role(new RoleId("ACOLYTE"), "Acolyte", null, null, 0));
         servers.save(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE").withActive(false));
         servers.save(server("srv2", "Ben", "Meier"));
         services.save(service("s1", inDays(1),
-                List.of(filled("ACOLYTE", "srv1"), filled("ACOLYTE", "srv2"), Slot.open("ACOLYTE"))));
+                List.of(filled("ACOLYTE", "srv1"), filled("ACOLYTE", "srv2"), Slot.open(new RoleId("ACOLYTE")))));
 
         PlanOverview snapshot = overview();
         List<String> constraints = snapshot.problems().stream()
@@ -414,7 +417,7 @@ class PlanOverviewTest {
     /// the work ahead.
     @Test
     void loadOverview_problems_ignoreServicesThatHavePassed() {
-        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        roles.save(new Role(new RoleId("ACOLYTE"), "Acolyte", null, null, 0));
         servers.save(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE").withActive(false));
         services.save(service("past", inDays(-1), List.of(filled("ACOLYTE", "srv1"))));
 
@@ -429,7 +432,7 @@ class PlanOverviewTest {
     /// board counts the assignments that are wrong, not the pairs.
     @Test
     void loadOverview_problems_countDoubleBookingOncePerAssignment() {
-        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        roles.save(new Role(new RoleId("ACOLYTE"), "Acolyte", null, null, 0));
         servers.save(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE"));
         LocalDateTime at = inDays(1);
         services.save(service("s1", at, List.of(filled("ACOLYTE", "srv1"))));
@@ -449,7 +452,7 @@ class PlanOverviewTest {
     /// board's checks notice it.
     @Test
     void problemCount_rosterIssueAlsoReportedAsConflict_isCountedOnce() {
-        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        roles.save(new Role(new RoleId("ACOLYTE"), "Acolyte", null, null, 0));
         servers.save(absent(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE"),
                 LocalDate.now().plusDays(1), LocalDate.now().plusDays(2)));
         services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv1"))));
@@ -489,21 +492,21 @@ class PlanOverviewTest {
     }
 
     private static Slot filled(String role, String serverId) {
-        return new Slot(Slot.newId(), role, serverId, false);
+        return new Slot(Slot.newId(), new RoleId(role), new ServerId(serverId), false);
     }
 
     private static Server server(String id, String firstName, String lastName) {
-        return Server.named(id, firstName, lastName);
+        return Server.named(new ServerId(id), firstName, lastName);
     }
 
     private static ArchivedService archived(String id, LocalDateTime dateTime, @Nullable String serverName) {
         return new ArchivedService(id, dateTime, 60, "St. Mary", ServiceType.SUNDAY_MASS, "", "",
-                List.of(new ArchivedService.ArchivedSlot("Acolyte", serverName == null ? null : "srv1", serverName)),
+                List.of(new ArchivedService.ArchivedSlot("Acolyte", serverName == null ? null : new ServerId("srv1"), serverName)),
                 Instant.now());
     }
 
     private static Server qualified(Server server, String... roleIds) {
-        return server.withQualifications(Set.of(roleIds));
+        return server.withQualifications(Arrays.stream(roleIds).map(RoleId::new).collect(Collectors.toSet()));
     }
 
     private static Server absent(Server server, LocalDate start, LocalDate end) {

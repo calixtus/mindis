@@ -10,7 +10,7 @@ import org.mindis.core.model.LiturgicalService;
 /// assignments included (an assignment lives on its slot), ordered by date and
 /// time (see [InMemoryRepository]).
 @Singleton
-public final class ServiceRepository extends InMemoryRepository<LiturgicalService> {
+public final class ServiceRepository extends InMemoryRepository<LiturgicalService, String> {
 
     public ServiceRepository() {
         super(LiturgicalService::id, Comparator.comparing(LiturgicalService::dateTime));

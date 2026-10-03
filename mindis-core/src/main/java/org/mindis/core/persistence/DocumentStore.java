@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import org.mindis.core.model.RecurrenceRule;
+import org.mindis.core.persistence.json.IdModule;
 import org.mindis.core.persistence.json.RecurrenceRuleMixin;
 
 import java.io.IOException;
@@ -26,6 +27,7 @@ public final class DocumentStore {
 
     private final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
+            .registerModule(new IdModule())
             .addMixIn(RecurrenceRule.class, RecurrenceRuleMixin.class)
             .configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false)
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)

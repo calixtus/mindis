@@ -25,17 +25,18 @@ import org.jspecify.annotations.NullMarked;
 /// reentrance that implies is relied on - a subclass query may call
 /// [#findAll()].
 ///
-/// @param <T> the entity type; immutable, with a stable string id
+/// @param <T> the entity type; immutable, with a stable id
+/// @param <K> the id type
 @NullMarked
-abstract class InMemoryRepository<T> {
+abstract class InMemoryRepository<T, K> {
 
     private final List<T> items = new ArrayList<>();
-    private final Function<T, String> idOf;
+    private final Function<T, K> idOf;
     private final Comparator<? super T> order;
 
     /// @param idOf  the entity's stable id, the upsert and delete key
     /// @param order the order [#findAll()] returns entities in
-    protected InMemoryRepository(Function<T, String> idOf, Comparator<? super T> order) {
+    protected InMemoryRepository(Function<T, K> idOf, Comparator<? super T> order) {
         this.idOf = idOf;
         this.order = order;
     }
@@ -46,7 +47,7 @@ abstract class InMemoryRepository<T> {
         return List.copyOf(items);
     }
 
-    public synchronized Optional<T> findById(String id) {
+    public synchronized Optional<T> findById(K id) {
         return items.stream().filter(item -> idOf.apply(item).equals(id)).findFirst();
     }
 
@@ -57,7 +58,7 @@ abstract class InMemoryRepository<T> {
         items.sort(order);
     }
 
-    public synchronized void delete(String id) {
+    public synchronized void delete(K id) {
         items.removeIf(existing -> idOf.apply(existing).equals(id));
     }
 

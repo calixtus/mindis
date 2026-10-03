@@ -18,7 +18,9 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mindis.core.export.PlanExportService;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
 import org.mindis.core.persistence.AppDatabase;
@@ -110,9 +112,9 @@ class ServicesSolverControllerTest {
 
     @Test
     void autofillWindow_windowMatchesNothing_doesNotStartSolving() {
-        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        roles.save(new Role(new RoleId("ACOLYTE"), "Acolyte", null, null, 0));
         servers.save(server("srv1"));
-        services.save(service("s1", List.of(Slot.open("ACOLYTE"))));
+        services.save(service("s1", List.of(Slot.open(new RoleId("ACOLYTE")))));
 
         ServicesSolverController controller = newController();
         // The one service sits a day out; this window is far in the past.
@@ -127,9 +129,9 @@ class ServicesSolverControllerTest {
     /// containing only filled slots starts nothing.
     @Test
     void autofillWindow_allSlotsFilledAndNoOverwrite_doesNotStartSolving() {
-        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        roles.save(new Role(new RoleId("ACOLYTE"), "Acolyte", null, null, 0));
         servers.save(server("srv1"));
-        services.save(service("s1", List.of(new Slot(Slot.newId(), "ACOLYTE", "srv1", false))));
+        services.save(service("s1", List.of(new Slot(Slot.newId(), new RoleId("ACOLYTE"), new ServerId("srv1"), false))));
 
         ServicesSolverController controller = newController();
         controller.autofillWindow(null, null, false);
@@ -159,6 +161,6 @@ class ServicesSolverControllerTest {
     }
 
     private static Server server(String id) {
-        return Server.named(id, "Anna", "Becker").withQualifications(Set.of("ACOLYTE"));
+        return Server.named(new ServerId(id), "Anna", "Becker").withQualifications(Set.of(Role.ACOLYTE));
     }
 }

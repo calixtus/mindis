@@ -7,7 +7,9 @@ import javafx.collections.ObservableList;
 
 import org.mindis.core.model.Indexes;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.gui.data.LiveStore;
 
 /// The live role and server lists the services screen resolves slot ids
@@ -30,13 +32,13 @@ final class LiveRoster {
         return servers.items();
     }
 
-    Map<String, Role> rolesById() {
-        Map<String, Role> byId = Indexes.byKey(roles.items(), Role::id);
+    Map<RoleId, Role> rolesById() {
+        Map<RoleId, Role> byId = Indexes.byKey(roles.items(), Role::id);
         return byId;
     }
 
-    Map<String, Server> serversById() {
-        Map<String, Server> byId = Indexes.byKey(servers.items(), Server::id);
+    Map<ServerId, Server> serversById() {
+        Map<ServerId, Server> byId = Indexes.byKey(servers.items(), Server::id);
         return byId;
     }
 

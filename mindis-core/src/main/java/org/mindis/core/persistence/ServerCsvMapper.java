@@ -15,7 +15,9 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.UnavailabilityPeriod;
 
 /// CSV row mapping for [Server], shared by every consumer that offers
@@ -48,7 +50,7 @@ public final class ServerCsvMapper implements CsvRowMapper<Server> {
     @Override
     public List<String> toRow(Server server) {
         return List.of(
-                server.id(),
+                server.id().value(),
                 server.firstName(),
                 server.lastName(),
                 server.contact(),
@@ -74,7 +76,7 @@ public final class ServerCsvMapper implements CsvRowMapper<Server> {
         String familyId = CsvFields.at(row, 5);
         String active = CsvFields.at(row, 10);
         return new Server(
-                id.isEmpty() ? Server.newId() : id,
+                id.isEmpty() ? ServerId.newId() : new ServerId(id),
                 firstName,
                 lastName,
                 CsvFields.at(row, 3),
@@ -88,17 +90,17 @@ public final class ServerCsvMapper implements CsvRowMapper<Server> {
                 active.isEmpty() || Boolean.parseBoolean(active));
     }
 
-    private String roleName(String roleId) {
-        return roleRepository.findById(roleId).map(Role::name).orElse(roleId);
+    private String roleName(RoleId roleId) {
+        return roleRepository.findById(roleId).map(Role::name).orElse(roleId.value());
     }
 
-    private String formatRoles(Set<String> roleIds) {
+    private String formatRoles(Set<RoleId> roleIds) {
         return roleIds.stream().map(this::roleName).sorted().collect(Collectors.joining(", "));
     }
 
     /// Role names, matched case-insensitively; unmatched names are dropped.
-    private Set<String> parseRoles(String text) {
-        Set<String> ids = new HashSet<>();
+    private Set<RoleId> parseRoles(String text) {
+        Set<RoleId> ids = new HashSet<>();
         if (text.isEmpty()) {
             return ids;
         }

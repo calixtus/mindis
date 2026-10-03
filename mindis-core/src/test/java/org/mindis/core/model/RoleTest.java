@@ -16,7 +16,7 @@ class RoleTest {
     @Test
     void constructor_minAgeAboveMaxAge_throws() {
         IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class,
-                () -> new Role("id", "Acolyte", 14, 10, 0));
+                () -> new Role(new RoleId("id"), "Acolyte", 14, 10, 0));
         String message = String.valueOf(thrown.getMessage());
         assertTrue(message.contains("Acolyte"),
                 "message should name the offending role, was: " + message);
@@ -24,7 +24,7 @@ class RoleTest {
 
     @Test
     void constructor_equalBounds_isAllowed() {
-        Role role = new Role("id", "Acolyte", 12, 12, 0);
+        Role role = new Role(new RoleId("id"), "Acolyte", 12, 12, 0);
         assertAll(
                 () -> assertEquals(12, role.minAge()),
                 () -> assertEquals(12, role.maxAge()));
@@ -33,13 +33,13 @@ class RoleTest {
     @Test
     void constructor_openBounds_areAllowed() {
         assertAll(
-                () -> assertNull(new Role("id", "a", null, 10, 0).minAge()),
-                () -> assertNull(new Role("id", "a", 10, null, 0).maxAge()),
-                () -> assertNull(new Role("id", "a", null, null, 0).minAge()));
+                () -> assertNull(new Role(new RoleId("id"), "a", null, 10, 0).minAge()),
+                () -> assertNull(new Role(new RoleId("id"), "a", 10, null, 0).maxAge()),
+                () -> assertNull(new Role(new RoleId("id"), "a", null, null, 0).minAge()));
     }
 
     @Test
     void constructor_paddedName_isStripped() {
-        assertEquals("Acolyte", new Role("id", "  Acolyte  ", null, null, 0).name());
+        assertEquals("Acolyte", new Role(new RoleId("id"), "  Acolyte  ", null, null, 0).name());
     }
 }

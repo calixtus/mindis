@@ -5,7 +5,9 @@ import java.util.List;
 import org.jspecify.annotations.NullMarked;
 
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 
@@ -27,12 +29,12 @@ final class ServersViewModel {
 
     /// A blank, active, inexperienced server, for the New action.
     Server createStub() {
-        return Server.named(Server.newId(), "", "");
+        return Server.named(ServerId.newId(), "", "");
     }
 
     /// Display name for a role id, falling back to the id if the role was deleted.
-    String roleName(String roleId) {
-        return roleRepository.findById(roleId).map(Role::name).orElse(roleId);
+    String roleName(RoleId roleId) {
+        return roleRepository.findById(roleId).map(Role::name).orElse(roleId.value());
     }
 
     /// Family ids already in use, for the Family field's suggestion popup.

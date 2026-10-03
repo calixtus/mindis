@@ -26,7 +26,7 @@ import org.mindis.core.model.ArchivedService;
 @Singleton
 public final class ArchivedServiceRepository {
 
-    private final InMemoryRepository<ArchivedService> archived = new InMemoryRepository<>(
+    private final InMemoryRepository<ArchivedService, String> archived = new InMemoryRepository<>(
             ArchivedService::id, Comparator.comparing(ArchivedService::dateTime).reversed()) {
     };
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();

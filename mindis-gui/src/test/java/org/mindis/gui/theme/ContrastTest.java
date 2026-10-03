@@ -44,7 +44,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mindis.core.export.PlanExportService;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.ServiceTemplate;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
@@ -222,11 +224,11 @@ class ContrastTest {
             RoleRepository roles = new RoleRepository();
             ArchivedServiceRepository archived = new ArchivedServiceRepository();
             TemplateRepository templates = new TemplateRepository();
-            Server server = Server.named("srv1", "Anna", "Becker");
+            Server server = Server.named(new ServerId("srv1"), "Anna", "Becker");
             servers.save(server);
             LiturgicalService service = new LiturgicalService("s1", LocalDateTime.now().plusDays(1), 60,
                     "St. Mary", ServiceType.SUNDAY_MASS, "",
-                    List.of(new Slot(Slot.newId(), "ACOLYTE", "srv1", false)), "");
+                    List.of(new Slot(Slot.newId(), new RoleId("ACOLYTE"), new ServerId("srv1"), false)), "");
             services.save(service);
 
             PreferencesService preferences = new PreferencesService(tempDir.resolve("preferences.json"));

@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.Slot;
 
 /// Unit tests for the actual bug fix behind giving [Slot] its own
@@ -19,8 +20,8 @@ import org.mindis.core.model.Slot;
 /// construction needed - [SlotReconciler] is pure.
 class SlotReconcilerTest {
 
-    private static final String ACOLYTE = "acolyte";
-    private static final String THURIFER = "thurifer";
+    private static final RoleId ACOLYTE = new RoleId("acolyte");
+    private static final RoleId THURIFER = new RoleId("thurifer");
 
     @Test
     void growingAppendsFreshSlotsAndKeepsExistingIdsUntouched() {

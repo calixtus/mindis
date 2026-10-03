@@ -12,7 +12,7 @@ import org.mindis.core.model.ServiceTemplate;
 /// templates sort by the fields that still do: time of day, then location, then
 /// id for a stable order between equal rows.
 @Singleton
-public final class TemplateRepository extends InMemoryRepository<ServiceTemplate> {
+public final class TemplateRepository extends InMemoryRepository<ServiceTemplate, String> {
 
     public TemplateRepository() {
         super(ServiceTemplate::id, Comparator.comparing(ServiceTemplate::time)

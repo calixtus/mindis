@@ -1,6 +1,5 @@
 package org.mindis.core.model;
 
-import java.util.UUID;
 
 import org.jspecify.annotations.Nullable;
 
@@ -13,18 +12,18 @@ import org.jspecify.annotations.Nullable;
 /// the former `Role` enum constants ([#ACOLYTE] etc.) so pre-existing
 /// data referencing those names still resolves without migration.
 public record Role(
-        String id,
+        RoleId id,
         String name,
         @Nullable Integer minAge,
         @Nullable Integer maxAge,
         int sortOrder) {
 
     // Stable ids of the seeded default roles (formerly enum constants).
-    public static final String ACOLYTE = "ACOLYTE";
-    public static final String CROSS_BEARER = "CROSS_BEARER";
-    public static final String THURIFER = "THURIFER";
-    public static final String BOAT_BEARER = "BOAT_BEARER";
-    public static final String MASTER_OF_CEREMONIES = "MASTER_OF_CEREMONIES";
+    public static final RoleId ACOLYTE = new RoleId("ACOLYTE");
+    public static final RoleId CROSS_BEARER = new RoleId("CROSS_BEARER");
+    public static final RoleId THURIFER = new RoleId("THURIFER");
+    public static final RoleId BOAT_BEARER = new RoleId("BOAT_BEARER");
+    public static final RoleId MASTER_OF_CEREMONIES = new RoleId("MASTER_OF_CEREMONIES");
 
     public Role {
         name = name == null ? "" : name.strip();
@@ -38,10 +37,6 @@ public record Role(
             throw new IllegalArgumentException(
                     "Role '" + name + "' has minAge " + minAge + " above maxAge " + maxAge);
         }
-    }
-
-    public static String newId() {
-        return UUID.randomUUID().toString();
     }
 
     public String displayName() {

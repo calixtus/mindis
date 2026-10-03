@@ -18,7 +18,9 @@ import org.mindis.core.model.ArchivedService;
 import org.mindis.core.model.Indexes;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.Slot;
 import org.mindis.core.persistence.AppDatabase;
 import org.mindis.core.persistence.RoleRepository;
@@ -74,8 +76,8 @@ public final class PlanExportService {
 
     /// Exports the given live services, resolving names against the current roster.
     public void exportLive(List<LiturgicalService> services, Path targetFile, PlanExportFormat format) {
-        Map<String, Server> serversById = Indexes.byKey(serverRepository.findAll(), Server::id);
-        Map<String, Role> rolesById = Indexes.byKey(roleRepository.findAll(), Role::id);
+        Map<ServerId, Server> serversById = Indexes.byKey(serverRepository.findAll(), Server::id);
+        Map<RoleId, Role> rolesById = Indexes.byKey(roleRepository.findAll(), Role::id);
 
         List<PlanTemplateModel.Service> views = new ArrayList<>();
         for (LiturgicalService service : services) {
@@ -84,8 +86,8 @@ public final class PlanExportService {
                 Role role = rolesById.get(slot.role());
                 Server server = slot.serverId() == null ? null : serversById.get(slot.serverId());
                 slots.add(new PlanTemplateModel.Slot(
-                        slot.role(),
-                        role == null ? slot.role() : role.name(),
+                        slot.role().value(),
+                        role == null ? slot.role().value() : role.name(),
                         server == null ? null : server.displayName()));
             }
             views.add(new PlanTemplateModel.Service(

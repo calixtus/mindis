@@ -13,7 +13,9 @@ import org.jspecify.annotations.Nullable;
 import org.mindis.core.model.ArchivedService;
 import org.mindis.core.model.Indexes;
 import org.mindis.core.model.Role;
+import org.mindis.core.model.RoleId;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.persistence.ArchivedServiceRepository;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
@@ -53,8 +55,8 @@ public final class ArchiveService {
     /// Save-alls to commit the removal. Empty result if the cutoff freezes
     /// nothing.
     public ServiceArchiver.Result archive(LocalDate cutoff) {
-        Map<String, Role> rolesById = Indexes.byKey(roleRepository.findAll(), Role::id);
-        Map<String, Server> serversById = Indexes.byKey(serverRepository.findAll(), Server::id);
+        Map<RoleId, Role> rolesById = Indexes.byKey(roleRepository.findAll(), Role::id);
+        Map<ServerId, Server> serversById = Indexes.byKey(serverRepository.findAll(), Server::id);
         ServiceArchiver.Result result = ServiceArchiver.archive(
                 serviceRepository.findAll(), cutoff, Instant.now(),
                 roleId -> rolesById.containsKey(roleId) ? rolesById.get(roleId).name() : null,
@@ -83,7 +85,7 @@ public final class ArchiveService {
             return List.of();
         }
         LocalDate cutoff = earliest.minusDays(MinDisConstraintProvider.SPACING_THRESHOLD_DAYS);
-        Map<String, Server> serversById = Indexes.byKey(serverRepository.findAll(), Server::id);
+        Map<ServerId, Server> serversById = Indexes.byKey(serverRepository.findAll(), Server::id);
         List<PriorAssignment> result = new ArrayList<>();
         for (ArchivedService archived : archivedServiceRepository.findAll()) {
             LocalDate date = archived.dateTime().toLocalDate();

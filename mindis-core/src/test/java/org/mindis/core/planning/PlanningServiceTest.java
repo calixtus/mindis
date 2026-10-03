@@ -19,6 +19,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
 import org.mindis.core.persistence.AppDatabase;
@@ -60,7 +61,7 @@ class PlanningServiceTest {
     }
 
     private void addServer() {
-        servers.save(Server.named("srv", "Anna", "B").withQualifications(Set.of(Role.ACOLYTE)));
+        servers.save(Server.named(new ServerId("srv"), "Anna", "B").withQualifications(Set.of(Role.ACOLYTE)));
     }
 
     private void addService(String id, LocalDate date, Slot slot) {
@@ -71,13 +72,13 @@ class PlanningServiceTest {
     @Test
     void buildProblemPrePopulatesAssignmentsFromSlots() {
         addServer();
-        addService("svc", LocalDate.of(2026, 8, 2), new Slot("s1", Role.ACOLYTE, "srv", true));
+        addService("svc", LocalDate.of(2026, 8, 2), new Slot("s1", Role.ACOLYTE, new ServerId("srv"), true));
 
         ServicePlan plan = planning.buildProblem();
 
         assertEquals(1, plan.getAssignments().size());
         Assignment assignment = plan.getAssignments().getFirst();
-        assertEquals("srv", assignment.getServer() == null ? null : assignment.getServer().id());
+        assertEquals(new ServerId("srv"), assignment.getServer() == null ? null : assignment.getServer().id());
         assertTrue(assignment.isPinned());
     }
 
@@ -86,18 +87,18 @@ class PlanningServiceTest {
         addServer();
         addService("svc", LocalDate.of(2026, 8, 2), new Slot("s1", Role.ACOLYTE, null, false));
         ServicePlan plan = planning.buildProblem();
-        plan.getAssignments().getFirst().setServer(servers.findById("srv").orElseThrow());
+        plan.getAssignments().getFirst().setServer(servers.findById(new ServerId("srv")).orElseThrow());
 
         List<LiturgicalService> updated = planning.writeBack(plan, services.findAll());
 
         Slot slot = updated.getFirst().slots().getFirst();
-        assertEquals("srv", slot.serverId());
+        assertEquals(new ServerId("srv"), slot.serverId());
     }
 
     @Test
     void writeBackClearsSlotWhenAssignmentEmptied() {
         addServer();
-        addService("svc", LocalDate.of(2026, 8, 2), new Slot("s1", Role.ACOLYTE, "srv", true));
+        addService("svc", LocalDate.of(2026, 8, 2), new Slot("s1", Role.ACOLYTE, new ServerId("srv"), true));
         ServicePlan plan = planning.buildProblem();
         plan.getAssignments().getFirst().setServer(null);
         plan.getAssignments().getFirst().setPinned(false);

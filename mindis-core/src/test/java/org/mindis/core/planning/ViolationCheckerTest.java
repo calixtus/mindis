@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
+import org.mindis.core.model.ServerId;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.model.Slot;
 
@@ -20,7 +21,7 @@ class ViolationCheckerTest {
     private static final Role ROLE_ACOLYTE = new Role(Role.ACOLYTE, "Acolyte", null, null, 0);
     private static final Role ROLE_THURIFER = new Role(Role.THURIFER, "Thurifer", null, null, 2);
     private static final Server ACOLYTE_ONLY =
-            Server.named("s1", "Anna", "Muster").withQualifications(Set.of(Role.ACOLYTE));
+            Server.named(new ServerId("s1"), "Anna", "Muster").withQualifications(Set.of(Role.ACOLYTE));
     private static final LiturgicalService MASS = new LiturgicalService(
             "svc1", LocalDateTime.of(2026, 8, 2, 10, 0), 60, "St. Mary",
             ServiceType.SUNDAY_MASS, "", List.of(), "");
@@ -45,7 +46,7 @@ class ViolationCheckerTest {
 
     @Test
     void incompatibleRoleInTheServiceDetected() {
-        Server noIncense = Server.named("s2", "Bea", "Muster")
+        Server noIncense = Server.named(new ServerId("s2"), "Bea", "Muster")
                 .withQualifications(Set.of(Role.ACOLYTE))
                 .withIncompatibleRoles(Set.of(Role.THURIFER));
         LiturgicalService withThurifer = new LiturgicalService(
