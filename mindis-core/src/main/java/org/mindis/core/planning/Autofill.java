@@ -22,6 +22,11 @@ public final class Autofill {
     /// pin (to restore the ones the solver was not allowed to touch) plus the
     /// ids left eligible.
     public record Scope(Map<String, Boolean> pinSnapshot, Set<String> eligibleIds) {
+
+        public Scope {
+            pinSnapshot = Map.copyOf(pinSnapshot);
+            eligibleIds = Set.copyOf(eligibleIds);
+        }
     }
 
     /// Leaves every assignment matching `eligible` free and pins the
