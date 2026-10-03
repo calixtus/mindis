@@ -61,14 +61,21 @@ public final class PreferencesService {
 
     /// Applies the change to the current preferences, persists the result
     /// atomically and notifies listeners.
-    public synchronized MinDisPreferences update(UnaryOperator<MinDisPreferences> change) {
-        MinDisPreferences before = get();
-        MinDisPreferences updated = change.apply(before);
-        if (updated.equals(before)) {
-            return before;
+    ///
+    /// Listeners run after the lock is released: one that hands work to a
+    /// thread which reads these preferences would otherwise deadlock against it.
+    /// `change` itself runs under the lock, so read-modify-write stays atomic.
+    public MinDisPreferences update(UnaryOperator<MinDisPreferences> change) {
+        MinDisPreferences updated;
+        synchronized (this) {
+            MinDisPreferences before = get();
+            updated = change.apply(before);
+            if (updated.equals(before)) {
+                return before;
+            }
+            current = updated;
+            save(updated);
         }
-        current = updated;
-        save(updated);
         listeners.forEach(listener -> listener.accept(updated));
         return updated;
     }
