@@ -233,6 +233,7 @@ public final class AboutModule extends ShellModule {
         // By identity: two identical messages logged in the same second are still two rows.
         Set<LogEntry> expanded = Collections.newSetFromMap(new IdentityHashMap<>());
         list.setCellFactory(view -> new LogEntryCell(view.getItems(), expanded));
+        list.getStylesheets().add(AboutModule.class.getResource("about.css").toExternalForm());
         list.setPrefHeight(160);
 
         VBox box = new VBox(6, header, list);
@@ -302,7 +303,9 @@ public final class AboutModule extends ShellModule {
     ///
     /// <p>A message too long for the row is cut off with an ellipsis rather than
     /// widening the list, and the hover buttons then include a chevron that expands
-    /// the row to show it whole, wrapped; double-clicking the row does the same. Line
+    /// the row to show it whole, wrapped; double-clicking the row does the same. The
+    /// buttons lie over the end of the text on a fade to the row's background (see
+    /// `about.css`) rather than beside it, so showing them never re-wraps the text. Line
     /// breaks would make a collapsed row taller, so collapsed they are shown as spaces,
     /// and a message that has any is expandable even when it fits.
     private static final class LogEntryCell extends ListCell<LogEntry> {
@@ -313,7 +316,7 @@ public final class AboutModule extends ShellModule {
         private final Label text = new Label();
         private final Button expandButton = new Button(null, new FontIcon("mdi2c-chevron-down"));
         private final HBox actions;
-        private final HBox row;
+        private final StackPane row;
         /// What the row currently shows, which decides its height.
         private boolean shownExpanded;
 
@@ -328,7 +331,6 @@ public final class AboutModule extends ShellModule {
             text.setTextOverrun(OverrunStyle.ELLIPSIS);
             text.setMinWidth(0);
             text.setMaxWidth(Double.MAX_VALUE);
-            HBox.setHgrow(text, Priority.ALWAYS);
 
             expandButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
             expandButton.setOnAction(e -> toggleExpanded());
@@ -343,29 +345,23 @@ public final class AboutModule extends ShellModule {
             removeButton.setOnAction(e -> remove());
 
             actions = new HBox(2, expandButton, copyButton, removeButton);
-            actions.setMinWidth(Region.USE_PREF_SIZE);
+            actions.getStyleClass().add("log-entry-actions");
+            actions.setMaxSize(Region.USE_PREF_SIZE, Region.USE_PREF_SIZE);
             actions.setVisible(false);
-            actions.setManaged(false);
             // Clicks on the buttons stay there: two quick clicks on the chevron would
             // otherwise also count as a double-click on the row and toggle it a third time.
             actions.addEventHandler(MouseEvent.MOUSE_CLICKED, MouseEvent::consume);
 
-            row = new HBox(6, text, actions);
-            row.setAlignment(Pos.CENTER_LEFT);
+            row = new StackPane(text, actions);
+            getStyleClass().add("log-entry-cell");
             // A Labeled lays its graphic out at the graphic's own preferred width, so
             // without this the row would be as wide as its text and never ellipsize.
             row.prefWidthProperty().bind(Bindings.createDoubleBinding(
                     () -> getWidth() - getInsets().getLeft() - getInsets().getRight(),
                     widthProperty(), insetsProperty()));
 
-            setOnMouseEntered(e -> {
-                actions.setVisible(true);
-                actions.setManaged(true);
-            });
-            setOnMouseExited(e -> {
-                actions.setVisible(false);
-                actions.setManaged(false);
-            });
+            setOnMouseEntered(e -> actions.setVisible(true));
+            setOnMouseExited(e -> actions.setVisible(false));
             setOnMouseClicked(e -> {
                 if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2 && expandButton.isVisible()) {
                     toggleExpanded();
@@ -407,8 +403,6 @@ public final class AboutModule extends ShellModule {
         }
 
         /// Whether the chevron is offered is only known once the row has a width.
-        /// Measured against the row with all three buttons showing, as on hover, so
-        /// it does not change while the pointer moves in and the text makes room.
         @Override
         protected void layoutChildren() {
             super.layoutChildren();
@@ -427,17 +421,8 @@ public final class AboutModule extends ShellModule {
             // measures nothing.
             Text probe = new Text(collapsedText(entry));
             probe.setFont(text.getFont());
-            double available = row.getWidth() - row.getSpacing() - allActionsWidth()
-                    - text.getPadding().getLeft() - text.getPadding().getRight();
+            double available = row.getWidth() - text.getPadding().getLeft() - text.getPadding().getRight();
             return probe.getLayoutBounds().getWidth() > available;
-        }
-
-        private double allActionsWidth() {
-            double buttons = 0;
-            for (Node child : actions.getChildren()) {
-                buttons += child.prefWidth(-1);
-            }
-            return buttons + actions.getSpacing() * (actions.getChildren().size() - 1);
         }
 
         private void toggleExpanded() {
@@ -472,13 +457,14 @@ public final class AboutModule extends ShellModule {
             shownExpanded = isExpanded;
             text.setWrapText(isExpanded);
             text.setText(isExpanded ? fullText(entry) : collapsedText(entry));
-            row.setAlignment(isExpanded ? Pos.TOP_LEFT : Pos.CENTER_LEFT);
+            StackPane.setAlignment(text, isExpanded ? Pos.TOP_LEFT : Pos.CENTER_LEFT);
+            StackPane.setAlignment(actions, isExpanded ? Pos.TOP_RIGHT : Pos.CENTER_RIGHT);
             // Expanded, the first line keeps the place it has in a collapsed row: the same
             // margin above it as the theme's cell height leaves, and the buttons centred on it.
             double lineHeight = lineHeight();
             double margin = Math.max(0, (super.computePrefHeight(-1) - lineHeight) / 2);
             row.setPadding(isExpanded ? new Insets(margin, 0, margin, 0) : Insets.EMPTY);
-            HBox.setMargin(actions, isExpanded
+            StackPane.setMargin(actions, isExpanded
                     ? new Insets((lineHeight - actions.prefHeight(-1)) / 2, 0, 0, 0)
                     : null);
             ((FontIcon) expandButton.getGraphic())

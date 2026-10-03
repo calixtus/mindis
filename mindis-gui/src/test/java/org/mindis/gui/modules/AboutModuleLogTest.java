@@ -204,4 +204,53 @@ class AboutModuleLogTest {
                             "a collapsed row keeps the theme's cell height, not the text's"));
         });
     }
+
+    private static Label textOf(ListCell<?> cell) {
+        return FxTest.findAll(cell, Label.class).getFirst();
+    }
+
+    private static javafx.scene.layout.Region actionsOf(ListCell<?> cell) {
+        return (javafx.scene.layout.Region) expandButton(cell).getParent();
+    }
+
+    /// The buttons lie over the text instead of taking room from it, so showing them on
+    /// hover cannot re-wrap or re-cut the message.
+    @Test
+    void hoverButtonsOverlayTheTextWithoutNarrowingIt() throws InterruptedException {
+        FxTest.runAndWait(() -> {
+            ListView<LogEntry> list = logList();
+            ListCell<?> cell = cellOf(list, LONG);
+            double widthBefore = textOf(cell).getWidth();
+
+            mouse(cell, javafx.scene.input.MouseEvent.MOUSE_ENTERED, 0);
+            layout(list.getScene().getRoot());
+            javafx.geometry.Bounds text = textOf(cell).localToScene(textOf(cell).getLayoutBounds());
+            javafx.geometry.Bounds actions = actionsOf(cell).localToScene(actionsOf(cell).getLayoutBounds());
+
+            assertAll(
+                    () -> assertTrue(actionsOf(cell).isVisible()),
+                    () -> assertEquals(widthBefore, textOf(cell).getWidth()),
+                    () -> assertTrue(actions.getMinX() < text.getMaxX(), "the buttons cover the end of the text"));
+        });
+    }
+
+    /// The fade behind the buttons ends in the row's own fill, also once the row is selected.
+    @Test
+    void theFadeEndsInTheRowBackground() throws InterruptedException {
+        FxTest.runAndWait(() -> {
+            ListView<LogEntry> list = logList();
+            list.getSelectionModel().select(LONG);
+            layout(list.getScene().getRoot());
+
+            for (LogEntry entry : List.of(SHORT, LONG)) {
+                ListCell<?> cell = cellOf(list, entry);
+                javafx.scene.paint.Paint fade = actionsOf(cell).getBackground().getFills().getFirst().getFill();
+                javafx.scene.paint.Paint rowFill = cell.getBackground().getFills().getLast().getFill();
+
+                assertTrue(fade instanceof javafx.scene.paint.LinearGradient gradient
+                                && gradient.getStops().getLast().getColor().equals(rowFill),
+                        entry.message() + ": " + fade + " should end in " + rowFill);
+            }
+        });
+    }
 }

@@ -1,0 +1,22 @@
+/* About module: the log list. */
+
+/* The row's own background, per state, for the fade behind the hover buttons to end
+   in - AtlantaFX changes a row's fill on selection only, not on hover. */
+.log-entry-cell {
+    -log-row-bg: -color-cell-bg;
+}
+
+.list-view .log-entry-cell:filled:selected {
+    -log-row-bg: -color-cell-bg-selected;
+}
+
+.list-view:focused .log-entry-cell:filled:selected {
+    -log-row-bg: -color-cell-bg-selected-focused;
+}
+
+/* The buttons lie over the end of the message; the fade hides what they cover
+   instead of cutting it off at a hard edge. */
+.log-entry-actions {
+    -fx-padding: 0 0 0 32px;
+    -fx-background-color: linear-gradient(to right, transparent 0px, -log-row-bg 32px);
+}
