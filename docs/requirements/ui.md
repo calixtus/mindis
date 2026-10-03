@@ -191,7 +191,7 @@ it and shows nothing. `ServicesModule` sets it to the slots nobody is in, over s
 come — a slot nobody filled last month is a record, not work waiting, and counting it would leave a
 badge that could never be cleared.
 
-Covered by `AppShellNavigationTest`, `AppShellSidebarTest` and `AppShellReloadTest`.
+Covered by `AppShellNavigationTest`, `AppShellSidebarTest` and `AppShellActivationTest`.
 
 Covers:
 - req~app-shell~2
@@ -241,12 +241,12 @@ Covers:
 ### Dashboard view model
 `dsn~dashboard-viewmodel~1`
 
-`DashboardViewModel` owns every repository call and every aggregation, computed straight off the
-live services, servers, roles and the archive (assignments live on their slots, so there is no plan
-to read). It returns one `Snapshot` of plain data — slot counts and coverage, `UpcomingService`,
-`ServerLoad`, `RoleStatus`, `ServiceTypeCount`, `WeekCoverage`, `Absence`, `Birthday`,
-`ArchiveMonth`, `ProblemCount`, `RosterIssue` — and `DashboardView` decides how to word, format and
-draw it; dates go through `DateTimes`, which follows the active language. The view is a plain
+`DashboardViewModel` reads the live stores the other screens edit — services, servers, roles —
+plus the archive, and hands them to core's `PlanOverview`, which computes every figure (assignments
+live on their slots, so there is no plan to read). The overview is plain data — slot counts and
+coverage, `UpcomingService`, `ServerLoad`, `RoleStatus`, `ServiceTypeCount`, `WeekCoverage`,
+`Absence`, `Birthday`, `ArchiveMonth`, `ProblemCount`, `RosterIssue` — and `DashboardView` decides
+how to word, format and draw it; dates go through `DateTimes`, which follows the active language. The view is a plain
 JavaFX `StackPane` built in Java, like every other screen (ADR 001).
 
 Nothing a widget shows may set a floor for its card: the card, its body and its content pane all

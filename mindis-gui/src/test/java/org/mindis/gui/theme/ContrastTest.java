@@ -63,6 +63,7 @@ import org.mindis.core.preferences.PreferencesService;
 import org.mindis.core.update.UpdateService;
 import org.mindis.gui.FxTest;
 import org.mindis.gui.TestPreferences;
+import org.mindis.gui.TestStores;
 import org.mindis.gui.dashboard.DashboardView;
 import org.mindis.gui.dashboard.DashboardViewModel;
 import org.mindis.gui.data.LiveStore;
@@ -244,7 +245,8 @@ class ContrastTest {
             UiPreferences uiPreferences = new UiPreferences(preferences);
 
             screens.put("Dashboard", () -> new DashboardView(
-                    new DashboardViewModel(services, servers, roles, archived, preferences)));
+                    new DashboardViewModel(TestStores.services(services), TestStores.servers(servers),
+                            TestStores.roles(roles), archived, preferences)));
             List<ShellModule> modules = List.of(
                     new RolesModule("Roles", roleStore, roles, overlays),
                     new ServersModule("Servers", serverStore, roleStore, servers, roles, uiPreferences, overlays),

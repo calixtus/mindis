@@ -36,6 +36,7 @@ import org.mindis.core.preferences.DashboardWidgetLayout;
 import org.mindis.core.preferences.PreferencesService;
 import org.mindis.gui.FxTest;
 import org.mindis.gui.TestPreferences;
+import org.mindis.gui.TestStores;
 
 /// Covers the view-mode chooser end to end: which widgets offer one, what
 /// picking a diagram puts into the widget body, and that the choice is written
@@ -221,7 +222,8 @@ class DashboardViewTest {
     }
 
     private DashboardViewModel newViewModel(PreferencesService preferences) {
-        return new DashboardViewModel(services, servers, roles, archive, preferences);
+        return new DashboardViewModel(TestStores.services(services), TestStores.servers(servers),
+                TestStores.roles(roles), archive, preferences);
     }
 
     private Path preferencesFile() {

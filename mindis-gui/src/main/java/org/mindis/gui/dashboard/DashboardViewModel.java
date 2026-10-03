@@ -1,38 +1,43 @@
 package org.mindis.gui.dashboard;
 
-import io.avaje.inject.Prototype;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import javafx.util.Subscription;
+
 import org.jspecify.annotations.Nullable;
 
+import org.mindis.core.model.LiturgicalService;
+import org.mindis.core.model.Role;
+import org.mindis.core.model.Server;
 import org.mindis.core.overview.PlanOverview;
 import org.mindis.core.persistence.ArchivedServiceRepository;
-import org.mindis.core.persistence.RoleRepository;
-import org.mindis.core.persistence.ServerRepository;
-import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.preferences.DashboardWidgetLayout;
 import org.mindis.core.preferences.PreferencesService;
+import org.mindis.gui.data.LiveStore;
 
 /// ViewModel for the dashboard: feeds the document's current state into
 /// [PlanOverview] for the view to render, and persists the widget layout.
-@Prototype
+///
+/// Reads the same live stores every other screen edits, so the board describes
+/// exactly what they show, unsaved edits included. The archive has no live
+/// store - it changes only through an archive action or a document change, both
+/// of which also change the services - so it is read from its repository.
 public final class DashboardViewModel {
 
-    private final ServiceRepository serviceRepository;
-    private final ServerRepository serverRepository;
-    private final RoleRepository roleRepository;
+    private final LiveStore<LiturgicalService> services;
+    private final LiveStore<Server> servers;
+    private final LiveStore<Role> roles;
     private final ArchivedServiceRepository archivedServiceRepository;
     private final PreferencesService preferencesService;
 
-    public DashboardViewModel(ServiceRepository serviceRepository, ServerRepository serverRepository,
-                              RoleRepository roleRepository, ArchivedServiceRepository archivedServiceRepository,
+    public DashboardViewModel(LiveStore<LiturgicalService> services, LiveStore<Server> servers,
+                              LiveStore<Role> roles, ArchivedServiceRepository archivedServiceRepository,
                               PreferencesService preferencesService) {
-        this.serviceRepository = serviceRepository;
-        this.serverRepository = serverRepository;
-        this.roleRepository = roleRepository;
+        this.services = services;
+        this.servers = servers;
+        this.roles = roles;
         this.archivedServiceRepository = archivedServiceRepository;
         this.preferencesService = preferencesService;
     }
@@ -81,7 +86,14 @@ public final class DashboardViewModel {
     }
 
     public PlanOverview loadOverview() {
-        return PlanOverview.of(serviceRepository.findAll(), serverRepository.findAll(), roleRepository.findAll(),
+        return PlanOverview.of(services.items(), servers.items(), roles.items(),
                 archivedServiceRepository.findAll(), LocalDateTime.now());
+    }
+
+    /// Runs `onChange` whenever a store the overview is computed from changes.
+    public Subscription subscribeToChanges(Runnable onChange) {
+        return services.items().subscribe(onChange)
+                .and(servers.items().subscribe(onChange))
+                .and(roles.items().subscribe(onChange));
     }
 }

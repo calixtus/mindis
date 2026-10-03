@@ -178,14 +178,12 @@ staged-change flag (see [archive.md](archive.md)) **plus** a collection-identity
 (`updateMeta` dirties the document like any other edit), neither of which row-level tracking covers.
 That one binding drives the collection switcher's Save button, the window title and the close guard.
 
-`LiveDatabase` also publishes a **document generation**, bumped whenever the contents are replaced
-wholesale — a new document, another file opened, a revert to disk — and the shell rebuilds the
-active module's content in response (`AppShell.reloadActiveModule`). A screen that mirrors a
-`LiveStore` follows such a change on its own; one that reads a repository while building itself, as
-the dashboard does, cannot, and used to keep describing the parish that had just been closed until
-the user navigated away and back. Saving deliberately does not bump it: it writes the same data back
-out, nothing on screen is stale, and rebuilding would only lose the user's place
-(`LiveDatabaseGenerationTest`).
+When the contents are replaced wholesale — a new document, another file opened, a revert to
+disk — every store refreshes, and every screen follows because every screen reads a `LiveStore`.
+The dashboard, which renders a computed overview rather than binding rows, rebuilds while it is
+showing whenever a store changes and the recomputed overview differs; a save refreshes the stores
+too but changes no value, so it does not rebuild the board and lose the user's place
+(`DashboardModuleTest`).
 
 Covers:
 - req~staged-edits~1

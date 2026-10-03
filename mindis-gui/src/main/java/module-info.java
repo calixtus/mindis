@@ -34,5 +34,5 @@ module org.mindis.gui {
     // mindis code references this module's types directly.
     requires org.slf4j.jul;
 
-    provides io.avaje.inject.spi.InjectExtension with org.mindis.gui.GuiModule;
+    provides io.avaje.inject.spi.InjectExtension with org.mindis.gui.preferences.GuiModule;
 }

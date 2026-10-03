@@ -441,7 +441,7 @@ Key elements copied from the JabRef approach:
    the active entry cannot be deselected, re-opening by class name — which is how the
    selection survives a language rebuild), `AppShellSidebarTest` (the width model at its
    boundaries: rail 60, minimum 200, maximum 360, collapse below 120, plus labels moving to
-   tooltips on the rail and the badge's pill/dot), `AppShellReloadTest` and
+   tooltips on the rail and the badge's pill/dot), `AppShellActivationTest` and
    `ShellOverlaysTest` (dialog layer, notification grouping). The drawer is the one listed
    item with no test: `PowerPane` provides the layer but nothing in mindis puts anything in
    it, so there is no mindis behaviour to cover — see ADR 005.

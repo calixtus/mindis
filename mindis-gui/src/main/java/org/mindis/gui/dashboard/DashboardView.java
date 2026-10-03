@@ -39,9 +39,8 @@ import org.mindis.gui.util.DateTimes;
 /// The board fills the pane; the add button floats over it, pinned top-right,
 /// overlapping the widgets rather than sitting in its own toolbar strip.
 ///
-/// The snapshot is read once, at construction. That is enough because
-/// `DashboardModule` builds a fresh view on every activation, so switching to
-/// the dashboard always shows current numbers.
+/// The view renders one fixed [PlanOverview]; `DashboardModule` builds a new
+/// view whenever the figures change.
 public final class DashboardView extends StackPane {
 
     private final DashboardViewModel viewModel;
@@ -50,8 +49,12 @@ public final class DashboardView extends StackPane {
     private final MenuButton addWidgetButton = new MenuButton(Localization.lang("Add widget"));
 
     public DashboardView(DashboardViewModel viewModel) {
+        this(viewModel, viewModel.loadOverview());
+    }
+
+    public DashboardView(DashboardViewModel viewModel, PlanOverview snapshot) {
         this.viewModel = viewModel;
-        this.snapshot = viewModel.loadOverview();
+        this.snapshot = snapshot;
         this.board = new WidgetBoard(this::persistLayout);
 
         getStyleClass().add("dashboard");

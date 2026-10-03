@@ -16,6 +16,7 @@ import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.preferences.DashboardWidgetLayout;
 import org.mindis.core.preferences.PreferencesService;
 import org.mindis.gui.TestPreferences;
+import org.mindis.gui.TestStores;
 
 /// Covers the widget layout the view model persists; the figures it hands the
 /// view are [org.mindis.core.overview.PlanOverview]'s and tested in core.
@@ -30,7 +31,8 @@ class DashboardViewModelTest {
     private final ArchivedServiceRepository archive = new ArchivedServiceRepository();
 
     private DashboardViewModel newViewModel() {
-        return new DashboardViewModel(services, servers, roles, archive, TestPreferences.at(
+        return new DashboardViewModel(TestStores.services(services), TestStores.servers(servers),
+                TestStores.roles(roles), archive, TestPreferences.at(
                 tempDir.resolve("preferences.json")));
     }
 
@@ -68,7 +70,9 @@ class DashboardViewModelTest {
         preferences.update(p -> p.withDashboardWidgets(List.of(
                 new DashboardWidgetLayout(WidgetType.SERVER_LOAD.id(), 0, 0, 6, 3, "sunburst"),
                 new DashboardWidgetLayout(WidgetType.NEXT_SERVICES.id(), 0, 3, 6, 3, null))));
-        DashboardViewModel viewModel = new DashboardViewModel(services, servers, roles, archive, preferences);
+        DashboardViewModel viewModel = new DashboardViewModel(TestStores.services(services),
+                TestStores.servers(servers),
+                TestStores.roles(roles), archive, preferences);
 
         List<WidgetPlacement> layout = viewModel.loadLayout();
 

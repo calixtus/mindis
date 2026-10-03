@@ -172,17 +172,6 @@ public class MinDisApp extends Application {
         updateCheck = new UpdateCheckController(beanScope.get(UpdateService.class), overlays,
                 getHostServices(), documentSession::confirmDropUnsavedChanges);
         shell = buildShell();
-        // Opening another document replaces every store's contents underneath
-        // whatever screen is showing. Modules that mirror a LiveStore follow along
-        // by themselves; one that reads a repository as it builds its content - the
-        // dashboard - cannot, and used to keep showing the previous parish until
-        // the user navigated away and back. Reads the field rather than capturing
-        // it, so it keeps working after a language change replaces the shell.
-        liveDatabase.documentGenerationProperty().subscribe(() -> {
-            if (shell != null) {
-                shell.reloadActiveModule();
-            }
-        });
         powerPane.setContent(shell);
         Scene scene = new Scene(powerPane, 960, 640);
         addDocumentAccelerators(scene);
@@ -252,7 +241,10 @@ public class MinDisApp extends Application {
                 servicesModule.solvingProperty());
         AppShell.Builder builder = AppShell.builder(
                                 new DashboardModule(Localization.lang("Dashboard"),
-                                        beanScope.get(DashboardViewModel.class)),
+                                        new DashboardViewModel(liveDatabase.services(),
+                                                liveDatabase.servers(), liveDatabase.roles(),
+                                                beanScope.get(ArchivedServiceRepository.class),
+                                                preferencesService)),
                                 new RolesModule(Localization.lang("Roles"),
                                         liveDatabase.roles(),
                                         beanScope.get(RoleRepository.class), overlays),
