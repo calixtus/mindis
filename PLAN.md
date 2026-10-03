@@ -324,7 +324,7 @@ rationale and the rejected alternatives: ADR 005.
 It lives in `mindis-gui`, not a module of its own: one consumer, no third-party code to isolate.
 
 - `org.mindis.gui.shell` — `AppShell` container + builder, `ShellModule` lifecycle
-  (`activate/deactivate/destroy/dispose`), `CrudModule` (shared table+editor screen),
+  (`activate/deactivate/dispose`), `CrudModule` (shared table+editor screen),
   `ShellOverlays`.
 - `org.mindis.gui.data` — `LiveStore`, `CsvIO`, `CsvRowMapper` (staging layer, shell-independent).
 

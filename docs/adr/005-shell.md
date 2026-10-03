@@ -42,7 +42,7 @@ it has exactly one consumer and no third-party code to isolate.
 
 - `org.mindis.gui.shell` — `AppShell` (`BorderPane`: sidebar left, active module's content right,
   `AppShell.builder(...)` with bottom-pinned entries and a sidebar-header slot), `ShellModule`
-  (`activate`/`deactivate`/`destroy`/`dispose` lifecycle), `CrudModule` (the table+editor screen the
+  (`activate`/`deactivate`/`dispose` lifecycle), `CrudModule` (the table+editor screen the
   four data areas share), `ShellOverlays`, `shell.css`, `power-pane.css`.
 - `org.mindis.gui.data` — `LiveStore`, `CsvIO`, `CsvRowMapper`: the staging layer the modules read
   and edit, independent of the shell.

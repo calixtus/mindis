@@ -15,9 +15,6 @@ import org.jspecify.annotations.Nullable;
 ///       sidebar; returns the content node (fresh or cached, the module
 ///       decides).
 ///   <li>[#deactivate()] - called when another module is selected.
-///   <li>[#destroy()] - reserved for a closing hook (return `false`
-///       to veto); not called by the sidebar shell, which keeps all modules
-///       available.
 ///   <li>[#dispose()] - called when the module instance is discarded for
 ///       good (e.g. a full UI rebuild replaces every module); detach any
 ///       listeners registered on objects that outlive the module (shared
@@ -83,10 +80,6 @@ public abstract class ShellModule {
     public abstract Node activate();
 
     public void deactivate() {
-    }
-
-    public boolean destroy() {
-        return true;
     }
 
     /// Detaches everything this module registered on longer-lived objects;

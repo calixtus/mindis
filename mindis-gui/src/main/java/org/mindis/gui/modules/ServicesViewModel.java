@@ -8,9 +8,7 @@ import org.jspecify.annotations.Nullable;
 import org.jspecify.annotations.NullMarked;
 
 import org.mindis.core.model.LiturgicalService;
-import org.mindis.core.model.Role;
 import org.mindis.core.model.ServiceType;
-import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServiceGenerator;
 import org.mindis.core.persistence.TemplateRepository;
 
@@ -25,11 +23,9 @@ final class ServicesViewModel {
     private static final int DEFAULT_DURATION_MINUTES = 60;
 
     private final TemplateRepository templateRepository;
-    private final RoleRepository roleRepository;
 
-    ServicesViewModel(TemplateRepository templateRepository, RoleRepository roleRepository) {
+    ServicesViewModel(TemplateRepository templateRepository) {
         this.templateRepository = templateRepository;
-        this.roleRepository = roleRepository;
     }
 
     /// A blank service at the next full hour, for the New action.
@@ -38,11 +34,6 @@ final class ServicesViewModel {
                 .withMinute(0).withSecond(0).withNano(0).plusHours(1);
         return new LiturgicalService(LiturgicalService.newId(), nextFullHour, DEFAULT_DURATION_MINUTES,
                 "", ServiceType.OTHER, "", List.of(), "");
-    }
-
-    /// Roles available for the "required servers" slot editor.
-    List<Role> findAllRoles() {
-        return roleRepository.findAll();
     }
 
     /// Expands every weekly template into concrete services over
