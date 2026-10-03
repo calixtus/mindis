@@ -62,6 +62,7 @@ import org.mindis.core.export.PlanExportFormat;
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.LiturgicalService;
+import org.mindis.core.model.LiturgicalServices;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.ServiceType;
@@ -937,18 +938,8 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
         return true;
     }
 
-    /// Live services whose date falls within `[from, to]`, either bound
-    /// blank meaning unbounded on that side (same convention as the Autofill
-    /// window).
-    private List<LiturgicalService> servicesInRange(@Nullable LocalDate from, @Nullable LocalDate to) {
-        return store().items().stream()
-                .filter(service -> from == null || !service.dateTime().toLocalDate().isBefore(from))
-                .filter(service -> to == null || !service.dateTime().toLocalDate().isAfter(to))
-                .toList();
-    }
-
     private void onExportPlan(@Nullable LocalDate from, @Nullable LocalDate to, PlanExportFormat preferredFormat) {
-        List<LiturgicalService> services = servicesInRange(from, to);
+        List<LiturgicalService> services = LiturgicalServices.inDateRange(store().items(), from, to);
         if (services.isEmpty()) {
             LOGGER.info(Localization.lang("Nothing to export"));
             return;
@@ -969,21 +960,6 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
 
     /// Recounts the badge from what the store currently holds.
     private void refreshOpenSlotBadge() {
-        setBadgeCount(countOpenSlotsAhead(store().items(), LocalDateTime.now()));
-    }
-
-    /// Slots with nobody in them, over the services that have not happened yet.
-    ///
-    /// Past services are excluded deliberately: a slot nobody filled last month is
-    /// a record of what happened, not work still waiting, and counting it would
-    /// leave a badge that can never be cleared.
-    ///
-    /// @param now the boundary, passed in so the rule can be pinned by a test
-    static int countOpenSlotsAhead(List<LiturgicalService> services, LocalDateTime now) {
-        return (int) services.stream()
-                .filter(service -> service.dateTime().isAfter(now))
-                .flatMap(service -> service.slots().stream())
-                .filter(slot -> slot.serverId() == null)
-                .count();
+        setBadgeCount(LiturgicalServices.openSlotsAhead(store().items(), LocalDateTime.now()));
     }
 }
