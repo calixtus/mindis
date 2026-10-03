@@ -1,5 +1,6 @@
 package org.mindis.gui.planning;
 
+import java.io.UncheckedIOException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -163,7 +164,7 @@ public final class ArchivedPlansDialog {
         PlanExportFormat format = target.get().format();
         try {
             viewModel.exportArchived(services, target.get().file(), format);
-        } catch (RuntimeException ex) {
+        } catch (UncheckedIOException ex) {
             Alert alert = new Alert(AlertType.ERROR);
             alert.setTitle(Localization.lang("Export failed"));
             alert.setHeaderText(Localization.lang("%0 export failed: %1", format.name(), ex.getMessage()));

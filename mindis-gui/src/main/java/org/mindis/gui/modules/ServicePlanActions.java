@@ -1,5 +1,6 @@
 package org.mindis.gui.modules;
 
+import java.io.UncheckedIOException;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -73,7 +74,7 @@ final class ServicePlanActions {
         try {
             planningViewModel.exportLive(services, target.get().file(), format);
             LOGGER.info(Localization.lang("%0 saved to %1", format.name(), target.get().file().getFileName()));
-        } catch (RuntimeException e) {
+        } catch (UncheckedIOException e) {
             LOGGER.error(Localization.lang("%0 export failed: %1", format.name(), e.getMessage()), e);
         }
     }

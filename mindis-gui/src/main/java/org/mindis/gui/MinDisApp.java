@@ -10,6 +10,7 @@ import com.dlsc.gemsfx.PowerPane;
 import io.avaje.inject.BeanScope;
 
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javafx.application.Application;
@@ -98,6 +99,11 @@ public class MinDisApp extends Application {
         LoggingBootstrap.configure();
         Logger.getLogger("").addHandler(new AlertOnErrorHandler());
         Logger.getLogger("").addHandler(new LogConsoleHandler(logConsole));
+        // Without this an exception escaping an event handler only reaches stderr.
+        // Logged under MinDis's own name so AlertOnErrorHandler shows it.
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) ->
+                Logger.getLogger(MinDisApp.class.getName()).log(Level.SEVERE,
+                        "Uncaught exception on thread " + thread.getName(), throwable));
 
         this.stage = primaryStage;
         beanScope = BeanScope.builder().build();
