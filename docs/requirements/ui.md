@@ -445,8 +445,9 @@ copyable version-info block. A line longer than the list is wide is cut off with
 of scrolling the list sideways; on hover such a line — and one with line breaks, which a collapsed
 row shows as spaces — offers a chevron next to copy and remove that expands it to the full message,
 wrapped; double-clicking the line does the same. A collapsed line is as tall as the hover buttons
-need, so it does not grow under the pointer, and the buttons lie over the end of the text on a fade
-to the row's background rather than beside it, so showing them never re-wraps the message.
+need, so it does not grow under the pointer, and the buttons lie over the end of the text on a short fade
+to the row's background (the first sixth of the button gutter; the rest is opaque) rather than beside
+it, so showing them never re-wraps the message.
 
 Covers:
 - req~error-visibility~1

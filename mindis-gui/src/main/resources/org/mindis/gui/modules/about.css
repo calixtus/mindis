@@ -14,9 +14,11 @@
     -log-row-bg: -color-cell-bg-selected-focused;
 }
 
-/* The buttons lie over the end of the message; the fade hides what they cover
-   instead of cutting it off at a hard edge. */
+/* The buttons lie over the end of the message; a short fade over the first sixth of
+   the gutter hides what they cover instead of cutting it off at a hard edge, and the
+   rest is the row's background outright. Proportional, so it holds whether the
+   chevron shows or not. */
 .log-entry-actions {
-    -fx-padding: 0 0 0 32px;
-    -fx-background-color: linear-gradient(to right, transparent 0px, -log-row-bg 32px);
+    -fx-padding: 0 0 0 16px;
+    -fx-background-color: linear-gradient(to right, transparent 0%, -log-row-bg 16.7%);
 }

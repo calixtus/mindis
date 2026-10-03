@@ -234,7 +234,8 @@ class AboutModuleLogTest {
         });
     }
 
-    /// The fade behind the buttons ends in the row's own fill, also once the row is selected.
+    /// The fade behind the buttons reaches the row's own fill within the first sixth of the
+    /// gutter, also once the row is selected.
     @Test
     void theFadeEndsInTheRowBackground() throws InterruptedException {
         FxTest.runAndWait(() -> {
@@ -248,8 +249,11 @@ class AboutModuleLogTest {
                 javafx.scene.paint.Paint rowFill = cell.getBackground().getFills().getLast().getFill();
 
                 assertTrue(fade instanceof javafx.scene.paint.LinearGradient gradient
-                                && gradient.getStops().getLast().getColor().equals(rowFill),
-                        entry.message() + ": " + fade + " should end in " + rowFill);
+                                && gradient.isProportional()
+                                && gradient.getStops().stream()
+                                        .filter(stop -> stop.getColor().equals(rowFill))
+                                        .anyMatch(stop -> stop.getOffset() < 0.2),
+                        entry.message() + ": " + fade + " should reach " + rowFill + " within the first sixth");
             }
         });
     }
