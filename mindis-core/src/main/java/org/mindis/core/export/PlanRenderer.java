@@ -21,7 +21,7 @@ interface PlanRenderer {
     /// document as blocks, and the collection's logo for the
     /// [PlanTemplate#LOGO_DESTINATION] image (null when the collection has
     /// none, in which case a template that references it renders its alt text).
-    record RenderedPlan(String markdown, List<PlanBlock> blocks, byte @Nullable [] logoPng) {
+    record RenderedPlan(String markdown, List<PlanBlock> blocks, @Nullable Png logoPng) {
 
         public RenderedPlan {
             blocks = List.copyOf(blocks);

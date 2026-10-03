@@ -201,7 +201,7 @@ final class PdfPlanRenderer implements PlanRenderer {
             cursorY = rowTop - lineCount * leading(BODY_SIZE);
         }
 
-        private void image(PlanBlock.Image image, byte @Nullable [] logoPng) throws IOException {
+        private void image(PlanBlock.Image image, @Nullable Png logoPng) throws IOException {
             if (!PlanTemplate.LOGO_DESTINATION.equals(image.destination()) || logoPng == null) {
                 if (!image.alt().isEmpty()) {
                     paragraph(List.of(PlanBlock.Span.plain(image.alt())));
@@ -210,7 +210,7 @@ final class PdfPlanRenderer implements PlanRenderer {
             }
             PDImageXObject drawn;
             try {
-                drawn = PDImageXObject.createFromByteArray(pdf, logoPng, "logo");
+                drawn = PDImageXObject.createFromByteArray(pdf, logoPng.bytes(), "logo");
             } catch (IOException e) {
                 LOGGER.warn("Collection logo is not a readable image, exporting without it", e);
                 return;

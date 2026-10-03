@@ -90,7 +90,7 @@ final class RtfPlanRenderer implements PlanRenderer {
         }
     }
 
-    private static void appendImage(StringBuilder rtf, PlanBlock.Image image, byte @Nullable [] logoPng) {
+    private static void appendImage(StringBuilder rtf, PlanBlock.Image image, @Nullable Png logoPng) {
         if (!PlanTemplate.LOGO_DESTINATION.equals(image.destination()) || logoPng == null) {
             if (!image.alt().isEmpty()) {
                 appendEscaped(rtf, image.alt());
@@ -98,7 +98,8 @@ final class RtfPlanRenderer implements PlanRenderer {
             }
             return;
         }
-        PngSize size = PngSize.read(logoPng);
+        byte[] png = logoPng.bytes();
+        PngSize size = PngSize.read(png);
         if (size == null) {
             return;
         }
@@ -114,7 +115,7 @@ final class RtfPlanRenderer implements PlanRenderer {
                 .append("\\picwgoal").append(widthTwips)
                 .append("\\pichgoal").append(heightTwips)
                 .append('\n');
-        for (byte b : logoPng) {
+        for (byte b : png) {
             rtf.append(Character.forDigit((b >> 4) & 0xF, 16)).append(Character.forDigit(b & 0xF, 16));
         }
         rtf.append("}\\par\n");

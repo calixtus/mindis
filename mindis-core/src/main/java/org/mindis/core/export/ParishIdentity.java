@@ -13,7 +13,7 @@ import org.mindis.core.model.CollectionMeta;
 /// <p>A stock icon ([CollectionMeta#logoIcon]) is deliberately not used here -
 /// it is an icon-font glyph standing in for a missing logo in the sidebar, not
 /// something a parish would want printed on a handout.
-public record ParishIdentity(String name, byte @Nullable [] logoPng) {
+public record ParishIdentity(String name, @Nullable Png logoPng) {
 
     private static final ParishIdentity EMPTY = new ParishIdentity("", null);
 
@@ -27,10 +27,10 @@ public record ParishIdentity(String name, byte @Nullable [] logoPng) {
         String displayName = meta.displayName();
         String name = displayName == null ? "" : displayName.strip();
         String logoBase64 = meta.logoPngBase64();
-        byte[] logo = null;
+        Png logo = null;
         if (logoBase64 != null && !logoBase64.isBlank()) {
             try {
-                logo = Base64.getDecoder().decode(logoBase64);
+                logo = Png.of(Base64.getDecoder().decode(logoBase64));
             } catch (IllegalArgumentException e) {
                 logo = null;
             }
