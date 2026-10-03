@@ -1,0 +1,529 @@
+package org.mindis.core.overview;
+
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.time.DayOfWeek;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Set;
+
+import org.junit.jupiter.api.Test;
+
+import org.jspecify.annotations.Nullable;
+
+import org.mindis.core.model.ArchivedService;
+import org.mindis.core.model.LiturgicalService;
+import org.mindis.core.model.Role;
+import org.mindis.core.model.Server;
+import org.mindis.core.model.ServiceType;
+import org.mindis.core.model.Slot;
+import org.mindis.core.model.UnavailabilityPeriod;
+import org.mindis.core.persistence.ArchivedServiceRepository;
+import org.mindis.core.persistence.RoleRepository;
+import org.mindis.core.persistence.ServerRepository;
+import org.mindis.core.persistence.ServiceRepository;
+import org.mindis.core.planning.MinDisConstraintProvider;
+
+/// Covers the figures the dashboard is built from - plain data, so no JavaFX
+/// toolkit is needed; the wording and formatting live in the GUI's view.
+class PlanOverviewTest {
+
+    private final ServiceRepository services = new ServiceRepository();
+    private final ServerRepository servers = new ServerRepository();
+    private final RoleRepository roles = new RoleRepository();
+    private final ArchivedServiceRepository archive = new ArchivedServiceRepository();
+
+    private PlanOverview overview() {
+        return PlanOverview.of(services.findAll(), servers.findAll(), roles.findAll(), archive.findAll(),
+                LocalDateTime.now());
+    }
+
+    @Test
+    void loadOverview_noServices_isEmpty() {
+        PlanOverview snapshot = overview();
+        assertAll(
+                () -> assertTrue(snapshot.isEmpty()),
+                () -> assertEquals(0, snapshot.totalSlots()),
+                () -> assertEquals(0, snapshot.unassignedSlots()),
+                () -> assertTrue(snapshot.upcomingServices().isEmpty()),
+                () -> assertTrue(snapshot.serverLoad().isEmpty()));
+    }
+
+    @Test
+    void loadOverview_countsOpenSlotsAcrossAllServices() {
+        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv1"), Slot.open("ACOLYTE"))));
+        services.save(service("s2", inDays(2), List.of(Slot.open("THURIFER"))));
+
+        PlanOverview snapshot = overview();
+
+        assertAll(
+                () -> assertEquals(3, snapshot.totalSlots()),
+                () -> assertEquals(2, snapshot.unassignedSlots()),
+                () -> assertFalse(snapshot.isEmpty()));
+    }
+
+    /// A service in the past is not "upcoming" - it still counts toward the
+    /// slot totals, which are about the document as a whole.
+    @Test
+    void loadOverview_upcomingServices_excludesPastOnes() {
+        services.save(service("past", inDays(-1), List.of(Slot.open("ACOLYTE"))));
+        services.save(service("future", inDays(1), List.of(Slot.open("ACOLYTE"))));
+
+        PlanOverview snapshot = overview();
+
+        assertAll(
+                () -> assertEquals(1, snapshot.upcomingServices().size()),
+                () -> assertEquals(2, snapshot.totalSlots()));
+    }
+
+    @Test
+    void loadOverview_upcomingServices_carriesAssignedAndTotalCounts() {
+        services.save(service("s1", inDays(1),
+                List.of(filled("ACOLYTE", "srv1"), filled("ACOLYTE", "srv2"), Slot.open("THURIFER"))));
+
+        PlanOverview.UpcomingService upcoming = overview().upcomingServices().getFirst();
+
+        assertAll(
+                () -> assertEquals(2, upcoming.assignedSlots()),
+                () -> assertEquals(3, upcoming.totalSlots()),
+                () -> assertEquals(ServiceType.SUNDAY_MASS, upcoming.type()),
+                () -> assertEquals("St. Mary", upcoming.location()));
+    }
+
+    @Test
+    void loadOverview_serverLoad_isMostLoadedFirstAndUsesDisplayNames() {
+        servers.save(server("srv1", "Anna", "Becker"));
+        servers.save(server("srv2", "Ben", "Meier"));
+        services.save(service("s1", inDays(1),
+                List.of(filled("ACOLYTE", "srv2"), filled("ACOLYTE", "srv2"), filled("ACOLYTE", "srv1"))));
+
+        List<PlanOverview.ServerLoad> load = overview().serverLoad();
+
+        assertAll(
+                () -> assertEquals(2, load.size()),
+                () -> assertEquals(2L, load.getFirst().assignments()),
+                () -> assertEquals(1L, load.get(1).assignments()),
+                () -> assertTrue(load.getFirst().serverName().contains("Meier"),
+                        "expected the display name, was: " + load.getFirst().serverName()));
+    }
+
+    /// A server deleted while still assigned leaves its id on the slot. The
+    /// entry falls back to that id rather than vanishing, so the numbers still
+    /// add up to the assigned-slot count.
+    @Test
+    void loadOverview_serverLoad_unknownServerIdFallsBackToTheId() {
+        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "ghost"))));
+
+        List<PlanOverview.ServerLoad> load = overview().serverLoad();
+
+        assertAll(
+                () -> assertEquals(1, load.size()),
+                () -> assertEquals("ghost", load.getFirst().serverName()));
+    }
+
+    /// The figures the summary widget shows: every service still ahead (not
+    /// only the ones the "next services" widget lists), the active roster, the
+    /// configured roles and the share of slots that have a server.
+    @Test
+    void loadOverview_carriesTheSummaryFigures() {
+        servers.save(server("srv1", "Anna", "Becker"));
+        servers.save(inactive(server("srv2", "Ben", "Meier")));
+        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        services.save(service("past", inDays(-1), List.of(filled("ACOLYTE", "srv1"))));
+        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv1"), Slot.open("ACOLYTE"))));
+        services.save(service("s2", inDays(2), List.of(Slot.open("ACOLYTE"))));
+
+        PlanOverview snapshot = overview();
+
+        assertAll(
+                () -> assertEquals(2, snapshot.upcomingServiceCount()),
+                () -> assertEquals(1, snapshot.activeServers()),
+                () -> assertEquals(1, snapshot.roles()),
+                () -> assertEquals(2, snapshot.assignedSlots()),
+                // The past service's filled slot is not part of the work
+                // ahead, so coverage is one of three upcoming slots.
+                () -> assertEquals(3, snapshot.slotsAhead()),
+                () -> assertEquals(2, snapshot.openSlotsAhead()),
+                () -> assertEquals(1, snapshot.assignedSlotsAhead()),
+                () -> assertEquals(33, snapshot.coveragePercent()));
+    }
+
+    /// Every "open slots" figure on the board counts the same thing - the work
+    /// still ahead - so editing a service in the past moves none of them.
+    @Test
+    void loadOverview_openSlotsAhead_ignoresServicesThatHavePassed() {
+        services.save(service("past", inDays(-1), List.of(Slot.open("ACOLYTE"), Slot.open("ACOLYTE"))));
+        services.save(service("s1", inDays(1), List.of(Slot.open("ACOLYTE"))));
+
+        PlanOverview snapshot = overview();
+
+        assertAll(
+                () -> assertEquals(1, snapshot.openSlotsAhead()),
+                () -> assertEquals(3, snapshot.unassignedSlots()));
+    }
+
+    /// Nothing planned is not "everything covered": an empty document reports
+    /// zero coverage, so the summary cannot read as a finished plan.
+    @Test
+    void loadOverview_emptyDocument_hasZeroCoverage() {
+        assertEquals(0, overview().coveragePercent());
+    }
+
+    /// An active server nobody has been assigned to is exactly what this widget
+    /// is for, so it appears with a load of zero rather than being left out.
+    @Test
+    void loadOverview_serverLoad_includesActiveServersWithoutAssignments() {
+        servers.save(server("srv1", "Anna", "Becker"));
+        servers.save(server("srv2", "Ben", "Meier"));
+        servers.save(inactive(server("srv3", "Cara", "Vogt")));
+        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv2"))));
+
+        List<PlanOverview.ServerLoad> load = overview().serverLoad();
+
+        assertAll(
+                () -> assertEquals(2, load.size()),
+                () -> assertEquals(1L, load.getFirst().assignments()),
+                () -> assertEquals(0L, load.get(1).assignments()),
+                () -> assertTrue(load.get(1).serverName().contains("Becker")));
+    }
+
+    /// Only services still ahead count here: an open slot in a service that has
+    /// already happened cannot be staffed any more.
+    @Test
+    void loadOverview_roleStatus_countsFutureOpenSlotsAndUsesRoleNames() {
+        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        services.save(service("past", inDays(-1), List.of(Slot.open("ACOLYTE"))));
+        services.save(service("s1", inDays(1),
+                List.of(Slot.open("ACOLYTE"), Slot.open("ACOLYTE"), filled("ACOLYTE", "srv1"))));
+        services.save(service("s2", inDays(2), List.of(Slot.open("THURIFER"))));
+
+        List<PlanOverview.RoleStatus> status = overview().roleStatus();
+
+        assertAll(
+                () -> assertEquals(2, status.size()),
+                () -> assertEquals("Acolyte", status.getFirst().roleName()),
+                () -> assertEquals(2, status.getFirst().openSlots()),
+                () -> assertEquals(3, status.getFirst().peakSlots()),
+                // A role id no configured role matches keeps its raw id, as the
+                // server load does with server ids.
+                () -> assertEquals("THURIFER", status.get(1).roleName()),
+                () -> assertEquals(1, status.get(1).openSlots()));
+    }
+
+    @Test
+    void loadOverview_serviceTypeMix_countsUpcomingServicesPerType() {
+        services.save(service("past", inDays(-1), List.of(Slot.open("ACOLYTE"))));
+        services.save(service("s1", inDays(1), List.of(Slot.open("ACOLYTE"))));
+        services.save(service("s2", inDays(2), List.of(Slot.open("ACOLYTE"))));
+        services.save(new LiturgicalService("s3", inDays(3), 60, "St. Mary", ServiceType.WEDDING, "",
+                List.of(Slot.open("ACOLYTE")), ""));
+
+        List<PlanOverview.ServiceTypeCount> mix = overview().serviceTypeMix();
+
+        assertAll(
+                () -> assertEquals(2, mix.size()),
+                () -> assertEquals(ServiceType.SUNDAY_MASS, mix.getFirst().type()),
+                () -> assertEquals(2, mix.getFirst().count()),
+                () -> assertEquals(ServiceType.WEDDING, mix.get(1).type()),
+                () -> assertEquals(1, mix.get(1).count()));
+    }
+
+    /// A fixed span of weeks starting with the current one, so a week without
+    /// services shows up as an empty week rather than being skipped.
+    @Test
+    void loadOverview_coverageTrend_bucketsSlotsIntoWholeWeeks() {
+        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv1"), Slot.open("ACOLYTE"))));
+
+        List<PlanOverview.WeekCoverage> trend = overview().coverageTrend();
+        PlanOverview.WeekCoverage weekOfTheService = trend.stream()
+                .filter(week -> !week.weekStart().isAfter(inDays(1).toLocalDate())
+                        && week.weekStart().plusWeeks(1).isAfter(inDays(1).toLocalDate()))
+                .findFirst()
+                .orElseThrow();
+
+        assertAll(
+                () -> assertEquals(8, trend.size()),
+                () -> assertEquals(DayOfWeek.MONDAY, trend.getFirst().weekStart().getDayOfWeek()),
+                () -> assertEquals(1, weekOfTheService.assignedSlots()),
+                () -> assertEquals(1, weekOfTheService.openSlots()),
+                () -> assertEquals(2, trend.stream()
+                        .mapToInt(week -> week.assignedSlots() + week.openSlots())
+                        .sum()));
+    }
+
+    /// The comparison is against the *peak* need - the most slots one service
+    /// asks of that role - because that is what has to be covered at once.
+    @Test
+    void loadOverview_roleStatus_comparesQualifiedServersWithThePeakNeed() {
+        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        roles.save(new Role("THURIFER", "Thurifer", null, null, 1));
+        servers.save(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE"));
+        servers.save(inactive(qualified(server("srv2", "Ben", "Meier"), "ACOLYTE")));
+        services.save(service("s1", inDays(1), List.of(Slot.open("ACOLYTE"), Slot.open("ACOLYTE"))));
+        services.save(service("s2", inDays(2), List.of(Slot.open("ACOLYTE"))));
+
+        List<PlanOverview.RoleStatus> status = overview().roleStatus();
+
+        assertAll(
+                () -> assertEquals(2, status.size()),
+                // Short roles come first: one active qualified server, two
+                // needed at once - the inactive one does not count.
+                () -> assertEquals("Acolyte", status.getFirst().roleName()),
+                () -> assertEquals(1, status.getFirst().qualifiedServers()),
+                () -> assertEquals(2, status.getFirst().peakSlots()),
+                () -> assertEquals(3, status.getFirst().openSlots()),
+                () -> assertTrue(status.getFirst().isShort()),
+                // A role nothing asks for cannot be short, however few servers
+                // are qualified for it.
+                () -> assertFalse(status.get(1).isShort()));
+    }
+
+    @Test
+    void loadOverview_birthdaysAround_coverTheWindowAndTheRecentPast() {
+        LocalDate today = LocalDate.now();
+        servers.save(withBirthDate(server("srv1", "Anna", "Becker"), today.minusYears(14).minusDays(3)));
+        servers.save(withBirthDate(server("srv2", "Ben", "Meier"), today.minusYears(20).plusDays(10)));
+        servers.save(withBirthDate(server("srv3", "Cara", "Vogt"), today.minusYears(12).minusDays(40)));
+        servers.save(inactive(withBirthDate(server("srv4", "Dana", "Roth"), today.minusYears(30))));
+        servers.save(server("srv5", "Eva", "Klein"));
+
+        List<PlanOverview.Birthday> birthdays = overview().birthdaysAround();
+
+        assertAll(
+                // Three days ago and ten days ahead are in; forty days ago is
+                // past the look-back, the inactive server and the one without a
+                // birth date are out.
+                () -> assertEquals(2, birthdays.size()),
+                () -> assertTrue(birthdays.getFirst().serverName().contains("Becker")),
+                () -> assertEquals(14, birthdays.getFirst().age()),
+                () -> assertEquals(today.minusDays(3), birthdays.getFirst().date()),
+                () -> assertEquals(20, birthdays.get(1).age()));
+    }
+
+    @Test
+    void loadOverview_absencesAhead_keepsActiveServersAbsentWithinTheHorizon() {
+        servers.save(absent(server("srv1", "Anna", "Becker"), LocalDate.now().plusDays(3),
+                LocalDate.now().plusDays(10)));
+        servers.save(absent(server("srv2", "Ben", "Meier"), LocalDate.now().plusYears(1),
+                LocalDate.now().plusYears(1).plusDays(3)));
+        servers.save(absent(server("srv3", "Cara", "Vogt"), LocalDate.now().minusDays(20),
+                LocalDate.now().minusDays(10)));
+        servers.save(inactive(absent(server("srv4", "Dana", "Roth"), LocalDate.now(), LocalDate.now())));
+
+        List<PlanOverview.Absence> absences = overview().absencesAhead();
+
+        assertAll(
+                () -> assertEquals(1, absences.size()),
+                () -> assertTrue(absences.getFirst().serverName().contains("Becker")),
+                () -> assertEquals(LocalDate.now().plusDays(3), absences.getFirst().start()));
+    }
+
+    @Test
+    void loadOverview_rosterIssues_reportsEachKind() {
+        servers.save(inactive(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE")));
+        servers.save(server("srv2", "Ben", "Meier"));
+        servers.save(qualified(server("srv3", "Cara", "Vogt"), "ACOLYTE"));
+        servers.save(absent(qualified(server("srv4", "Dana", "Roth"), "ACOLYTE"),
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(2)));
+        services.save(service("s1", inDays(1),
+                List.of(filled("ACOLYTE", "srv1"), filled("ACOLYTE", "srv4"))));
+
+        List<PlanOverview.RosterIssue> issues = overview().rosterIssues();
+
+        assertAll(
+                () -> assertEquals(4, issues.size()),
+                () -> assertTrue(issues.stream().anyMatch(issue -> issue.kind()
+                        == PlanOverview.RosterIssueKind.INACTIVE_BUT_ASSIGNED
+                        && issue.serverName().contains("Becker"))),
+                () -> assertTrue(issues.stream().anyMatch(issue -> issue.kind()
+                        == PlanOverview.RosterIssueKind.NO_QUALIFICATIONS
+                        && issue.serverName().contains("Meier"))),
+                () -> assertTrue(issues.stream().anyMatch(issue -> issue.kind()
+                        == PlanOverview.RosterIssueKind.NO_UPCOMING_DUTY
+                        && issue.serverName().contains("Vogt"))),
+                () -> assertTrue(issues.stream().anyMatch(issue -> issue.kind()
+                        == PlanOverview.RosterIssueKind.ASSIGNED_WHILE_UNAVAILABLE
+                        && issue.serverName().contains("Roth"))));
+    }
+
+    /// A healthy roster reports nothing at all, so the widget can say so rather
+    /// than showing an empty list of unnamed problems.
+    @Test
+    void loadOverview_rosterIssues_areEmptyWhenEverythingIsInOrder() {
+        servers.save(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE"));
+        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv1"))));
+
+        assertTrue(overview().rosterIssues().isEmpty());
+    }
+
+    /// A fixed span of months ending with the current one, so a month with
+    /// nothing archived reads as a break in the record.
+    @Test
+    void loadOverview_archiveHistory_countsArchivedServicesPerMonth() {
+        LocalDateTime lastMonth = LocalDate.now().withDayOfMonth(1).minusMonths(1).atTime(10, 0);
+        archive.addAll(List.of(
+                archived("a1", lastMonth, "Anna Becker"),
+                archived("a2", lastMonth.plusDays(1), null),
+                archived("old", lastMonth.minusYears(2), "Anna Becker")));
+
+        List<PlanOverview.ArchiveMonth> history = overview().archiveHistory();
+        PlanOverview.ArchiveMonth month = history.stream()
+                .filter(entry -> entry.monthStart().equals(lastMonth.toLocalDate().withDayOfMonth(1)))
+                .findFirst()
+                .orElseThrow();
+
+        assertAll(
+                () -> assertEquals(12, history.size()),
+                () -> assertEquals(2, month.services()),
+                // Only the slot that actually had a server counts as assigned.
+                () -> assertEquals(1, month.assignedSlots()),
+                // The two-year-old entry falls outside the span and is dropped.
+                () -> assertEquals(2, history.stream().mapToInt(PlanOverview.ArchiveMonth::services).sum()));
+    }
+
+    /// Counts the same conflicts the services screen marks per assignment. The
+    /// unassigned-slot one is deliberately not among them: the summary and the
+    /// open-slots widget already carry it.
+    @Test
+    void loadOverview_problems_countsConflictsButNotOpenSlots() {
+        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        servers.save(inactive(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE")));
+        servers.save(server("srv2", "Ben", "Meier"));
+        services.save(service("s1", inDays(1),
+                List.of(filled("ACOLYTE", "srv1"), filled("ACOLYTE", "srv2"), Slot.open("ACOLYTE"))));
+
+        PlanOverview snapshot = overview();
+        List<String> constraints = snapshot.problems().stream()
+                .map(PlanOverview.ProblemCount::constraintName)
+                .toList();
+
+        assertAll(
+                () -> assertTrue(snapshot.problemsChecked()),
+                () -> assertTrue(constraints.contains(MinDisConstraintProvider.INACTIVE)),
+                () -> assertTrue(constraints.contains(MinDisConstraintProvider.NOT_QUALIFIED)),
+                () -> assertFalse(constraints.contains(MinDisConstraintProvider.UNASSIGNED)));
+    }
+
+    /// A conflict in a service that is over cannot be resolved any more, so it
+    /// is not on the board - like every other figure, the problems are about
+    /// the work ahead.
+    @Test
+    void loadOverview_problems_ignoreServicesThatHavePassed() {
+        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        servers.save(inactive(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE")));
+        services.save(service("past", inDays(-1), List.of(filled("ACOLYTE", "srv1"))));
+
+        PlanOverview snapshot = overview();
+
+        assertAll(
+                () -> assertTrue(snapshot.problems().isEmpty()),
+                () -> assertEquals(0, snapshot.problemCount()));
+    }
+
+    /// The checker records a double-booking once per conflicting partner; the
+    /// board counts the assignments that are wrong, not the pairs.
+    @Test
+    void loadOverview_problems_countDoubleBookingOncePerAssignment() {
+        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        servers.save(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE"));
+        LocalDateTime at = inDays(1);
+        services.save(service("s1", at, List.of(filled("ACOLYTE", "srv1"))));
+        services.save(service("s2", at.plusMinutes(1), List.of(filled("ACOLYTE", "srv1"))));
+        services.save(service("s3", at.plusMinutes(2), List.of(filled("ACOLYTE", "srv1"))));
+
+        int doubleBooked = overview().problems().stream()
+                .filter(problem -> MinDisConstraintProvider.DOUBLE_BOOKED.equals(problem.constraintName()))
+                .mapToInt(PlanOverview.ProblemCount::assignments)
+                .sum();
+
+        // Three assignments overlap, which is three pairs - and three problems.
+        assertEquals(3, doubleBooked);
+    }
+
+    /// An assignment during an absence is one problem, however many of the
+    /// board's checks notice it.
+    @Test
+    void problemCount_rosterIssueAlsoReportedAsConflict_isCountedOnce() {
+        roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
+        servers.save(absent(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE"),
+                LocalDate.now().plusDays(1), LocalDate.now().plusDays(2)));
+        services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv1"))));
+
+        PlanOverview snapshot = overview();
+
+        assertAll(
+                () -> assertEquals(1, snapshot.rosterIssues().size()),
+                () -> assertEquals(PlanOverview.RosterIssueKind.ASSIGNED_WHILE_UNAVAILABLE,
+                        snapshot.rosterIssues().getFirst().kind()),
+                () -> assertEquals(1, snapshot.problems().size()),
+                () -> assertEquals(MinDisConstraintProvider.UNAVAILABLE,
+                        snapshot.problems().getFirst().constraintName()),
+                () -> assertEquals(1, snapshot.problemCount()));
+    }
+
+    /// A roster issue no constraint covers is the dashboard's own finding and
+    /// counts on its own.
+    @Test
+    void problemCount_addsRosterIssuesNoConstraintCovers() {
+        servers.save(server("srv1", "Anna", "Becker"));
+
+        PlanOverview snapshot = overview();
+
+        assertAll(
+                () -> assertEquals(PlanOverview.RosterIssueKind.NO_QUALIFICATIONS,
+                        snapshot.rosterIssues().getFirst().kind()),
+                () -> assertEquals(1, snapshot.problemCount()));
+    }
+
+    private static LocalDateTime inDays(int days) {
+        return LocalDateTime.now().plusDays(days);
+    }
+
+    private static LiturgicalService service(String id, LocalDateTime dateTime, List<Slot> slots) {
+        return new LiturgicalService(id, dateTime, 60, "St. Mary", ServiceType.SUNDAY_MASS, "", slots, "");
+    }
+
+    private static Slot filled(String role, String serverId) {
+        return new Slot(Slot.newId(), role, serverId, false);
+    }
+
+    private static Server server(String id, String firstName, String lastName) {
+        return new Server(id, firstName, lastName, "", null, null, Set.of(), Set.of(), List.of(), Set.of(), false, true);
+    }
+
+    private static ArchivedService archived(String id, LocalDateTime dateTime, @Nullable String serverName) {
+        return new ArchivedService(id, dateTime, 60, "St. Mary", ServiceType.SUNDAY_MASS, "", "",
+                List.of(new ArchivedService.ArchivedSlot("Acolyte", serverName == null ? null : "srv1", serverName)),
+                Instant.now());
+    }
+
+    private static Server qualified(Server server, String... roleIds) {
+        return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), server.birthDate(),
+                server.familyId(), Set.of(roleIds), server.incompatibleRoles(), server.unavailabilities(), server.preferredTimes(),
+                server.experienced(), server.active());
+    }
+
+    private static Server withBirthDate(Server server, LocalDate birthDate) {
+        return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), birthDate,
+                server.familyId(), server.qualifications(), server.incompatibleRoles(), server.unavailabilities(), server.preferredTimes(),
+                server.experienced(), server.active());
+    }
+
+    private static Server absent(Server server, LocalDate start, LocalDate end) {
+        return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), server.birthDate(),
+                server.familyId(), server.qualifications(), server.incompatibleRoles(),
+                List.of(new UnavailabilityPeriod(start, end)),
+                server.preferredTimes(), server.experienced(), server.active());
+    }
+
+    private static Server inactive(Server server) {
+        return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), server.birthDate(),
+                server.familyId(), server.qualifications(), server.incompatibleRoles(), server.unavailabilities(), server.preferredTimes(),
+                server.experienced(), false);
+    }
+}

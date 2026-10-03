@@ -26,12 +26,13 @@ import org.kordamp.ikonli.javafx.FontIcon;
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.ConstraintDisplay;
 import org.mindis.core.l10n.Localization;
+import org.mindis.core.overview.PlanOverview;
 import org.mindis.gui.util.DateTimes;
 
 /// Dashboard board of widgets - key figures, upcoming services and per-server
 /// load - each a draggable, resizable card on an invisible column grid. Builds
 /// the board from the persisted layout, fills each widget from a
-/// [DashboardViewModel.Snapshot] in the widget's own [WidgetViewMode]
+/// [PlanOverview] in the widget's own [WidgetViewMode]
 /// (a list or one of the diagram kinds), and offers an "add widget" menu of the
 /// types not yet on the board (each type is unique).
 ///
@@ -44,13 +45,13 @@ import org.mindis.gui.util.DateTimes;
 public final class DashboardView extends StackPane {
 
     private final DashboardViewModel viewModel;
-    private final DashboardViewModel.Snapshot snapshot;
+    private final PlanOverview snapshot;
     private final WidgetBoard board;
     private final MenuButton addWidgetButton = new MenuButton(Localization.lang("Add widget"));
 
     public DashboardView(DashboardViewModel viewModel) {
         this.viewModel = viewModel;
-        this.snapshot = viewModel.loadSnapshot();
+        this.snapshot = viewModel.loadOverview();
         this.board = new WidgetBoard(this::persistLayout);
 
         getStyleClass().add("dashboard");
@@ -132,14 +133,14 @@ public final class DashboardView extends StackPane {
     /// constraint, and what is wrong with the roster itself. Both belong in one
     /// place - to the planner they are one question, "what needs fixing?".
     private Node problemsContent(WidgetViewMode mode) {
-        List<DashboardViewModel.ProblemCount> problems = snapshot.problems();
-        List<DashboardViewModel.RosterIssue> issues = snapshot.rosterIssues();
+        List<PlanOverview.ProblemCount> problems = snapshot.problems();
+        List<PlanOverview.RosterIssue> issues = snapshot.rosterIssues();
         if (mode == WidgetViewMode.BAR) {
             List<Charts.Slice> slices = new ArrayList<>();
             problems.forEach(problem -> slices.add(
                     new Charts.Slice(ConstraintDisplay.of(problem.constraintName()), problem.assignments())));
-            Map<DashboardViewModel.RosterIssueKind, Long> countByKind =
-                    new EnumMap<>(DashboardViewModel.RosterIssueKind.class);
+            Map<PlanOverview.RosterIssueKind, Long> countByKind =
+                    new EnumMap<>(PlanOverview.RosterIssueKind.class);
             issues.forEach(issue -> countByKind.merge(issue.kind(), 1L, Long::sum));
             countByKind.forEach((kind, count) -> slices.add(new Charts.Slice(describe(kind), count)));
             return Charts.horizontalBar(slices.stream()
@@ -168,7 +169,7 @@ public final class DashboardView extends StackPane {
     }
 
     private Node archiveHistoryContent(WidgetViewMode mode) {
-        List<DashboardViewModel.ArchiveMonth> history = snapshot.archiveHistory();
+        List<PlanOverview.ArchiveMonth> history = snapshot.archiveHistory();
         List<String> months = history.stream().map(month -> DateTimes.month(month.monthStart())).toList();
         return switch (mode) {
             case BAR -> Charts.bar(history.stream()
@@ -188,7 +189,7 @@ public final class DashboardView extends StackPane {
     /// slots) and whether it can be done at all (qualified servers, against the
     /// peak one service needs).
     private Node rolesContent(WidgetViewMode mode) {
-        List<DashboardViewModel.RoleStatus> roles = snapshot.roleStatus();
+        List<PlanOverview.RoleStatus> roles = snapshot.roleStatus();
         return switch (mode) {
             // The pie is about work left, so a role with nothing open has no
             // slice - a zero slice would be an invisible entry in the legend.
@@ -204,7 +205,7 @@ public final class DashboardView extends StackPane {
                                     String.valueOf(role.peakSlots()))
                             + (role.isShort() ? "  !" : ""))
                     .toList());
-            default -> Charts.horizontalBar(roles.stream().map(DashboardViewModel.RoleStatus::roleName).toList(),
+            default -> Charts.horizontalBar(roles.stream().map(PlanOverview.RoleStatus::roleName).toList(),
                     List.of(new Charts.Series(Localization.lang("Open slots"),
                                     roles.stream().map(role -> (double) role.openSlots()).toList()),
                             new Charts.Series(Localization.lang("Qualified servers"),
@@ -216,13 +217,13 @@ public final class DashboardView extends StackPane {
     /// Who is away and whose birthday it is - the two things about the people
     /// themselves that a planner needs to see coming.
     private Node peopleAheadContent(WidgetViewMode mode) {
-        List<DashboardViewModel.Absence> absences = snapshot.absencesAhead();
-        List<DashboardViewModel.Birthday> birthdays = snapshot.birthdaysAround();
+        List<PlanOverview.Absence> absences = snapshot.absencesAhead();
+        List<PlanOverview.Birthday> birthdays = snapshot.birthdaysAround();
         if (mode == WidgetViewMode.BAR) {
             // Per server rather than per absence: two short holidays and one
             // long one are the same question - how long is this server gone?
             Map<String, Long> daysByServer = new LinkedHashMap<>();
-            for (DashboardViewModel.Absence absence : absences) {
+            for (PlanOverview.Absence absence : absences) {
                 daysByServer.merge(absence.serverName(),
                         ChronoUnit.DAYS.between(absence.start(), absence.end()) + 1, Long::sum);
             }
@@ -249,7 +250,7 @@ public final class DashboardView extends StackPane {
                 .toList());
     }
 
-    private static String describe(DashboardViewModel.RosterIssueKind kind) {
+    private static String describe(PlanOverview.RosterIssueKind kind) {
         return switch (kind) {
             case INACTIVE_BUT_ASSIGNED -> Localization.lang("Inactive but assigned");
             case NO_QUALIFICATIONS -> Localization.lang("No qualifications");
@@ -272,7 +273,7 @@ public final class DashboardView extends StackPane {
     }
 
     private Node coverageTrendContent(WidgetViewMode mode) {
-        List<DashboardViewModel.WeekCoverage> trend = snapshot.coverageTrend();
+        List<PlanOverview.WeekCoverage> trend = snapshot.coverageTrend();
         List<String> weeks = trend.stream().map(week -> DateTimes.shortDate(week.weekStart())).toList();
         List<Charts.Series> series = List.of(
                 new Charts.Series(Localization.lang("Assigned"),
@@ -341,7 +342,7 @@ public final class DashboardView extends StackPane {
     }
 
     private Node upcomingContent(WidgetViewMode mode) {
-        List<DashboardViewModel.UpcomingService> upcoming = snapshot.upcomingServices();
+        List<PlanOverview.UpcomingService> upcoming = snapshot.upcomingServices();
         if (mode == WidgetViewMode.STACKED_BAR) {
             // With the time: a parish has a morning and an evening service on
             // the same day, and the date alone would label both bars alike.
@@ -356,7 +357,7 @@ public final class DashboardView extends StackPane {
                                     .toList())),
                     Localization.lang("Slots"));
         }
-        ListView<DashboardViewModel.UpcomingService> list = new ListView<>();
+        ListView<PlanOverview.UpcomingService> list = new ListView<>();
         list.setItems(FXCollections.observableArrayList(upcoming));
         list.setCellFactory(_ -> new UpcomingServiceCell());
         list.setPlaceholder(new Label(Localization.lang("Nothing to show")));
@@ -364,7 +365,7 @@ public final class DashboardView extends StackPane {
     }
 
     private Node serverLoadContent(WidgetViewMode mode) {
-        List<DashboardViewModel.ServerLoad> load = snapshot.serverLoad();
+        List<PlanOverview.ServerLoad> load = snapshot.serverLoad();
         return switch (mode) {
             case BAR -> Charts.horizontalBar(slices(load), Localization.lang("Assignments"));
             // A pie of "who did how much" only reads with a handful of slices,
@@ -378,7 +379,7 @@ public final class DashboardView extends StackPane {
         };
     }
 
-    private static List<Charts.Slice> slices(List<DashboardViewModel.ServerLoad> load) {
+    private static List<Charts.Slice> slices(List<PlanOverview.ServerLoad> load) {
         return load.stream().map(entry -> new Charts.Slice(entry.serverName(), entry.assignments())).toList();
     }
 

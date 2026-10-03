@@ -6,6 +6,7 @@ module org.mindis.core {
     exports org.mindis.core.l10n;
     exports org.mindis.core.logging;
     exports org.mindis.core.model;
+    exports org.mindis.core.overview;
     exports org.mindis.core.persistence;
     exports org.mindis.core.planning;
     exports org.mindis.core.preferences;

@@ -13,7 +13,7 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
 import org.mindis.core.l10n.Localization;
-import org.mindis.gui.dashboard.DashboardViewModel.UpcomingService;
+import org.mindis.core.overview.PlanOverview.UpcomingService;
 import org.mindis.gui.util.DateTimes;
 
 /// One row of the "next services" widget: when and what on the first line, how

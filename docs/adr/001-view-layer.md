@@ -31,7 +31,7 @@ constructor injection from the composition root, the same as everywhere else; th
 view-layer DI hook and no service locator.
 
 The view/view-model split stays. A view model owns repository access and aggregation and returns
-data (`DashboardViewModel.Snapshot` carries counts and domain types); the view decides how that
+data (`DashboardViewModel` hands it a core `PlanOverview` of counts and domain types); the view decides how that
 data is worded, formatted and laid out. What is gone is only the markup, not the separation.
 
 Consequences:
