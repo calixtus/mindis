@@ -237,7 +237,7 @@ class ContrastTest {
             ArchiveService archiveService = new ArchiveService(roles, servers, services, archived);
             planning = new PlanningService(servers, services, roles, preferences, archiveService);
             PlanningViewModel planningViewModel = new PlanningViewModel(planning, preferences,
-                    new PlanExportService(servers, roles,
+                    PlanExportService.withBuiltInFormats(servers, roles,
                             new AppDatabase(roles, servers, templates, services, archived),
                             new DataDirectory(tempDir)),
                     archiveService);

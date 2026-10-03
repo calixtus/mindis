@@ -1,5 +1,7 @@
 package org.mindis.core.export;
 
+import jakarta.inject.Singleton;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.io.Writer;
@@ -11,6 +13,7 @@ import java.util.List;
 
 /// Plain text: headings underlined, tables laid out as space-padded columns,
 /// images reduced to their alt text.
+@Singleton
 final class TextPlanRenderer implements PlanRenderer {
 
     private static final String INDENT = "  ";

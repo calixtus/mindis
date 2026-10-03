@@ -1,5 +1,7 @@
 package org.mindis.core.export;
 
+import jakarta.inject.Singleton;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.io.Writer;
@@ -7,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+@Singleton
 final class CsvPlanExporter implements PlanExporter {
 
     @Override

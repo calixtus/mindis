@@ -1,5 +1,7 @@
 package org.mindis.core.export;
 
+import jakarta.inject.Singleton;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -12,6 +14,7 @@ import org.jspecify.annotations.Nullable;
 /// Hand-rolled minimal RTF writer - no RTF library is pulled in for this.
 /// Headings become bold runs at a larger size, tables become tab-separated
 /// rows, and an image is embedded as a `\pngblip` picture.
+@Singleton
 final class RtfPlanRenderer implements PlanRenderer {
 
     private static final int[] HEADING_HALF_POINTS = {32, 24, 22, 20};

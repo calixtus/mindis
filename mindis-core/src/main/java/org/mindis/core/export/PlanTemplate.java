@@ -1,5 +1,8 @@
 package org.mindis.core.export;
 
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
@@ -23,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.mindis.core.l10n.Localization;
+import org.mindis.core.preferences.DataDirectory;
 
 /// Renders the plan as Markdown through the user's template - the one document
 /// layout every non-CSV export format is drawn from.
@@ -41,8 +45,11 @@ import org.mindis.core.l10n.Localization;
 /// opts out per value. And `{% include %}` resolves inside the template
 /// directory only, so a plan export cannot be turned into a way to read
 /// arbitrary files.
+@Singleton
 final class PlanTemplate {
 
+    /// Where a user's own template overrides the bundled one, below the data directory.
+    static final String TEMPLATE_DIRECTORY = "templates";
     static final String TEMPLATE_FILE_NAME = "plan.md.peb";
     /// Image destination that every [PlanRenderer] resolves to the
     /// collection's own logo.
@@ -52,6 +59,11 @@ final class PlanTemplate {
     private static final Logger LOGGER = LoggerFactory.getLogger(PlanTemplate.class);
 
     private final @Nullable Path userTemplate;
+
+    @Inject
+    PlanTemplate(DataDirectory dataDirectory) {
+        this(dataDirectory.resolve(TEMPLATE_DIRECTORY).resolve(TEMPLATE_FILE_NAME));
+    }
 
     PlanTemplate(@Nullable Path userTemplate) {
         this.userTemplate = userTemplate;

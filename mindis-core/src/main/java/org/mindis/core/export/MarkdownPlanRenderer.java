@@ -1,5 +1,7 @@
 package org.mindis.core.export;
 
+import jakarta.inject.Singleton;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -8,6 +10,7 @@ import java.nio.file.Path;
 
 /// Writes what the template produced, unchanged - the Markdown export is the
 /// template's own output, which is also what every other renderer draws.
+@Singleton
 final class MarkdownPlanRenderer implements PlanRenderer {
 
     @Override

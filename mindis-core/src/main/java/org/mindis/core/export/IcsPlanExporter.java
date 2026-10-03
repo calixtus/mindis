@@ -1,5 +1,8 @@
 package org.mindis.core.export;
 
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
@@ -21,6 +24,7 @@ import java.util.function.Supplier;
 /// nothing about it should shift if someone opens the file in another time zone. The
 /// alternative, a full `VTIMEZONE` block, would carry a claim about zone identity and
 /// historical offsets that the document behind this export does not make.
+@Singleton
 final class IcsPlanExporter implements PlanCalendarExporter {
 
     /// Per RFC 5545 section 3.1: lines are folded at 75 **octets**, continuation lines
@@ -37,6 +41,7 @@ final class IcsPlanExporter implements PlanCalendarExporter {
 
     private final Supplier<Instant> now;
 
+    @Inject
     IcsPlanExporter() {
         this(Instant::now);
     }

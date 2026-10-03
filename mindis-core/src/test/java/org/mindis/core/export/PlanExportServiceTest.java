@@ -56,12 +56,12 @@ class PlanExportServiceTest {
         AppDatabase database = new AppDatabase(new RoleRepository(), new ServerRepository(),
                 new TemplateRepository(), new ServiceRepository(), new ArchivedServiceRepository());
         database.updateMeta(meta);
-        return new PlanExportService(new ServerRepository(), new RoleRepository(),
+        return PlanExportService.withBuiltInFormats(new ServerRepository(), new RoleRepository(),
                 database, new DataDirectory(tempDir));
     }
 
     private void writeUserTemplate(String content) throws IOException {
-        Path templates = tempDir.resolve(PlanExportService.TEMPLATE_DIRECTORY);
+        Path templates = tempDir.resolve(PlanTemplate.TEMPLATE_DIRECTORY);
         Files.createDirectories(templates);
         Files.writeString(templates.resolve("plan.md.peb"), content);
     }
@@ -222,7 +222,7 @@ class PlanExportServiceTest {
 
     @Test
     void templateCanIncludeAnotherFileFromItsOwnDirectory() throws IOException {
-        Path templates = tempDir.resolve(PlanExportService.TEMPLATE_DIRECTORY);
+        Path templates = tempDir.resolve(PlanTemplate.TEMPLATE_DIRECTORY);
         Files.createDirectories(templates);
         Files.writeString(templates.resolve("letterhead.peb"), "Sankt Markus, Musterstadt\n");
         writeUserTemplate("{% include \"letterhead.peb\" %}\n# {{ labels.plan }}\n");

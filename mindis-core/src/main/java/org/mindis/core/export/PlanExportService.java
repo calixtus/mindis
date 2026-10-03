@@ -36,9 +36,6 @@ import org.mindis.core.preferences.DataDirectory;
 @Singleton
 public final class PlanExportService {
 
-    /// Where a user's own template overrides the bundled one.
-    public static final String TEMPLATE_DIRECTORY = "templates";
-
     private final ServerRepository serverRepository;
     private final RoleRepository roleRepository;
     private final AppDatabase database;
@@ -48,31 +45,30 @@ public final class PlanExportService {
     private final Map<PlanExportFormat, PlanCalendarExporter> calendarExporters =
             new EnumMap<>(PlanExportFormat.class);
 
-    public PlanExportService(ServerRepository serverRepository, RoleRepository roleRepository,
-                             AppDatabase database, DataDirectory dataDirectory) {
+    /// A format is supported by contributing a bean of one of the three
+    /// strategy shapes; this service only dispatches by [PlanExportFormat].
+    PlanExportService(ServerRepository serverRepository, RoleRepository roleRepository,
+                      AppDatabase database, PlanTemplate template, List<PlanExporter> exporters,
+                      List<PlanRenderer> renderers, List<PlanCalendarExporter> calendarExporters) {
         this.serverRepository = serverRepository;
         this.roleRepository = roleRepository;
         this.database = database;
-        this.template = new PlanTemplate(
-                dataDirectory.resolve(TEMPLATE_DIRECTORY).resolve(PlanTemplate.TEMPLATE_FILE_NAME));
-        register(new CsvPlanExporter());
-        register(new PdfPlanRenderer());
-        register(new TextPlanRenderer());
-        register(new RtfPlanRenderer());
-        register(new MarkdownPlanRenderer());
-        register(new IcsPlanExporter());
+        this.template = template;
+        exporters.forEach(exporter -> this.exporters.put(exporter.format(), exporter));
+        renderers.forEach(renderer -> this.renderers.put(renderer.format(), renderer));
+        calendarExporters.forEach(exporter -> this.calendarExporters.put(exporter.format(), exporter));
     }
 
-    private void register(PlanExporter exporter) {
-        exporters.put(exporter.format(), exporter);
-    }
-
-    private void register(PlanRenderer renderer) {
-        renderers.put(renderer.format(), renderer);
-    }
-
-    private void register(PlanCalendarExporter exporter) {
-        calendarExporters.put(exporter.format(), exporter);
+    /// Every built-in format, for wiring without the container (tests, a CLI).
+    public static PlanExportService withBuiltInFormats(ServerRepository serverRepository,
+                                                       RoleRepository roleRepository,
+                                                       AppDatabase database, DataDirectory dataDirectory) {
+        return new PlanExportService(serverRepository, roleRepository, database,
+                new PlanTemplate(dataDirectory),
+                List.of(new CsvPlanExporter()),
+                List.of(new PdfPlanRenderer(), new TextPlanRenderer(), new RtfPlanRenderer(),
+                        new MarkdownPlanRenderer()),
+                List.of(new IcsPlanExporter()));
     }
 
     /// Exports the given live services, resolving names against the current roster.

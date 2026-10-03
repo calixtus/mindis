@@ -1,5 +1,7 @@
 package org.mindis.core.export;
 
+import jakarta.inject.Singleton;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,6 +32,7 @@ import org.slf4j.LoggerFactory;
 /// so names outside Windows-1252 (the limit of the PDF standard-14 fonts)
 /// still render as themselves. Italics are sheared rather than swapped to an
 /// oblique font, which keeps a third font file out of the installer.
+@Singleton
 final class PdfPlanRenderer implements PlanRenderer {
 
     private static final PDRectangle PAGE_SIZE = PDRectangle.A4;

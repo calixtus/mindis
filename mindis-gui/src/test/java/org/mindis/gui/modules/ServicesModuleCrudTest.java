@@ -84,7 +84,7 @@ class ServicesModuleCrudTest {
         planningService = new PlanningService(servers, services, roles, preferences, archiveService);
         AppDatabase database = new AppDatabase(roles, servers, new TemplateRepository(), services, archived);
         PlanningViewModel planningViewModel = new PlanningViewModel(planningService, preferences,
-                new PlanExportService(servers, roles, database, new DataDirectory(tempDir)), archiveService);
+                PlanExportService.withBuiltInFormats(servers, roles, database, new DataDirectory(tempDir)), archiveService);
 
         LiveStore<Role> roleStore = new LiveStore<>(
                 ArrayList::new, role -> { }, role -> { }, Role::id, Objects::equals);

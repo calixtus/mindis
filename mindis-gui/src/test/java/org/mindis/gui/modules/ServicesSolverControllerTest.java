@@ -74,7 +74,7 @@ class ServicesSolverControllerTest {
         planningService = new PlanningService(servers, services, roles, preferences, archiveService);
         AppDatabase database = new AppDatabase(roles, servers, new TemplateRepository(), services, archived);
         planningViewModel = new PlanningViewModel(planningService, preferences,
-                new PlanExportService(servers, roles, database, new DataDirectory(tempDir)), archiveService);
+                PlanExportService.withBuiltInFormats(servers, roles, database, new DataDirectory(tempDir)), archiveService);
         return new ServicesSolverController(planningViewModel,
                 services::findAll,
                 applied::add,
