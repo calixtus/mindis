@@ -160,7 +160,9 @@ icon, name, then a badge at the far edge — because a `ToggleButton` has no slo
 after its label. Bottom-pinned entries (About, Settings) sit below a hairline, outside the module
 list's `ScrollPane`, so a window too short for every entry scrolls the middle instead of clipping
 the end. Re-clicking the active entry cannot deselect it: a `ToggleGroup` allows that by default and
-it would leave the shell with no module at all.
+it would leave the shell with no module at all. Nor does it do anything else — no reset, reload or
+scroll: desktop sidebars leave the active screen alone, and a stray click while editing should not
+close the editor.
 
 The entries are one Tab stop, landing on the active entry. From there Up and Down move focus
 between entries — top and bottom-pinned alike, wrapping at either end, scrolling the module list to
