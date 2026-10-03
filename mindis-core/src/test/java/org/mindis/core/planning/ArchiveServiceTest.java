@@ -113,8 +113,7 @@ class ArchiveServiceTest {
     }
 
     private void addServer() {
-        servers.save(new Server("srv", "Anna", "B", "", null, null,
-                Set.of(Role.ACOLYTE), Set.of(), List.of(), Set.of(), false, true));
+        servers.save(Server.named("srv", "Anna", "B").withQualifications(Set.of(Role.ACOLYTE)));
     }
 
     private void addService(String id, LocalDate date, Slot slot) {

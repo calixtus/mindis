@@ -73,7 +73,8 @@ class ServicesSolverControllerTest {
         planningService = new PlanningService(servers, services, roles, preferences, archiveService);
         AppDatabase database = new AppDatabase(roles, servers, new TemplateRepository(), services, archived);
         planningViewModel = new PlanningViewModel(planningService, preferences,
-                PlanExportService.withBuiltInFormats(servers, roles, database, new DataDirectory(tempDir)), archiveService);
+                PlanExportService
+                        .withBuiltInFormats(servers, roles, database, new DataDirectory(tempDir)), archiveService);
         return new ServicesSolverController(planningViewModel,
                 services::findAll,
                 applied::add,
@@ -158,7 +159,6 @@ class ServicesSolverControllerTest {
     }
 
     private static Server server(String id) {
-        return new Server(id, "Anna", "Becker", "", null, null,
-                Set.of("ACOLYTE"), Set.of(), List.of(), Set.of(), false, true);
+        return Server.named(id, "Anna", "Becker").withQualifications(Set.of("ACOLYTE"));
     }
 }

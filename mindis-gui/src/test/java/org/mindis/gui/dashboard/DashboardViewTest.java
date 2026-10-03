@@ -9,7 +9,6 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import javafx.scene.Node;
 import javafx.scene.Parent;
@@ -230,8 +229,7 @@ class DashboardViewTest {
     }
 
     private void givenAssignedService() {
-        servers.save(new Server("srv1", "Anna", "Becker", "", null, null,
-                Set.of(), Set.of(), List.of(), Set.of(), false, true));
+        servers.save(Server.named("srv1", "Anna", "Becker"));
         services.save(new LiturgicalService("s1", LocalDateTime.now().plusDays(1), 60, "St. Mary",
                 ServiceType.SUNDAY_MASS, "", List.of(new Slot(Slot.newId(), "ACOLYTE", "srv1", false)), ""));
     }

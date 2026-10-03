@@ -7,7 +7,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 import com.dlsc.gemsfx.PowerPane;
 
@@ -44,8 +43,7 @@ class ServersModuleDirtyFlagTest {
     void dirtyAccentAppearsOnEditAndClearsAfterSaveAll() throws Exception {
         FxTest.runAndWait(() -> {
             List<Server> staged = new ArrayList<>();
-            staged.add(new Server("S1", "Anna", "Becker", "", null, null,
-                    Set.of(), Set.of(), List.of(), Set.of(), false, true));
+            staged.add(Server.named("S1", "Anna", "Becker"));
 
             LiveStore<Server> serverStore = new LiveStore<>(
                     () -> new ArrayList<>(staged),

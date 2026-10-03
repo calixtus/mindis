@@ -1,7 +1,6 @@
 package org.mindis.gui.modules;
 
 import java.util.List;
-import java.util.Set;
 
 import org.jspecify.annotations.NullMarked;
 
@@ -28,8 +27,7 @@ final class ServersViewModel {
 
     /// A blank, active, inexperienced server, for the New action.
     Server createStub() {
-        return new Server(Server.newId(), "", "", "", null, null,
-                Set.of(), Set.of(), List.of(), Set.of(), false, true);
+        return Server.named(Server.newId(), "", "");
     }
 
     /// Display name for a role id, falling back to the id if the role was deleted.

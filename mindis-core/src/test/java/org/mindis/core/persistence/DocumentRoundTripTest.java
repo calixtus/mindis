@@ -199,7 +199,7 @@ class DocumentRoundTripTest {
     }
 
     private static Server server(String id, String firstName) {
-        return new Server(id, firstName, "Muster", "", null, null, Set.of(), Set.of(), List.of(), Set.of(), false, true);
+        return Server.named(id, firstName, "Muster");
     }
 
     /// One document's repositories plus the [AppDatabase] over them -

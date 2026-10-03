@@ -49,8 +49,9 @@ class PlanningEndToEndTest {
                 case 2 -> Set.of(Role.ACOLYTE, Role.MASTER_OF_CEREMONIES);
                 default -> Set.of(Role.ACOLYTE);
             };
-            servers.add(new Server("server-" + i, "First" + i, "Last" + i, "", null,
-                    i % 5 == 0 ? "family-" + (i / 5) : null, qualifications, Set.of(), List.of(), Set.of(), false, true));
+            servers.add(Server.named("server-" + i, "First" + i, "Last" + i)
+                    .withFamilyId(i % 5 == 0 ? "family-" + (i / 5) : null)
+                    .withQualifications(qualifications));
         }
 
         List<Assignment> assignments = new ArrayList<>();
@@ -98,13 +99,13 @@ class PlanningEndToEndTest {
     void serverIntolerantOfARoleIsKeptOutOfServicesStaffingIt() {
         // Sunday masses staff a thurifer, weekday masses do not - so the
         // incense-intolerant server may only serve the weekday ones.
-        Server noIncense = new Server("no-incense", "Bea", "Muster", "", null, null,
-                Set.of(Role.ACOLYTE), Set.of(Role.THURIFER), List.of(), Set.of(), false, true);
+        Server noIncense = Server.named("no-incense", "Bea", "Muster")
+                .withQualifications(Set.of(Role.ACOLYTE))
+                .withIncompatibleRoles(Set.of(Role.THURIFER));
         List<Server> servers = new ArrayList<>(List.of(noIncense));
         for (int i = 0; i < 6; i++) {
-            servers.add(new Server("server-" + i, "First" + i, "Last" + i, "", null, null,
-                    Set.of(Role.ACOLYTE, Role.THURIFER, Role.CROSS_BEARER), Set.of(),
-                    List.of(), Set.of(), false, true));
+            servers.add(Server.named("server-" + i, "First" + i, "Last" + i)
+                    .withQualifications(Set.of(Role.ACOLYTE, Role.THURIFER, Role.CROSS_BEARER)));
         }
 
         List<LiturgicalService> services = List.of(

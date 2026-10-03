@@ -222,8 +222,7 @@ class ContrastTest {
             RoleRepository roles = new RoleRepository();
             ArchivedServiceRepository archived = new ArchivedServiceRepository();
             TemplateRepository templates = new TemplateRepository();
-            Server server = new Server("srv1", "Anna", "Becker", "", null, null,
-                    Set.of(), Set.of(), List.of(), Set.of(), false, true);
+            Server server = Server.named("srv1", "Anna", "Becker");
             servers.save(server);
             LiturgicalService service = new LiturgicalService("s1", LocalDateTime.now().plusDays(1), 60,
                     "St. Mary", ServiceType.SUNDAY_MASS, "",

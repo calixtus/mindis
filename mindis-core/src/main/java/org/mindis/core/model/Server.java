@@ -44,6 +44,53 @@ public record Server(
         preferredTimes = preferredTimes == null ? Set.of() : Set.copyOf(preferredTimes);
     }
 
+    /// An active server with only a name: no contact, birth date, family,
+    /// qualifications or preferences yet. Refine it with the `with` methods.
+    public static Server named(String id, String firstName, String lastName) {
+        return new Server(id, firstName, lastName, "", null, null, Set.of(), Set.of(), List.of(), Set.of(),
+                false, true);
+    }
+
+    public Server withBirthDate(@Nullable LocalDate birthDate) {
+        return new Server(id, firstName, lastName, contact, birthDate, familyId, qualifications,
+                incompatibleRoles, unavailabilities, preferredTimes, experienced, active);
+    }
+
+    public Server withFamilyId(@Nullable String familyId) {
+        return new Server(id, firstName, lastName, contact, birthDate, familyId, qualifications,
+                incompatibleRoles, unavailabilities, preferredTimes, experienced, active);
+    }
+
+    public Server withQualifications(Set<String> qualifications) {
+        return new Server(id, firstName, lastName, contact, birthDate, familyId, qualifications,
+                incompatibleRoles, unavailabilities, preferredTimes, experienced, active);
+    }
+
+    public Server withIncompatibleRoles(Set<String> incompatibleRoles) {
+        return new Server(id, firstName, lastName, contact, birthDate, familyId, qualifications,
+                incompatibleRoles, unavailabilities, preferredTimes, experienced, active);
+    }
+
+    public Server withUnavailabilities(List<UnavailabilityPeriod> unavailabilities) {
+        return new Server(id, firstName, lastName, contact, birthDate, familyId, qualifications,
+                incompatibleRoles, unavailabilities, preferredTimes, experienced, active);
+    }
+
+    public Server withPreferredTimes(Set<LocalTime> preferredTimes) {
+        return new Server(id, firstName, lastName, contact, birthDate, familyId, qualifications,
+                incompatibleRoles, unavailabilities, preferredTimes, experienced, active);
+    }
+
+    public Server withExperienced(boolean experienced) {
+        return new Server(id, firstName, lastName, contact, birthDate, familyId, qualifications,
+                incompatibleRoles, unavailabilities, preferredTimes, experienced, active);
+    }
+
+    public Server withActive(boolean active) {
+        return new Server(id, firstName, lastName, contact, birthDate, familyId, qualifications,
+                incompatibleRoles, unavailabilities, preferredTimes, experienced, active);
+    }
+
     public static String newId() {
         return UUID.randomUUID().toString();
     }

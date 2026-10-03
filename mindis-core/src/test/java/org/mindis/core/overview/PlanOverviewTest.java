@@ -132,7 +132,7 @@ class PlanOverviewTest {
     @Test
     void loadOverview_carriesTheSummaryFigures() {
         servers.save(server("srv1", "Anna", "Becker"));
-        servers.save(inactive(server("srv2", "Ben", "Meier")));
+        servers.save(server("srv2", "Ben", "Meier").withActive(false));
         roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
         services.save(service("past", inDays(-1), List.of(filled("ACOLYTE", "srv1"))));
         services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv1"), Slot.open("ACOLYTE"))));
@@ -180,7 +180,7 @@ class PlanOverviewTest {
     void loadOverview_serverLoad_includesActiveServersWithoutAssignments() {
         servers.save(server("srv1", "Anna", "Becker"));
         servers.save(server("srv2", "Ben", "Meier"));
-        servers.save(inactive(server("srv3", "Cara", "Vogt")));
+        servers.save(server("srv3", "Cara", "Vogt").withActive(false));
         services.save(service("s1", inDays(1), List.of(filled("ACOLYTE", "srv2"))));
 
         List<PlanOverview.ServerLoad> load = overview().serverLoad();
@@ -263,7 +263,7 @@ class PlanOverviewTest {
         roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
         roles.save(new Role("THURIFER", "Thurifer", null, null, 1));
         servers.save(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE"));
-        servers.save(inactive(qualified(server("srv2", "Ben", "Meier"), "ACOLYTE")));
+        servers.save(qualified(server("srv2", "Ben", "Meier"), "ACOLYTE").withActive(false));
         services.save(service("s1", inDays(1), List.of(Slot.open("ACOLYTE"), Slot.open("ACOLYTE"))));
         services.save(service("s2", inDays(2), List.of(Slot.open("ACOLYTE"))));
 
@@ -286,10 +286,10 @@ class PlanOverviewTest {
     @Test
     void loadOverview_birthdaysAround_coverTheWindowAndTheRecentPast() {
         LocalDate today = LocalDate.now();
-        servers.save(withBirthDate(server("srv1", "Anna", "Becker"), today.minusYears(14).minusDays(3)));
-        servers.save(withBirthDate(server("srv2", "Ben", "Meier"), today.minusYears(20).plusDays(10)));
-        servers.save(withBirthDate(server("srv3", "Cara", "Vogt"), today.minusYears(12).minusDays(40)));
-        servers.save(inactive(withBirthDate(server("srv4", "Dana", "Roth"), today.minusYears(30))));
+        servers.save(server("srv1", "Anna", "Becker").withBirthDate(today.minusYears(14).minusDays(3)));
+        servers.save(server("srv2", "Ben", "Meier").withBirthDate(today.minusYears(20).plusDays(10)));
+        servers.save(server("srv3", "Cara", "Vogt").withBirthDate(today.minusYears(12).minusDays(40)));
+        servers.save(server("srv4", "Dana", "Roth").withBirthDate(today.minusYears(30)).withActive(false));
         servers.save(server("srv5", "Eva", "Klein"));
 
         List<PlanOverview.Birthday> birthdays = overview().birthdaysAround();
@@ -313,7 +313,7 @@ class PlanOverviewTest {
                 LocalDate.now().plusYears(1).plusDays(3)));
         servers.save(absent(server("srv3", "Cara", "Vogt"), LocalDate.now().minusDays(20),
                 LocalDate.now().minusDays(10)));
-        servers.save(inactive(absent(server("srv4", "Dana", "Roth"), LocalDate.now(), LocalDate.now())));
+        servers.save(absent(server("srv4", "Dana", "Roth"), LocalDate.now(), LocalDate.now()).withActive(false));
 
         List<PlanOverview.Absence> absences = overview().absencesAhead();
 
@@ -325,7 +325,7 @@ class PlanOverviewTest {
 
     @Test
     void loadOverview_rosterIssues_reportsEachKind() {
-        servers.save(inactive(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE")));
+        servers.save(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE").withActive(false));
         servers.save(server("srv2", "Ben", "Meier"));
         servers.save(qualified(server("srv3", "Cara", "Vogt"), "ACOLYTE"));
         servers.save(absent(qualified(server("srv4", "Dana", "Roth"), "ACOLYTE"),
@@ -392,7 +392,7 @@ class PlanOverviewTest {
     @Test
     void loadOverview_problems_countsConflictsButNotOpenSlots() {
         roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
-        servers.save(inactive(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE")));
+        servers.save(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE").withActive(false));
         servers.save(server("srv2", "Ben", "Meier"));
         services.save(service("s1", inDays(1),
                 List.of(filled("ACOLYTE", "srv1"), filled("ACOLYTE", "srv2"), Slot.open("ACOLYTE"))));
@@ -415,7 +415,7 @@ class PlanOverviewTest {
     @Test
     void loadOverview_problems_ignoreServicesThatHavePassed() {
         roles.save(new Role("ACOLYTE", "Acolyte", null, null, 0));
-        servers.save(inactive(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE")));
+        servers.save(qualified(server("srv1", "Anna", "Becker"), "ACOLYTE").withActive(false));
         services.save(service("past", inDays(-1), List.of(filled("ACOLYTE", "srv1"))));
 
         PlanOverview snapshot = overview();
@@ -493,7 +493,7 @@ class PlanOverviewTest {
     }
 
     private static Server server(String id, String firstName, String lastName) {
-        return new Server(id, firstName, lastName, "", null, null, Set.of(), Set.of(), List.of(), Set.of(), false, true);
+        return Server.named(id, firstName, lastName);
     }
 
     private static ArchivedService archived(String id, LocalDateTime dateTime, @Nullable String serverName) {
@@ -503,27 +503,10 @@ class PlanOverviewTest {
     }
 
     private static Server qualified(Server server, String... roleIds) {
-        return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), server.birthDate(),
-                server.familyId(), Set.of(roleIds), server.incompatibleRoles(), server.unavailabilities(), server.preferredTimes(),
-                server.experienced(), server.active());
-    }
-
-    private static Server withBirthDate(Server server, LocalDate birthDate) {
-        return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), birthDate,
-                server.familyId(), server.qualifications(), server.incompatibleRoles(), server.unavailabilities(), server.preferredTimes(),
-                server.experienced(), server.active());
+        return server.withQualifications(Set.of(roleIds));
     }
 
     private static Server absent(Server server, LocalDate start, LocalDate end) {
-        return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), server.birthDate(),
-                server.familyId(), server.qualifications(), server.incompatibleRoles(),
-                List.of(new UnavailabilityPeriod(start, end)),
-                server.preferredTimes(), server.experienced(), server.active());
-    }
-
-    private static Server inactive(Server server) {
-        return new Server(server.id(), server.firstName(), server.lastName(), server.contact(), server.birthDate(),
-                server.familyId(), server.qualifications(), server.incompatibleRoles(), server.unavailabilities(), server.preferredTimes(),
-                server.experienced(), false);
+        return server.withUnavailabilities(List.of(new UnavailabilityPeriod(start, end)));
     }
 }
