@@ -441,7 +441,10 @@ dialog content is a non-editable `TextArea`, not `Alert.setContentText`, so the 
 and copied into a bug report; it is always shown via `Platform.runLater` because log calls can come
 from any thread. `LogConsoleHandler`/`LogConsoleModel` keep the full history (every level, every
 logger), rendered severity-colored with per-line copy in the About screen, which also shows a
-copyable version-info block.
+copyable version-info block. A line longer than the list is wide is cut off with an ellipsis instead
+of scrolling the list sideways; on hover such a line — and one with line breaks, which a collapsed
+row shows as spaces — offers a chevron next to copy and remove that expands it to the full message,
+wrapped.
 
 Covers:
 - req~error-visibility~1

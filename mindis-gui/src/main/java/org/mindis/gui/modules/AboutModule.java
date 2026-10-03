@@ -5,10 +5,14 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 import javafx.application.HostServices;
+import javafx.beans.binding.Bindings;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -20,6 +24,7 @@ import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.effect.Reflection;
@@ -32,6 +37,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 
 import atlantafx.base.theme.Styles;
 import org.kordamp.ikonli.javafx.FontIcon;
@@ -221,7 +227,9 @@ public final class AboutModule extends ShellModule {
         header.setStyle("-fx-font-weight: bold;");
 
         ListView<LogEntry> list = new ListView<>(logConsole.entries());
-        list.setCellFactory(view -> new LogEntryCell(view.getItems()));
+        // By identity: two identical messages logged in the same second are still two rows.
+        Set<LogEntry> expanded = Collections.newSetFromMap(new IdentityHashMap<>());
+        list.setCellFactory(view -> new LogEntryCell(view.getItems(), expanded));
         list.setPrefHeight(160);
 
         VBox box = new VBox(6, header, list);
@@ -286,17 +294,40 @@ public final class AboutModule extends ShellModule {
     }
 
     /// One log line: `HH:mm:ss [LEVEL] message`, text color by
-    /// severity, with copy/remove icon buttons that only appear on hover -
-    /// always-visible buttons on every row would be noisier than the list
-    /// itself.
+    /// severity, with icon buttons that only appear on hover - always-visible
+    /// buttons on every row would be noisier than the list itself.
+    ///
+    /// <p>A message too long for the row is cut off with an ellipsis rather than
+    /// widening the list, and the hover buttons then include a chevron that expands
+    /// the row to show it whole, wrapped. Line breaks would make a collapsed row
+    /// taller, so collapsed they are shown as spaces, and a message that has any is
+    /// expandable even when it fits.
     private static final class LogEntryCell extends ListCell<LogEntry> {
         private final ObservableList<LogEntry> entries;
+        /// The entries expanded in this list - kept by the list rather than the cell,
+        /// since cells are reused for other entries as the list scrolls.
+        private final Set<LogEntry> expanded;
         private final Label text = new Label();
+        private final Button expandButton = new Button(null, new FontIcon("mdi2c-chevron-down"));
         private final HBox actions;
         private final HBox row;
 
-        LogEntryCell(ObservableList<LogEntry> entries) {
+        LogEntryCell(ObservableList<LogEntry> entries, Set<LogEntry> expanded) {
             this.entries = entries;
+            this.expanded = expanded;
+
+            // Asking for no width of its own keeps the list from growing a horizontal
+            // scroll bar to fit the longest message: every cell gets the list's width.
+            setPrefWidth(0);
+
+            text.setTextOverrun(OverrunStyle.ELLIPSIS);
+            text.setMinWidth(0);
+            text.setMaxWidth(Double.MAX_VALUE);
+            HBox.setHgrow(text, Priority.ALWAYS);
+
+            expandButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
+            expandButton.setOnAction(e -> toggleExpanded());
+            expandButton.managedProperty().bind(expandButton.visibleProperty());
 
             Button copyButton = new Button(null, new FontIcon("mdi2c-content-copy"));
             copyButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
@@ -306,15 +337,18 @@ public final class AboutModule extends ShellModule {
             removeButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
             removeButton.setOnAction(e -> remove());
 
-            actions = new HBox(2, copyButton, removeButton);
+            actions = new HBox(2, expandButton, copyButton, removeButton);
+            actions.setMinWidth(Region.USE_PREF_SIZE);
             actions.setVisible(false);
             actions.setManaged(false);
 
-            Region spacer = new Region();
-            HBox.setHgrow(spacer, Priority.ALWAYS);
-
-            row = new HBox(6, text, spacer, actions);
+            row = new HBox(6, text, actions);
             row.setAlignment(Pos.CENTER_LEFT);
+            // A Labeled lays its graphic out at the graphic's own preferred width, so
+            // without this the row would be as wide as its text and never ellipsize.
+            row.prefWidthProperty().bind(Bindings.createDoubleBinding(
+                    () -> getWidth() - getInsets().getLeft() - getInsets().getRight(),
+                    widthProperty(), insetsProperty()));
 
             setOnMouseEntered(e -> {
                 actions.setVisible(true);
@@ -333,10 +367,94 @@ public final class AboutModule extends ShellModule {
                 setGraphic(null);
                 return;
             }
-            text.setText("%s [%s] %s".formatted(
-                    ENTRY_TIME_FORMAT.format(entry.time()), entry.level(), entry.message()));
             text.setStyle("-fx-text-fill: " + colorFor(entry.level()) + ";");
+            showExpanded(expanded.contains(entry));
             setGraphic(row);
+        }
+
+        /// The row's height at the width it is given, which a wrapped message needs:
+        /// the default asks the graphic for its height without one, which is a single line.
+        @Override
+        protected double computePrefHeight(double width) {
+            if (getGraphic() != row) {
+                return super.computePrefHeight(width);
+            }
+            double rowWidth = (width < 0 ? getWidth() : width) - snappedLeftInset() - snappedRightInset();
+            return snappedTopInset() + row.prefHeight(rowWidth) + snappedBottomInset();
+        }
+
+        /// Whether the chevron is offered is only known once the row has a width.
+        /// Measured against the row with all three buttons showing, as on hover, so
+        /// it does not change while the pointer moves in and the text makes room.
+        @Override
+        protected void layoutChildren() {
+            super.layoutChildren();
+            LogEntry entry = getItem();
+            if (entry == null || getGraphic() != row) {
+                return;
+            }
+            boolean expandable = expanded.contains(entry) || hasLineBreaks(entry) || overflows(entry);
+            if (expandButton.isVisible() != expandable) {
+                expandButton.setVisible(expandable);
+            }
+        }
+
+        private boolean overflows(LogEntry entry) {
+            // A Text node, not a second Label: a Label outside the scene has no skin and
+            // measures nothing.
+            Text probe = new Text(collapsedText(entry));
+            probe.setFont(text.getFont());
+            double available = row.getWidth() - row.getSpacing() - allActionsWidth()
+                    - text.getPadding().getLeft() - text.getPadding().getRight();
+            return probe.getLayoutBounds().getWidth() > available;
+        }
+
+        private double allActionsWidth() {
+            double buttons = 0;
+            for (Node child : actions.getChildren()) {
+                buttons += child.prefWidth(-1);
+            }
+            return buttons + actions.getSpacing() * (actions.getChildren().size() - 1);
+        }
+
+        private void toggleExpanded() {
+            LogEntry entry = getItem();
+            if (entry == null) {
+                return;
+            }
+            if (!expanded.remove(entry)) {
+                // Entries removed or rotated out of the log since are dropped here rather
+                // than by a listener on the log, which would outlive this view.
+                expanded.removeIf(other -> entries.stream().noneMatch(e -> e == other));
+                expanded.add(entry);
+            }
+            showExpanded(expanded.contains(entry));
+            // The cell's height changes with it; the list has to lay its cells out again.
+            getListView().refresh();
+        }
+
+        private void showExpanded(boolean isExpanded) {
+            LogEntry entry = getItem();
+            if (entry == null) {
+                return;
+            }
+            text.setWrapText(isExpanded);
+            text.setText(isExpanded ? fullText(entry) : collapsedText(entry));
+            row.setAlignment(isExpanded ? Pos.TOP_LEFT : Pos.CENTER_LEFT);
+            ((FontIcon) expandButton.getGraphic())
+                    .setIconLiteral(isExpanded ? "mdi2c-chevron-up" : "mdi2c-chevron-down");
+        }
+
+        private static String fullText(LogEntry entry) {
+            return "%s [%s] %s".formatted(ENTRY_TIME_FORMAT.format(entry.time()), entry.level(), entry.message());
+        }
+
+        private static String collapsedText(LogEntry entry) {
+            return fullText(entry).replaceAll("\\s*\\R\\s*", " ");
+        }
+
+        private static boolean hasLineBreaks(LogEntry entry) {
+            return entry.message().strip().lines().count() > 1;
         }
 
         private String entryText() {
