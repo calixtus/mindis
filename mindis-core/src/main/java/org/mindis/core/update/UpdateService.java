@@ -1,5 +1,6 @@
 package org.mindis.core.update;
 
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.io.IOException;
@@ -28,11 +29,8 @@ import org.slf4j.LoggerFactory;
 /// [InstallerLauncher]) and what remains here is HTTP plumbing. Nothing in
 /// this class touches the UI - the caller runs it off the FX thread and reports
 /// the outcome (PLAN.md section 2.5).
-///
-/// <p>Not `final` so a test can subclass it as a stub, like
-/// [org.mindis.core.preferences.PreferencesService].
 @Singleton
-public class UpdateService {
+public final class UpdateService {
 
     /// Where the manifests are published. `releases/latest/download/…`
     /// always resolves against the newest non-draft release, so the URL never
@@ -46,11 +44,14 @@ public class UpdateService {
 
     private final String manifestBaseUrl;
 
+    @Inject
     public UpdateService() {
         this(DEFAULT_MANIFEST_BASE_URL);
     }
 
-    protected UpdateService(String manifestBaseUrl) {
+    /// @param manifestBaseUrl where the release manifests are served; a test points
+    ///        it at a local stub server
+    public UpdateService(String manifestBaseUrl) {
         this.manifestBaseUrl = manifestBaseUrl.endsWith("/") ? manifestBaseUrl : manifestBaseUrl + "/";
     }
 

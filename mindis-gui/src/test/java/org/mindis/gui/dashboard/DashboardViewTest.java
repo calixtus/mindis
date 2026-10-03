@@ -35,7 +35,6 @@ import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.preferences.DashboardWidgetLayout;
 import org.mindis.core.preferences.PreferencesService;
 import org.mindis.gui.FxTest;
-import org.mindis.gui.TestPreferences;
 import org.mindis.gui.TestStores;
 
 /// Covers the view-mode chooser end to end: which widgets offer one, what
@@ -56,7 +55,7 @@ class DashboardViewTest {
     void onlyWidgetsWithSeveralModesShowAModeChooser() throws InterruptedException {
         givenAssignedService();
         FxTest.runAndWait(() -> {
-            DashboardView view = new DashboardView(newViewModel(TestPreferences.at(preferencesFile())));
+            DashboardView view = new DashboardView(newViewModel(new PreferencesService(preferencesFile())));
 
             List<Node> choosers = withStyleClass(view, "dashboard-widget-mode");
 
@@ -70,7 +69,7 @@ class DashboardViewTest {
     @Test
     void pickingBarSwapsTheContentAndPersistsTheMode() throws InterruptedException {
         givenAssignedService();
-        PreferencesService preferences = TestPreferences.at(preferencesFile());
+        PreferencesService preferences = new PreferencesService(preferencesFile());
         FxTest.runAndWait(() -> {
             DashboardView view = new DashboardView(newViewModel(preferences));
             MenuButton chooser = chooserOf(view, WidgetType.SERVER_LOAD);
@@ -88,7 +87,7 @@ class DashboardViewTest {
     @Test
     void aPersistedModeIsRestored() throws InterruptedException {
         givenAssignedService();
-        PreferencesService preferences = TestPreferences.at(preferencesFile());
+        PreferencesService preferences = new PreferencesService(preferencesFile());
         preferences.update(p -> p.withDashboardWidgets(List.of(
                 new DashboardWidgetLayout(WidgetType.SERVER_LOAD.id(), 0, 0, 6, 3, WidgetViewMode.BAR.id()))));
 
@@ -104,7 +103,7 @@ class DashboardViewTest {
     @Test
     void theSummaryAndNextServicesWidgetsAlsoSwitchToTheirDiagram() throws InterruptedException {
         givenAssignedService();
-        PreferencesService preferences = TestPreferences.at(preferencesFile());
+        PreferencesService preferences = new PreferencesService(preferencesFile());
         FxTest.runAndWait(() -> {
             DashboardView view = new DashboardView(newViewModel(preferences));
 
@@ -137,7 +136,7 @@ class DashboardViewTest {
     @Test
     void everyWidgetRendersInEveryModeItOffers() throws InterruptedException {
         givenAssignedService();
-        PreferencesService preferences = TestPreferences.at(preferencesFile());
+        PreferencesService preferences = new PreferencesService(preferencesFile());
         FxTest.runAndWait(() -> {
             DashboardView view = new DashboardView(newViewModel(preferences));
             for (WidgetType type : WidgetType.values()) {
@@ -210,7 +209,7 @@ class DashboardViewTest {
 
     @Test
     void anEmptyDocumentRendersAnEmptyStateInsteadOfAChart() throws InterruptedException {
-        PreferencesService preferences = TestPreferences.at(preferencesFile());
+        PreferencesService preferences = new PreferencesService(preferencesFile());
         preferences.update(p -> p.withDashboardWidgets(List.of(
                 new DashboardWidgetLayout(WidgetType.SERVER_LOAD.id(), 0, 0, 6, 3, WidgetViewMode.PIE.id()))));
 

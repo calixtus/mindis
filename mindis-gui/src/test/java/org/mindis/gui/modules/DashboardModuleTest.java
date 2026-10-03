@@ -21,8 +21,8 @@ import org.mindis.core.persistence.ArchivedServiceRepository;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
+import org.mindis.core.preferences.PreferencesService;
 import org.mindis.gui.FxTest;
-import org.mindis.gui.TestPreferences;
 import org.mindis.gui.TestStores;
 import org.mindis.gui.dashboard.DashboardViewModel;
 import org.mindis.gui.data.LiveStore;
@@ -45,7 +45,7 @@ class DashboardModuleTest {
     private DashboardModule module() {
         return new DashboardModule("Dashboard", new DashboardViewModel(serviceStore,
                 TestStores.servers(new ServerRepository()), TestStores.roles(new RoleRepository()),
-                new ArchivedServiceRepository(), TestPreferences.at(tempDir.resolve("preferences.json"))));
+                new ArchivedServiceRepository(), new PreferencesService(tempDir.resolve("preferences.json"))));
     }
 
     private static LiturgicalService upcomingService() {

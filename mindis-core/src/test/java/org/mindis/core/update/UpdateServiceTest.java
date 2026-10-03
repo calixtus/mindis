@@ -39,13 +39,6 @@ class UpdateServiceTest {
 
     private StubServer server;
 
-    /// The service under test, pointed at the stub server instead of GitHub.
-    private static final class LocalUpdateService extends UpdateService {
-        LocalUpdateService(String baseUrl) {
-            super(baseUrl);
-        }
-    }
-
     @BeforeEach
     void startServer() throws IOException {
         server = new StubServer();
@@ -60,7 +53,7 @@ class UpdateServiceTest {
 
     @Test
     void findsANewerReleaseAndDownloadsItsVerifiedInstaller() throws IOException {
-        UpdateService service = new LocalUpdateService(server.baseUrl());
+        UpdateService service = new UpdateService(server.baseUrl());
 
         Optional<AvailableUpdate> update = service.check();
 
@@ -76,7 +69,7 @@ class UpdateServiceTest {
 
     @Test
     void aFileThatDoesNotMatchTheChecksumIsRejectedAndRemoved() {
-        UpdateService service = new LocalUpdateService(server.baseUrl());
+        UpdateService service = new UpdateService(server.baseUrl());
         UpdateArtifact tampered = new UpdateArtifact("MinDis-9.9.9.msi",
                 server.baseUrl() + "MinDis-9.9.9.msi", "00".repeat(32),
                 PAYLOAD.length(), UpdateArtifact.Kind.INSTALLER);
@@ -89,14 +82,14 @@ class UpdateServiceTest {
     @Test
     void anOlderReleaseIsNoUpdate() throws IOException {
         server.serve("/latest-" + platformKey() + ".json", manifest("0.0.1"));
-        UpdateService service = new LocalUpdateService(server.baseUrl());
+        UpdateService service = new UpdateService(server.baseUrl());
 
         assertEquals(Optional.empty(), service.check());
     }
 
     @Test
     void aMissingManifestIsReportedAsAFailedCheck() {
-        UpdateService service = new LocalUpdateService(server.baseUrl() + "nope/");
+        UpdateService service = new UpdateService(server.baseUrl() + "nope/");
 
         IOException failure = assertThrows(IOException.class, service::check);
 

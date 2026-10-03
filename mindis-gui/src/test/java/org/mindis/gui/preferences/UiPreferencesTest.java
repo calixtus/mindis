@@ -11,7 +11,6 @@ import org.mindis.core.planning.MinDisConstraintProvider;
 import org.mindis.core.preferences.AppLanguage;
 import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.preferences.PreferencesService;
-import org.mindis.gui.TestPreferences;
 
 /// Registry behavior; runs headless - javafx.base properties need no toolkit.
 class UiPreferencesTest {
@@ -20,7 +19,7 @@ class UiPreferencesTest {
     Path tempDir;
 
     private PreferencesService service() {
-        return TestPreferences.at(tempDir.resolve("preferences.json"));
+        return new PreferencesService(tempDir.resolve("preferences.json"));
     }
 
     @Test

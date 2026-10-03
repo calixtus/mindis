@@ -15,7 +15,6 @@ import org.mindis.core.persistence.ServerRepository;
 import org.mindis.core.persistence.ServiceRepository;
 import org.mindis.core.preferences.DashboardWidgetLayout;
 import org.mindis.core.preferences.PreferencesService;
-import org.mindis.gui.TestPreferences;
 import org.mindis.gui.TestStores;
 
 /// Covers the widget layout the view model persists; the figures it hands the
@@ -32,7 +31,7 @@ class DashboardViewModelTest {
 
     private DashboardViewModel newViewModel() {
         return new DashboardViewModel(TestStores.services(services), TestStores.servers(servers),
-                TestStores.roles(roles), archive, TestPreferences.at(
+                TestStores.roles(roles), archive, new PreferencesService(
                 tempDir.resolve("preferences.json")));
     }
 
@@ -66,7 +65,7 @@ class DashboardViewModelTest {
     /// lose the widget; it falls back to the type's default mode.
     @Test
     void loadLayout_unknownOrUnsupportedMode_fallsBackToTheDefault() {
-        PreferencesService preferences = TestPreferences.at(tempDir.resolve("preferences.json"));
+        PreferencesService preferences = new PreferencesService(tempDir.resolve("preferences.json"));
         preferences.update(p -> p.withDashboardWidgets(List.of(
                 new DashboardWidgetLayout(WidgetType.SERVER_LOAD.id(), 0, 0, 6, 3, "sunburst"),
                 new DashboardWidgetLayout(WidgetType.NEXT_SERVICES.id(), 0, 3, 6, 3, null))));

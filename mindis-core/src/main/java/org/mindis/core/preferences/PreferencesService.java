@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.io.IOException;
@@ -27,11 +28,8 @@ import org.slf4j.LoggerFactory;
 ///
 /// <p>Change listeners use a plain [Consumer] - no JavaFX types in core
 /// (PLAN.md section 2.5). UI adapters bridge to observable properties.
-///
-/// <p>Deliberately not `final`, unlike its sibling services: `UiPreferencesTest`
-/// subclasses it as an in-memory test double. Do not "fix" that.
 @Singleton
-public class PreferencesService {
+public final class PreferencesService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PreferencesService.class);
 
@@ -41,11 +39,13 @@ public class PreferencesService {
 
     private @Nullable MinDisPreferences current;
 
+    @Inject
     public PreferencesService(DataDirectory dataDirectory) {
         this(dataDirectory.resolve("preferences.json"));
     }
 
-    protected PreferencesService(Path preferencesFile) {
+    /// @param preferencesFile where to read and write; a test points it at a temp file
+    public PreferencesService(Path preferencesFile) {
         this.preferencesFile = preferencesFile;
         this.objectMapper = new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)

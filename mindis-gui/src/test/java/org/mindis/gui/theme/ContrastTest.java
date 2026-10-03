@@ -62,7 +62,6 @@ import org.mindis.core.preferences.MinDisPreferences;
 import org.mindis.core.preferences.PreferencesService;
 import org.mindis.core.update.UpdateService;
 import org.mindis.gui.FxTest;
-import org.mindis.gui.TestPreferences;
 import org.mindis.gui.TestStores;
 import org.mindis.gui.dashboard.DashboardView;
 import org.mindis.gui.dashboard.DashboardViewModel;
@@ -231,7 +230,7 @@ class ContrastTest {
                     List.of(new Slot(Slot.newId(), "ACOLYTE", "srv1", false)), "");
             services.save(service);
 
-            PreferencesService preferences = TestPreferences.at(tempDir.resolve("preferences.json"));
+            PreferencesService preferences = new PreferencesService(tempDir.resolve("preferences.json"));
             ShellOverlays overlays = new ShellOverlays(PowerPane::new);
             LiveStore<Role> roleStore = store(roles.findAll(), Role::id);
             LiveStore<Server> serverStore = store(List.of(server), Server::id);

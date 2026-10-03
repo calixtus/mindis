@@ -33,7 +33,6 @@ import org.mindis.core.preferences.DataDirectory;
 import org.mindis.core.preferences.PreferencesService;
 import org.mindis.gui.planning.PlanningViewModel;
 import org.mindis.gui.shell.ShellOverlays;
-import org.mindis.gui.TestPreferences;
 
 /// Covers the guard paths of the solver controller - the branches that decide
 /// *not* to start a solve. Those are what collapsing three near-identical
@@ -69,7 +68,7 @@ class ServicesSolverControllerTest {
     }
 
     private ServicesSolverController newController() {
-        PreferencesService preferences = TestPreferences.at(tempDir.resolve("preferences.json"));
+        PreferencesService preferences = new PreferencesService(tempDir.resolve("preferences.json"));
         ArchiveService archiveService = new ArchiveService(roles, servers, services, archived);
         planningService = new PlanningService(servers, services, roles, preferences, archiveService);
         AppDatabase database = new AppDatabase(roles, servers, new TemplateRepository(), services, archived);
