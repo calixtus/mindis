@@ -20,7 +20,10 @@ import java.util.Locale;
 /// The formatter is derived from the current default locale on every call
 /// rather than cached in a `static final`: `Localization.setLocale` moves that
 /// locale at runtime, and a field initialized at class-load would keep
-/// formatting in whatever language the app happened to start in. Style choice
+/// formatting in whatever language the app happened to start in. Building one per
+/// call is cheap - the JDK caches the locale's pattern itself, so what is left is
+/// a small allocation - and not worth a cache that would have to follow the
+/// language switch. Style choice
 /// (`MEDIUM` date, `SHORT` time) matches what `PlanExportService` already uses
 /// for exported plans, so screen and export read alike.
 public final class DateTimes {
