@@ -2,6 +2,8 @@
 .gradle/
 build/
 !gradle/wrapper/gradle-wrapper.jar
+# Kotlin compiler state of the build-logic plugins
+build-logic/.kotlin/
 
 # IDEs
 
