@@ -201,8 +201,9 @@ public class MinDisApp extends Application {
 
     private List<Image> loadAppIcons() {
         return APP_ICON_SIZES.stream()
-                .map(size -> new Image(getClass().getResourceAsStream(
-                        "/org/mindis/gui/icons/app-icon/mindis-" + size + ".png")))
+                // By URL, not stream: Image never closes a stream it is handed.
+                .map(size -> new Image(getClass().getResource(
+                        "/org/mindis/gui/icons/app-icon/mindis-" + size + ".png").toExternalForm()))
                 .toList();
     }
 

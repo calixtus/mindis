@@ -93,7 +93,7 @@ public final class AboutModule extends ShellModule {
     @Override
     public Node activate() {
         ImageView logo = new ImageView(new Image(
-                getClass().getResourceAsStream("/org/mindis/gui/icons/app-icon/mindis-128.png")));
+                getClass().getResource("/org/mindis/gui/icons/app-icon/mindis-128.png").toExternalForm()));
         // 1.5x the original 96px - the reflection was invisible at 96px
         // because the VBox below it packed the title label right up against
         // it (10px spacing vs. the effect's own ~14px), so the title's own
