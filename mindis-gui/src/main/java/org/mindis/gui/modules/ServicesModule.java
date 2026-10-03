@@ -4,7 +4,6 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
-import java.util.List;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyBooleanProperty;
@@ -246,11 +245,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
 
         Button okButton = new Button(Localization.lang("OK"));
         okButton.setOnAction(event -> {
-            List<LiturgicalService> generated = viewModel.generateFromTemplates(
-                    popupFrom.getValue(), popupTo.getValue(), store().items());
-            if (generated != null) {
-                mergeLive(generated);
-            }
+            mergeLive(viewModel.generateFromTemplates(popupFrom.getValue(), popupTo.getValue(), store().items()));
             popup.hide();
         });
         HBox buttonRow = new HBox(okButton);

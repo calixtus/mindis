@@ -46,12 +46,12 @@ final class ServicesViewModel {
     ///                 against duplicate generation just as much as a saved
     ///                 one), so generation doesn't re-propose a service that's
     ///                 only sitting unsaved in the table
-    /// @return null if the range is invalid (`from`/`to` missing
-    ///         or reversed)
-    @Nullable List<LiturgicalService> generateFromTemplates(LocalDate from, LocalDate to,
-                                                             List<LiturgicalService> existing) {
+    /// @return nothing for an incomplete or reversed range - the popup's date
+    ///         pickers can be left blank
+    List<LiturgicalService> generateFromTemplates(@Nullable LocalDate from, @Nullable LocalDate to,
+                                                  List<LiturgicalService> existing) {
         if (from == null || to == null || to.isBefore(from)) {
-            return null;
+            return List.of();
         }
         return ServiceGenerator.generate(templateRepository.findAll(), existing, from, to);
     }
