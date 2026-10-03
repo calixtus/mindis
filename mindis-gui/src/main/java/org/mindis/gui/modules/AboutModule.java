@@ -12,6 +12,7 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 import javafx.application.HostServices;
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -32,6 +33,8 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -299,9 +302,9 @@ public final class AboutModule extends ShellModule {
     ///
     /// <p>A message too long for the row is cut off with an ellipsis rather than
     /// widening the list, and the hover buttons then include a chevron that expands
-    /// the row to show it whole, wrapped. Line breaks would make a collapsed row
-    /// taller, so collapsed they are shown as spaces, and a message that has any is
-    /// expandable even when it fits.
+    /// the row to show it whole, wrapped; double-clicking the row does the same. Line
+    /// breaks would make a collapsed row taller, so collapsed they are shown as spaces,
+    /// and a message that has any is expandable even when it fits.
     private static final class LogEntryCell extends ListCell<LogEntry> {
         private final ObservableList<LogEntry> entries;
         /// The entries expanded in this list - kept by the list rather than the cell,
@@ -311,6 +314,8 @@ public final class AboutModule extends ShellModule {
         private final Button expandButton = new Button(null, new FontIcon("mdi2c-chevron-down"));
         private final HBox actions;
         private final HBox row;
+        /// What the row currently shows, which decides its height.
+        private boolean shownExpanded;
 
         LogEntryCell(ObservableList<LogEntry> entries, Set<LogEntry> expanded) {
             this.entries = entries;
@@ -341,6 +346,9 @@ public final class AboutModule extends ShellModule {
             actions.setMinWidth(Region.USE_PREF_SIZE);
             actions.setVisible(false);
             actions.setManaged(false);
+            // Clicks on the buttons stay there: two quick clicks on the chevron would
+            // otherwise also count as a double-click on the row and toggle it a third time.
+            actions.addEventHandler(MouseEvent.MOUSE_CLICKED, MouseEvent::consume);
 
             row = new HBox(6, text, actions);
             row.setAlignment(Pos.CENTER_LEFT);
@@ -358,6 +366,11 @@ public final class AboutModule extends ShellModule {
                 actions.setVisible(false);
                 actions.setManaged(false);
             });
+            setOnMouseClicked(e -> {
+                if (e.getButton() == MouseButton.PRIMARY && e.getClickCount() == 2 && expandButton.isVisible()) {
+                    toggleExpanded();
+                }
+            });
         }
 
         @Override
@@ -368,19 +381,29 @@ public final class AboutModule extends ShellModule {
                 return;
             }
             text.setStyle("-fx-text-fill: " + colorFor(entry.level()) + ";");
-            showExpanded(expanded.contains(entry));
+            showExpanded(isExpanded(entry));
             setGraphic(row);
         }
 
-        /// The row's height at the width it is given, which a wrapped message needs:
-        /// the default asks the graphic for its height without one, which is a single line.
+        private boolean isExpanded(LogEntry entry) {
+            return expanded.contains(entry);
+        }
+
+        /// Collapsed, room for the hover buttons whether they show or not, so the row
+        /// does not grow under the pointer - within the theme's cell height where it sets
+        /// one. Expanded, as tall as the wrapped message at the width it is given - the
+        /// default asks the graphic for its height without a width, which is a single line.
         @Override
         protected double computePrefHeight(double width) {
+            double cellHeight = super.computePrefHeight(width);
             if (getGraphic() != row) {
-                return super.computePrefHeight(width);
+                return cellHeight;
+            }
+            if (!shownExpanded) {
+                return Math.max(cellHeight, snappedTopInset() + actions.prefHeight(-1) + snappedBottomInset());
             }
             double rowWidth = (width < 0 ? getWidth() : width) - snappedLeftInset() - snappedRightInset();
-            return snappedTopInset() + row.prefHeight(rowWidth) + snappedBottomInset();
+            return Math.max(cellHeight, snappedTopInset() + row.prefHeight(rowWidth) + snappedBottomInset());
         }
 
         /// Whether the chevron is offered is only known once the row has a width.
@@ -393,7 +416,7 @@ public final class AboutModule extends ShellModule {
             if (entry == null || getGraphic() != row) {
                 return;
             }
-            boolean expandable = expanded.contains(entry) || hasLineBreaks(entry) || overflows(entry);
+            boolean expandable = isExpanded(entry) || hasLineBreaks(entry) || overflows(entry);
             if (expandButton.isVisible() != expandable) {
                 expandButton.setVisible(expandable);
             }
@@ -428,9 +451,17 @@ public final class AboutModule extends ShellModule {
                 expanded.removeIf(other -> entries.stream().noneMatch(e -> e == other));
                 expanded.add(entry);
             }
-            showExpanded(expanded.contains(entry));
-            // The cell's height changes with it; the list has to lay its cells out again.
-            getListView().refresh();
+            showExpanded(isExpanded(entry));
+            relayoutList();
+        }
+
+        /// The cell's height changes with its state, which the list only picks up when it
+        /// lays its cells out again. Deferred: the toggle can arrive from a click mid-layout.
+        private void relayoutList() {
+            ListView<LogEntry> list = getListView();
+            if (list != null) {
+                Platform.runLater(list::refresh);
+            }
         }
 
         private void showExpanded(boolean isExpanded) {
@@ -438,11 +469,26 @@ public final class AboutModule extends ShellModule {
             if (entry == null) {
                 return;
             }
+            shownExpanded = isExpanded;
             text.setWrapText(isExpanded);
             text.setText(isExpanded ? fullText(entry) : collapsedText(entry));
             row.setAlignment(isExpanded ? Pos.TOP_LEFT : Pos.CENTER_LEFT);
+            // Expanded, the first line keeps the place it has in a collapsed row: the same
+            // margin above it as the theme's cell height leaves, and the buttons centred on it.
+            double lineHeight = lineHeight();
+            double margin = Math.max(0, (super.computePrefHeight(-1) - lineHeight) / 2);
+            row.setPadding(isExpanded ? new Insets(margin, 0, margin, 0) : Insets.EMPTY);
+            HBox.setMargin(actions, isExpanded
+                    ? new Insets((lineHeight - actions.prefHeight(-1)) / 2, 0, 0, 0)
+                    : null);
             ((FontIcon) expandButton.getGraphic())
                     .setIconLiteral(isExpanded ? "mdi2c-chevron-up" : "mdi2c-chevron-down");
+        }
+
+        private double lineHeight() {
+            Text probe = new Text("Ag");
+            probe.setFont(text.getFont());
+            return probe.getLayoutBounds().getHeight();
         }
 
         private static String fullText(LogEntry entry) {

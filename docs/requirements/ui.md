@@ -444,7 +444,8 @@ logger), rendered severity-colored with per-line copy in the About screen, which
 copyable version-info block. A line longer than the list is wide is cut off with an ellipsis instead
 of scrolling the list sideways; on hover such a line — and one with line breaks, which a collapsed
 row shows as spaces — offers a chevron next to copy and remove that expands it to the full message,
-wrapped.
+wrapped; double-clicking the line does the same. A collapsed line is as tall as the hover buttons
+need, so it does not grow under the pointer.
 
 Covers:
 - req~error-visibility~1
