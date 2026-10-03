@@ -1,19 +1,10 @@
 package org.mindis.gui.modules;
 
-
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Supplier;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyBooleanProperty;
@@ -26,21 +17,16 @@ import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
-import javafx.geometry.VPos;
 import javafx.scene.Cursor;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.OverrunStyle;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.Separator;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
-import javafx.scene.control.TextField;
-import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.Tooltip;
-import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -52,37 +38,23 @@ import javafx.util.StringConverter;
 import javafx.util.Subscription;
 
 import atlantafx.base.controls.ToggleSwitch;
-import atlantafx.base.theme.Styles;
 import com.dlsc.gemsfx.CalendarPicker;
-import com.dlsc.gemsfx.TimePicker;
 import com.dlsc.gemsfx.paging.PagingControls;
-import org.kordamp.ikonli.javafx.FontIcon;
 
 import org.mindis.core.export.PlanExportFormat;
-import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.l10n.Localization;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.LiturgicalServices;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
-import org.mindis.core.model.ServiceType;
-import org.mindis.core.model.Slot;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.ServiceCsvMapper;
 import org.mindis.core.persistence.TemplateRepository;
-import org.mindis.core.planning.AssignmentKey;
-import org.mindis.core.planning.ServiceArchiver;
-import org.mindis.core.planning.ServicePlan;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.mindis.gui.planning.ArchivedPlansDialog;
-import org.mindis.gui.planning.PlanExportChooser;
 import org.mindis.gui.planning.PlanningViewModel;
 import org.mindis.gui.util.CalendarPickers;
-import org.mindis.gui.util.DateTimes;
-import org.mindis.gui.util.TimePickers;
 import org.mindis.gui.shell.CrudModule;
 import org.mindis.gui.shell.ShellOverlays;
 import org.mindis.gui.shell.Toolbars;
@@ -92,26 +64,25 @@ import org.mindis.gui.data.LiveStore;
 /// from weekly templates), filling their role slots either manually or by
 /// running the solver, and the solve/export/archive workflow around that.
 ///
-/// <p>An assignment lives directly on its [Slot] (see that class and
-/// [org.mindis.core.planning.PlanningService]), so a service <em>is</em>
-/// its own plan: picking a server, auto-filling, or solving just rewrites the
-/// service's slots and stages them into the shared [LiveStore] like any
-/// other service edit - one Save of the document persists them. There is no
-/// separate plan object, no plan-dirty state and no date-range bookkeeping.
-/// A [ServicePlan] is built transiently only when the solver runs (or to
-/// compute a score / per-slot violations) and discarded once its results are
-/// written back onto the services.
+/// <p>An assignment lives directly on its [org.mindis.core.model.Slot] (see
+/// that class and [org.mindis.core.planning.PlanningService]), so a service
+/// <em>is</em> its own plan: picking a server, auto-filling, or solving just
+/// rewrites the service's slots and stages them into the shared [LiveStore]
+/// like any other service edit - one Save of the document persists them. There
+/// is no separate plan object, no plan-dirty state and no date-range
+/// bookkeeping. A [org.mindis.core.planning.ServicePlan] is built transiently
+/// only when the solver runs (or to compute a score / per-slot violations) and
+/// discarded once its results are written back onto the services.
+///
+/// <p>The row tile ([ServiceTiles]), the row editor ([ServiceEditor]) and the
+/// archive/export actions ([ServicePlanActions]) are their own classes; this
+/// one assembles the screen and its toolbar.
 public final class ServicesModule extends CrudModule<LiturgicalService> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ServicesModule.class);
-    private static final double EDITOR_MIN_HEIGHT = 520;
     // Auto-fill only leaves one service's slots free - a far smaller problem
     // than a whole-plan solve, so it doesn't need the full solverSecondsLimit.
     private static final Duration AUTO_FILL_TIME_BUDGET = Duration.ofSeconds(5);
-    private static final double TILE_INFO_WIDTH = 180;
-    private static final double ROLE_COLUMN_WIDTH = 100;
-    private static final double SLOT_COLUMN_WIDTH = 90;
-    private static final String STYLESHEET = ServicesModule.class.getResource("services.css").toExternalForm();
+    static final String STYLESHEET = ServicesModule.class.getResource("services.css").toExternalForm();
     private static final String GENERATE_POPUP_STYLE = """
             -fx-background-color: -color-bg-overlay;
             -fx-border-color: -color-border-default;
@@ -124,8 +95,9 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
 
     private final ServicesViewModel viewModel;
     private final PlanningViewModel planningViewModel;
-    private final LiveStore<Role> roleStore;
-    private final LiveStore<Server> serverStore;
+    private final LiveRoster roster;
+    private final ServiceTiles tiles;
+    private final ServicePlanActions planActions;
 
     // Chronological, not the store's raw order - a windowed table only reads
     // sensibly page-to-page if each page is a contiguous date range.
@@ -158,8 +130,9 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
         super(name, "mdi2c-church-outline", "mdi2c-church", serviceStore, overlays);
         this.viewModel = new ServicesViewModel(templateRepository);
         this.planningViewModel = planningViewModel;
-        this.roleStore = roleStore;
-        this.serverStore = serverStore;
+        this.roster = new LiveRoster(roleStore, serverStore);
+        this.tiles = new ServiceTiles(roster);
+        this.planActions = new ServicePlanActions(planningViewModel, serviceStore);
         this.solver = new ServicesSolverController(planningViewModel,
                 () -> store().items(), this::mergeLive, overlays);
 
@@ -180,7 +153,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
             protected void updateItem(LiturgicalService service, boolean empty) {
                 super.updateItem(service, empty);
                 setText(null);
-                setGraphic(empty || service == null ? null : buildTileNode(service));
+                setGraphic(empty || service == null ? null : tiles.build(service));
             }
         });
         tileColumn.prefWidthProperty().bind(table().widthProperty().subtract(18));
@@ -241,7 +214,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
         exportPlanButton.setOnAction(event -> showExportPopup(exportPlanButton));
         Button archiveButton = Toolbars.button(Localization.lang("Archived plans"), "mdi2a-archive");
         archiveButton.setOnAction(event ->
-                ArchivedPlansDialog.show(planningViewModel, table().getScene().getWindow(), this::performArchive));
+                ArchivedPlansDialog.show(planningViewModel, table().getScene().getWindow(), planActions::archive));
 
         toolbarExtras().addAll(newButton, deleteButton, new Separator(Orientation.VERTICAL),
                 generateButton,
@@ -387,7 +360,7 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
                 return;
             }
             popup.hide();
-            onExportPlan(popupFrom.getValue(), popupTo.getValue(), format);
+            planActions.export(table().getScene().getWindow(), popupFrom.getValue(), popupTo.getValue(), format);
         });
         HBox buttonRow = new HBox(okButton);
         buttonRow.setAlignment(Pos.CENTER_RIGHT);
@@ -446,7 +419,8 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
 
     @Override
     protected EditorBinding<LiturgicalService> buildEditor(LiturgicalService service) {
-        ServiceEditor editor = new ServiceEditor(service);
+        ServiceEditor editor = new ServiceEditor(service, baseline(service), this::updateLive, roster,
+                planningViewModel, solver);
         return new EditorBinding<>(editor.node(), editor::refresh, editor::dispose);
     }
 
@@ -456,506 +430,10 @@ public final class ServicesModule extends CrudModule<LiturgicalService> {
         super.dispose();
     }
 
-    /// One service row's editor: date/time/type/location/note fields plus the
-    /// Altar-servers assignment panel (one server combo per role slot).
-    private final class ServiceEditor {
-
-        private final LiturgicalService service;
-        private final Supplier<LiturgicalService> baselineSupplier;
-
-        private final CalendarPicker dateField = CalendarPickers.create();
-        private final TimePicker timeField = TimePickers.create();
-        private final ComboBox<ServiceType> typeBox =
-                new ComboBox<>(FXCollections.observableArrayList(ServiceType.values()));
-        private final TextField nameField;
-        private final TextField locationField;
-        private final TextField noteField;
-
-        private final Label dateLabel = new Label(Localization.lang("Date"));
-        private final Label timeLabel = new Label(Localization.lang("Time"));
-        private final Label typeLabel = new Label(Localization.lang("Type"));
-        private final Label nameLabel = new Label(Localization.lang("Name"));
-        private final Label locationLabel = new Label(Localization.lang("Location"));
-        private final Label noteLabel = new Label(Localization.lang("Note"));
-
-        private final Label altarServersTitle = new Label(Localization.lang("Altar servers"));
-        private final VBox assignmentSection = new VBox(6);
-        private final SlotCountEditor slotsEditor;
-        private final VBox content;
-
-        private boolean suppressPushLive;
-        // The concrete slot instances backing the editor - reconciled (not
-        // rebuilt) on every count edit so a role's already-assigned slots keep
-        // their ids and assignments across a resize.
-        private List<Slot> liveSlots;
-
-        ServiceEditor(LiturgicalService service) {
-            this.service = service;
-            this.baselineSupplier = () -> Objects.requireNonNullElse(savedSnapshot(service), service);
-            this.liveSlots = service.slots();
-
-            dateField.setValue(service.dateTime().toLocalDate());
-            timeField.setTime(service.dateTime().toLocalTime());
-            typeBox.setConverter(new StringConverter<>() {
-                @Override
-                public String toString(@Nullable ServiceType type) {
-                    return type == null ? "" : EnumDisplay.of(type);
-                }
-
-                @Override
-                public @Nullable ServiceType fromString(@Nullable String string) {
-                    return null;
-                }
-            });
-            typeBox.getSelectionModel().select(service.type());
-            nameField = new TextField(service.name());
-            // Blank is the normal case: then the service shows its type.
-            nameField.setPromptText(EnumDisplay.of(service.type()));
-            typeBox.valueProperty().addListener((obs, oldType, newType) ->
-                    nameField.setPromptText(newType == null ? "" : EnumDisplay.of(newType)));
-            locationField = new TextField(service.location());
-            noteField = new TextField(service.note());
-            noteField.setPromptText(Localization.lang("Shown with the service in the plan export"));
-
-            Button clearButton = new Button(null, new FontIcon("mdi2b-broom"));
-            clearButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
-            clearButton.disableProperty().bind(planningViewModel.solvingProperty());
-            clearButton.setOnAction(event -> onClearSlots());
-            Tooltip.install(clearButton, new Tooltip(Localization.lang("Clear assignments")));
-
-            Button autoFillButton = new Button(null, new FontIcon("mdi2a-auto-fix"));
-            autoFillButton.getStyleClass().addAll(Styles.BUTTON_ICON, Styles.FLAT, Styles.SMALL);
-            autoFillButton.disableProperty().bind(planningViewModel.solvingProperty());
-            autoFillButton.setOnAction(event -> solver.autofillService(service));
-            Tooltip.install(autoFillButton, new Tooltip(Localization.lang("Auto-fill")));
-            ProgressIndicator autoFillIndicator = new ProgressIndicator();
-            autoFillIndicator.setPrefSize(16, 16);
-            planningViewModel.solvingProperty().addListener((obs, wasSolving, isSolving) ->
-                    autoFillButton.setGraphic(isSolving ? autoFillIndicator : new FontIcon("mdi2a-auto-fix")));
-            Region titleSpacer = new Region();
-            HBox.setHgrow(titleSpacer, Priority.ALWAYS);
-            HBox altarServersHeader = new HBox(8, altarServersTitle, titleSpacer, clearButton, autoFillButton);
-            altarServersHeader.setAlignment(Pos.CENTER_LEFT);
-            Separator altarSeparator = new Separator();
-
-            // Bound directly to the shared live role list - a role added,
-            // renamed or removed anywhere shows up in this editor on its own.
-            slotsEditor = new SlotCountEditor(roleStore.items(), countsByRole(service.slots()), this::onSlotCountsChanged);
-            setFieldChanged(slotsEditor.label, slotsChanged(slotsEditor.collectCounts()));
-            refreshAssignmentSection();
-
-            GridPane grid = new GridPane();
-            grid.setHgap(8);
-            grid.setVgap(8);
-            ColumnConstraints labelColumn = new ColumnConstraints();
-            labelColumn.setMinWidth(110);
-            ColumnConstraints fieldColumn = new ColumnConstraints();
-            fieldColumn.setHgrow(Priority.ALWAYS);
-            grid.getColumnConstraints().addAll(labelColumn, fieldColumn);
-
-            int row = 0;
-            grid.add(dateLabel, 0, row);
-            grid.add(dateField, 1, row++);
-            grid.add(timeLabel, 0, row);
-            grid.add(timeField, 1, row++);
-            grid.add(typeLabel, 0, row);
-            grid.add(typeBox, 1, row++);
-            grid.add(nameLabel, 0, row);
-            grid.add(nameField, 1, row++);
-            grid.add(locationLabel, 0, row);
-            grid.add(locationField, 1, row++);
-            grid.add(noteLabel, 0, row);
-            grid.add(noteField, 1, row++);
-
-            GridPane.setValignment(slotsEditor.label, VPos.TOP);
-            grid.add(slotsEditor.label, 0, row);
-            GridPane.setVgrow(slotsEditor.list(), Priority.ALWAYS);
-            grid.add(slotsEditor.list(), 1, row++);
-
-            dateField.valueProperty().addListener((obs, oldValue, newValue) -> pushLive());
-            timeField.timeProperty().addListener((obs, oldValue, newValue) -> pushLive());
-            typeBox.valueProperty().addListener((obs, oldValue, newValue) -> pushLive());
-            nameField.textProperty().addListener((obs, oldValue, newValue) -> pushLive());
-            locationField.textProperty().addListener((obs, oldValue, newValue) -> pushLive());
-            noteField.textProperty().addListener((obs, oldValue, newValue) -> pushLive());
-
-            content = new VBox(10, grid, altarSeparator, altarServersHeader, assignmentSection);
-            content.setPadding(new Insets(12));
-            content.setMinHeight(EDITOR_MIN_HEIGHT);
-            content.getStylesheets().add(STYLESHEET);
-            markDirtyOnChange(dateField.valueProperty(), () -> baselineSupplier.get().dateTime().toLocalDate(), dateLabel);
-            markDirtyOnChange(timeField.timeProperty(), () -> baselineSupplier.get().dateTime().toLocalTime(), timeLabel);
-            markDirtyOnChange(typeBox.valueProperty(), () -> baselineSupplier.get().type(), typeLabel);
-            markDirtyOnChange(nameField.textProperty(), () -> baselineSupplier.get().name(), nameLabel);
-            markDirtyOnChange(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
-            markDirtyOnChange(noteField.textProperty(), () -> baselineSupplier.get().note(), noteLabel);
-        }
-
-        Node node() {
-            return content;
-        }
-
-        private boolean slotsChanged(Map<String, Integer> liveCounts) {
-            return !liveCounts.equals(countsByRole(baselineSupplier.get().slots()));
-        }
-
-        private void onSlotCountsChanged(Map<String, Integer> liveCounts) {
-            liveSlots = reconcileSlots(liveSlots, liveCounts);
-            setFieldChanged(slotsEditor.label, slotsChanged(liveCounts));
-            // pushLive replaces this service's row item, which re-renders its
-            // tile on its own; refreshAssignmentSection redraws the open editor.
-            pushLive();
-            refreshAssignmentSection();
-        }
-
-        private void refreshAssignmentSection() {
-            assignmentSection.getChildren().setAll(buildAssignmentRows());
-        }
-
-        private void pushLive() {
-            if (suppressPushLive) {
-                return;
-            }
-            LocalDate date = dateField.getValue();
-            LocalTime time = timeField.getTime();
-            if (date == null || time == null) {
-                return;
-            }
-            updateLive(new LiturgicalService(service.id(), date.atTime(time), service.durationMinutes(),
-                    locationField.getText().strip(),
-                    typeBox.getValue() == null ? ServiceType.OTHER : typeBox.getValue(),
-                    nameField.getText().strip(),
-                    liveSlots, noteField.getText().strip()));
-        }
-
-        /// One editable server dropdown per slot of [#liveSlots], seeded
-        /// with the slot's current server and its constraint violations (a
-        /// warning icon). Because an assignment lives on the slot itself, a
-        /// slot just added by the count editor is immediately assignable - no
-        /// "save first" placeholder.
-        private List<Node> buildAssignmentRows() {
-            setFieldChanged(altarServersTitle, assignmentsChanged());
-            if (liveSlots.isEmpty()) {
-                return List.of();
-            }
-            Map<String, Server> serversById = serversById();
-            Map<String, Role> rolesById = rolesById();
-            // Violations come from a transient problem over the whole live
-            // board (double-booking spans services), keyed by assignment id.
-            ServicePlan plan = planningViewModel.buildProblem();
-            Map<String, List<String>> violations = planningViewModel.violationsByAssignment(plan);
-
-            ObservableList<Server> choices = FXCollections.observableArrayList(activeServers());
-            choices.addFirst(null);
-
-            List<Node> rows = new ArrayList<>();
-            for (Slot slot : liveSlots) {
-                Role role = rolesById.get(slot.role());
-                String roleName = role == null ? slot.role() : role.name();
-                String assignmentId = new AssignmentKey(service.id(), slot.id()).toId();
-                Server current = slot.serverId() == null ? null : serversById.get(slot.serverId());
-
-                ComboBox<Server> serverBox = new ComboBox<>(choices);
-                serverBox.setConverter(new StringConverter<>() {
-                    @Override
-                    public String toString(@Nullable Server server) {
-                        return server == null ? "-" : server.displayName();
-                    }
-
-                    @Override
-                    public @Nullable Server fromString(String string) {
-                        return null;
-                    }
-                });
-                serverBox.setValue(current);
-                serverBox.valueProperty().addListener((obs, oldServer, newServer) -> onPickServer(slot, newServer));
-
-                Label roleLabel = new Label(roleName);
-                roleLabel.setMinWidth(110);
-                Region spacer = new Region();
-                HBox.setHgrow(spacer, Priority.ALWAYS);
-                HBox row = new HBox(8, roleLabel, spacer, serverBox);
-                row.setAlignment(Pos.CENTER_LEFT);
-                serverBox.prefWidthProperty().bind(row.widthProperty().multiply(0.6));
-
-                List<String> names = violations.getOrDefault(assignmentId, List.of());
-                // "Slot unassigned" is already obvious from the empty dropdown -
-                // only flag genuine rule conflicts on a filled slot.
-                if (slot.serverId() != null && !names.isEmpty()) {
-                    FontIcon warningIcon = new FontIcon("mdi2a-alert-circle");
-                    warningIcon.getStyleClass().add("altar-warning-icon");
-                    StackPane iconSlot = new StackPane(warningIcon);
-                    Tooltip.install(iconSlot, new Tooltip(
-                            String.join(", ", names.stream().map(Localization::lang).toList())));
-                    row.getChildren().add(2, iconSlot);
-                }
-                rows.add(row);
-            }
-            return rows;
-        }
-
-        /// Applies a manual pick: rewrites the slot's server on [#liveSlots], stages the
-        /// service, and refreshes the rows/score/table.
-        private void onPickServer(Slot slot, @Nullable Server newServer) {
-            List<Slot> updated = new ArrayList<>(liveSlots.size());
-            for (Slot existing : liveSlots) {
-                updated.add(existing.id().equals(slot.id())
-                        ? existing.withServer(newServer == null ? null : newServer.id(), newServer != null)
-                        : existing);
-            }
-            liveSlots = updated;
-            pushLive();
-            refreshAssignmentSection();
-            solver.refreshScore();
-        }
-
-        /// Clears every slot of this service - empties the server and drops the
-        /// pin on each, then stages and refreshes, same as clearing them one by
-        /// one by hand. A no-op (no unsaved change) if they are all empty already.
-        private void onClearSlots() {
-            List<Slot> cleared = new ArrayList<>(liveSlots.size());
-            for (Slot slot : liveSlots) {
-                cleared.add(slot.withServer(null, false));
-            }
-            liveSlots = cleared;
-            pushLive();
-            refreshAssignmentSection();
-            solver.refreshScore();
-        }
-
-        /// Whether [#liveSlots]' assignments (server + pin per slot id)
-        /// differ from the last-saved baseline - the per-row unsaved accent.
-        private boolean assignmentsChanged() {
-            Map<String, Slot> baseline = new HashMap<>();
-            for (Slot slot : baselineSupplier.get().slots()) {
-                baseline.put(slot.id(), slot);
-            }
-            for (Slot slot : liveSlots) {
-                Slot original = baseline.get(slot.id());
-                String originalServer = original == null ? null : original.serverId();
-                boolean originalPinned = original != null && original.pinned();
-                if (!Objects.equals(slot.serverId(), originalServer) || slot.pinned() != originalPinned) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        void refresh(LiturgicalService updated) {
-            suppressPushLive = true;
-            try {
-                dateField.setValue(updated.dateTime().toLocalDate());
-                timeField.setTime(updated.dateTime().toLocalTime());
-                typeBox.getSelectionModel().select(updated.type());
-                locationField.setText(updated.location());
-                noteField.setText(updated.note());
-                liveSlots = updated.slots();
-                slotsEditor.setCounts(countsByRole(updated.slots()));
-            } finally {
-                suppressPushLive = false;
-            }
-            recomputeFieldChanged(dateField.valueProperty(), () -> baselineSupplier.get().dateTime().toLocalDate(), dateLabel);
-            recomputeFieldChanged(timeField.timeProperty(), () -> baselineSupplier.get().dateTime().toLocalTime(), timeLabel);
-            recomputeFieldChanged(typeBox.valueProperty(), () -> baselineSupplier.get().type(), typeLabel);
-            recomputeFieldChanged(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
-            recomputeFieldChanged(noteField.textProperty(), () -> baselineSupplier.get().note(), noteLabel);
-            setFieldChanged(slotsEditor.label, slotsChanged(countsByRole(updated.slots())));
-            refreshAssignmentSection();
-        }
-
-        void dispose() {
-            slotsEditor.dispose();
-        }
-    }
-
-    /// The table row's tile: big-font date/time on the left (with an
-    /// underfilled warning icon), type/location below it, and the role-slot
-    /// grid on the right.
-    private Node buildTileNode(LiturgicalService service) {
-        Label dateTimeLabel = new Label(DateTimes.dateTime(service.dateTime()));
-        dateTimeLabel.getStyleClass().add("service-tile-datetime");
-        Label typeLabel = new Label(EnumDisplay.of(service));
-        Label locationLabel = new Label(service.location());
-        VBox left = new VBox(2, dateTimeLabel, typeLabel, locationLabel);
-        left.setMinWidth(TILE_INFO_WIDTH);
-        left.setPrefWidth(TILE_INFO_WIDTH);
-        left.setMaxWidth(TILE_INFO_WIDTH);
-        left.setAlignment(Pos.CENTER_LEFT);
-        for (Label label : List.of(dateTimeLabel, typeLabel, locationLabel)) {
-            label.setMaxWidth(TILE_INFO_WIDTH);
-            label.setTextOverrun(OverrunStyle.ELLIPSIS);
-        }
-
-        AssignedCount count = assignedCount(service);
-        if (count.underfilled()) {
-            FontIcon warningIcon = new FontIcon("mdi2a-alert-circle");
-            warningIcon.getStyleClass().add("altar-warning-icon");
-            HBox dateRow = new HBox(6, dateTimeLabel, warningIcon);
-            dateRow.setAlignment(Pos.CENTER_LEFT);
-            left.getChildren().set(0, dateRow);
-        }
-
-        GridPane slotGrid = buildRoleSlotGrid(service);
-        HBox.setHgrow(slotGrid, Priority.ALWAYS);
-        HBox tile = new HBox(20, left, slotGrid);
-        tile.setAlignment(Pos.CENTER_LEFT);
-        tile.setPadding(new Insets(8, 4, 8, 4));
-        return tile;
-    }
-
-    /// Per-service role-slot summary, read-only (picks happen in the editor):
-    /// role name, then that role's slots showing the assigned server (or "-").
-    private GridPane buildRoleSlotGrid(LiturgicalService service) {
-        GridPane grid = new GridPane();
-        grid.setHgap(10);
-        grid.setVgap(2);
-        grid.getColumnConstraints().addAll(roleSlotColumn(ROLE_COLUMN_WIDTH), roleSlotColumn(SLOT_COLUMN_WIDTH),
-                roleSlotColumn(SLOT_COLUMN_WIDTH));
-
-        Map<String, Server> serversById = serversById();
-        Map<String, Role> rolesById = rolesById();
-
-        int gridRow = 0;
-        for (Map.Entry<String, List<Slot>> entry : slotsByRole(service.slots()).entrySet()) {
-            List<Slot> roleSlots = entry.getValue();
-            Role role = rolesById.get(entry.getKey());
-            Label roleLabel = new Label(role == null ? entry.getKey() : role.name());
-            roleLabel.getStyleClass().add("service-tile-role");
-            roleLabel.setMaxWidth(ROLE_COLUMN_WIDTH);
-            roleLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
-            grid.add(roleLabel, 0, gridRow);
-
-            for (int slotIndex = 0; slotIndex < roleSlots.size(); slotIndex++) {
-                Slot slot = roleSlots.get(slotIndex);
-                Server server = slot.serverId() == null ? null : serversById.get(slot.serverId());
-                String text = server == null ? "-" : server.displayName();
-                Label slotLabel = new Label(text);
-                slotLabel.getStyleClass().add("service-tile-slot");
-                slotLabel.setMaxWidth(SLOT_COLUMN_WIDTH);
-                slotLabel.setTextOverrun(OverrunStyle.ELLIPSIS);
-                int column = 1 + slotIndex % 2;
-                grid.add(slotLabel, column, gridRow);
-                if (column == 2) {
-                    gridRow++;
-                }
-            }
-            if (roleSlots.size() % 2 != 0) {
-                gridRow++;
-            }
-        }
-        return grid;
-    }
-
-    /// `slots`, grouped by role in first-encountered order.
-    private static Map<String, List<Slot>> slotsByRole(List<Slot> slots) {
-        Map<String, List<Slot>> byRole = new LinkedHashMap<>();
-        for (Slot slot : slots) {
-            byRole.computeIfAbsent(slot.role(), roleId -> new ArrayList<>()).add(slot);
-        }
-        return byRole;
-    }
-
-    private static ColumnConstraints roleSlotColumn(double width) {
-        ColumnConstraints column = new ColumnConstraints();
-        column.setMinWidth(width);
-        column.setPrefWidth(width);
-        column.setMaxWidth(width);
-        column.setHgrow(Priority.NEVER);
-        return column;
-    }
-
-    /// Reconciles a role's slot count edit, keeping a filled/pinned slot as
-    /// long as possible - the `isFilled` seam is now the slot's own
-    /// stored assignment, no plan lookup needed.
-    private List<Slot> reconcileSlots(List<Slot> existing, Map<String, Integer> counts) {
-        return SlotReconciler.reconcile(existing, counts, slot -> slot.serverId() != null || slot.pinned());
-    }
-
-    /// Slot counts per role, for the [SlotCountEditor].
-    private static Map<String, Integer> countsByRole(List<Slot> slots) {
-        Map<String, Integer> counts = new LinkedHashMap<>();
-        for (Slot slot : slots) {
-            counts.merge(slot.role(), 1, Integer::sum);
-        }
-        return counts;
-    }
-
-    private Map<String, Server> serversById() {
-        Map<String, Server> byId = new HashMap<>();
-        serverStore.items().forEach(server -> byId.put(server.id(), server));
-        return byId;
-    }
-
-    private List<Server> activeServers() {
-        return serverStore.items().stream().filter(Server::active).toList();
-    }
-
-    private Map<String, Role> rolesById() {
-        Map<String, Role> byId = new HashMap<>();
-        roleStore.items().forEach(role -> byId.put(role.id(), role));
-        return byId;
-    }
-
-    /// Filled/total slot counts backing the tile's underfilled warning. Reads
-    /// the service's own slots directly - an in-editor slot edit is written
-    /// through to the row's record before the tile re-renders, so the record is
-    /// always the live source.
-    private record AssignedCount(int filled, int total) {
-        boolean underfilled() {
-            return filled < total;
-        }
-    }
-
-    private AssignedCount assignedCount(LiturgicalService service) {
-        int filled = (int) service.slots().stream().filter(slot -> slot.serverId() != null).count();
-        return new AssignedCount(filled, service.totalSlots());
-    }
-
     /// Whether the solver is currently running - the global Save action stays disabled while
     /// true.
     public ReadOnlyBooleanProperty solvingProperty() {
         return planningViewModel.solvingProperty();
-    }
-
-    /// Freezes live services up to `cutoff` into self-contained archived
-    /// snapshots and removes them from the live list (saving the document
-    /// commits both). Returns whether anything was archived. Supplied to the
-    /// Archived Plans dialog as its archive action.
-    private boolean performArchive(LocalDate cutoff) {
-        ServiceArchiver.Result result = planningViewModel.archive(cutoff);
-        if (result.isEmpty()) {
-            return false;
-        }
-        Map<String, LiturgicalService> byId = new HashMap<>();
-        store().items().forEach(service -> byId.put(service.id(), service));
-        for (String id : result.removedServiceIds()) {
-            LiturgicalService service = byId.get(id);
-            if (service != null) {
-                // Removing the row from the store updates the table on its own.
-                store().remove(service);
-            }
-        }
-        return true;
-    }
-
-    private void onExportPlan(@Nullable LocalDate from, @Nullable LocalDate to, PlanExportFormat preferredFormat) {
-        List<LiturgicalService> services = LiturgicalServices.inDateRange(store().items(), from, to);
-        if (services.isEmpty()) {
-            LOGGER.info(Localization.lang("Nothing to export"));
-            return;
-        }
-        Optional<PlanExportChooser.Target> target = PlanExportChooser.show(
-                table().getScene().getWindow(), planningViewModel, "MinDis", preferredFormat);
-        if (target.isEmpty()) {
-            return;
-        }
-        PlanExportFormat format = target.get().format();
-        try {
-            planningViewModel.exportLive(services, target.get().file(), format);
-            LOGGER.info(Localization.lang("%0 saved to %1", format.name(), target.get().file().getFileName()));
-        } catch (RuntimeException e) {
-            LOGGER.error(Localization.lang("%0 export failed: %1", format.name(), e.getMessage()), e);
-        }
     }
 
     /// Recounts the badge from what the store currently holds.
