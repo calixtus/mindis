@@ -2,7 +2,6 @@ package org.mindis.core.persistence;
 
 import jakarta.inject.Singleton;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -20,19 +19,23 @@ import org.mindis.core.model.ArchivedService;
 /// exists, since archive edits are not covered by the GUI's per-row dirty
 /// tracking; listeners registered through [#addChangeListener] fire on
 /// every mutation so the UI can rebind.
+///
+/// <p>Storage and order are an [InMemoryRepository]'s, held rather than
+/// extended: that class is built to be extended without overriding anything,
+/// and the archive has to act on every mutation.
 @Singleton
 public final class ArchivedServiceRepository {
 
-    private final List<ArchivedService> archived = new ArrayList<>();
+    private final InMemoryRepository<ArchivedService> archived = new InMemoryRepository<>(
+            ArchivedService::id, Comparator.comparing(ArchivedService::dateTime).reversed()) {
+    };
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
     private boolean dirty;
 
-    /// Every archived service, newest first. Unmodifiable, like every other
-    /// repository's `findAll`.
+    /// Every archived service, newest first. Locked on the archive, not just the
+    /// store, so a reader never sees half of an [#addAll(List)] batch.
     public synchronized List<ArchivedService> findAll() {
-        return archived.stream()
-                .sorted(Comparator.comparing(ArchivedService::dateTime).reversed())
-                .toList();
+        return archived.findAll();
     }
 
     /// Appends `services`. No-op for an empty list.
@@ -41,7 +44,7 @@ public final class ArchivedServiceRepository {
             if (services.isEmpty()) {
                 return;
             }
-            archived.addAll(services);
+            services.forEach(archived::save);
             dirty = true;
         }
         notifyListeners();
@@ -50,9 +53,10 @@ public final class ArchivedServiceRepository {
     /// Removes the archived service with `id` (retention / cleanup).
     public void delete(String id) {
         synchronized (this) {
-            if (!archived.removeIf(service -> service.id().equals(id))) {
+            if (archived.findById(id).isEmpty()) {
                 return;
             }
+            archived.delete(id);
             dirty = true;
         }
         notifyListeners();
@@ -68,8 +72,7 @@ public final class ArchivedServiceRepository {
     /// clears the dirty flag. Only [AppDatabase] calls this.
     void replaceAll(List<ArchivedService> services) {
         synchronized (this) {
-            archived.clear();
-            archived.addAll(services);
+            archived.replaceAll(services);
             dirty = false;
         }
         notifyListeners();
