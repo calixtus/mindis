@@ -5,7 +5,7 @@
    different pane set: DialogPane, InfoCenterView and DrawerStackPane each
    override getUserAgentStylesheet() with bundled rules written for Modena.
    The Modena tokens they look up are defined in ThemeStyler's
-   MODENA_COMPAT_CSS; what is left here is only what GemsFX hardcodes as a
+   MODENA_TOKENS_CSS; what is left here is only what GemsFX hardcodes as a
    literal, which no token can reach. Attached as an author-origin stylesheet
    on the PowerPane, which outranks any user-agent rule regardless of which
    node declared it or how specific it is.

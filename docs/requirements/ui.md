@@ -337,20 +337,25 @@ Covers:
 ### Theme and overrides
 `dsn~theme-styler~1`
 
-AtlantaFX's `ThemeManager` sets the Nord theme as the *user-agent* stylesheet, and puts
-`ThemeStyler`'s stylesheet — the user's accent and font as `.root` overrides, plus the rules below —
-on the root of every window's scene as the window opens, popups and dialogs included. That makes
-it an *author* stylesheet: it outranks the theme and the per-control user-agent stylesheets GemsFX's
-popups install, so a rule there wins outright instead of losing a tie to them. Accent tokens
+AtlantaFX's `ThemeManager` installs two layers. The *user-agent* stylesheet is the Nord theme plus
+the legacy Modena tokens GemsFX's bundled control CSS looks up but AtlantaFX never defines; they
+have to be in this layer because GemsFX's popups run their first style pass inside their own
+`show()`, before the window is registered, when nothing else applies yet (`ModenaTokensTest`). The
+theme is imported as CSS text through AtlantaFX's `stylesheet:` URL rather than by its `.css` path:
+JavaFX would substitute the precompiled `.bss`, and JavaFX 27 throws when a text stylesheet imports a
+binary one. Over it, `ThemeStyler`'s stylesheet — the user's accent and font as `.root` overrides,
+plus the rules below — goes on every window's scene as the window opens, popups and dialogs
+included. That makes it an *author* stylesheet: it outranks the theme and the per-control
+user-agent stylesheets GemsFX's popups install, so a rule there wins outright instead of losing a
+tie to them. Accent tokens
 (`-color-accent-fg/emphasis/muted/subtle`) are derived from one base hex per theme mode. Text on an
 accent fill — accent and default buttons, a selected toggle, the date picker's selected day, and the
 check tick, radio dot, switch knob and progress tick drawn on one — goes
 through `-color-accent-on`: AtlantaFX's light text, or `-color-dark` when that would fall below 3:1
-on the accent (green, orange, teal), since AtlantaFX itself always uses the light one. It also
-defines the legacy Modena tokens GemsFX's bundled control CSS looks up but AtlantaFX never defines,
-and nothing else: rules for one screen live in that screen's own stylesheet (`services.css`,
-`settings.css`, `shell.css`), which reaches everything the screen shows. The stylesheet is a Base64
-`data:` URI: in a plain one JavaFX percent-decodes the payload, and the derived accent tokens
+on the accent (green, orange, teal), since AtlantaFX itself always uses the light one. Neither layer
+holds anything else: rules for one screen live in that screen's own stylesheet (`services.css`,
+`settings.css`, `shell.css`), which reaches everything the screen shows. Both are Base64
+`data:` URIs: in a plain one JavaFX percent-decodes the payload, and the derived accent tokens
 contain `%`.
 `MinDisApp` reapplies theme and stylesheet whenever theme, accent, font family
 or font size changes, and subscribes to the OS color scheme and OS accent so `AccentColor.DEFAULT`

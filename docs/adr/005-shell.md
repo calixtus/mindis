@@ -77,11 +77,11 @@ hover-reveal-and-hide is the wanted behavior.
 - No third-party shell library is a dependency.
 - GemsFX's overlay panes each override `getUserAgentStylesheet()` with their own bundled CSS, which
   looks up Modena tokens AtlantaFX never defines and hardcodes some light-theme literals. The
-  unresolved tokens are defined once in `ThemeStyler`'s stylesheet (`-fx-background`,
-  `-fx-control-inner-background-alt`); the literals are overridden in `shell/power-pane.css` —
-  the drawer's `#e0e0e0, white` fill and `#3b424c` header buttons, the info center's
-  `yellow`/`red`/`green` severity fills. Both are author stylesheets, so they outrank GemsFX's
-  per-pane user-agent CSS outright.
+  unresolved tokens are defined once, in the user-agent layer `ThemeStyler` adds to the theme
+  (`-fx-background`, `-fx-control-inner-background-alt`); the literals are overridden in
+  `shell/power-pane.css` — the drawer's `#e0e0e0, white` fill and `#3b424c` header buttons, the
+  info center's `yellow`/`red`/`green` severity fills — an author stylesheet, so it outranks
+  GemsFX's per-pane user-agent CSS outright.
 - Dialogs elsewhere in the app still use `javafx.scene.control.Alert`, which opens a separate
   Modena-styled stage. `ShellOverlays.dialogs()` is the in-window replacement to move them to.
 - `CrudModule` deliberately holds no localized text, so every button's wording stays with the screen

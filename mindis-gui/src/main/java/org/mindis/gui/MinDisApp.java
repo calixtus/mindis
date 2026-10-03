@@ -73,8 +73,8 @@ public class MinDisApp extends Application {
 
     /// Held rather than created per change: ThemeManager re-applies only when the theme
     /// instance changes.
-    private final Theme lightTheme = new NordLight();
-    private final Theme darkTheme = new NordDark();
+    private final Theme lightTheme = ThemeStyler.withModenaTokens(new NordLight());
+    private final Theme darkTheme = ThemeStyler.withModenaTokens(new NordDark());
     private ThemeManager themeManager;
 
     private BeanScope beanScope;
@@ -120,13 +120,14 @@ public class MinDisApp extends Application {
         // localized names.
         documentSession.openLastDocumentOrNew();
 
-        // ThemeManager owns the user-agent stylesheet (the AtlantaFX theme) and puts
-        // ThemeStyler's stylesheet on the scene of every window as it opens, popups and
-        // dialogs included. Reapplied whenever any input changes; two-arg subscribe does
-        // not fire initially, so the explicit apply below seeds the first render.
+        // ThemeManager owns the user-agent stylesheet (the AtlantaFX theme with the Modena
+        // tokens, see ThemeStyler) and puts ThemeStyler's stylesheet on the scene of every
+        // window as it opens, popups and dialogs included. Reapplied whenever any input
+        // changes; two-arg subscribe does not fire initially, so the explicit apply below
+        // seeds the first render.
         themeManager = ThemeManager.instance();
         themeManager.register(ThemeOption.of(APPEARANCE, null,
-                change -> ThemeStyler.apply(change.scene().getRoot(), change.value())));
+                change -> ThemeStyler.apply(change.scene(), change.value())));
         uiPreferences.themeProperty().subscribe((_, _) -> applyAppearance());
         uiPreferences.accentColorProperty().subscribe((_, _) -> applyAppearance());
         uiPreferences.fontFamilyProperty().subscribe((_, _) -> applyAppearance());

@@ -111,7 +111,7 @@ class ContrastTest {
     void everyTextReadsAgainstItsBackground(Theme theme, AccentColor accent) throws InterruptedException {
         List<String> failures = new ArrayList<>();
         FxTest.runAndWait(() -> {
-            Application.setUserAgentStylesheet(theme.getUserAgentStylesheet());
+            Application.setUserAgentStylesheet(ThemeStyler.withModenaTokens(theme).getUserAgentStylesheet());
             ThemeStyler.Appearance appearance = new ThemeStyler.Appearance(
                     theme.isDarkMode() ? MinDisPreferences.Theme.DARK : MinDisPreferences.Theme.LIGHT,
                     accent.baseHex(), "", 14);
@@ -127,7 +127,7 @@ class ContrastTest {
     private static List<String> lowContrastTexts(String screenName, Node screen, ThemeStyler.Appearance appearance) {
         Scene scene = new Scene(new StackPane(screen), 1300, 900);
         // What MinDisApp's ThemeManager option does for every scene.
-        ThemeStyler.apply(scene.getRoot(), appearance);
+        ThemeStyler.apply(scene, appearance);
         // Twice: the first pass creates the skins, whose own nodes only get styled by the second.
         scene.getRoot().applyCss();
         scene.getRoot().layout();

@@ -3,20 +3,25 @@ package org.mindis.gui.theme;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
-import javafx.scene.Parent;
+import atlantafx.base.theme.Theme;
+
+import javafx.scene.Scene;
 import javafx.scene.paint.Color;
 
 import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.preferences.MinDisPreferences;
 
-/// Builds the stylesheet MinDis lays over the AtlantaFX base theme: the user's accent
-/// and font as `.root` overrides, text on accent fills, and the Modena tokens GemsFX
-/// looks up. The base theme is the user-agent stylesheet, which AtlantaFX's
-/// `ThemeManager` sets; this one goes on the root of every scene - `ThemeManager`
-/// visits each window, popups and dialogs included (see `MinDisApp`) - so it is an
-/// author stylesheet and outranks both the theme and the per-control user-agent
-/// stylesheets GemsFX's popups install.
+/// The two layers MinDis puts on the AtlantaFX base theme, both installed through
+/// AtlantaFX's `ThemeManager` (see `MinDisApp`):
+///
+/// - [#withModenaTokens]: the theme as the user-agent stylesheet, plus the Modena tokens
+///   GemsFX looks up, which must resolve in every window from its very first style pass.
+/// - [#stylesheet]: the user's accent and font as `.root` overrides, text on accent
+///   fills, and the search popup's rules. `ThemeManager` puts it on every window's scene
+///   as the window opens, popups and dialogs included, so it is an author stylesheet and
+///   outranks both the theme and the per-control user-agent stylesheets GemsFX's popups
+///   install.
 ///
 /// <p>Accent tokens are derived from a single base hex per theme mode, mirroring
 /// how AtlantaFX relates `-color-accent-fg/emphasis/muted/subtle`: on dark
@@ -33,22 +38,22 @@ public final class ThemeStyler {
     public record Appearance(MinDisPreferences.Theme theme, String accentHex, String fontFamily, int fontSize) {
     }
 
-    /// Key under which [#apply] remembers, on the root, the stylesheet it added there.
+    /// Key under which [#apply] remembers, on the scene, the stylesheet it added there.
     private static final Object APPLIED_STYLESHEET = new Object();
 
     private ThemeStyler() {
     }
 
-    /// Puts the stylesheet for `appearance` on `root`, replacing the one an earlier call
+    /// Puts the stylesheet for `appearance` on `scene`, replacing the one an earlier call
     /// put there; `null` only removes it.
-    public static void apply(Parent root, @Nullable Appearance appearance) {
-        if (root.getProperties().remove(APPLIED_STYLESHEET) instanceof String previous) {
-            root.getStylesheets().remove(previous);
+    public static void apply(Scene scene, @Nullable Appearance appearance) {
+        if (scene.getProperties().remove(APPLIED_STYLESHEET) instanceof String previous) {
+            scene.getStylesheets().remove(previous);
         }
         if (appearance != null) {
             String stylesheet = stylesheet(appearance);
-            root.getStylesheets().add(stylesheet);
-            root.getProperties().put(APPLIED_STYLESHEET, stylesheet);
+            scene.getStylesheets().add(stylesheet);
+            scene.getProperties().put(APPLIED_STYLESHEET, stylesheet);
         }
     }
 
@@ -57,6 +62,10 @@ public final class ThemeStyler {
     public static String stylesheet(Appearance appearance) {
         String css = buildCss(appearance.theme(), appearance.accentHex(), appearance.fontFamily(),
                 appearance.fontSize());
+        return encode(css);
+    }
+
+    private static String encode(String css) {
         return "data:text/css;base64," + Base64.getEncoder().encodeToString(css.getBytes(StandardCharsets.UTF_8));
     }
 
@@ -68,20 +77,28 @@ public final class ThemeStyler {
                 Math.round(color.getBlue() * 255));
     }
 
+    /// `base` with the Modena tokens added to its user-agent stylesheet, for
+    /// `ThemeManager` to install in place of `base` itself.
+    ///
+    /// <p>The tokens have to be in the user-agent layer: GemsFX's popups run their first
+    /// style pass inside their own `show()`, before the window is registered and so before
+    /// `ThemeManager` puts [#stylesheet] on it, and only the user-agent stylesheet already
+    /// applies then. The theme comes in as CSS text through AtlantaFX's `stylesheet:` URL,
+    /// every module listed, rather than by its `.css` path, for which JavaFX substitutes
+    /// the precompiled `.bss` - and JavaFX 27 fails with an NPE when a text stylesheet
+    /// imports a binary one. Parsing the text costs some 10-40ms per theme switch.
+    public static Theme withModenaTokens(Theme base) {
+        String css = "@import \"" + base.getUserAgentStylesheet(base.getManifest().getModules().keySet()) + "\";\n"
+                + MODENA_TOKENS_CSS;
+        return Theme.of(base.getName(), encode(css), base.isDarkMode());
+    }
+
     /// Legacy Modena tokens (`-fx-control-inner-background`, `-fx-selection-bar-text`, ...)
     /// that GemsFX's bundled control CSS - CalendarPicker, SearchField, TimePicker, the
     /// PowerPane's info center - looks up but AtlantaFX never defines. Left unresolved,
     /// JavaFX logs a warning per lookup and the rule paints nothing. Inert for AtlantaFX's
     /// own controls, which key off `-color-*` only.
-    ///
-    /// <p>The search-field popup paints every row's text with one unconditional
-    /// `-fx-selection-bar-text`, so its hover and selection fills are kept pale
-    /// (`-fx-accent`/`-fx-selection-bar` redefined inside it, vivid everywhere else) for
-    /// that one dark text colour to read on all three. Its idle rows are flattened to
-    /// `-color-bg-overlay`, AtlantaFX's popup surface, instead of GemsFX's gradient derived
-    /// from `-fx-color`; because this stylesheet outranks GemsFX's, the hover and selected
-    /// fills are restated after it, or the flat idle fill would cover them too.
-    private static final String MODENA_COMPAT_CSS = """
+    private static final String MODENA_TOKENS_CSS = """
             .root {
               -fx-control-inner-background: -color-bg-default;
               -fx-text-background-color: -color-fg-default;
@@ -96,6 +113,16 @@ public final class ThemeStyler {
               -fx-background: -color-bg-default;
               -fx-control-inner-background-alt: -color-bg-subtle;
             }
+            """;
+
+    /// The search-field popup paints every row's text with one unconditional
+    /// `-fx-selection-bar-text`, so its hover and selection fills are kept pale
+    /// (`-fx-accent`/`-fx-selection-bar` redefined inside it, vivid everywhere else) for
+    /// that one dark text colour to read on all three. Its idle rows are flattened to
+    /// `-color-bg-overlay`, AtlantaFX's popup surface, instead of GemsFX's gradient derived
+    /// from `-fx-color`; because this stylesheet outranks GemsFX's, the hover and selected
+    /// fills are restated after it, or the flat idle fill would cover them too.
+    private static final String SEARCH_POPUP_CSS = """
             .search-field-list-view {
               -fx-background-color: -color-bg-overlay;
               -fx-accent: -color-accent-subtle;
@@ -174,7 +201,7 @@ public final class ThemeStyler {
             root.append("  -fx-font-size: ").append(fontSize).append("px;\n");
         }
 
-        StringBuilder css = new StringBuilder(MODENA_COMPAT_CSS).append(ACCENT_TEXT_CSS);
+        StringBuilder css = new StringBuilder(SEARCH_POPUP_CSS).append(ACCENT_TEXT_CSS);
         if (!root.isEmpty()) {
             css.append(".root {\n").append(root).append("}\n");
         }
