@@ -44,7 +44,7 @@ it has exactly one consumer and no third-party code to isolate.
   `AppShell.builder(...)` with bottom-pinned entries and a sidebar-header slot), `ShellModule`
   (`activate`/`deactivate`/`dispose` lifecycle), `CrudModule` (the table+editor screen the
   four data areas share), `ShellOverlays`, `shell.css`, `power-pane.css`.
-- `org.mindis.gui.data` — `LiveStore`, `CsvIO`, `CsvRowMapper`: the staging layer the modules read
+- `org.mindis.gui.data` — `LiveStore`: the staging layer the modules read
   and edit, independent of the shell.
 - Styling via AtlantaFX design tokens (`-color-*`), so light/dark follows the active theme with no
   bridge layer. Icons via Ikonli (`ikonli-javafx` + materialdesign2), no FontAwesomeFX.

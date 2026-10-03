@@ -41,8 +41,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.mindis.core.l10n.Localization;
+import org.mindis.core.persistence.CsvIO;
 import org.mindis.core.persistence.CsvRowMapper;
-import org.mindis.gui.data.CsvIO;
 import org.mindis.gui.data.LiveStore;
 
 /// Base [ShellModule] for the common "table on the left, editor on

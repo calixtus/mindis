@@ -308,7 +308,7 @@ mindis/
 │       # requires org.mindis.core, javafx.controls, atlantafx.base,
 │       #          com.dlsc.gemsfx, io.avaje.inject
 │       # contains org.mindis.gui.shell (AppShell/ShellModule/CrudModule) and
-│       #          org.mindis.gui.data (LiveStore/CsvIO)
+│       #          org.mindis.gui.data (LiveStore)
 │       # opens only its root package to javafx.graphics (Application launcher)
 │
 └── (future, NOT created now: mindis-web — org.mindis.web, requires org.mindis.core; §2.5)
@@ -326,7 +326,8 @@ It lives in `mindis-gui`, not a module of its own: one consumer, no third-party 
 - `org.mindis.gui.shell` — `AppShell` container + builder, `ShellModule` lifecycle
   (`activate/deactivate/dispose`), `CrudModule` (shared table+editor screen),
   `ShellOverlays`.
-- `org.mindis.gui.data` — `LiveStore`, `CsvIO`, `CsvRowMapper` (staging layer, shell-independent).
+- `org.mindis.gui.data` — `LiveStore` (staging layer, shell-independent); CSV reading/writing
+  (`CsvIO`, `CsvRowMapper`) lives in `org.mindis.core.persistence`.
 
 Constraints:
 

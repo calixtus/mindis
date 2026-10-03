@@ -1,4 +1,4 @@
-package org.mindis.gui.data;
+package org.mindis.core.persistence;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -6,9 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /// Minimal RFC 4180 CSV read/write: comma-separated, double-quote escaping,
-/// CRLF line endings on write. No external dependency -
-/// [org.mindis.gui.shell.CrudModule] is its only consumer, and the
-/// format is simple enough not to need one.
+/// CRLF line endings on write. No external dependency - the format is simple
+/// enough not to need one. Pairs with a [CsvRowMapper] for the entity rows.
 public final class CsvIO {
 
     private CsvIO() {
