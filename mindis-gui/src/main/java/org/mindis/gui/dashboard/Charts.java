@@ -78,6 +78,10 @@ final class Charts {
     /// One named row of values, aligned with the category labels passed
     /// alongside it - what a stacked bar or a multi-line chart is made of.
     record Series(String name, List<Double> values) {
+
+        Series {
+            values = List.copyOf(values);
+        }
     }
 
     /// A vertical bar per slice. Best when the labels are short (weeks, months).
