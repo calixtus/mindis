@@ -23,6 +23,9 @@ import org.mindis.core.preferences.MinDisPreferences;
 ///   outranks both the theme and the per-control user-agent stylesheets GemsFX's popups
 ///   install.
 ///
+/// <p>Most of what is here works around GemsFX, AtlantaFX and JavaFX; each piece is
+/// listed in `docs/workarounds.md` with how to tell it can go.
+///
 /// <p>Accent tokens are derived from a single base hex per theme mode, mirroring
 /// how AtlantaFX relates `-color-accent-fg/emphasis/muted/subtle`: on dark
 /// the foreground is a lightened base and muted/subtle darken toward the

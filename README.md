@@ -15,3 +15,9 @@ Every library bundled with MinDis is permissively licensed; the build enforces t
 anything else. The notices for the bundled libraries, the Java runtime and the embedded fonts are
 generated from the resolved dependencies at build time and shown in the application under
 **About → Third-party licenses**. The policy is [ADR 008](docs/adr/008-third-party-licensing.md).
+
+## Development
+
+Workarounds for defects in JavaFX and the libraries MinDis uses are listed in
+[`docs/workarounds.md`](docs/workarounds.md), each with how to tell it can be removed - check it
+when upgrading one of them.
