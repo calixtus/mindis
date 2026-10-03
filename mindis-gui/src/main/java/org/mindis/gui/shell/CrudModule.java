@@ -1,10 +1,5 @@
 package org.mindis.gui.shell;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.Writer;
-import java.nio.file.Files;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BiFunction;
@@ -32,16 +27,11 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser;
-import javafx.stage.Window;
 import javafx.util.Subscription;
 
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.mindis.core.l10n.Localization;
-import org.mindis.core.persistence.CsvIO;
 import org.mindis.core.persistence.CsvRowMapper;
 import org.mindis.gui.data.LiveStore;
 
@@ -119,10 +109,8 @@ import org.mindis.gui.data.LiveStore;
 ///            re-select a row after the store re-baselines
 public abstract class CrudModule<T> extends ShellModule {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(CrudModule.class);
-
     private final LiveStore<T> store;
-    private final ShellOverlays overlays;
+    private final CsvFileTransfer csvFiles;
     private final TableView<T> table = new TableView<>();
     private final ObservableList<Node> toolbarExtras = FXCollections.observableArrayList();
     private final ObjectProperty<Node> editor = new SimpleObjectProperty<>();
@@ -139,7 +127,7 @@ public abstract class CrudModule<T> extends ShellModule {
                          LiveStore<T> store, ShellOverlays overlays) {
         super(name, iconLiteral, selectedIconLiteral);
         this.store = store;
-        this.overlays = overlays;
+        this.csvFiles = new CsvFileTransfer(overlays);
         // Remember the selection's identity while one exists (a store
         // re-baseline replaces the whole list, which clears the selection
         // before anything can capture it) so it can be restored afterward.
@@ -557,24 +545,7 @@ public abstract class CrudModule<T> extends ShellModule {
     /// Prompts for a file and writes every row via `mapper`. Bind to the Export button's
     /// action.
     protected final void exportCsv(CsvRowMapper<T> mapper) {
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle(getName());
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv"));
-        chooser.setInitialFileName(getName() + ".csv");
-        File target = chooser.showSaveDialog(sceneWindow());
-        if (target == null) {
-            return;
-        }
-        List<List<String>> rows = new ArrayList<>();
-        for (T item : store.items()) {
-            rows.add(mapper.toRow(item));
-        }
-        try (Writer writer = Files.newBufferedWriter(target.toPath())) {
-            CsvIO.write(writer, mapper.header(), rows);
-        } catch (IOException e) {
-            LOGGER.warn("CSV export failed: {}", target, e);
-            overlays.dialogs().showError(getName(), e.getMessage(), e);
-        }
+        csvFiles.export(table.getScene().getWindow(), getName(), mapper, store.items());
     }
 
     /// Prompts for a file and merges every parsed row into the live store (via
@@ -584,34 +555,6 @@ public abstract class CrudModule<T> extends ShellModule {
     /// "12 of 14 rows imported" text - this class has no localized text of its
     /// own). Bind to the Import button's action.
     protected final void importCsv(CsvRowMapper<T> mapper, BiFunction<Integer, Integer, String> summaryMessage) {
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle(getName());
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV", "*.csv"));
-        File source = chooser.showOpenDialog(sceneWindow());
-        if (source == null) {
-            return;
-        }
-        try {
-            List<List<String>> rows = CsvIO.parse(Files.readString(source.toPath()));
-            List<List<String>> dataRows = rows.isEmpty() ? List.of() : rows.subList(1, rows.size());
-            List<T> imported = new ArrayList<>();
-            for (List<String> row : dataRows) {
-                T item = mapper.fromRow(row);
-                if (item != null) {
-                    imported.add(item);
-                }
-            }
-            mergeLive(imported);
-            // A count of imported rows is an outcome, not a question - post it
-            // to the info center instead of blocking on an OK button.
-            overlays.notify(getName(), summaryMessage.apply(imported.size(), dataRows.size()));
-        } catch (IOException e) {
-            LOGGER.warn("CSV import failed: {}", source, e);
-            overlays.dialogs().showError(getName(), e.getMessage(), e);
-        }
-    }
-
-    private Window sceneWindow() {
-        return table.getScene().getWindow();
+        csvFiles.importInto(table.getScene().getWindow(), getName(), mapper, this::mergeLive, summaryMessage);
     }
 }

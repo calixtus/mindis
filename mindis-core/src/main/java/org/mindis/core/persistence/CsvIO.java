@@ -13,6 +13,40 @@ public final class CsvIO {
     private CsvIO() {
     }
 
+    /// The rows `mapper` reads from a file's content, with how many data rows
+    /// (header excluded) the file held - rows the mapper skips count towards
+    /// `rowCount` but not `items`.
+    public record Import<T>(List<T> items, int rowCount) {
+
+        public Import {
+            items = List.copyOf(items);
+        }
+    }
+
+    /// Writes `items` through `mapper`, header first.
+    public static <T> void write(Writer writer, CsvRowMapper<T> mapper, List<T> items) throws IOException {
+        List<List<String>> rows = new ArrayList<>();
+        for (T item : items) {
+            rows.add(mapper.toRow(item));
+        }
+        write(writer, mapper.header(), rows);
+    }
+
+    /// Parses `content` and maps every data row through `mapper`; the first
+    /// row is the header and is not mapped.
+    public static <T> Import<T> read(String content, CsvRowMapper<T> mapper) {
+        List<List<String>> rows = parse(content);
+        List<List<String>> dataRows = rows.isEmpty() ? List.of() : rows.subList(1, rows.size());
+        List<T> items = new ArrayList<>();
+        for (List<String> row : dataRows) {
+            T item = mapper.fromRow(row);
+            if (item != null) {
+                items.add(item);
+            }
+        }
+        return new Import<>(items, dataRows.size());
+    }
+
     public static void write(Writer writer, List<String> header, List<List<String>> rows) throws IOException {
         writeRow(writer, header);
         for (List<String> row : rows) {
