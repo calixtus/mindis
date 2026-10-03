@@ -27,11 +27,12 @@ public final class ArchivedServiceRepository {
     private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
     private boolean dirty;
 
-    /// Every archived service, newest first.
+    /// Every archived service, newest first. Unmodifiable, like every other
+    /// repository's `findAll`.
     public synchronized List<ArchivedService> findAll() {
-        List<ArchivedService> all = new ArrayList<>(archived);
-        all.sort(Comparator.comparing(ArchivedService::dateTime).reversed());
-        return all;
+        return archived.stream()
+                .sorted(Comparator.comparing(ArchivedService::dateTime).reversed())
+                .toList();
     }
 
     /// Appends `services`. No-op for an empty list.
