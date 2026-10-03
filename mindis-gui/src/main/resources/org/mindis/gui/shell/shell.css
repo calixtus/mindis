@@ -270,7 +270,7 @@
 }
 
 
-/* A field label whose value differs from the saved one (see CrudModule#setFieldChanged). */
+/* A field label whose value differs from the saved one (see FieldAccents#setFieldChanged). */
 .field-changed {
     -fx-border-color: -color-accent-emphasis;
     -fx-border-width: 0 0 0 3;

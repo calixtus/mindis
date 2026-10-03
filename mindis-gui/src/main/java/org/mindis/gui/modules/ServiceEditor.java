@@ -50,9 +50,9 @@ import org.mindis.core.planning.ServicePlan;
 import org.jspecify.annotations.Nullable;
 
 import org.mindis.gui.planning.PlanningViewModel;
+import org.mindis.gui.shell.FieldAccents;
 import org.mindis.gui.util.CalendarPickers;
 import org.mindis.gui.util.TimePickers;
-import org.mindis.gui.shell.CrudModule;
 
 /// One service row's editor: date/time/type/location/note fields plus the
 /// Altar-servers assignment panel (one server combo per role slot).
@@ -94,8 +94,9 @@ final class ServiceEditor {
     private List<Slot> liveSlots;
 
     /// @param baseline   the row's last-saved value, re-read on every check
-    ///                   (see [CrudModule#baseline(Object)])
-    /// @param updateLive stages an edited value (see [CrudModule#updateLive(Object)])
+    ///                   (see [org.mindis.gui.shell.CrudModule#baseline(Object)])
+    /// @param updateLive stages an edited value (see
+    ///                   [org.mindis.gui.shell.CrudModule#updateLive(Object)])
     ServiceEditor(LiturgicalService service, Supplier<LiturgicalService> baseline,
                   Consumer<LiturgicalService> updateLive, LiveRoster roster,
                   PlanningViewModel planningViewModel, ServicesSolverController solver) {
@@ -154,7 +155,7 @@ final class ServiceEditor {
         // Bound directly to the shared live role list - a role added,
         // renamed or removed anywhere shows up in this editor on its own.
         slotsEditor = new SlotCountEditor(roster.roles(), countsByRole(service.slots()), this::onSlotCountsChanged);
-        CrudModule.setFieldChanged(slotsEditor.label, slotsChanged(slotsEditor.collectCounts()));
+        FieldAccents.setFieldChanged(slotsEditor.label, slotsChanged(slotsEditor.collectCounts()));
         refreshAssignmentSection();
 
         GridPane grid = new GridPane();
@@ -196,12 +197,12 @@ final class ServiceEditor {
         content.setPadding(new Insets(12));
         content.setMinHeight(EDITOR_MIN_HEIGHT);
         content.getStylesheets().add(ServicesModule.STYLESHEET);
-        CrudModule.markDirtyOnChange(dateField.valueProperty(), () -> baselineSupplier.get().dateTime().toLocalDate(), dateLabel);
-        CrudModule.markDirtyOnChange(timeField.timeProperty(), () -> baselineSupplier.get().dateTime().toLocalTime(), timeLabel);
-        CrudModule.markDirtyOnChange(typeBox.valueProperty(), () -> baselineSupplier.get().type(), typeLabel);
-        CrudModule.markDirtyOnChange(nameField.textProperty(), () -> baselineSupplier.get().name(), nameLabel);
-        CrudModule.markDirtyOnChange(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
-        CrudModule.markDirtyOnChange(noteField.textProperty(), () -> baselineSupplier.get().note(), noteLabel);
+        FieldAccents.markDirtyOnChange(dateField.valueProperty(), () -> baselineSupplier.get().dateTime().toLocalDate(), dateLabel);
+        FieldAccents.markDirtyOnChange(timeField.timeProperty(), () -> baselineSupplier.get().dateTime().toLocalTime(), timeLabel);
+        FieldAccents.markDirtyOnChange(typeBox.valueProperty(), () -> baselineSupplier.get().type(), typeLabel);
+        FieldAccents.markDirtyOnChange(nameField.textProperty(), () -> baselineSupplier.get().name(), nameLabel);
+        FieldAccents.markDirtyOnChange(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
+        FieldAccents.markDirtyOnChange(noteField.textProperty(), () -> baselineSupplier.get().note(), noteLabel);
     }
 
     Node node() {
@@ -214,7 +215,7 @@ final class ServiceEditor {
 
     private void onSlotCountsChanged(Map<String, Integer> liveCounts) {
         liveSlots = reconcileSlots(liveSlots, liveCounts);
-        CrudModule.setFieldChanged(slotsEditor.label, slotsChanged(liveCounts));
+        FieldAccents.setFieldChanged(slotsEditor.label, slotsChanged(liveCounts));
         // pushLive replaces this service's row item, which re-renders its
         // tile on its own; refreshAssignmentSection redraws the open editor.
         pushLive();
@@ -247,7 +248,7 @@ final class ServiceEditor {
     /// slot just added by the count editor is immediately assignable - no
     /// "save first" placeholder.
     private List<Node> buildAssignmentRows() {
-        CrudModule.setFieldChanged(altarServersTitle, assignmentsChanged());
+        FieldAccents.setFieldChanged(altarServersTitle, assignmentsChanged());
         if (liveSlots.isEmpty()) {
             return List.of();
         }
@@ -367,12 +368,12 @@ final class ServiceEditor {
         } finally {
             suppressPushLive = false;
         }
-        CrudModule.recomputeFieldChanged(dateField.valueProperty(), () -> baselineSupplier.get().dateTime().toLocalDate(), dateLabel);
-        CrudModule.recomputeFieldChanged(timeField.timeProperty(), () -> baselineSupplier.get().dateTime().toLocalTime(), timeLabel);
-        CrudModule.recomputeFieldChanged(typeBox.valueProperty(), () -> baselineSupplier.get().type(), typeLabel);
-        CrudModule.recomputeFieldChanged(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
-        CrudModule.recomputeFieldChanged(noteField.textProperty(), () -> baselineSupplier.get().note(), noteLabel);
-        CrudModule.setFieldChanged(slotsEditor.label, slotsChanged(countsByRole(updated.slots())));
+        FieldAccents.recomputeFieldChanged(dateField.valueProperty(), () -> baselineSupplier.get().dateTime().toLocalDate(), dateLabel);
+        FieldAccents.recomputeFieldChanged(timeField.timeProperty(), () -> baselineSupplier.get().dateTime().toLocalTime(), timeLabel);
+        FieldAccents.recomputeFieldChanged(typeBox.valueProperty(), () -> baselineSupplier.get().type(), typeLabel);
+        FieldAccents.recomputeFieldChanged(locationField.textProperty(), () -> baselineSupplier.get().location(), locationLabel);
+        FieldAccents.recomputeFieldChanged(noteField.textProperty(), () -> baselineSupplier.get().note(), noteLabel);
+        FieldAccents.setFieldChanged(slotsEditor.label, slotsChanged(countsByRole(updated.slots())));
         refreshAssignmentSection();
     }
 

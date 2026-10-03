@@ -57,6 +57,7 @@ import org.jspecify.annotations.Nullable;
 import org.mindis.core.persistence.ServerCsvMapper;
 import org.mindis.core.persistence.ServerRepository;
 import org.mindis.gui.preferences.UiPreferences;
+import org.mindis.gui.shell.FieldAccents;
 import org.mindis.gui.util.CalendarPickers;
 import org.mindis.gui.util.DateTimes;
 import org.mindis.gui.util.SearchFields;
@@ -280,7 +281,7 @@ public final class ServersModule extends CrudModule<Server> {
                 candidate -> Objects.requireNonNullElse(candidate.familyId(), ""),
                 familyIdField::setSelectedItem);
         form.section(Localization.lang("Preferred times"), preferredTimesTiles,
-                label -> setFieldChanged(label,
+                label -> FieldAccents.setFieldChanged(label,
                         !new HashSet<>(preferredTimesItems).equals(form.baseline().get().preferredTimes())),
                 updated -> {
                     preferredTimesItems.setAll(updated.preferredTimes().stream().sorted().toList());
@@ -291,12 +292,12 @@ public final class ServersModule extends CrudModule<Server> {
         form.field(Localization.lang("Active"), activeCheck, activeCheck.selectedProperty(),
                 Server::active, activeCheck::setSelected);
         form.section(Localization.lang("Qualifications"), qualifications.list(),
-                label -> setFieldChanged(label,
+                label -> FieldAccents.setFieldChanged(label,
                         !qualifications.selection().equals(form.baseline().get().qualifications())),
                 updated -> qualifications.show(updated.qualifications()))
                 .listAligned().growing();
         form.section(Localization.lang("Incompatible roles"), incompatibleRoles.list(),
-                label -> setFieldChanged(label,
+                label -> FieldAccents.setFieldChanged(label,
                         !incompatibleRoles.selection().equals(form.baseline().get().incompatibleRoles())),
                 updated -> incompatibleRoles.show(updated.incompatibleRoles()))
                 .listAligned().growing();
@@ -313,7 +314,7 @@ public final class ServersModule extends CrudModule<Server> {
         unavailabilityBox.setMaxWidth(Double.MAX_VALUE);
         periodControls.prefWrapLengthProperty().bind(unavailabilityBox.widthProperty());
         form.section(Localization.lang("Unavailable periods"), unavailabilityBox,
-                label -> setFieldChanged(label, !new HashSet<>(unavailabilityList.getItems())
+                label -> FieldAccents.setFieldChanged(label, !new HashSet<>(unavailabilityList.getItems())
                         .equals(new HashSet<>(form.baseline().get().unavailabilities()))),
                 updated -> unavailabilityList.getItems().setAll(updated.unavailabilities()))
                 .listAligned().growing();

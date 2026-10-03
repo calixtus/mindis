@@ -94,11 +94,11 @@ public final class EditorForm<T> {
     public <V extends @Nullable Object> Row field(String labelText, Node control, ObservableValue<? extends V> property,
                          Function<T, V> value, Consumer<V> setter) {
         Label label = new Label(labelText);
-        CrudModule.markDirtyOnChange(property, () -> value.apply(baseline.get()), label);
+        FieldAccents.markDirtyOnChange(property, () -> value.apply(baseline.get()), label);
         editableProperties.add(property);
         applyToControls.add(updated -> setter.accept(value.apply(updated)));
         recomputeAccents.add(() ->
-                CrudModule.recomputeFieldChanged(property, () -> value.apply(baseline.get()), label));
+                FieldAccents.recomputeFieldChanged(property, () -> value.apply(baseline.get()), label));
         return addRow(label, control);
     }
 

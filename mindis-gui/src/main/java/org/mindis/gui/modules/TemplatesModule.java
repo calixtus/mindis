@@ -27,6 +27,7 @@ import org.jspecify.annotations.Nullable;
 import org.mindis.core.model.ServiceType;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.core.persistence.TemplateCsvMapper;
+import org.mindis.gui.shell.FieldAccents;
 import org.mindis.gui.util.TimePickers;
 import org.mindis.gui.shell.CrudModule;
 import org.mindis.gui.shell.EditorForm;
@@ -86,7 +87,7 @@ public final class TemplatesModule extends CrudModule<ServiceTemplate> {
     @Override
     protected EditorBinding<ServiceTemplate> buildEditor(ServiceTemplate template) {
         // Compares against the last-flushed value, not template itself - see
-        // CrudModule#markDirtyOnChange.
+        // FieldAccents#markDirtyOnChange.
         EditorForm<ServiceTemplate> form = editorForm(template);
 
         ScheduleEditor scheduleEditor = new ScheduleEditor(template.schedule());
@@ -128,7 +129,7 @@ public final class TemplatesModule extends CrudModule<ServiceTemplate> {
         // One label spans the whole role/count list, so its accent re-diffs
         // every count against the baseline rather than watching one property.
         form.section(slotsEditor.label, slotsEditor.list(),
-                label -> setFieldChanged(label,
+                label -> FieldAccents.setFieldChanged(label,
                         !slotsEditor.collectCounts().equals(countsByRole(form.baseline().get().slots()))),
                 updated -> slotsEditor.setCounts(countsByRole(updated.slots())))
                 .topAligned().growing();

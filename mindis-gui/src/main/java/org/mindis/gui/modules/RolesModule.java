@@ -23,6 +23,7 @@ import org.mindis.core.persistence.RoleCsvMapper;
 import org.mindis.core.persistence.RoleRepository;
 import org.mindis.gui.shell.CrudModule;
 import org.mindis.gui.shell.EditorForm;
+import org.mindis.gui.shell.FieldAccents;
 import org.mindis.gui.shell.ShellOverlays;
 import org.mindis.gui.data.LiveStore;
 
@@ -89,7 +90,7 @@ public final class RolesModule extends CrudModule<Role> {
                 new InputGroup(minAgeSpinner, new Label("–"), maxAgeSpinner),
                 label -> {
                     Role saved = form.baseline().get();
-                    setFieldChanged(label, !Objects.equals(minAgeSpinner.getValue(), saved.minAge())
+                    FieldAccents.setFieldChanged(label, !Objects.equals(minAgeSpinner.getValue(), saved.minAge())
                             || !Objects.equals(maxAgeSpinner.getValue(), saved.maxAge()));
                 },
                 updated -> {
