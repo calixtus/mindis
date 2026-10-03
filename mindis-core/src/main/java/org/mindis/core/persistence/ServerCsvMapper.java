@@ -7,6 +7,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -22,6 +23,11 @@ import org.mindis.core.model.UnavailabilityPeriod;
 /// future web module gets the same for free).
 @NullMarked
 public final class ServerCsvMapper implements CsvRowMapper<Server> {
+
+    /// A data format, not display text: fixed to the root locale, which also
+    /// makes it safe to share - a numbers-only pattern has nothing a language
+    /// change could alter.
+    private static final DateTimeFormatter PREFERRED_TIME = DateTimeFormatter.ofPattern("H:mm", Locale.ROOT);
 
     private final RoleRepository roleRepository;
 
@@ -140,7 +146,7 @@ public final class ServerCsvMapper implements CsvRowMapper<Server> {
         Set<LocalTime> times = new HashSet<>();
         for (String part : text.split(",")) {
             try {
-                times.add(LocalTime.parse(part.strip(), DateTimeFormatter.ofPattern("H:mm")));
+                times.add(LocalTime.parse(part.strip(), PREFERRED_TIME));
             } catch (DateTimeParseException e) {
                 // Ignore invalid entries; the field is free-form.
             }
