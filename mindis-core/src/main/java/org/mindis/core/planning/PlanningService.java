@@ -21,6 +21,7 @@ import java.util.function.Consumer;
 
 import org.jspecify.annotations.Nullable;
 
+import org.mindis.core.model.Indexes;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Server;
 import org.mindis.core.model.Slot;
@@ -114,8 +115,7 @@ public final class PlanningService implements AutoCloseable {
     /// them into the live store, and a Save all persists them like any other
     /// service edit.
     public List<LiturgicalService> writeBack(ServicePlan solved, List<LiturgicalService> services) {
-        Map<String, Assignment> byId = new HashMap<>();
-        solved.getAssignments().forEach(assignment -> byId.put(assignment.getId(), assignment));
+        Map<String, Assignment> byId = Indexes.byKey(solved.getAssignments(), Assignment::getId);
         List<LiturgicalService> result = new ArrayList<>();
         for (LiturgicalService service : services) {
             List<Slot> newSlots = new ArrayList<>();

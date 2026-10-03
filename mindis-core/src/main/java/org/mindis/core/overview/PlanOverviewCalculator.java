@@ -15,6 +15,7 @@ import java.util.Set;
 
 import org.mindis.core.l10n.EnumDisplay;
 import org.mindis.core.model.ArchivedService;
+import org.mindis.core.model.Indexes;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
@@ -273,8 +274,7 @@ final class PlanOverviewCalculator {
     /// only discover by reading every service. Deliberately not the solver's
     /// constraint check: this is about the roster, not about one plan's score.
     private List<RosterIssue> rosterIssues(List<LiturgicalService> ahead) {
-        Map<String, Server> serversById = new LinkedHashMap<>();
-        servers.forEach(server -> serversById.put(server.id(), server));
+        Map<String, Server> serversById = Indexes.byKey(servers, Server::id);
         Set<String> assignedAhead = new LinkedHashSet<>();
         List<RosterIssue> issues = new ArrayList<>();
         for (LiturgicalService service : ahead) {
@@ -361,8 +361,7 @@ final class PlanOverviewCalculator {
     }
 
     private List<ServerLoad> serverLoad(List<LiturgicalService> services) {
-        Map<String, Server> serversById = new LinkedHashMap<>();
-        servers.forEach(server -> serversById.put(server.id(), server));
+        Map<String, Server> serversById = Indexes.byKey(servers, Server::id);
         Map<String, Long> countByServer = new LinkedHashMap<>();
         // Active servers start at zero: someone who is never assigned is the
         // most interesting entry of this widget, and would otherwise be the one

@@ -2,7 +2,6 @@ package org.mindis.gui.modules;
 
 import java.io.UncheckedIOException;
 import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -11,6 +10,7 @@ import javafx.stage.Window;
 
 import org.mindis.core.export.PlanExportFormat;
 import org.mindis.core.l10n.Localization;
+import org.mindis.core.model.Indexes;
 import org.mindis.core.model.LiturgicalService;
 import org.mindis.core.model.LiturgicalServices;
 import org.mindis.core.planning.ServiceArchiver;
@@ -45,8 +45,7 @@ final class ServicePlanActions {
         if (result.isEmpty()) {
             return false;
         }
-        Map<String, LiturgicalService> byId = new HashMap<>();
-        serviceStore.items().forEach(service -> byId.put(service.id(), service));
+        Map<String, LiturgicalService> byId = Indexes.byKey(serviceStore.items(), LiturgicalService::id);
         for (String id : result.removedServiceIds()) {
             LiturgicalService service = byId.get(id);
             if (service != null) {

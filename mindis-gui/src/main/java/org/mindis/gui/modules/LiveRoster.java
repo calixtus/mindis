@@ -1,11 +1,11 @@
 package org.mindis.gui.modules;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import javafx.collections.ObservableList;
 
+import org.mindis.core.model.Indexes;
 import org.mindis.core.model.Role;
 import org.mindis.core.model.Server;
 import org.mindis.gui.data.LiveStore;
@@ -31,14 +31,12 @@ final class LiveRoster {
     }
 
     Map<String, Role> rolesById() {
-        Map<String, Role> byId = new HashMap<>();
-        roles.items().forEach(role -> byId.put(role.id(), role));
+        Map<String, Role> byId = Indexes.byKey(roles.items(), Role::id);
         return byId;
     }
 
     Map<String, Server> serversById() {
-        Map<String, Server> byId = new HashMap<>();
-        servers.items().forEach(server -> byId.put(server.id(), server));
+        Map<String, Server> byId = Indexes.byKey(servers.items(), Server::id);
         return byId;
     }
 
