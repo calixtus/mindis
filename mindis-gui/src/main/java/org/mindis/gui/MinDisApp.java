@@ -3,6 +3,8 @@ package org.mindis.gui;
 import atlantafx.base.theme.NordDark;
 import atlantafx.base.theme.NordLight;
 import atlantafx.base.theme.Theme;
+import atlantafx.base.theme.ThemeManager;
+import atlantafx.base.theme.ThemeOption;
 import com.dlsc.gemsfx.PowerPane;
 
 import io.avaje.inject.BeanScope;
@@ -66,6 +68,14 @@ import org.mindis.gui.shell.ShellOverlays;
 public class MinDisApp extends Application {
 
     private static final List<Integer> APP_ICON_SIZES = List.of(16, 32, 48, 64, 128, 256, 512);
+    private static final ThemeOption.Key<ThemeStyler.Appearance> APPEARANCE =
+            new ThemeOption.Key<>("mindis.appearance", ThemeStyler.Appearance.class);
+
+    /// Held rather than created per change: ThemeManager re-applies only when the theme
+    /// instance changes.
+    private final Theme lightTheme = new NordLight();
+    private final Theme darkTheme = new NordDark();
+    private ThemeManager themeManager;
 
     private BeanScope beanScope;
     private PreferencesService preferencesService;
@@ -110,10 +120,13 @@ public class MinDisApp extends Application {
         // localized names.
         documentSession.openLastDocumentOrNew();
 
-        // Theme, accent and font are all baked into one user-agent stylesheet
-        // (base theme @import + .root overrides), reapplied whenever any input
-        // changes. Two-arg subscribe does not fire initially; the explicit
-        // apply below seeds the first render.
+        // ThemeManager owns the user-agent stylesheet (the AtlantaFX theme) and puts
+        // ThemeStyler's stylesheet on the scene of every window as it opens, popups and
+        // dialogs included. Reapplied whenever any input changes; two-arg subscribe does
+        // not fire initially, so the explicit apply below seeds the first render.
+        themeManager = ThemeManager.instance();
+        themeManager.register(ThemeOption.of(APPEARANCE, null,
+                change -> ThemeStyler.apply(change.scene().getRoot(), change.value())));
         uiPreferences.themeProperty().subscribe((_, _) -> applyAppearance());
         uiPreferences.accentColorProperty().subscribe((_, _) -> applyAppearance());
         uiPreferences.fontFamilyProperty().subscribe((_, _) -> applyAppearance());
@@ -330,25 +343,14 @@ public class MinDisApp extends Application {
         return theme;
     }
 
-    /// Applies theme, accent and font as a single user-agent stylesheet: the
-    /// base AtlantaFX theme `@import`ed, with the accent/font
-    /// `.root` overrides appended. One UA stylesheet (rather than a UA
-    /// theme plus a Scene override layer) keeps design tokens consistent in
-    /// ComboBox popups and other popup windows, which only see the UA stylesheet
-    /// - avoiding stale-token CSS warnings when the theme is switched at runtime.
+    /// Applies theme, accent and font: the AtlantaFX theme as the user-agent stylesheet,
+    /// and ThemeStyler's stylesheet over it on every scene.
     private void applyAppearance() {
         // resolveTheme() collapses SYSTEM to a concrete LIGHT/DARK, so only
         // those two reach the base-theme choice here.
         MinDisPreferences.Theme theme = resolveTheme();
-        Theme baseTheme = theme == MinDisPreferences.Theme.DARK ? new NordDark() : new NordLight();
-        // The plain `.css` path would make JavaFX import the theme's precompiled
-        // `.bss` sibling instead, and JavaFX 27 fails with an NPE when a text
-        // stylesheet imports a binary one (rules lazily decode against the
-        // importer's string store, which a parsed stylesheet doesn't have).
-        // AtlantaFX's `stylesheet:` URL, listing every module, serves the CSS text.
-        String baseUrl = baseTheme.getUserAgentStylesheet(baseTheme.getManifest().getModules().keySet());
-        setUserAgentStylesheet(ThemeStyler.userAgentStylesheet(
-                baseUrl,
+        themeManager.setTheme(theme == MinDisPreferences.Theme.DARK ? darkTheme : lightTheme);
+        themeManager.setOption(APPEARANCE, new ThemeStyler.Appearance(
                 theme,
                 resolveAccentHex(),
                 uiPreferences.fontFamilyProperty().get(),

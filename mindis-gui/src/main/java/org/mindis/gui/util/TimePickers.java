@@ -23,17 +23,11 @@ public final class TimePickers {
     /// <p>The clock-face popup (`TimePickerPopup`) needs the same
     /// treatment for its own rules, including the ones gemsfx writes as
     /// hardcoded literals (white/gray/lightgray/black, not token lookups) for
-    /// the idle/hover/selected list cells - a direct rule override of those
-    /// previously failed when attached to the app's global scene-level UA
-    /// stylesheet ([org.mindis.gui.theme.ThemeStyler]), since the popup
-    /// is a separate `PopupControl` window with its own node-scoped UA
-    /// stylesheet, and two same-origin (UA) rules of equal specificity resolve
-    /// by declaration order, not simply "app always wins". Attached here
-    /// instead, directly on the `TimePicker` itself (author origin, like
-    /// `CalendarPickers` does via `getCalendarView()`) - the
-    /// popup's `PopupControl` declares the `TimePicker` as its
-    /// `getStyleableParent()`, and author-origin rules do cross that
-    /// boundary, unlike the UA-origin ones tried before.
+    /// the idle/hover/selected list cells. Kept here with the rest rather than in
+    /// [org.mindis.gui.theme.ThemeStyler]'s app-wide stylesheet: the popup's
+    /// `PopupControl` declares the `TimePicker` as its `getStyleableParent()`,
+    /// so a stylesheet on the `TimePicker` itself (author origin, like
+    /// `CalendarPickers` does via `getCalendarView()`) reaches the popup too.
     private static final String TIME_PICKER_THEME_CSS = """
             .time-picker {
               -fx-outer-border: -color-border-default;

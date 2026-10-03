@@ -14,8 +14,7 @@ import java.util.Base64;
 /// javafx.css log the moment the field is shown.
 public final class SearchFields {
 
-    /// Attached directly to the field (author origin) rather than folded into
-    /// the app's user-agent stylesheet - author origin always outranks
+    /// Attached directly to the field (author origin) - author origin always outranks
     /// gemsfx's own `search-field.css` (user-agent origin) regardless
     /// of selector specificity, so there's no cascade tie to fight.
     private static final String SEARCH_FIELD_THEME_CSS = """

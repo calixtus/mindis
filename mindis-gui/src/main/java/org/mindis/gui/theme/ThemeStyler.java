@@ -3,17 +3,20 @@ package org.mindis.gui.theme;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
+import javafx.scene.Parent;
 import javafx.scene.paint.Color;
+
+import org.jspecify.annotations.Nullable;
 
 import org.mindis.core.preferences.MinDisPreferences;
 
-/// Builds the application's user-agent stylesheet: the base AtlantaFX theme
-/// `@import`ed, followed by the user's accent/font `.root`
-/// overrides. Emitted as a single `data:` URI for
-/// [javafx.application.Application#setUserAgentStylesheet]. Applying everything
-/// through one user-agent stylesheet (rather than a Scene override layer) keeps
-/// design tokens available to popup windows (ComboBox popups etc.), which only
-/// consult the user-agent stylesheet.
+/// Builds the stylesheet MinDis lays over the AtlantaFX base theme: the user's accent
+/// and font as `.root` overrides, text on accent fills, and the Modena tokens GemsFX
+/// looks up. The base theme is the user-agent stylesheet, which AtlantaFX's
+/// `ThemeManager` sets; this one goes on the root of every scene - `ThemeManager`
+/// visits each window, popups and dialogs included (see `MinDisApp`) - so it is an
+/// author stylesheet and outranks both the theme and the per-control user-agent
+/// stylesheets GemsFX's popups install.
 ///
 /// <p>Accent tokens are derived from a single base hex per theme mode, mirroring
 /// how AtlantaFX relates `-color-accent-fg/emphasis/muted/subtle`: on dark
@@ -21,24 +24,40 @@ import org.mindis.core.preferences.MinDisPreferences;
 /// background; on light it inverts, the foreground a darkened base.
 public final class ThemeStyler {
 
+    /// What the stylesheet is built from.
+    ///
+    /// @param theme      LIGHT or DARK; SYSTEM is resolved before it gets here
+    /// @param accentHex  base accent hex (e.g. `#3b82f6`)
+    /// @param fontFamily the user's font, or [MinDisPreferences#DEFAULT_FONT_FAMILY] for the theme's
+    /// @param fontSize   font size in px, or 0 for the theme's
+    public record Appearance(MinDisPreferences.Theme theme, String accentHex, String fontFamily, int fontSize) {
+    }
+
+    /// Key under which [#apply] remembers, on the root, the stylesheet it added there.
+    private static final Object APPLIED_STYLESHEET = new Object();
+
     private ThemeStyler() {
     }
 
-    /// @param baseThemeUrl the base theme's stylesheet URL (from
-    ///                     `Theme.getUserAgentStylesheet()`)
-    /// @param accentHex    base accent hex (e.g. `#3b82f6`), or
-    ///                     `null` to keep the theme's own accent
-    /// @return a `data:text/css;base64,...` URI that imports the base
-    ///         theme and appends the accent/font overrides
-    public static String userAgentStylesheet(String baseThemeUrl,
-                                             MinDisPreferences.Theme theme,
-                                             String accentHex,
-                                             String fontFamily,
-                                             int fontSize) {
-        String css = "@import \"" + baseThemeUrl + "\";\n"
-                + buildCss(theme, accentHex, fontFamily, fontSize);
-        return "data:text/css;base64,"
-                + Base64.getEncoder().encodeToString(css.getBytes(StandardCharsets.UTF_8));
+    /// Puts the stylesheet for `appearance` on `root`, replacing the one an earlier call
+    /// put there; `null` only removes it.
+    public static void apply(Parent root, @Nullable Appearance appearance) {
+        if (root.getProperties().remove(APPLIED_STYLESHEET) instanceof String previous) {
+            root.getStylesheets().remove(previous);
+        }
+        if (appearance != null) {
+            String stylesheet = stylesheet(appearance);
+            root.getStylesheets().add(stylesheet);
+            root.getProperties().put(APPLIED_STYLESHEET, stylesheet);
+        }
+    }
+
+    /// The stylesheet as a `data:` URI. Base64 rather than AtlantaFX's `Styles.encode`,
+    /// whose plain form JavaFX percent-decodes - and `derive()` takes percentages.
+    public static String stylesheet(Appearance appearance) {
+        String css = buildCss(appearance.theme(), appearance.accentHex(), appearance.fontFamily(),
+                appearance.fontSize());
+        return "data:text/css;base64," + Base64.getEncoder().encodeToString(css.getBytes(StandardCharsets.UTF_8));
     }
 
     /// Web hex (`#rrggbb`) for a JavaFX color (e.g. the OS accent).
@@ -49,101 +68,19 @@ public final class ThemeStyler {
                 Math.round(color.getBlue() * 255));
     }
 
-    /// Fallback definitions for legacy Modena tokens (`-fx-control-inner-background`,
-    /// `-fx-selection-bar-text`, ...) that GemsFX's bundled control CSS
-    /// (CalendarPicker, SearchField/TagsField, TimePicker, ...) looks up but
-    /// AtlantaFX's from-scratch `-color-*` stylesheet never defines -
-    /// left unresolved, JavaFX logs a ClassCastException/"could not resolve"
-    /// warning per lookup and the rule fails to paint. Defined once here
-    /// (rather than per-control, as `CalendarPickers` does for rules
-    /// this doesn't cover) because it's the only stylesheet popups consult
-    /// (see the class javadoc), which per-control author stylesheets don't
-    /// reach. Inert for AtlantaFX's own styling of standard controls - they
-    /// key off `-color-*` tokens, never these.
+    /// Legacy Modena tokens (`-fx-control-inner-background`, `-fx-selection-bar-text`, ...)
+    /// that GemsFX's bundled control CSS - CalendarPicker, SearchField, TimePicker, the
+    /// PowerPane's info center - looks up but AtlantaFX never defines. Left unresolved,
+    /// JavaFX logs a warning per lookup and the rule paints nothing. Inert for AtlantaFX's
+    /// own controls, which key off `-color-*` only.
     ///
-    /// <p>`-fx-selection-bar-text` is GemsFX's row text color in
-    /// `search-field-list-view` - applied via ONE unconditional rule to
-    /// every row regardless of state (see `search-field.css`), so it
-    /// can't differ between idle/hover/selected. Direct rule overrides
-    /// targeting the hover/selected `.text` node specifically (tried
-    /// first) never took effect: the popup's `ListView` overrides
-    /// [javafx.scene.Node#getUserAgentStylesheet()] to return GemsFX's
-    /// `search-field.css` directly (see `SearchFieldPopupSkin`),
-    /// and per-Node user-agent stylesheets win property-for-property ties
-    /// against the application-wide one from here, regardless of selector
-    /// specificity - confirmed empirically (background token substitutions
-    /// always took effect; competing background/fill *rules* for the same
-    /// property never did).
-    ///
-    /// <p>What does reliably cross that boundary is custom-property
-    /// (token) *inheritance*, since that's resolved by the normal CSS
-    /// cascade rather than a property-value tie - the crash-fix tokens below
-    /// prove it (zero resolution warnings). So instead of fighting for a
-    /// rule, `-fx-accent`/`-fx-selection-bar` are redefined with
-    /// a *scope*: pale (`-color-accent-subtle`) only inside
-    /// `.search-field-list-view`, versus vivid
-    /// (`-color-accent-emphasis`) at `.root` for whatever else
-    /// (CalendarPicker, TimePicker, ...) still wants the strong version -
-    /// both tokens are Modena-only (AtlantaFX's own controls key off
-    /// `-color-*` directly, confirmed against `.button.accent`),
-    /// so nothing outside this popup is affected. With hover/selected now
-    /// pale rather than saturated, the same blanket
-    /// `-fx-selection-bar-text` (`-color-fg-default`, dark)
-    /// stays legible across all three row states - no per-state text swap
-    /// needed at all.
-    ///
-    /// <p>The popup's own idle row background needed a separate fix:
-    /// `search-field-list-view`'s original rule paints it with
-    /// `linear-gradient(derive(-fx-color,-17%), derive(-fx-color,-30%))`
-    /// layered under `-fx-control-inner-background` - patching the
-    /// tokens that gradient derives from still leaves a *derived*, not flat,
-    /// result. This one *is* a safe direct-rule override, unlike the
-    /// hover/selected case above: GemsFX's idle-row rule only ever sets
-    /// `-fx-background` (an unused intermediate, never converted to
-    /// `-fx-background-color` for the idle state), so there's no
-    /// competing property value to lose a tie against. Flattened to
-    /// `-color-bg-overlay` (AtlantaFX's own popup-surface token),
-    /// exactly what `CalendarPickers` does for gemsfx's calendar popup.
-    ///
-    /// <p>`-fx-box-border` is `TimePicker`'s clock-face popup
-    /// (`TimePickerPopup`) crashing the same way `search-field-list-view`
-    /// did - `-fx-background-color: -fx-box-border, white` left the first
-    /// layer unresolved. Same value `CalendarPickers` already uses for
-    /// `.calendar-view`, just global here: `TimePicker` exposes no
-    /// popup-content accessor to attach an author-origin stylesheet to
-    /// directly the way `CalendarPickers` does via `getCalendarView()`.
-    ///
-    /// <p>The rest of `time-picker-popup`'s rules aren't unresolved
-    /// lookups - they're hardcoded literals (`white`/`gray`/
-    /// `lightgray`/`black`), so they don't crash, just ignore the
-    /// theme. Tried overriding those too, selector-for-selector matching
-    /// `time-picker.css` exactly - confirmed empirically NOT to work:
-    /// `TimePickerPopup` (the `HBox` gemsfx shows as the popup
-    /// content) overrides `getUserAgentStylesheet()` per-node the same
-    /// way SearchField's popup `ListView` does, and per-node
-    /// stylesheets win these ties regardless of selector specificity, so the
-    /// rule-based override attempt was reverted - it was dead code, not a
-    /// partial fix. Only the *selected* cell happens to follow the theme
-    /// (purple, matching the app accent) because gemsfx's own rule for it
-    /// routes through the `-fx-accent` *token* rather than a literal,
-    /// and token inheritance - unlike a competing rule - does cross this
-    /// boundary (see the `search-field-list-view` case above). Full
-    /// theming of the idle/hover rows would need an author-origin stylesheet
-    /// attached directly to the internal `ListView`s the way
-    /// `CalendarPickers` does via `getCalendarView()` - but
-    /// `TimePicker` exposes no equivalent accessor, and reaching them
-    /// would mean reflecting into gemsfx's private fields, too fragile to be
-    /// worth it for what's otherwise dead-simple hour/minute lists.
-    ///
-    /// <p>`-fx-background` and `-fx-control-inner-background-alt`
-    /// are the same unresolved-lookup case again, for the [com.dlsc.gemsfx.PowerPane]'s info
-    /// center (`info-center-view.css`
-    /// paints the notification wrapper, group headers and pinned separator
-    /// with them). `InfoCenterView` overrides
-    /// `getUserAgentStylesheet()` like the pickers above, so - again -
-    /// only the token substitution crosses; the literals gemsfx hardcodes
-    /// there (`yellow`/`red`/`green` severity fills) need an
-    /// author-origin rule instead and live in `shell/power-pane.css`.
+    /// <p>The search-field popup paints every row's text with one unconditional
+    /// `-fx-selection-bar-text`, so its hover and selection fills are kept pale
+    /// (`-fx-accent`/`-fx-selection-bar` redefined inside it, vivid everywhere else) for
+    /// that one dark text colour to read on all three. Its idle rows are flattened to
+    /// `-color-bg-overlay`, AtlantaFX's popup surface, instead of GemsFX's gradient derived
+    /// from `-fx-color`; because this stylesheet outranks GemsFX's, the hover and selected
+    /// fills are restated after it, or the flat idle fill would cover them too.
     private static final String MODENA_COMPAT_CSS = """
             .root {
               -fx-control-inner-background: -color-bg-default;
@@ -166,6 +103,14 @@ public final class ThemeStyler {
             }
             .search-field-list-view > .virtual-flow > .clipped-container > .sheet > .list-cell {
               -fx-background-color: -color-bg-overlay;
+            }
+            .search-field-list-view > .virtual-flow > .clipped-container > .sheet > .list-cell:filled:hover {
+              -fx-background-color: -fx-selection-bar;
+            }
+            .search-field-list-view > .virtual-flow > .clipped-container > .sheet > .list-cell:filled:selected,
+            .search-field-list-view > .virtual-flow > .clipped-container > .sheet > .list-cell:filled:selected:hover {
+              -fx-background-color: -fx-background, -fx-cell-focus-inner-border, -fx-background;
+              -fx-background-insets: 0, 1, 2;
             }
             """;
 

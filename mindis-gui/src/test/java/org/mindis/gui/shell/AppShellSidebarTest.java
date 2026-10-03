@@ -206,7 +206,7 @@ class AppShellSidebarTest {
     void entryNamesTakeTheThemeTextColour() throws InterruptedException {
         FxTest.runAndWait(() -> {
             Theme dark = new NordDark();
-            Application.setUserAgentStylesheet(dark.getUserAgentStylesheet(dark.getManifest().getModules().keySet()));
+            Application.setUserAgentStylesheet(dark.getUserAgentStylesheet());
             try {
                 AppShell shell = shellAt(220, new TestModule("Dashboard"), new TestModule("Roles"));
                 Label reference = new Label();

@@ -75,14 +75,13 @@ hover-reveal-and-hide is the wanted behavior.
   covered by `AppShellNavigationTest` and `AppShellSidebarTest`. Still a fraction of
   WorkbenchFX's 36 files, and still no third-party shell code to track.
 - No third-party shell library is a dependency.
-- GemsFX's overlay panes each override `getUserAgentStylesheet()`, so the application-wide
-  user-agent stylesheet (`ThemeStyler`) loses property-for-property ties against them — the same
-  constraint `CalendarPickers` and `TimePickers` already work around. Two mechanisms, applied by
-  which one the situation allows: token substitution in `ThemeStyler` for unresolved lookups
-  (`-fx-background`, `-fx-control-inner-background-alt`), and an author-origin stylesheet
-  (`shell/power-pane.css`) for the values GemsFX hardcodes as literals — the drawer's
-  `#e0e0e0, white` fill and `#3b424c` header buttons, the info center's `yellow`/`red`/`green`
-  severity fills.
+- GemsFX's overlay panes each override `getUserAgentStylesheet()` with their own bundled CSS, which
+  looks up Modena tokens AtlantaFX never defines and hardcodes some light-theme literals. The
+  unresolved tokens are defined once in `ThemeStyler`'s stylesheet (`-fx-background`,
+  `-fx-control-inner-background-alt`); the literals are overridden in `shell/power-pane.css` —
+  the drawer's `#e0e0e0, white` fill and `#3b424c` header buttons, the info center's
+  `yellow`/`red`/`green` severity fills. Both are author stylesheets, so they outrank GemsFX's
+  per-pane user-agent CSS outright.
 - Dialogs elsewhere in the app still use `javafx.scene.control.Alert`, which opens a separate
   Modena-styled stage. `ShellOverlays.dialogs()` is the in-window replacement to move them to.
 - `CrudModule` deliberately holds no localized text, so every button's wording stays with the screen

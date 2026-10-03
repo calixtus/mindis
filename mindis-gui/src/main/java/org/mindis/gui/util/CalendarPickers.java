@@ -52,8 +52,7 @@ public final class CalendarPickers {
     /// and the literals render as a bright patch even in dark mode.
     ///
     /// <p>This stylesheet is attached directly to the picker/calendar-view nodes
-    /// below (author origin) rather than folded into the app's user-agent
-    /// stylesheet - author origin always outranks gemsfx's own default
+    /// below (author origin) - author origin always outranks gemsfx's own default
     /// stylesheet (user-agent origin) regardless of selector specificity, so
     /// there's no cascade tie to fight and no need to mirror gemsfx's full
     /// ancestor chain in the selectors below - a descendant selector on the
