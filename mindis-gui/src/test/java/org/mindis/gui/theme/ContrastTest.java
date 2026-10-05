@@ -260,7 +260,7 @@ class ContrastTest {
             for (ShellModule module : modules) {
                 screens.put(module.getName(), () -> withFirstRowSelected(module));
             }
-            screens.put("Sidebar", () -> AppShell.builder(modules.get(0), modules.get(1)).build());
+            screens.put("Sidebar", () -> AppShell.builder(modules.getFirst(), modules.get(1)).build());
             screens.put("Accent controls", Screens::accentControls);
         }
 
@@ -298,7 +298,7 @@ class ContrastTest {
 
         private static <T> LiveStore<T> store(List<T> items, Function<T, @Nullable Object> identity) {
             List<T> staged = new ArrayList<>(items);
-            return new LiveStore<T>(() -> new ArrayList<>(staged), staged::add, staged::remove,
+            return new LiveStore<>(() -> new ArrayList<>(staged), staged::add, staged::remove,
                     identity::apply, Objects::equals);
         }
     }
