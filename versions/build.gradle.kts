@@ -13,7 +13,7 @@ val javafx = providers.gradleProperty("javafxVersion").get()
 
 val avajeInject = "12.7"
 val pdfbox = "3.0.8"
-val commonmark = "0.30.0"
+val commonmark = "0.30.1"
 
 dependencies {
     api(platform("org.junit:junit-bom:6.1.3"))
