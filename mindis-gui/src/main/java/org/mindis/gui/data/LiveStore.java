@@ -203,7 +203,10 @@ public final class LiveStore<T> {
         return refreshTick.getReadOnlyProperty();
     }
 
-    private boolean isDirty(T item) {
+    /// Whether `item` differs from its last-flushed snapshot or has none yet
+    /// (a not-yet-flushed new row) - the per-row test behind
+    /// [#dirtyCountProperty()].
+    public boolean isDirty(T item) {
         T snapshot = savedSnapshots.get(identity.apply(item));
         return snapshot == null || !equivalence.test(item, snapshot);
     }

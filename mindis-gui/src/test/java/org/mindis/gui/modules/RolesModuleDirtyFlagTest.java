@@ -6,11 +6,16 @@ import java.util.Objects;
 
 import com.dlsc.gemsfx.PowerPane;
 
+import javafx.css.PseudoClass;
 import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.StackPane;
 
 
 import org.junit.jupiter.api.Test;
@@ -67,6 +72,48 @@ class RolesModuleDirtyFlagTest {
             assertFalse(nameLabel.getStyleClass().contains("field-changed"),
                     "dirty accent should clear right after Save all, not require reselecting the row");
         });
+    }
+
+    @Test
+    void rowAccentFollowsEditsAndClearsOnSaveAll() throws Exception {
+        FxTest.runAndWait(() -> {
+            List<Role> staged = new ArrayList<>();
+            staged.add(new Role(new RoleId("R1"), "Acolyte", null, null, 0));
+            LiveStore<Role> store = new LiveStore<>(
+                    () -> new ArrayList<>(staged),
+                    role -> upsert(staged, role),
+                    role -> staged.removeIf(r -> r.id().equals(role.id())),
+                    Role::id, Objects::equals);
+            RolesModule module = new RolesModule("Roles", store, dummyRoleRepository(),
+                    new ShellOverlays(PowerPane::new));
+            Node content = module.activate();
+            Scene scene = new Scene(new StackPane(content), 900, 600);
+
+            TableView<Role> table = FxTest.find(content, TableView.class);
+            table.getSelectionModel().selectFirst();
+            layout(scene.getRoot());
+            assertFalse(firstRowUnsaved(table), "should start clean");
+
+            GridPane grid = FxTest.find(content, GridPane.class);
+            ((TextField) grid.getChildren().get(1)).setText("Acolyte Edited");
+            layout(scene.getRoot());
+            assertTrue(firstRowUnsaved(table), "edit should mark the row");
+
+            store.refresh();
+            layout(scene.getRoot());
+            assertFalse(firstRowUnsaved(table), "Save all should clear the row accent");
+        });
+    }
+
+    private static boolean firstRowUnsaved(TableView<Role> table) {
+        return FxTest.findAll(table, TableRow.class).stream()
+                .filter(row -> row.getIndex() == 0)
+                .anyMatch(row -> row.getPseudoClassStates().contains(PseudoClass.getPseudoClass("unsaved")));
+    }
+
+    private static void layout(Parent root) {
+        root.applyCss();
+        root.layout();
     }
 
     private static void upsert(List<Role> staged, Role role) {

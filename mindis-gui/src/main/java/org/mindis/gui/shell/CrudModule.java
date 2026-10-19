@@ -12,6 +12,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.css.PseudoClass;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
@@ -19,6 +20,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Separator;
 import javafx.scene.control.SplitPane;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.ToolBar;
 import javafx.scene.input.KeyCode;
@@ -94,8 +96,9 @@ import org.mindis.gui.data.LiveStore;
 ///
 /// <p><b>New/live-edit lifecycle:</b> [#newItem()] calls
 /// [#createStub()] and inserts+selects it as a live row - an ordinary
-/// row from that point on, displayed exactly like any other (no "unsaved" row
-/// styling - the table always just shows the live store's current values).
+/// row from that point on, displayed exactly like any other: the table shows
+/// the live store's current values and marks every unsaved row, new or
+/// edited, with the same `:unsaved` accent.
 /// Nothing here writes to disk - flushing belongs to the global Save,
 /// which re-baselines the store via [LiveStore#refresh()].
 /// [#deleteSelected()] likewise stages the removal; [#importCsv(CsvRowMapper, BiFunction)]
@@ -106,6 +109,8 @@ import org.mindis.gui.data.LiveStore;
 ///            identity function, e.g. a record's `id()`), used to
 ///            re-select a row after the store re-baselines
 public abstract class CrudModule<T> extends ShellModule {
+
+    private static final PseudoClass UNSAVED = PseudoClass.getPseudoClass("unsaved");
 
     private final LiveStore<T> store;
     private final CsvFileTransfer csvFiles;
@@ -413,6 +418,16 @@ public abstract class CrudModule<T> extends ShellModule {
 
     private Node buildView() {
         table.setItems(tableItems());
+        // Every change that can flip a row's dirty state (an edit, a Save/Open
+        // re-baseline) replaces items in the list, which reruns updateItem -
+        // so the accent needs no listener of its own on the long-lived store.
+        table.setRowFactory(_ -> new TableRow<>() {
+            @Override
+            protected void updateItem(T item, boolean empty) {
+                super.updateItem(item, empty);
+                pseudoClassStateChanged(UNSAVED, !empty && item != null && store.isDirty(item));
+            }
+        });
         // Del key deletes the selected row, same as the Delete button (only
         // when the table itself has focus - not while editing in the side panel).
         table.setOnKeyPressed(event -> {

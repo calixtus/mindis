@@ -277,3 +277,12 @@
     -fx-border-insets: 0;
     -fx-padding: 0 0 0 6;
 }
+
+/* A CRUD table row that differs from the saved one, or was never saved (see
+   CrudModule#buildView) - the same accent as .field-changed, so the list and
+   the editor agree. A border, not a background, so the selection highlight
+   doesn't hide it. */
+.table-row-cell:unsaved {
+    -fx-border-color: transparent transparent transparent -color-accent-emphasis;
+    -fx-border-width: 0 0 0 3;
+}
